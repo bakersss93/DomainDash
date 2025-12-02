@@ -95,85 +95,85 @@
                 </tr>
 
                 {{-- Slide-down details row --}}
-                <tr class="dd-service-details dd-hidden"
-                    id="service-details-{{ $service->id }}">
+                <tr data-service-panel="service-{{ $service->id }}" class="dd-service-panel">
                     <td colspan="6">
-                        <div class="dd-service-details-inner"
-                             data-details-for="{{ $service->id }}">
-                            <div class="dd-service-details-overview">
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">Plan</span>
-                                    <span class="dd-service-value dd-detail-plan">–</span>
+                        <div class="dd-service-panel-inner" data-details-for="{{ $service->id }}">
+                            {{-- Service info header --}}
+                            <div class="dd-service-panel-header">
+                                <div>
+                                    <div style="font-weight:600;">{{ $domainLabel }}</div>
+                                    <div style="font-size:13px;opacity:.8;">
+                                        <span class="dd-detail-plan">{{ $service->plan ?? 'Plan unknown' }}</span>
+                                        • Username: <span class="dd-detail-username">{{ $service->username ?? '—' }}</span>
+                                    </div>
                                 </div>
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">Server</span>
-                                    <span class="dd-service-value dd-detail-server">–</span>
-                                </div>
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">Status</span>
-                                    <span class="dd-service-value dd-detail-status">–</span>
-                                </div>
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">IP</span>
-                                    <span class="dd-service-value dd-detail-ip">–</span>
-                                </div>
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">Disk</span>
-                                    <span class="dd-service-value dd-detail-disk">–</span>
-                                </div>
-                                <div class="dd-service-detail">
-                                    <span class="dd-service-label">Username</span>
-                                    <span class="dd-service-value dd-detail-username">–</span>
-                                </div>
-                                <div class="dd-service-detail">
-                                    <button type="button"
-                                            class="btn-secondary dd-pill-btn dd-password-btn"
-                                            data-password-id="{{ $service->id }}">
-                                        Show password
-                                    </button>
+                                <div style="font-size:13px;opacity:.7;">
+                                    Server: <span class="dd-detail-server">{{ $service->server ?? '—' }}</span>
                                 </div>
                             </div>
-                            <div class="dd-service-details-actions">
-                                {{-- Assign client (opens modal) --}}
+
+                            {{-- Actions grid --}}
+                            <div class="dd-service-options-grid">
+                                {{-- Show password --}}
                                 <button type="button"
-                                        class="btn-accent dd-pill-btn dd-assign-btn"
-                                        data-service-id="{{ $service->id }}"
-                                        data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
-                                        data-current-client-id="{{ $service->client_id ?? '' }}">
-                                    Assign client
+                                        class="dd-service-option dd-password-btn"
+                                        data-password-id="{{ $service->id }}">
+                                    <div class="dd-service-option-icon">🔐</div>
+                                    <div class="dd-service-option-label">Show password</div>
                                 </button>
 
-                                {{-- Suspend / unsuspend (plain button, no label) --}}
+                                {{-- Open cPanel --}}
                                 <form method="POST"
-                                    action="{{ route('admin.services.hosting.suspend', $service) }}"
-                                    class="dd-inline-form">
+                                      action="{{ route('admin.services.hosting.login', $service) }}"
+                                      class="dd-service-option"
+                                      target="_blank">
                                     @csrf
-                                    <button type="submit" class="btn-danger dd-pill-btn dd-suspend-btn">
-                                        @if(property_exists($service, 'is_suspended') && $service->is_suspended)
-                                            Unsuspend
-                                        @else
-                                            Suspend
-                                        @endif
+                                    <button type="submit" class="dd-service-option-btn">
+                                        <div class="dd-service-option-icon">💻</div>
+                                        <div class="dd-service-option-label">Open cPanel</div>
                                     </button>
                                 </form>
 
-                                {{-- Change primary domain (opens modal) --}}
+                                {{-- Assign client --}}
                                 <button type="button"
-                                        class="btn-accent dd-pill-btn dd-change-domain-btn"
+                                        class="dd-service-option dd-assign-btn"
+                                        data-service-id="{{ $service->id }}"
+                                        data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
+                                        data-current-client-id="{{ $service->client_id ?? '' }}">
+                                    <div class="dd-service-option-icon">👥</div>
+                                    <div class="dd-service-option-label">Assign client</div>
+                                </button>
+
+                                {{-- Change primary domain --}}
+                                <button type="button"
+                                        class="dd-service-option dd-change-domain-btn"
                                         data-service-id="{{ $service->id }}"
                                         data-change-url="{{ route('admin.services.hosting.changeDomain', $service) }}"
                                         data-domain="{{ $service->domain_name }}">
-                                    Change primary domain
+                                    <div class="dd-service-option-icon">🌐</div>
+                                    <div class="dd-service-option-label">Change primary domain</div>
                                 </button>
 
-                                {{-- Login to cPanel (simple button, still a form so it can POST and open new tab) --}}
+                                {{-- Suspend / Unsuspend --}}
                                 <form method="POST"
-                                    action="{{ route('admin.services.hosting.login', $service) }}"
-                                    class="dd-inline-form"
-                                    target="_blank">
+                                      action="{{ route('admin.services.hosting.suspend', $service) }}"
+                                      class="dd-service-option dd-service-option-danger">
                                     @csrf
-                                    <button type="submit" class="btn-accent dd-pill-btn">
-                                        Open cPanel
+                                    <button type="submit" class="dd-service-option-btn">
+                                        <div class="dd-service-option-icon">
+                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
+                                                ▶️
+                                            @else
+                                                ⏸️
+                                            @endif
+                                        </div>
+                                        <div class="dd-service-option-label">
+                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
+                                                Unsuspend
+                                            @else
+                                                Suspend
+                                            @endif
+                                        </div>
                                     </button>
                                 </form>
                             </div>
@@ -311,6 +311,7 @@
         --dd-header-bg: #f9fafb;
         --dd-header-text: #111827;
         --dd-row-alt-bg: #f9f9fb;
+        --dd-hover-bg: rgba(148,163,184,0.12);
         --dd-overlay-bg: rgba(15,23,42,0.65);
     }
 
@@ -320,12 +321,13 @@
     html[data-theme="dark"] {
         --dd-card-bg: #020617;
         --dd-card-border: #1f2937;
-        --dd-pill-bg: #1f2937;
-        --dd-pill-border: #4b5563;
+        --dd-pill-bg: #0f172a;
+        --dd-pill-border: #374151;
         --dd-text-color: #e5e7eb;
         --dd-header-bg: #020617;
         --dd-header-text: #f9fafb;
         --dd-row-alt-bg: #111827;
+        --dd-hover-bg: rgba(148,163,184,0.18);
         --dd-overlay-bg: rgba(15,23,42,0.85);
     }
 
@@ -416,41 +418,114 @@
         text-decoration: none;
     }
 
-    .dd-service-details-inner {
-        padding: 10px 6px 6px;
+    /* Expandable panel with smooth transitions */
+    tr[data-service-panel] {
+        display: none;
+        height: 0;
+    }
+    tr[data-service-panel] > td {
+        padding: 0;
+        border: 0;
+    }
+    tr[data-service-panel].open {
+        display: table-row;
+        height: auto;
+    }
+
+    .dd-service-panel-inner {
+        max-height: 0;
+        padding: 0;
+        margin-top: 0;
+        border: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition:
+            max-height 0.25s ease,
+            opacity 0.2s ease,
+            transform 0.2s ease,
+            padding 0.2s ease,
+            margin-top 0.2s ease,
+            border-width 0.2s ease;
+    }
+
+    tr[data-service-panel].open > td > .dd-service-panel-inner {
+        max-height: 600px;
+        opacity: 1;
+        transform: translateY(0);
+        padding: 16px 18px 18px;
+        margin-top: 0;
+        border-radius: 8px;
+        border: 1px solid var(--dd-card-border);
+        background: var(--dd-card-bg);
+    }
+
+    .dd-service-panel-header {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: var(--dd-header-bg);
+        border: 1px solid var(--dd-card-border);
+        margin-bottom: 14px;
     }
 
-    .dd-service-details-overview {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 8px 16px;
-    }
-
-    .dd-service-detail {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .dd-service-label {
-        font-size: 11px;
-        text-transform: uppercase;
-        opacity: .7;
-    }
-
-    .dd-service-value {
-        font-size: 13px;
-        font-weight: 500;
-    }
-
-    .dd-service-details-actions {
+    .dd-service-options-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-        margin-top: 8px;
+        gap: 10px;
+    }
+
+    .dd-service-option,
+    .dd-service-option-btn {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-radius: 9999px;
+        background: var(--dd-pill-bg);
+        border: 1px solid var(--dd-pill-border);
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+        width: 100%;
+        color: var(--dd-text-color);
+        transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dd-service-option:hover,
+    .dd-service-option-btn:hover {
+        background: var(--dd-hover-bg, rgba(148,163,184,0.18));
+        border-color: var(--accent);
+        transform: translateY(-1px);
+    }
+
+    .dd-service-option-btn {
+        background: transparent;
+        color: inherit;
+    }
+
+    .dd-service-option-icon {
+        width: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        font-size: 16px;
+    }
+
+    .dd-service-option-label {
+        flex: 1;
+        text-align: left;
+    }
+
+    .dd-service-option-danger {
+        border-color: #ef4444;
+    }
+
+    .dd-service-option-danger:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: #dc2626;
     }
 
     .dd-service-form {
@@ -562,7 +637,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Slide-down details toggles (click anywhere on row except controls)
     document.querySelectorAll('.dd-service-row').forEach(function (row) {
         const id = row.getAttribute('data-service-id');
-        const detailsRow = document.getElementById('service-details-' + id);
+        const panelId = 'service-' + id;
+        const detailsRow = document.querySelector('[data-service-panel="' + panelId + '"]');
         const detailsWrapper = detailsRow
             ? detailsRow.querySelector('[data-details-for="' + id + '"]')
             : null;
@@ -572,7 +648,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const domainModal  = document.getElementById('dd-domain-modal');
         const domainForm   = document.getElementById('dd-domain-form');
         const domainInput  = document.getElementById('dd-domain-input');
-        
+
         if (!detailsRow || !detailsWrapper) return;
 
         let loaded = false;
@@ -589,22 +665,15 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 loaded = true;
 
-                detailsWrapper.querySelector('.dd-detail-plan').textContent =
-                    data.plan || '–';
-                detailsWrapper.querySelector('.dd-detail-server').textContent =
-                    data.server || '–';
-                detailsWrapper.querySelector('.dd-detail-status').textContent =
-                    data.status || '–';
-                detailsWrapper.querySelector('.dd-detail-ip').textContent =
-                    data.ip || '–';
+                // Update header info
+                const planSpan = detailsWrapper.querySelector('.dd-detail-plan');
+                if (planSpan) planSpan.textContent = data.plan || 'Plan unknown';
 
-                const disk = (data.disk_usage || data.disk_limit)
-                    ? ((data.disk_usage || '?') + ' / ' + (data.disk_limit || '?') + ' MB')
-                    : '–';
-                detailsWrapper.querySelector('.dd-detail-disk').textContent = disk;
+                const serverSpan = detailsWrapper.querySelector('.dd-detail-server');
+                if (serverSpan) serverSpan.textContent = data.server || '—';
 
-                detailsWrapper.querySelector('.dd-detail-username').textContent =
-                    data.username || '–';
+                const usernameSpan = detailsWrapper.querySelector('.dd-detail-username');
+                if (usernameSpan) usernameSpan.textContent = data.username || '—';
             })
             .catch(() => { /* ignore */ });
         }
@@ -615,12 +684,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const currentlyHidden = detailsRow.classList.contains('dd-hidden');
-            if (currentlyHidden) {
+            const isOpen = detailsRow.classList.contains('open');
+            if (!isOpen) {
                 loadDetails();
-                detailsRow.classList.remove('dd-hidden');
+                detailsRow.classList.add('open');
             } else {
-                detailsRow.classList.add('dd-hidden');
+                detailsRow.classList.remove('open');
             }
         });
     });

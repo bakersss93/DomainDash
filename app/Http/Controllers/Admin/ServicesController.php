@@ -191,13 +191,29 @@ class ServicesController extends Controller
     {
         try {
             $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
+
+            \Log::info('Attempting cPanel login', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'hoid' => $service->hoid
+            ]);
+
             $url = $synergy->hostingGetLogin($identifier, $service->hoid);
+
+            \Log::info('cPanel login URL retrieved', ['url' => $url]);
+
         } catch (\Throwable $e) {
-            $url = null;
+            \Log::error('cPanel login failed', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Error: ' . $e->getMessage());
         }
 
         if (! $url) {
-            return back()->with('status', 'Unable to get cPanel login URL from Synergy.');
+            return back()->with('error', 'Unable to get cPanel login URL from Synergy. Please check the service configuration.');
         }
 
         return redirect()->away($url);
