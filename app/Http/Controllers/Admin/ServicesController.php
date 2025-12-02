@@ -12,7 +12,7 @@ use App\Services\Synergy\SynergyWholesaleClient;
 class ServicesController extends Controller
 {
     /**
-     * List hosting services with optional client filter.
+     * List hosting services with optional client and status filters.
      */
     public function index(Request $request)
     {
@@ -21,6 +21,11 @@ class ServicesController extends Controller
         $clientId = $request->get('client_id');
         if ($clientId) {
             $q->where('client_id', $clientId);
+        }
+
+        $statusFilter = $request->get('status');
+        if ($statusFilter && Schema::hasColumn('hosting_services', 'service_status')) {
+            $q->where('service_status', $statusFilter);
         }
 
         // domain_name now exists; if it doesn't for some reason, drop the orderBy
@@ -32,9 +37,41 @@ class ServicesController extends Controller
         $clients  = Client::orderBy('business_name')->get();
 
         return view('admin.services.index', [
-            'services' => $services,
-            'clients'  => $clients,
-            'clientId' => $clientId,
+            'services'     => $services,
+            'clients'      => $clients,
+            'clientId'     => $clientId,
+            'statusFilter' => $statusFilter,
+        ]);
+    }
+
+    /**
+     * Show detailed overview of a hosting service with live stats from Synergy.
+     */
+    public function show(HostingService $service, SynergyWholesaleClient $synergy)
+    {
+        $serviceData = null;
+        $error = null;
+
+        try {
+            $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
+            $serviceData = $synergy->hostingGetService($identifier, $service->hoid);
+
+            \Log::info('Service overview data retrieved', [
+                'service_id' => $service->id,
+                'data_keys' => array_keys($serviceData)
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to retrieve service overview', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage()
+            ]);
+            $error = $e->getMessage();
+        }
+
+        return view('admin.services.show', [
+            'service' => $service,
+            'serviceData' => $serviceData,
+            'error' => $error
         ]);
     }
 
