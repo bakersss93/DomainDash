@@ -54,16 +54,38 @@ class ServicesController extends Controller
 
         try {
             $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
+
+            \Log::info('Fetching service overview', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'hoid' => $service->hoid
+            ]);
+
             $serviceData = $synergy->hostingGetService($identifier, $service->hoid);
 
             \Log::info('Service overview data retrieved', [
                 'service_id' => $service->id,
-                'data_keys' => array_keys($serviceData)
+                'status' => $serviceData['status'] ?? 'no status',
+                'data_keys' => array_keys($serviceData),
+                'has_diskUsage' => isset($serviceData['diskUsage']),
+                'has_bandwidth' => isset($serviceData['bandwidth'])
             ]);
+
+            // Check if the API call was successful
+            if (($serviceData['status'] ?? null) !== 'OK') {
+                $error = $serviceData['errorMessage'] ?? 'Failed to retrieve service data from Synergy.';
+                \Log::warning('Synergy API returned non-OK status', [
+                    'service_id' => $service->id,
+                    'status' => $serviceData['status'] ?? 'no status',
+                    'error' => $error
+                ]);
+            }
+
         } catch (\Throwable $e) {
             \Log::error('Failed to retrieve service overview', [
                 'service_id' => $service->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             $error = $e->getMessage();
         }
@@ -202,13 +224,26 @@ class ServicesController extends Controller
     {
         try {
             $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
-            
+
+            \Log::info('Fetching password for service', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'hoid' => $service->hoid
+            ]);
+
             // Call Synergy's hostingGetService to get password
             $result = $synergy->hostingGetService($identifier, $service->hoid);
-            
+
+            \Log::info('Password fetch result', [
+                'service_id' => $service->id,
+                'status' => $result['status'] ?? 'no status',
+                'has_password' => isset($result['password']),
+                'result_keys' => array_keys($result)
+            ]);
+
             if (($result['status'] ?? null) === 'OK') {
                 $password = $result['password'] ?? null;
-                
+
                 if ($password) {
                     return response()->json([
                         'ok'       => true,
@@ -216,13 +251,19 @@ class ServicesController extends Controller
                     ]);
                 }
             }
-            
+
             return response()->json([
                 'ok'      => false,
                 'message' => $result['errorMessage'] ?? 'Password not available from Synergy.',
             ], 400);
-            
+
         } catch (\Throwable $e) {
+            \Log::error('Password fetch error', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'ok'      => false,
                 'message' => 'Error fetching password: ' . $e->getMessage(),

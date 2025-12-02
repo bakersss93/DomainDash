@@ -29,6 +29,17 @@
             <div class="dd-alert dd-alert-error">
                 <strong>Error:</strong> Failed to retrieve service data from Synergy.
                 <br><small>{{ $error }}</small>
+                <br><small style="margin-top: 8px; display: block;">Displaying cached data from database below. Check Laravel logs for details.</small>
+            </div>
+        @elseif($serviceData && ($serviceData['status'] ?? null) !== 'OK')
+            <div class="dd-alert dd-alert-warning">
+                <strong>Warning:</strong> {{ $serviceData['errorMessage'] ?? 'Unable to fetch live data from Synergy.' }}
+                <br><small>Displaying cached data from database below.</small>
+            </div>
+        @elseif($serviceData)
+            <div class="dd-alert dd-alert-success">
+                <strong>Success:</strong> Live data retrieved from Synergy Wholesale.
+                <br><small>Last updated: {{ now()->format('d M Y H:i:s') }}</small>
             </div>
         @endif
 
@@ -449,6 +460,18 @@
         background: rgba(239, 68, 68, 0.1);
         border: 1px solid rgba(239, 68, 68, 0.3);
         color: #ef4444;
+    }
+
+    .dd-alert-warning {
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        color: #f59e0b;
+    }
+
+    .dd-alert-success {
+        background: rgba(74, 222, 128, 0.1);
+        border: 1px solid rgba(74, 222, 128, 0.3);
+        color: #22c55e;
     }
 </style>
 @endsection
