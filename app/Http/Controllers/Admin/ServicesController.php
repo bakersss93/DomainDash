@@ -165,23 +165,32 @@ class ServicesController extends Controller
     {
         try {
             $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
-            $info = $synergy->hostingGetService($identifier, $service->hoid);
-            $password = $info['password'] ?? null;
-        } catch (\Throwable $e) {
-            $password = null;
-        }
-
-        if (! $password) {
+            
+            // Call Synergy's hostingGetService to get password
+            $result = $synergy->hostingGetService($identifier, $service->hoid);
+            
+            if (($result['status'] ?? null) === 'OK') {
+                $password = $result['password'] ?? null;
+                
+                if ($password) {
+                    return response()->json([
+                        'ok'       => true,
+                        'password' => $password,
+                    ]);
+                }
+            }
+            
             return response()->json([
                 'ok'      => false,
-                'message' => 'Password not available from Synergy.',
+                'message' => $result['errorMessage'] ?? 'Password not available from Synergy.',
             ], 400);
+            
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok'      => false,
+                'message' => 'Error fetching password: ' . $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'ok'       => true,
-            'password' => $password,
-        ]);
     }
 
     /**
@@ -191,16 +200,19 @@ class ServicesController extends Controller
     {
         try {
             $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
-            $url = $synergy->hostingGetLogin($identifier, $service->hoid);
+            
+            // Call Synergy's hostingGetLogin to get SSO URL
+            $result = $synergy->hostingGetLogin($identifier, $service->hoid);
+            
+            if (($result['status'] ?? null) === 'OK' && !empty($result['url'])) {
+                return redirect()->away($result['url']);
+            }
+            
+            return back()->with('error', $result['errorMessage'] ?? 'Unable to get cPanel login URL from Synergy.');
+            
         } catch (\Throwable $e) {
-            $url = null;
+            return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());
         }
-
-        if (! $url) {
-            return back()->with('status', 'Unable to get cPanel login URL from Synergy.');
-        }
-
-        return redirect()->away($url);
     }
 
     /**

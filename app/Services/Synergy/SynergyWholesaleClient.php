@@ -130,7 +130,7 @@ class SynergyWholesaleClient
         // WSDL: listDNSZoneResponse.records (tns:listDNSZoneArray)
         $records = $res->records ?? [];
 
-        // Normalise – SOAP returns a single stdClass when there’s only one record
+        // Normalise – SOAP returns a single stdClass when there's only one record
         if (is_object($records)) {
             $records = [$records];
         }
@@ -194,6 +194,75 @@ class SynergyWholesaleClient
         ]);
 
         $res = $this->soap->__soapCall('deleteDNSRecord', [$params]);
+        return (array) $res;
+    }
+
+    /* -----------------------------------------------------------------
+     |  Hosting Services
+     |------------------------------------------------------------------*/
+
+    /**
+     * Get hosting service details including password.
+     * 
+     * @param string $identifier Domain, username, or hoid
+     * @param string|null $hoid Optional HOID for more specific lookup
+     * @return array
+     */
+    public function hostingGetService(string $identifier, ?string $hoid = null): array
+    {
+        $params = array_merge($this->creds(), [
+            'identifier' => $identifier,
+        ]);
+
+        if ($hoid !== null) {
+            $params['hoid'] = $hoid;
+        }
+
+        $res = $this->soap->__soapCall('hostingGetService', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Get cPanel SSO login URL.
+     * 
+     * @param string $identifier Domain, username, or hoid
+     * @param string|null $hoid Optional HOID for more specific lookup
+     * @return array
+     */
+    public function hostingGetLogin(string $identifier, ?string $hoid = null): array
+    {
+        $params = array_merge($this->creds(), [
+            'identifier' => $identifier,
+        ]);
+
+        if ($hoid !== null) {
+            $params['hoid'] = $hoid;
+        }
+
+        $res = $this->soap->__soapCall('hostingGetLogin', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * List hosting services with pagination.
+     * 
+     * @param string|null $status Filter by status
+     * @param int $page Page number
+     * @param int $limit Results per page
+     * @return array
+     */
+    public function listHosting(?string $status = null, int $page = 1, int $limit = 100): array
+    {
+        $params = array_merge($this->creds(), [
+            'page' => $page,
+            'limit' => $limit,
+        ]);
+
+        if ($status !== null) {
+            $params['status'] = $status;
+        }
+
+        $res = $this->soap->__soapCall('listHosting', [$params]);
         return (array) $res;
     }
 }
