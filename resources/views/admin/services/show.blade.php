@@ -31,7 +31,7 @@
                 <br><small>{{ $error }}</small>
                 <br><small style="margin-top: 8px; display: block;">Displaying cached data from database below. Check Laravel logs for details.</small>
             </div>
-        @elseif($serviceData && ($serviceData['status'] ?? null) !== 'OK')
+        @elseif($serviceData && !isset($serviceData['domain']))
             <div class="dd-alert dd-alert-warning">
                 <strong>Warning:</strong> {{ $serviceData['errorMessage'] ?? 'Unable to fetch live data from Synergy.' }}
                 <br><small>Displaying cached data from database below.</small>
@@ -58,6 +58,14 @@
                     <div class="dd-stat-row">
                         <span class="dd-stat-label">Username</span>
                         <span class="dd-stat-value">{{ $serviceData['username'] ?? $service->username ?? '—' }}</span>
+                    </div>
+                    <div class="dd-stat-row">
+                        <span class="dd-stat-label">Password</span>
+                        <button type="button"
+                                class="dd-password-show-btn dd-password-btn"
+                                data-password-id="{{ $service->id }}">
+                            Show password
+                        </button>
                     </div>
                     <div class="dd-stat-row">
                         <span class="dd-stat-label">Server</span>
@@ -124,12 +132,18 @@
                 </div>
                 <div class="dd-stat-card-body">
                     @php
-                        // Convert to float as API returns strings
+                        // Convert to float as API returns strings with 'M' suffix (e.g., "1043M")
                         $diskUsage = $serviceData['diskUsage'] ?? $service->disk_usage_mb ?? null;
-                        $diskUsage = $diskUsage ? (float) $diskUsage : null;
+                        if ($diskUsage) {
+                            // Remove 'M' suffix and convert to float
+                            $diskUsage = (float) str_replace(['M', 'G'], '', $diskUsage);
+                        }
 
-                        $diskLimit = $service->disk_limit_mb ?? null;
-                        $diskLimit = $diskLimit ? (float) $diskLimit : null;
+                        $diskLimit = $serviceData['diskLimit'] ?? $service->disk_limit_mb ?? null;
+                        if ($diskLimit) {
+                            // Remove 'M' suffix and convert to float
+                            $diskLimit = (float) str_replace(['M', 'G'], '', $diskLimit);
+                        }
 
                         $diskPercent = ($diskUsage && $diskLimit) ? round(($diskUsage / $diskLimit) * 100, 1) : null;
                     @endphp
@@ -483,5 +497,200 @@
         border: 1px solid rgba(74, 222, 128, 0.3);
         color: #22c55e;
     }
+
+    .dd-password-show-btn {
+        background: var(--dd-accent);
+        color: #fff;
+        border: none;
+        padding: 6px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: opacity 0.2s;
+    }
+
+    .dd-password-show-btn:hover {
+        opacity: 0.9;
+    }
 </style>
+
+{{-- Password Modal (reused from services index) --}}
+<div id="dd-password-modal" class="dd-password-modal dd-hidden" aria-hidden="true">
+    <div class="dd-password-backdrop" data-dd-password-close></div>
+    <div class="dd-password-panel">
+        <h2 class="dd-password-title">Service password</h2>
+        <div class="dd-password-input-wrapper">
+            <input id="dd-password-input"
+                type="password"
+                readonly
+                class="dd-pill-input dd-password-input"
+                value="••••••••">
+            <button type="button"
+                    id="dd-password-toggle"
+                    class="dd-password-toggle">
+                👁
+            </button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+            <button type="button"
+                    id="dd-password-copy"
+                    class="btn-accent dd-pill-btn"
+                    style="flex:1;">
+                Copy to clipboard
+            </button>
+            <button type="button"
+                    class="btn-secondary dd-pill-btn"
+                    data-dd-password-close>
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dd-password-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dd-password-backdrop {
+        position: absolute;
+        inset: 0;
+        background: var(--dd-overlay-bg);
+    }
+
+    .dd-password-panel {
+        position: relative;
+        z-index: 1000;
+        max-width: 420px;
+        width: 100%;
+        border-radius: 12px;
+        padding: 20px;
+        background: var(--dd-card-bg);
+        border: 1px solid var(--dd-card-border);
+    }
+
+    .dd-password-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--dd-text-color);
+    }
+
+    .dd-password-input-wrapper {
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .dd-password-input {
+        width: 100%;
+        padding-right: 44px !important;
+    }
+
+    .dd-password-toggle {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 4px 8px;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const passwordModal = document.getElementById('dd-password-modal');
+    const passwordInput = document.getElementById('dd-password-input');
+    const passwordToggle = document.getElementById('dd-password-toggle');
+    const passwordCopy = document.getElementById('dd-password-copy');
+
+    function openPasswordModal(password) {
+        if (passwordInput) {
+            passwordInput.value = password || 'Unavailable';
+            passwordInput.type = 'password';
+        }
+        if (passwordToggle) {
+            passwordToggle.textContent = '👁';
+        }
+        passwordModal.classList.remove('dd-hidden');
+        passwordModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closePasswordModal() {
+        passwordModal.classList.add('dd-hidden');
+        passwordModal.setAttribute('aria-hidden', 'true');
+        if (passwordInput) {
+            passwordInput.value = '••••••••';
+            passwordInput.type = 'password';
+        }
+    }
+
+    // Open modal on "Show password" button click
+    document.querySelectorAll('.dd-password-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-password-id');
+
+            fetch('{{ url('admin/services/hosting') }}/' + id + '/password', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    openPasswordModal(data.password);
+                } else {
+                    alert('Error: ' + (data.message || 'Unable to fetch password'));
+                }
+            })
+            .catch(err => {
+                alert('Error fetching password: ' + err.message);
+            });
+        });
+    });
+
+    // Close modal
+    document.querySelectorAll('[data-dd-password-close]').forEach(function (btn) {
+        btn.addEventListener('click', closePasswordModal);
+    });
+
+    // Toggle password visibility
+    if (passwordToggle) {
+        passwordToggle.addEventListener('click', function () {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordToggle.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                passwordToggle.textContent = '👁';
+            }
+        });
+    }
+
+    // Copy to clipboard
+    if (passwordCopy) {
+        passwordCopy.addEventListener('click', function () {
+            passwordInput.select();
+            document.execCommand('copy');
+
+            const originalText = passwordCopy.textContent;
+            passwordCopy.textContent = 'Copied!';
+            setTimeout(() => {
+                passwordCopy.textContent = originalText;
+            }, 2000);
+        });
+    }
+});
+</script>
 @endsection

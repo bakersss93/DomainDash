@@ -79,10 +79,13 @@ class ServicesController extends Controller
                 'full_response' => json_encode($serviceData)
             ]);
 
-            // Check if the API call was successful
-            if (($serviceData['status'] ?? null) !== 'OK') {
+            // Check if the API call was successful (status can be 'OK', 'Active', etc.)
+            // Consider it an error only if there's no actual service data
+            $hasData = isset($serviceData['domain']) || isset($serviceData['username']);
+
+            if (!$hasData) {
                 $error = $serviceData['errorMessage'] ?? 'Failed to retrieve service data from Synergy.';
-                \Log::warning('Synergy API returned non-OK status', [
+                \Log::warning('Synergy API returned no service data', [
                     'service_id' => $service->id,
                     'status' => $serviceData['status'] ?? 'no status',
                     'error' => $error,
@@ -259,15 +262,14 @@ class ServicesController extends Controller
                 'full_response' => json_encode($result)
             ]);
 
-            if (($result['status'] ?? null) === 'OK') {
-                $password = $result['password'] ?? null;
+            // Check if password exists (status can be 'OK', 'Active', etc.)
+            $password = $result['password'] ?? null;
 
-                if ($password) {
-                    return response()->json([
-                        'ok'       => true,
-                        'password' => $password,
-                    ]);
-                }
+            if ($password) {
+                return response()->json([
+                    'ok'       => true,
+                    'password' => $password,
+                ]);
             }
 
             return response()->json([
@@ -306,13 +308,18 @@ class ServicesController extends Controller
 
             // Call Synergy's hostingGetLogin to get SSO URL
             // When using HOID as identifier, don't pass hoid parameter separately
-            $result = $synergy->hostingGetLogin($identifier, null);
-            
-            if (($result['status'] ?? null) === 'OK' && !empty($result['url'])) {
-                return redirect()->away($result['url']);
+            $url = $synergy->hostingGetLogin($identifier, null);
+
+            \Log::info('cPanel login URL retrieved', [
+                'service_id' => $service->id,
+                'has_url' => !empty($url)
+            ]);
+
+            if (!empty($url)) {
+                return redirect()->away($url);
             }
-            
-            return back()->with('error', $result['errorMessage'] ?? 'Unable to get cPanel login URL from Synergy.');
+
+            return back()->with('error', 'Unable to get cPanel login URL from Synergy.');
             
         } catch (\Throwable $e) {
             return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());
