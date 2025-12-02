@@ -196,4 +196,90 @@ class SynergyWholesaleClient
         $res = $this->soap->__soapCall('deleteDNSRecord', [$params]);
         return (array) $res;
     }
+
+    /* -----------------------------------------------------------------
+     |  Hosting Services
+     |------------------------------------------------------------------*/
+
+    /**
+     * List hosting services (with optional filtering and pagination).
+     *
+     * @param string|null $status   Filter by status (e.g., 'ACTIVE', 'SUSPENDED')
+     * @param int|null    $page     Page number for pagination
+     * @param int|null    $limit    Number of results per page
+     * @return array
+     */
+    public function listHosting(?string $status = null, ?int $page = null, ?int $limit = null): array
+    {
+        $params = $this->creds();
+
+        if ($status !== null) {
+            $params['status'] = $status;
+        }
+
+        if ($page !== null) {
+            $params['page'] = $page;
+        }
+
+        if ($limit !== null) {
+            $params['limit'] = $limit;
+        }
+
+        $res = $this->soap->__soapCall('listHosting', [$params]);
+
+        return (array) $res;
+    }
+
+    /**
+     * Get detailed information about a specific hosting service.
+     *
+     * Returns service details including password, domain, username, server,
+     * plan, disk usage, bandwidth, etc.
+     *
+     * @param string      $identifier  Domain name, username, or service identifier
+     * @param string|null $hoid        Hosting Order ID (optional)
+     * @return array
+     */
+    public function hostingGetService(string $identifier, ?string $hoid = null): array
+    {
+        $params = array_merge($this->creds(), [
+            'identifier' => $identifier,
+        ]);
+
+        if ($hoid !== null) {
+            $params['hoid'] = $hoid;
+        }
+
+        $res = $this->soap->__soapCall('hostingGetService', [$params]);
+
+        return (array) $res;
+    }
+
+    /**
+     * Get SSO login URL for cPanel access.
+     *
+     * Returns a temporary URL that provides automatic login to cPanel
+     * for the specified hosting service.
+     *
+     * @param string      $identifier  Domain name, username, or service identifier
+     * @param string|null $hoid        Hosting Order ID (optional)
+     * @return string|null The SSO login URL or null on failure
+     */
+    public function hostingGetLogin(string $identifier, ?string $hoid = null): ?string
+    {
+        $params = array_merge($this->creds(), [
+            'identifier' => $identifier,
+        ]);
+
+        if ($hoid !== null) {
+            $params['hoid'] = $hoid;
+        }
+
+        $res = $this->soap->__soapCall('hostingGetLogin', [$params]);
+
+        // Response format: { status, errorMessage, url }
+        $result = (array) $res;
+
+        return $result['url'] ?? null;
+    }
 }
