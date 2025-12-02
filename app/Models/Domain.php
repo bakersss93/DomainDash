@@ -12,7 +12,7 @@ class Domain extends Model
     use HasFactory;
 
     protected $fillable = [
-        'client_id','name','status','expiry_date','auto_renew','name_servers','dns_config','registry_id','transfer_status'
+        'client_id','name','status','expiry_date','auto_renew','name_servers','dns_config','registry_id','transfer_status','halo_asset_id','itglue_id'
     ];
 
     protected $casts = [

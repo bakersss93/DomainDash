@@ -49,7 +49,8 @@
                     </label>
                     <input id="halopsa_reference" name="halopsa_reference" type="text"
                            value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;"
+                           {{ $client->halopsa_reference ? 'readonly' : '' }}>
                     @error('halopsa_reference')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
@@ -129,6 +130,70 @@
             </form>
         </div>
 
+        {{-- Integration Actions (only show for existing clients) --}}
+        @if($client->exists)
+            <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+                <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Integration Actions</h2>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    {{-- ITGlue Sync --}}
+                    <div style="border:1px solid #1f2937;border-radius:6px;padding:14px;">
+                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#60a5fa;">
+                            📘 ITGlue Sync
+                        </h3>
+                        @if($client->itglue_org_id)
+                            <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">
+                                Sync domains to ITGlue with DNS records from Synergy
+                            </p>
+                            <button type="button"
+                                    onclick="syncToItglue({{ $client->id }})"
+                                    class="btn-accent"
+                                    style="padding:6px 12px;font-size:13px;">
+                                Sync Domains to ITGlue
+                            </button>
+                            <div id="itglue-sync-status" style="margin-top:8px;font-size:13px;"></div>
+                        @else
+                            <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                                Link an ITGlue organization above to enable syncing
+                            </p>
+                        @endif
+                    </div>
+
+                    {{-- HaloPSA DNS Sync --}}
+                    <div style="border:1px solid #1f2937;border-radius:6px;padding:14px;">
+                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#34d399;">
+                            🔧 HaloPSA DNS Sync
+                        </h3>
+                        @if($client->halopsa_reference)
+                            @php
+                                $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
+                            @endphp
+                            @if($domainsWithAssets > 0)
+                                <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">
+                                    Update HaloPSA asset notes with DNS records ({{ $domainsWithAssets }} domain{{ $domainsWithAssets !== 1 ? 's' : '' }})
+                                </p>
+                                <button type="button"
+                                        onclick="syncDnsToHalo({{ $client->id }})"
+                                        class="btn-accent"
+                                        style="padding:6px 12px;font-size:13px;">
+                                    Sync DNS to HaloPSA
+                                </button>
+                                <div id="halo-sync-status" style="margin-top:8px;font-size:13px;"></div>
+                            @else
+                                <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                                    No domains with HaloPSA asset links found
+                                </p>
+                            @endif
+                        @else
+                            <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                                Client must be imported from HaloPSA first
+                            </p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Assigned users list --}}
         @isset($assignedUsers)
             <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:16px 20px;">
@@ -204,7 +269,7 @@
         </div>
     </div>
 
-    {{-- Inline JS to wire the ITGlue button up --}}
+    {{-- Inline JS for ITGlue picker --}}
     <script>
         (function () {
             const btnOpen   = document.getElementById('btn-itglue-picker');
@@ -340,5 +405,90 @@
                 }
             });
         })();
+
+        // ========================================================================
+        // SYNC FUNCTIONS (for existing clients)
+        // ========================================================================
+        @if($client->exists)
+        function syncToItglue(clientId) {
+            if (!confirm('This will sync all client domains to ITGlue with DNS records from Synergy. Continue?')) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('itglue-sync-status');
+            statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+
+            fetch('/admin/clients/' + clientId + '/itglue/sync-domains', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
+                    
+                    if (data.results && data.results.length > 0) {
+                        html += '<div style="margin-top:6px;font-size:12px;">';
+                        data.results.forEach(result => {
+                            const color = result.success ? '#34d399' : '#f87171';
+                            html += '<div style="color:' + color + ';">• ' + result.domain + ': ' + result.message + '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    
+                    statusDiv.innerHTML = html;
+                } else {
+                    statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
+                }
+            })
+            .catch(err => {
+                console.error('Sync error:', err);
+                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing to ITGlue</div>';
+            });
+        }
+
+        function syncDnsToHalo(clientId) {
+            if (!confirm('This will sync DNS records from Synergy to HaloPSA asset notes. Continue?')) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('halo-sync-status');
+            statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+
+            fetch('/admin/clients/' + clientId + '/halo/sync-dns', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
+                    
+                    if (data.results && data.results.length > 0) {
+                        html += '<div style="margin-top:6px;font-size:12px;">';
+                        data.results.forEach(result => {
+                            const color = result.success ? '#34d399' : '#f87171';
+                            html += '<div style="color:' + color + ';">• ' + result.domain + ': ' + result.message + '</div>';
+                        });
+                        html += '</div>';
+                    }
+                    
+                    statusDiv.innerHTML = html;
+                } else {
+                    statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
+                }
+            })
+            .catch(err => {
+                console.error('Sync error:', err);
+                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing DNS to HaloPSA</div>';
+            });
+        }
+        @endif
     </script>
 @endsection

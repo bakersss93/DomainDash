@@ -40,18 +40,31 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
 
-        // Clients
-        Route::get('/clients', [\App\Http\Controllers\Admin\ClientsController::class,'index'])->name('admin.clients.index');
-        Route::get('/clients/create', [\App\Http\Controllers\Admin\ClientsController::class,'create'])->name('admin.clients.create');
-        Route::post('/clients', [\App\Http\Controllers\Admin\ClientsController::class,'store'])->name('admin.clients.store');
-        Route::get('/clients/{client}/edit', [\App\Http\Controllers\Admin\ClientsController::class,'edit'])->name('admin.clients.edit');
-        Route::put('/clients/{client}', [\App\Http\Controllers\Admin\ClientsController::class,'update'])->name('admin.clients.update');
-        Route::get('/clients/itglue/search', [\App\Http\Controllers\Admin\ClientsController::class,'itglueSearch'])->name('admin.clients.itglue.search');
-        // NEW: Halo import endpoints
+        // ============================================================================
+        // CLIENTS ROUTES
+        // ============================================================================
+        Route::get('/clients', [ClientsController::class,'index'])->name('admin.clients.index');
+        Route::get('/clients/create', [ClientsController::class,'create'])->name('admin.clients.create');
+        Route::post('/clients', [ClientsController::class,'store'])->name('admin.clients.store');
+        Route::get('/clients/{client}/edit', [ClientsController::class,'edit'])->name('admin.clients.edit');
+        Route::put('/clients/{client}', [ClientsController::class,'update'])->name('admin.clients.update');
+        
+        // HaloPSA Import Routes
         Route::get('/clients/halo-clients', [ClientsController::class, 'haloClients'])->name('admin.clients.haloClients');
         Route::post('/clients/import-halo', [ClientsController::class, 'importHaloClients'])->name('admin.clients.importHalo');
+        Route::post('/clients/import-halo/confirm', [ClientsController::class, 'confirmImportHalo'])->name('admin.clients.importHalo.confirm');
         
-        // Domains
+        // ITGlue Integration Routes
+        Route::get('/clients/itglue/search', [ClientsController::class,'itglueSearch'])->name('admin.clients.itglue.search');
+        Route::post('/clients/{client}/itglue/link', [ClientsController::class, 'linkItglue'])->name('admin.clients.itglue.link');
+        Route::post('/clients/{client}/itglue/sync-domains', [ClientsController::class, 'syncDomainsToItglue'])->name('admin.clients.itglue.syncDomains');
+        
+        // HaloPSA DNS Sync Routes
+        Route::post('/clients/{client}/halo/sync-dns', [ClientsController::class, 'syncDnsToHalo'])->name('admin.clients.halo.syncDns');
+        
+        // ============================================================================
+        // DOMAINS ROUTES
+        // ============================================================================
         Route::get('/domains', [AdminDomainController::class,'index'])->name('admin.domains');
         Route::get('/domains/{domain}', [AdminDomainController::class,'show'])->name('admin.domains.show');
         Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])->name('admin.domains.bulkSync');
@@ -61,7 +74,9 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])->name('admin.domains.assignClient');
         Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])->name('admin.domains.auth-code');
             
-        // Users
+        // ============================================================================
+        // USERS ROUTES
+        // ============================================================================
         Route::get('/users', [UsersController::class, 'index'])->name('admin.users');
         Route::get('/users/create', [UsersController::class, 'create'])->name('admin.users.create');
         Route::post('/users', [UsersController::class, 'store'])->name('admin.users.store');
@@ -74,12 +89,16 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/users/{user}/impersonate', [UsersController::class, 'impersonate'])->name('admin.users.impersonate');
         Route::post('/users/stop-impersonate', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
-        // API keys
+        // ============================================================================
+        // API KEYS ROUTES
+        // ============================================================================
         Route::get('/api-keys', [ApiKeysController::class,'index'])->name('admin.apikeys');
         Route::post('/api-keys', [ApiKeysController::class,'store'])->name('admin.apikeys.store');
         Route::post('/api-keys/{key}/deactivate', [ApiKeysController::class,'deactivate'])->name('admin.apikeys.deactivate');
 
-        // Hosting services
+        // ============================================================================
+        // HOSTING SERVICES ROUTES
+        // ============================================================================
         Route::get('/services/hosting', [ServicesController::class, 'index'])->name('admin.services.hosting');
         Route::post('/services/hosting/sync', [ServicesController::class, 'sync'])->name('admin.services.hosting.sync');
         Route::get('/services/hosting/{service}/details', [ServicesController::class, 'details'])->name('admin.services.hosting.details');
