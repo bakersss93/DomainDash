@@ -1,14 +1,36 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+<div style="max-width: 1200px; margin: 0 auto;">
+    <div class="dd-services-card">
+        <h1 class="dd-services-title">
             Hosting Services
         </h1>
-        
-        <form method="POST" action="{{ route('admin.services.hosting.sync') }}">
+
+    {{-- Filter + sync toolbar --}}
+    <div class="dd-services-toolbar">
+        <form method="GET"
+              action="{{ route('admin.services.hosting') }}"
+              class="dd-services-filter">
+            <select name="client_id"
+                    class="dd-pill-input dd-pill-select">
+                <option value="">All clients</option>
+                @foreach($clients as $client)
+                    <option value="{{ $client->id }}"
+                        {{ (isset($clientId) && (int)$clientId === $client->id) ? 'selected' : '' }}>
+                        {{ $client->business_name ?? $client->name ?? ('Client #' . $client->id) }}
+                    </option>
+                @endforeach
+            </select>
+
+            <button type="submit" class="btn-accent dd-pill-btn">
+                Filter
+            </button>
+        </form>
+
+        <form method="POST"
+              action="{{ route('admin.services.hosting.sync') }}"
+              class="dd-services-sync">
             @csrf
             <button type="submit" 
                     class="btn btn-accent"
@@ -292,6 +314,7 @@
             </div>
         @endif
     </div>
+</div>
 </div>
 
 {{-- Password Modal --}}
