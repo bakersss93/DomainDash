@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Domain;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -40,7 +41,7 @@ class ClientsController extends Controller
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
             'halopsa_reference' => 'nullable|string|max:255',
-            'itglue_org_id' => 'nullable|integer',
+            'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
             'active' => 'nullable|boolean',
         ]);
@@ -58,7 +59,6 @@ class ClientsController extends Controller
      */
     public function edit(Client $client)
     {
-        // Get assigned users if you have that relationship
         $assignedUsers = $client->users ?? collect();
         
         return view('admin.clients.form', compact('client', 'assignedUsers'));
@@ -69,18 +69,32 @@ class ClientsController extends Controller
      */
     public function update(Request $request, Client $client)
     {
+        Log::info('Client update started', [
+            'client_id' => $client->id,
+            'request_data' => $request->all()
+        ]);
+
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
             'halopsa_reference' => 'nullable|string|max:255',
-            'itglue_org_id' => 'nullable|integer',
+            'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
             'active' => 'nullable|boolean',
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
 
+        Log::info('Validation passed', [
+            'validated_data' => $validated
+        ]);
+
         $client->update($validated);
+
+        Log::info('Client updated', [
+            'client_id' => $client->id,
+            'new_values' => $client->fresh()->toArray()
+        ]);
 
         return redirect()->route('admin.clients.index')
             ->with('success', 'Client updated successfully.');
@@ -104,48 +118,77 @@ class ClientsController extends Controller
                 ], 500);
             }
 
+            $haloSettings = Setting::get('halo', []);
+            $baseUrl = rtrim($haloSettings['base_url'] ?? '', '/');
+            
+            if (empty($baseUrl)) {
+                return response()->json([
+                    'error' => 'HaloPSA base URL is not configured in settings'
+                ], 500);
+            }
+
+            if (!str_ends_with($baseUrl, '/api')) {
+                $baseUrl .= '/api';
+            }
+
             $response = Http::withToken($token)
-                ->get(config('services.halo.api_url') . '/Client', [
+                ->timeout(30)
+                ->get($baseUrl . '/Client', [
                     'count' => 100,
                     'order' => 'name',
+                    'includeinactive' => false,
                 ]);
 
             if (!$response->successful()) {
                 Log::error('Failed to fetch HaloPSA clients', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
+                    'url' => $baseUrl . '/Client'
                 ]);
                 
                 return response()->json([
-                    'error' => 'Failed to fetch clients from HaloPSA'
+                    'error' => 'Failed to fetch clients from HaloPSA: HTTP ' . $response->status()
                 ], 500);
             }
 
-            $clients = $response->json()['clients'] ?? [];
+            $responseData = $response->json();
+            
+            $clients = $responseData['clients'] 
+                ?? $responseData['data'] 
+                ?? $responseData['Results'] 
+                ?? [];
 
-            // Filter out clients that are already imported (by halopsa_reference)
+            if (empty($clients) && is_array($responseData) && isset($responseData[0])) {
+                $clients = $responseData;
+            }
+
             $existingRefs = Client::whereNotNull('halopsa_reference')
                 ->pluck('halopsa_reference')
                 ->toArray();
 
             $availableClients = array_filter($clients, function($client) use ($existingRefs) {
-                $clientId = (string) $client['id'];
-                return !in_array($clientId, $existingRefs);
+                $clientId = (string) ($client['id'] ?? $client['Id'] ?? '');
+                return !empty($clientId) && !in_array($clientId, $existingRefs);
             });
 
-            // Format for your frontend
             $formatted = array_map(function($client) {
+                $id = $client['id'] ?? $client['Id'] ?? null;
+                $name = $client['name'] ?? $client['Name'] ?? 'Unknown';
+                
                 return [
-                    'id' => $client['id'],
-                    'name' => $client['name'] ?? '',
-                    'reference' => $client['id'], // Using ID as reference
+                    'id' => $id,
+                    'name' => $name,
+                    'reference' => $id,
+                    'full_data' => $client,
                 ];
             }, array_values($availableClients));
 
             return response()->json($formatted);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching HaloPSA clients: ' . $e->getMessage());
+            Log::error('Error fetching HaloPSA clients: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             
             return response()->json([
                 'error' => 'Error fetching HaloPSA clients: ' . $e->getMessage()
@@ -159,12 +202,18 @@ class ClientsController extends Controller
     public function importHaloClients(Request $request)
     {
         try {
+            Log::info('Starting HaloPSA client import');
+            
             $validator = Validator::make($request->all(), [
                 'client_ids' => 'required|array',
                 'client_ids.*' => 'required|integer',
             ]);
 
             if ($validator->fails()) {
+                Log::error('Import validation failed', [
+                    'errors' => $validator->errors()->toArray()
+                ]);
+                
                 return response()->json([
                     'error' => 'Validation failed',
                     'errors' => $validator->errors()
@@ -174,64 +223,171 @@ class ClientsController extends Controller
             $clientIds = $request->input('client_ids');
             $imported = 0;
             $domainsLinked = 0;
+            $errors = [];
 
-            foreach ($clientIds as $haloId) {
-                // Fetch full client details
-                $clientDetails = $this->fetchHaloClientDetails($haloId);
-                
-                if (!$clientDetails) {
-                    Log::warning("Skipping HaloPSA client {$haloId} - failed to fetch details");
-                    continue;
-                }
+            Log::info('Client IDs to import', ['client_ids' => $clientIds]);
 
-                // Check if already exists
-                $existing = Client::where('halopsa_reference', (string) $haloId)->first();
-                if ($existing) {
-                    Log::info("Skipping HaloPSA client {$haloId} - already imported");
-                    continue;
-                }
+            $token = $this->getHaloAccessToken();
+            
+            if (!$token) {
+                return response()->json([
+                    'error' => 'Failed to authenticate with HaloPSA'
+                ], 500);
+            }
 
-                // Create client
-                $client = Client::create([
-                    'business_name' => $clientDetails['name'],
-                    'abn' => $clientDetails['abn'],
-                    'halopsa_reference' => (string) $haloId,
-                    'active' => 1,
+            $haloSettings = Setting::get('halo', []);
+            $baseUrl = rtrim($haloSettings['base_url'] ?? '', '/');
+            
+            if (!str_ends_with($baseUrl, '/api')) {
+                $baseUrl .= '/api';
+            }
+
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->get($baseUrl . '/Client', [
+                    'count' => 100,
+                    'order' => 'name',
                 ]);
 
-                $imported++;
+            if (!$response->successful()) {
+                Log::error('Failed to fetch clients for import', [
+                    'status' => $response->status()
+                ]);
+                return response()->json([
+                    'error' => 'Failed to fetch client data from HaloPSA'
+                ], 500);
+            }
 
-                // Fetch and link domain assets
-                $domainAssets = $this->fetchHaloDomainAssets($haloId);
-                
-                foreach ($domainAssets as $asset) {
-                    if ($asset['matched_domain']) {
-                        $domain = Domain::find($asset['matched_domain']['id']);
-                        
-                        if ($domain) {
-                            $domain->update([
-                                'client_id' => $client->id,
-                                'halo_asset_id' => $asset['halo_asset_id']
-                            ]);
-                            $domainsLinked++;
-                        }
-                    }
+            $responseData = $response->json();
+            $allClients = $responseData['clients'] 
+                ?? $responseData['data'] 
+                ?? $responseData['Results'] 
+                ?? $responseData;
+
+            $clientMap = [];
+            foreach ($allClients as $client) {
+                $id = $client['id'] ?? $client['Id'] ?? null;
+                if ($id) {
+                    $clientMap[(int)$id] = $client;
                 }
             }
 
-            return response()->json([
+            foreach ($clientIds as $haloId) {
+                try {
+                    Log::info("Processing HaloPSA client {$haloId}");
+                    
+                    if (!isset($clientMap[(int)$haloId])) {
+                        $errors[] = "Client {$haloId}: Not found in HaloPSA response";
+                        continue;
+                    }
+
+                    $clientData = $clientMap[(int)$haloId];
+                    
+                    $name = $clientData['name'] 
+                        ?? $clientData['Name'] 
+                        ?? $clientData['client_name'] 
+                        ?? 'Unknown Client';
+                    
+                    $abn = $clientData['customfields']['abn']
+                        ?? $clientData['CustomFields']['abn']
+                        ?? $clientData['customfields']['ABN']
+                        ?? $clientData['CustomFields']['ABN']
+                        ?? $clientData['abn']
+                        ?? $clientData['ABN']
+                        ?? null;
+
+                    $existing = Client::where('halopsa_reference', (string) $haloId)->first();
+                    if ($existing) {
+                        $errors[] = "Client {$haloId} ({$name}): Already imported";
+                        continue;
+                    }
+
+                    $client = Client::create([
+                        'business_name' => $name,
+                        'abn' => $abn,
+                        'halopsa_reference' => (string) $haloId,
+                        'active' => 1,
+                    ]);
+
+                    Log::info("Created client", [
+                        'id' => $client->id,
+                        'business_name' => $client->business_name
+                    ]);
+
+                    $imported++;
+
+                    // Use HaloPSA service to fetch domain assets
+                    $halo = new \App\Services\Halo\HaloPsaClient();
+                    $domainAssets = $halo->listDomainAssetsForClient((int) $haloId);
+                    
+                    Log::info("Found domain assets", [
+                        'halo_id' => $haloId,
+                        'count' => count($domainAssets)
+                    ]);
+                    
+                    foreach ($domainAssets as $asset) {
+                        $assetId = $asset['id'] ?? $asset['Id'] ?? null;
+                        $assetName = $asset['inventory_number'] 
+                            ?? $asset['asset_tag'] 
+                            ?? $asset['name'] 
+                            ?? null;
+                        
+                        if ($assetName && $assetId) {
+                            $domainName = $this->extractDomainName(['name' => $assetName]);
+                            
+                            if ($domainName) {
+                                $domain = Domain::where('name', $domainName)->first();
+                                
+                                if ($domain) {
+                                    $domain->update([
+                                        'client_id' => $client->id,
+                                        'halo_asset_id' => $assetId
+                                    ]);
+                                    $domainsLinked++;
+                                    
+                                    Log::info("Linked domain", [
+                                        'domain' => $domain->name,
+                                        'client_id' => $client->id,
+                                        'halo_asset_id' => $assetId
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                    
+                } catch (\Exception $e) {
+                    $msg = "Error processing client: " . $e->getMessage();
+                    Log::error($msg, [
+                        'halo_id' => $haloId,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    $errors[] = "Client {$haloId}: {$msg}";
+                }
+            }
+
+            $response = [
                 'success' => true,
                 'imported' => $imported,
                 'domains_linked' => $domainsLinked
-            ]);
+            ];
+
+            if (!empty($errors)) {
+                $response['warnings'] = $errors;
+            }
+
+            Log::info('Import complete', $response);
+
+            return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('Client import error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Client import fatal error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
             ]);
 
             return response()->json([
-                'error' => 'An error occurred during import: ' . $e->getMessage()
+                'error' => 'Import failed: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -246,30 +402,10 @@ class ClientsController extends Controller
     public function itglueSearch(Request $request)
     {
         try {
-            $query = $request->input('q', '');
+            $itglue = new \App\Services\ItGlue\ItGlueClient();
+            $data = $itglue->listOrganisations();
 
-            $response = Http::withHeaders([
-                'x-api-key' => config('services.itglue.api_key'),
-                'Content-Type' => 'application/vnd.api+json'
-            ])->get(config('services.itglue.api_url') . '/organizations', [
-                'page' => ['size' => 100]
-            ]);
-
-            if (!$response->successful()) {
-                Log::error('Failed to fetch ITGlue organizations', [
-                    'status' => $response->status()
-                ]);
-                
-                return response()->json([
-                    'error' => 'Failed to fetch ITGlue organizations'
-                ], 500);
-            }
-
-            $organizations = $response->json()['data'] ?? [];
-
-            return response()->json([
-                'data' => $organizations
-            ]);
+            return response()->json($data);
 
         } catch (\Exception $e) {
             Log::error('Error searching ITGlue organizations: ' . $e->getMessage());
@@ -300,16 +436,38 @@ class ClientsController extends Controller
                 ], 400);
             }
 
+            Log::info('Starting ITGlue domain sync', [
+                'client_id' => $client->id,
+                'domain_count' => $domains->count()
+            ]);
+
+            $itglue = new \App\Services\ItGlue\ItGlueClient();
             $syncResults = [];
 
             foreach ($domains as $domain) {
-                $result = $this->syncSingleDomainToItglue($client, $domain);
+                // Fetch DNS records from Synergy
+                $dnsRecords = $this->fetchDnsRecordsFromSynergy($domain->name);
+                
+                // Sync to ITGlue using the service class
+                $result = $itglue->syncDomain(
+                    $domain,
+                    (int) $client->itglue_org_id,
+                    $dnsRecords
+                );
+                
                 $syncResults[] = [
                     'domain' => $domain->name,
                     'success' => $result['success'],
-                    'message' => $result['message'],
-                    'itglue_id' => $result['itglue_id'] ?? null
+                    'message' => $result['success'] 
+                        ? ucfirst($result['action']) 
+                        : ($result['error'] ?? 'Failed'),
+                    'configuration_id' => $result['configuration_id'] ?? null
                 ];
+                
+                // Update domain with ITGlue configuration ID
+                if ($result['success'] && isset($result['configuration_id'])) {
+                    $domain->update(['itglue_configuration_id' => $result['configuration_id']]);
+                }
             }
 
             $successCount = collect($syncResults)->where('success', true)->count();
@@ -321,7 +479,9 @@ class ClientsController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error syncing domains to ITGlue: ' . $e->getMessage());
+            Log::error('Error syncing domains to ITGlue: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             
             return response()->json([
                 'error' => 'Error syncing domains to ITGlue: ' . $e->getMessage()
@@ -343,21 +503,77 @@ class ClientsController extends Controller
 
             $domains = $client->domains()->whereNotNull('halo_asset_id')->get();
             
+            // If no domains have asset IDs, try to find and link them
             if ($domains->isEmpty()) {
-                return response()->json([
-                    'error' => 'No domains with HaloPSA asset IDs found'
-                ], 400);
+                Log::info('No domains with asset IDs, attempting to find HaloPSA assets', [
+                    'client_id' => $client->id,
+                    'halopsa_reference' => $client->halopsa_reference
+                ]);
+                
+                $halo = new \App\Services\Halo\HaloPsaClient();
+                $domainAssets = $halo->listDomainAssetsForClient((int) $client->halopsa_reference);
+                
+                if (empty($domainAssets)) {
+                    return response()->json([
+                        'error' => 'No domain assets found in HaloPSA for this client'
+                    ], 400);
+                }
+                
+                // Try to match and link assets
+                $linked = 0;
+                foreach ($domainAssets as $asset) {
+                    $assetId = $asset['id'] ?? $asset['Id'] ?? null;
+                    $assetName = $asset['inventory_number'] 
+                        ?? $asset['asset_tag'] 
+                        ?? $asset['name'] 
+                        ?? null;
+                        
+                    if ($assetName && $assetId) {
+                        $domainName = $this->extractDomainName(['name' => $assetName]);
+                        
+                        if ($domainName) {
+                            $domain = $client->domains()->where('name', $domainName)->first();
+                            if ($domain) {
+                                $domain->update(['halo_asset_id' => $assetId]);
+                                $linked++;
+                            }
+                        }
+                    }
+                }
+                
+                if ($linked > 0) {
+                    $domains = $client->domains()->whereNotNull('halo_asset_id')->get();
+                } else {
+                    return response()->json([
+                        'error' => 'Found ' . count($domainAssets) . ' domain assets in HaloPSA but could not match them to DomainDash domains'
+                    ], 400);
+                }
             }
 
+            Log::info('Starting HaloPSA DNS sync', [
+                'client_id' => $client->id,
+                'domain_count' => $domains->count()
+            ]);
+
+            $halo = new \App\Services\Halo\HaloPsaClient();
             $syncResults = [];
 
             foreach ($domains as $domain) {
-                $result = $this->syncDnsToHaloAsset($domain);
+                // Fetch DNS records from Synergy
+                $dnsRecords = $this->fetchDnsRecordsFromSynergy($domain->name);
+                
+                // Sync to HaloPSA using the service class
+                $result = $halo->syncDomainAssetDns(
+                    $domain,
+                    (int) $domain->halo_asset_id,
+                    $dnsRecords
+                );
+                
                 $syncResults[] = [
                     'domain' => $domain->name,
                     'halo_asset_id' => $domain->halo_asset_id,
                     'success' => $result['success'],
-                    'message' => $result['message']
+                    'message' => $result['success'] ? 'Synced' : ($result['error'] ?? 'Failed')
                 ];
             }
 
@@ -370,7 +586,9 @@ class ClientsController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error syncing DNS to HaloPSA: ' . $e->getMessage());
+            Log::error('Error syncing DNS to HaloPSA: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             
             return response()->json([
                 'error' => 'Error syncing DNS to HaloPSA: ' . $e->getMessage()
@@ -388,10 +606,27 @@ class ClientsController extends Controller
     private function getHaloAccessToken()
     {
         try {
-            $response = Http::asForm()->post(config('services.halo.auth_url') . '/token', [
+            $haloSettings = Setting::get('halo', []);
+            
+            $authUrl = rtrim($haloSettings['auth_server'] ?? '', '/');
+            $clientId = $haloSettings['client_id'] ?? null;
+            $clientSecret = $haloSettings['api_key'] ?? null;
+            $tenant = $haloSettings['tenant'] ?? null;
+
+            if (empty($authUrl) || empty($clientId) || empty($clientSecret)) {
+                Log::error('HaloPSA credentials not configured');
+                return null;
+            }
+
+            $tokenUrl = $authUrl . '/token';
+            if (!empty($tenant)) {
+                $tokenUrl .= '?tenant=' . urlencode($tenant);
+            }
+
+            $response = Http::asForm()->post($tokenUrl, [
                 'grant_type' => 'client_credentials',
-                'client_id' => config('services.halo.client_id'),
-                'client_secret' => config('services.halo.client_secret'),
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
                 'scope' => 'all'
             ]);
 
@@ -400,8 +635,7 @@ class ClientsController extends Controller
             }
 
             Log::error('Failed to get HaloPSA token', [
-                'status' => $response->status(),
-                'body' => $response->body()
+                'status' => $response->status()
             ]);
 
             return null;
@@ -412,109 +646,16 @@ class ClientsController extends Controller
     }
 
     /**
-     * Fetch full client details from HaloPSA
-     */
-    private function fetchHaloClientDetails($haloId)
-    {
-        try {
-            $token = $this->getHaloAccessToken();
-            
-            if (!$token) {
-                return null;
-            }
-
-            $response = Http::withToken($token)
-                ->get(config('services.halo.api_url') . '/Client/' . $haloId);
-
-            if (!$response->successful()) {
-                Log::error('Failed to fetch client details', [
-                    'halo_id' => $haloId,
-                    'status' => $response->status()
-                ]);
-                return null;
-            }
-
-            $clientData = $response->json();
-
-            return [
-                'id' => $clientData['id'] ?? null,
-                'name' => $clientData['name'] ?? '',
-                'abn' => $clientData['customfields']['abn'] ?? null,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching Halo client details: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Fetch domain assets from HaloPSA
-     */
-    private function fetchHaloDomainAssets($haloId)
-    {
-        try {
-            $token = $this->getHaloAccessToken();
-            
-            if (!$token) {
-                return [];
-            }
-
-            $response = Http::withToken($token)
-                ->get(config('services.halo.api_url') . '/Asset', [
-                    'client_id' => $haloId,
-                    'assettype_id' => config('services.halo.domain_asset_type_id', 1),
-                    'count' => 100
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('Failed to fetch domain assets', [
-                    'halo_id' => $haloId,
-                    'status' => $response->status()
-                ]);
-                return [];
-            }
-
-            $assets = $response->json()['assets'] ?? [];
-            $domainAssets = [];
-
-            foreach ($assets as $asset) {
-                $domainName = $this->extractDomainName($asset);
-                
-                if ($domainName) {
-                    $matchingDomain = Domain::where('name', $domainName)->first();
-                    
-                    $domainAssets[] = [
-                        'halo_asset_id' => $asset['id'],
-                        'domain_name' => $domainName,
-                        'halo_asset_tag' => $asset['asset_tag'] ?? null,
-                        'matched_domain' => $matchingDomain ? [
-                            'id' => $matchingDomain->id,
-                            'domain' => $matchingDomain->name,
-                            'registrar' => $matchingDomain->registrar,
-                            'current_client' => $matchingDomain->client ? $matchingDomain->client->business_name : null
-                        ] : null,
-                        'suggested_action' => $matchingDomain ? 'link' : 'skip'
-                    ];
-                }
-            }
-
-            return $domainAssets;
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching Halo domain assets: ' . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Extract domain name from HaloPSA asset
+     * Extract domain name from asset data
      */
     private function extractDomainName($asset)
     {
         $domainName = $asset['inventory_number'] 
+            ?? $asset['InventoryNumber']
             ?? $asset['asset_tag'] 
+            ?? $asset['AssetTag']
             ?? $asset['name'] 
+            ?? $asset['Name']
             ?? null;
 
         if (!$domainName) {
@@ -536,142 +677,29 @@ class ClientsController extends Controller
     }
 
     /**
-     * Sync single domain to ITGlue
-     */
-    private function syncSingleDomainToItglue(Client $client, Domain $domain)
-    {
-        try {
-            // Fetch DNS records from Synergy
-            $dnsRecords = $this->fetchDnsRecordsFromSynergy($domain->name);
-
-            // Check if domain already exists in ITGlue
-            $existingDomain = $this->findItglueDomain($client->itglue_org_id, $domain->name);
-
-            $domainData = [
-                'type' => 'domains',
-                'attributes' => [
-                    'organization-id' => $client->itglue_org_id,
-                    'name' => $domain->name,
-                    'registrar-name' => $domain->registrar,
-                    'expires-on' => $domain->expiry_date,
-                    'notes' => $this->formatDnsRecordsForNotes($dnsRecords),
-                ]
-            ];
-
-            if ($existingDomain) {
-                // Update existing
-                $response = Http::withHeaders([
-                    'x-api-key' => config('services.itglue.api_key'),
-                    'Content-Type' => 'application/vnd.api+json'
-                ])->patch(
-                    config('services.itglue.api_url') . '/domains/' . $existingDomain['id'],
-                    ['data' => $domainData]
-                );
-
-                if ($response->successful()) {
-                    $domain->update(['itglue_id' => $existingDomain['id']]);
-                    return ['success' => true, 'message' => 'Updated', 'itglue_id' => $existingDomain['id']];
-                }
-            } else {
-                // Create new
-                $response = Http::withHeaders([
-                    'x-api-key' => config('services.itglue.api_key'),
-                    'Content-Type' => 'application/vnd.api+json'
-                ])->post(
-                    config('services.itglue.api_url') . '/domains',
-                    ['data' => $domainData]
-                );
-
-                if ($response->successful()) {
-                    $itglueId = $response->json()['data']['id'];
-                    $domain->update(['itglue_id' => $itglueId]);
-                    return ['success' => true, 'message' => 'Created', 'itglue_id' => $itglueId];
-                }
-            }
-
-            return ['success' => false, 'message' => 'Failed: ' . $response->body()];
-
-        } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
-        }
-    }
-
-    /**
-     * Find ITGlue domain
-     */
-    private function findItglueDomain($organizationId, $domainName)
-    {
-        try {
-            $response = Http::withHeaders([
-                'x-api-key' => config('services.itglue.api_key'),
-                'Content-Type' => 'application/vnd.api+json'
-            ])->get(config('services.itglue.api_url') . '/domains', [
-                'filter' => [
-                    'organization-id' => $organizationId,
-                    'name' => $domainName
-                ]
-            ]);
-
-            if ($response->successful()) {
-                $domains = $response->json()['data'] ?? [];
-                return !empty($domains) ? $domains[0] : null;
-            }
-
-            return null;
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Sync DNS to HaloPSA asset
-     */
-    private function syncDnsToHaloAsset(Domain $domain)
-    {
-        try {
-            $dnsRecords = $this->fetchDnsRecordsFromSynergy($domain->name);
-
-            if (empty($dnsRecords)) {
-                return ['success' => false, 'message' => 'No DNS records found'];
-            }
-
-            $dnsNotes = $this->formatDnsRecordsForNotes($dnsRecords);
-            $token = $this->getHaloAccessToken();
-            
-            if (!$token) {
-                return ['success' => false, 'message' => 'Auth failed'];
-            }
-
-            $response = Http::withToken($token)->post(
-                config('services.halo.api_url') . '/Asset/' . $domain->halo_asset_id,
-                ['id' => $domain->halo_asset_id, 'notes' => $dnsNotes]
-            );
-
-            if ($response->successful()) {
-                return ['success' => true, 'message' => 'Synced'];
-            }
-
-            return ['success' => false, 'message' => 'Failed: ' . $response->body()];
-
-        } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
-        }
-    }
-
-    /**
-     * Fetch DNS records from Synergy
+     * Fetch DNS records from Synergy Wholesale
      */
     private function fetchDnsRecordsFromSynergy($domainName)
     {
         try {
-            $client = new SoapClient(config('services.synergy.wsdl_url'), [
+            $synergySettings = Setting::get('synergy', []);
+            $wsdlPath = $synergySettings['wsdl_path'] ?? null;
+            $resellerId = $synergySettings['reseller_id'] ?? null;
+            $apiKey = $synergySettings['api_key'] ?? null;
+
+            if (empty($wsdlPath) || empty($resellerId) || empty($apiKey)) {
+                Log::warning('Synergy Wholesale not fully configured');
+                return [];
+            }
+
+            $client = new SoapClient($wsdlPath, [
                 'trace' => 1,
                 'exceptions' => true
             ]);
 
             $params = [
-                'resellerID' => config('services.synergy.reseller_id'),
-                'apiKey' => config('services.synergy.api_key'),
+                'resellerID' => $resellerId,
+                'apiKey' => $apiKey,
                 'domainName' => $domainName
             ];
 
@@ -687,42 +715,5 @@ class ClientsController extends Controller
             Log::error('Error fetching DNS from Synergy: ' . $e->getMessage());
             return [];
         }
-    }
-
-    /**
-     * Format DNS records for notes
-     */
-    private function formatDnsRecordsForNotes($dnsRecords)
-    {
-        if (empty($dnsRecords)) {
-            return "No DNS records available.";
-        }
-
-        $notes = "=== DNS Records (Auto-synced from Domain Dash) ===\n";
-        $notes .= "Last Updated: " . now()->format('Y-m-d H:i:s') . "\n\n";
-
-        $recordsByType = [];
-        foreach ($dnsRecords as $record) {
-            $type = $record->type ?? 'UNKNOWN';
-            if (!isset($recordsByType[$type])) {
-                $recordsByType[$type] = [];
-            }
-            $recordsByType[$type][] = $record;
-        }
-
-        foreach ($recordsByType as $type => $records) {
-            $notes .= "--- {$type} Records ---\n";
-            foreach ($records as $record) {
-                $hostname = $record->hostName ?? '';
-                $content = $record->content ?? '';
-                $ttl = $record->ttl ?? '';
-                $prio = isset($record->prio) && $record->prio > 0 ? " (Priority: {$record->prio})" : '';
-                
-                $notes .= "  {$hostname} -> {$content} [TTL: {$ttl}]{$prio}\n";
-            }
-            $notes .= "\n";
-        }
-
-        return $notes;
     }
 }

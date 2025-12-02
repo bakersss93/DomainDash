@@ -8,11 +8,22 @@
             {{ $client->exists ? 'Edit Client' : 'New Client' }}
         </h1>
 
+        {{-- Debug info (remove after testing) --}}
+        @if($client->exists && config('app.debug'))
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px;font-family:monospace;">
+                <strong>Debug Info:</strong><br>
+                HaloPSA Ref: {{ $client->halopsa_reference ?? 'NULL' }}<br>
+                ITGlue Org ID: {{ $client->itglue_org_id ?? 'NULL' }}<br>
+                ITGlue Org Name: {{ $client->itglue_org_name ?? 'NULL' }}
+            </div>
+        @endif
+
         {{-- Form card --}}
         <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
 
             <form method="POST"
-                  action="{{ $client->exists ? route('admin.clients.update', $client) : route('admin.clients.store') }}">
+                  action="{{ $client->exists ? route('admin.clients.update', $client) : route('admin.clients.store') }}"
+                  id="client-form">
                 @csrf
                 @if($client->exists)
                     @method('PUT')
@@ -25,6 +36,7 @@
                     </label>
                     <input id="business_name" name="business_name" type="text"
                            value="{{ old('business_name', $client->business_name) }}"
+                           required
                            style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
                     @error('business_name')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
@@ -47,13 +59,20 @@
                     <label for="halopsa_reference" style="display:block;font-size:14px;margin-bottom:4px;">
                         HaloPSA Reference
                     </label>
-                    <input id="halopsa_reference" name="halopsa_reference" type="text"
+                    <input id="halopsa_reference" 
+                           name="halopsa_reference" 
+                           type="text"
                            value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;"
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#f9fafb;"
                            {{ $client->halopsa_reference ? 'readonly' : '' }}>
                     @error('halopsa_reference')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
+                    @if($client->halopsa_reference)
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            Imported from HaloPSA - cannot be changed
+                        </small>
+                    @endif
                 </div>
 
                 {{-- ITGlue Organisation --}}
@@ -63,13 +82,12 @@
                     </label>
 
                     <div style="display:flex;gap:8px;align-items:center;">
-                        <input  type="text"
-                                id="itglue_org_name"
-                                name="itglue_org_name"
-                                value="{{ old('itglue_org_name', $client->itglue_org_name) }}"
-                                placeholder="Selected ITGlue org name"
-                                readonly
-                                style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#f9fafb;">
+                        <input type="text"
+                               id="itglue_org_name_display"
+                               value="{{ old('itglue_org_name', $client->itglue_org_name) }}"
+                               placeholder="Selected ITGlue org name"
+                               readonly
+                               style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#f9fafb;">
 
                         {{-- Button opens the ITGlue picker modal --}}
                         <button type="button"
@@ -78,13 +96,26 @@
                                 style="white-space:nowrap;padding:8px 12px;">
                             Select from ITGlue
                         </button>
+                        
+                        @if($client->itglue_org_id)
+                            <button type="button"
+                                    id="btn-itglue-clear"
+                                    style="padding:8px 12px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:transparent;white-space:nowrap;">
+                                Clear
+                            </button>
+                        @endif
                     </div>
 
-                    {{-- Hidden field to actually store the ID --}}
-                        <input  type="hidden"
-                                id="itglue_org_id"
-                                name="itglue_org_id"
-                                value="{{ old('itglue_org_id', $client->itglue_org_id) }}">
+                    {{-- Hidden fields to actually store the data --}}
+                    <input type="hidden"
+                           id="itglue_org_id"
+                           name="itglue_org_id"
+                           value="{{ old('itglue_org_id', $client->itglue_org_id) }}">
+                    
+                    <input type="hidden"
+                           id="itglue_org_name"
+                           name="itglue_org_name"
+                           value="{{ old('itglue_org_name', $client->itglue_org_name) }}">
 
                     @error('itglue_org_id')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
@@ -96,17 +127,12 @@
                     <label style="display:block;font-size:14px;margin-bottom:4px;">Status</label>
 
                     @php
-                        $isActive = old(
-                            'active',
-                            isset($client->active)
-                                ? (bool)$client->active
-                                : true
-                        );
+                        $isActive = old('active', $client->exists ? (bool)$client->active : true);
                     @endphp
 
                     <label style="display:inline-flex;align-items:center;gap:8px;
                                   padding:6px 12px;border-radius:9999px;
-                                  border:1px solid #e5e7eb;background:#f9fafb;font-size:14px;">
+                                  border:1px solid #e5e7eb;background:#f9fafb;font-size:14px;cursor:pointer;">
                         <input type="checkbox"
                                name="active"
                                value="1"
@@ -269,10 +295,13 @@
         </div>
     </div>
 
-    {{-- Inline JS for ITGlue picker --}}
+    {{-- Inline JS for ITGlue picker and form --}}
     <script>
+        console.log('Client form loaded');
+        
         (function () {
             const btnOpen   = document.getElementById('btn-itglue-picker');
+            const btnClear  = document.getElementById('btn-itglue-clear');
             const backdrop  = document.getElementById('itglue-modal-backdrop');
             const tbody     = document.getElementById('itglue-tbody');
             const loadingEl = document.getElementById('itglue-loading');
@@ -280,10 +309,21 @@
             const errorEl   = document.getElementById('itglue-error');
             const btnCancel = document.getElementById('itglue-cancel');
 
+            const displayInput = document.getElementById('itglue_org_name_display');
             const inputName = document.getElementById('itglue_org_name');
             const inputId   = document.getElementById('itglue_org_id');
 
+            console.log('ITGlue form elements found:', {
+                btnOpen: !!btnOpen,
+                backdrop: !!backdrop,
+                inputName: !!inputName,
+                inputId: !!inputId,
+                currentId: inputId ? inputId.value : 'N/A',
+                currentName: inputName ? inputName.value : 'N/A'
+            });
+
             if (!btnOpen || !backdrop) {
+                console.error('ITGlue modal elements not found');
                 return;
             }
 
@@ -292,6 +332,7 @@
             let hasLoaded = false;
 
             function openModal() {
+                console.log('Opening ITGlue modal');
                 backdrop.style.display = 'flex';
                 if (!hasLoaded) {
                     loadOrgs();
@@ -299,7 +340,15 @@
             }
 
             function closeModal() {
+                console.log('Closing ITGlue modal');
                 backdrop.style.display = 'none';
+            }
+
+            function clearSelection() {
+                console.log('Clearing ITGlue selection');
+                if (inputName) inputName.value = '';
+                if (inputId) inputId.value = '';
+                if (displayInput) displayInput.value = '';
             }
 
             function normaliseOrg(org) {
@@ -340,11 +389,14 @@
                 errorEl.style.display   = 'none';
                 tbody.innerHTML         = '';
 
+                console.log('Fetching ITGlue orgs from:', itglueUrl);
+
                 fetch(itglueUrl, {
                     headers: { 'Accept': 'application/json' }
                 })
                     .then(r => r.ok ? r.json() : Promise.reject())
                     .then(data => {
+                        console.log('ITGlue response:', data);
                         loadingEl.style.display = 'none';
 
                         let list = [];
@@ -360,6 +412,8 @@
                             emptyEl.style.display = 'block';
                             return;
                         }
+
+                        console.log('Processing', list.length, 'ITGlue orgs');
 
                         list.forEach(item => {
                             const org = normaliseOrg(item);
@@ -379,12 +433,17 @@
 
                             const btnSelect = tr.querySelector('button');
                             btnSelect.addEventListener('click', function () {
-                                if (inputName) {
-                                    inputName.value = org.name;
-                                }
-                                if (inputId && org.id != null) {
-                                    inputId.value = org.id;
-                                }
+                                console.log('Selected ITGlue org:', org);
+                                
+                                if (displayInput) displayInput.value = org.name;
+                                if (inputName) inputName.value = org.name;
+                                if (inputId && org.id != null) inputId.value = org.id;
+                                
+                                console.log('Form values set:', {
+                                    name: inputName ? inputName.value : 'N/A',
+                                    id: inputId ? inputId.value : 'N/A'
+                                });
+                                
                                 closeModal();
                             });
 
@@ -392,18 +451,34 @@
                         });
                     })
                     .catch(() => {
+                        console.error('Failed to load ITGlue orgs');
                         loadingEl.style.display = 'none';
                         errorEl.style.display   = 'block';
                     });
             }
 
             btnOpen.addEventListener('click', openModal);
+            if (btnClear) btnClear.addEventListener('click', clearSelection);
             btnCancel.addEventListener('click', closeModal);
             backdrop.addEventListener('click', function (e) {
                 if (e.target === backdrop) {
                     closeModal();
                 }
             });
+
+            // Log form submission to debug
+            const form = document.getElementById('client-form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    console.log('Form submitting with values:', {
+                        business_name: document.getElementById('business_name')?.value,
+                        halopsa_reference: document.getElementById('halopsa_reference')?.value,
+                        itglue_org_id: document.getElementById('itglue_org_id')?.value,
+                        itglue_org_name: document.getElementById('itglue_org_name')?.value,
+                        active: document.querySelector('input[name="active"]')?.checked
+                    });
+                });
+            }
         })();
 
         // ========================================================================
@@ -418,6 +493,8 @@
             const statusDiv = document.getElementById('itglue-sync-status');
             statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
 
+            console.log('Starting ITGlue sync for client:', clientId);
+
             fetch('/admin/clients/' + clientId + '/itglue/sync-domains', {
                 method: 'POST',
                 headers: {
@@ -425,8 +502,20 @@
                     'Accept': 'application/json'
                 }
             })
-            .then(r => r.json())
+            .then(async r => {
+                console.log('ITGlue sync response status:', r.status);
+                
+                if (!r.ok) {
+                    const text = await r.text();
+                    console.error('ITGlue sync failed:', text.substring(0, 500));
+                    throw new Error('HTTP ' + r.status);
+                }
+                
+                return r.json();
+            })
             .then(data => {
+                console.log('ITGlue sync response:', data);
+                
                 if (data.success) {
                     let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
                     
@@ -446,7 +535,7 @@
             })
             .catch(err => {
                 console.error('Sync error:', err);
-                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing to ITGlue</div>';
+                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing to ITGlue. Check console.</div>';
             });
         }
 

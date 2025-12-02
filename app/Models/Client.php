@@ -10,7 +10,12 @@ class Client extends Model
     use HasFactory;
 
     protected $fillable = [
-        'business_name','abn','halopsa_id','itglue_org_id','active'
+        'business_name',
+        'abn',
+        'halopsa_reference',  // Changed from halopsa_id
+        'itglue_org_id',
+        'itglue_org_name',    // Added
+        'active'
     ];
 
     public function users()
@@ -32,8 +37,9 @@ class Client extends Model
     {
         return $this->hasMany(SslCertificate::class);
     }
+    
     public function tickets()
     {
         return $this->hasMany(Ticket::class);
-}
+    }
 }

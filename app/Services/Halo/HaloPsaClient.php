@@ -6,6 +6,7 @@ use App\Models\Setting;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class HaloPsaClient
 {
@@ -21,7 +22,7 @@ class HaloPsaClient
     {
         $halo = Setting::get('halo', []);
 
-        // Resource server URL, e.g. https://yourtenant.halopsa.com or .../api
+        // Resource server URL
         $baseUrl = rtrim($halo['base_url'] ?? '', '/');
         $baseUrl = preg_replace('#/api$#i', '', $baseUrl);
 
@@ -39,12 +40,12 @@ class HaloPsaClient
 
         $this->http = new Client([
             'base_uri' => $this->baseUrl,
-            'timeout'  => 15,
+            'timeout'  => 30,
         ]);
     }
 
     /**
-     * Get (and cache) an OAuth2 access token using the Client ID + Secret flow.
+     * Get (and cache) an OAuth2 access token
      */
     protected function getAccessToken(): string
     {
@@ -101,8 +102,7 @@ class HaloPsaClient
     }
 
     /**
-     * Core request helper – always sends auth headers and ensures we hit /api/... .
-     * Returns decoded JSON array.
+     * Core request helper
      */
     protected function request(string $method, string $uri, array $options = []): array
     {
@@ -124,10 +124,7 @@ class HaloPsaClient
     }
 
     /**
-     * List Halo clients (companies).
-     *
-     * Docs in your tenant show this as "client" – the actual endpoint typically being /api/client.
-     * We normalise a bunch of possible wrappers and return a plain list of client arrays.
+     * List Halo clients
      */
     public function listClients(int $page = 1, int $pageSize = 100): array
     {
@@ -151,12 +148,10 @@ class HaloPsaClient
             return $result['Results'];
         }
 
-        // If it's already a numeric list
         if (is_array($result) && array_is_list($result)) {
             return $result;
         }
 
-        // Fallback: if there's a single top-level key whose value is a list
         if (is_array($result) && count($result) === 1) {
             $only = reset($result);
             if (is_array($only) && array_is_list($only)) {
@@ -168,7 +163,7 @@ class HaloPsaClient
     }
 
     /**
-     * Get a single client by ID.
+     * Get a single client by ID
      */
     public function getClient(int $clientId): array
     {
@@ -176,16 +171,27 @@ class HaloPsaClient
     }
 
     /**
-     * List all assets for a given client so we can find "Domain" assets.
+     * List all assets for a given client
      */
-    public function listAssetsForClient(int $clientId): array
+    public function listAssetsForClient(int $clientId, ?int $assetTypeId = null): array
     {
-        $result = $this->request('GET', 'assets', [
-            'query' => [
-                'clientId'            => $clientId,
-                'includeCustomFields' => 'true',
-            ],
+        $query = [
+            'client_id' => $clientId,
+            'count' => 100
+        ];
+
+        if ($assetTypeId) {
+            $query['assettype_id'] = $assetTypeId;
+        }
+
+        $result = $this->request('GET', 'asset', [
+            'query' => $query
         ]);
+
+        // Handle different response structures
+        if (isset($result['assets']) && is_array($result['assets'])) {
+            return $result['assets'];
+        }
 
         if (isset($result['data']) && is_array($result['data'])) {
             return $result['data'];
@@ -203,88 +209,188 @@ class HaloPsaClient
     }
 
     /**
-     * List only "Domain" assets for a client (optional helper).
+     * List only "Domain" assets for a client
      */
     public function listDomainAssetsForClient(int $clientId): array
     {
         $assets = $this->listAssetsForClient($clientId);
 
-        return array_values(array_filter($assets, function (array $asset) {
-            $typeName = $asset['AssetType']['Name']
+        Log::info('Filtering domain assets', [
+            'client_id' => $clientId,
+            'total_assets' => count($assets)
+        ]);
+
+        $domainAssets = array_values(array_filter($assets, function (array $asset) {
+            // Try different possible field names for asset type
+            $typeName = $asset['assettype_name']
+                ?? $asset['assettypename']
                 ?? $asset['AssetTypeName']
                 ?? $asset['TypeName']
+                ?? $asset['asset_type_name']
                 ?? null;
 
-            return $typeName && strcasecmp($typeName, 'Domain') === 0;
+            // Also check nested AssetType object
+            if (!$typeName && isset($asset['AssetType'])) {
+                $typeName = $asset['AssetType']['Name']
+                    ?? $asset['AssetType']['name']
+                    ?? null;
+            }
+
+            $isDomain = $typeName && strcasecmp($typeName, 'Domain') === 0;
+
+            if ($isDomain) {
+                Log::info('Found domain asset', [
+                    'asset_id' => $asset['id'] ?? $asset['Id'] ?? 'unknown',
+                    'type' => $typeName
+                ]);
+            }
+
+            return $isDomain;
         }));
+
+        Log::info('Domain assets filtered', [
+            'client_id' => $clientId,
+            'domain_assets_found' => count($domainAssets)
+        ]);
+
+        return $domainAssets;
     }
 
+    /**
+     * Get a single asset by ID
+     */
+    public function getAsset(int $assetId): array
+    {
+        return $this->request('GET', 'asset/' . $assetId);
+    }
+
+    /**
+     * Create a domain asset
+     */
     public function createDomainAsset(array $data): array
     {
-        return $this->request('POST', 'assets', [
+        return $this->request('POST', 'asset', [
             'json' => $data,
         ]);
     }
 
+    /**
+     * Update an asset
+     */
+    public function updateAsset(int $assetId, array $data): array
+    {
+        return $this->request('POST', 'asset/' . $assetId, [
+            'json' => array_merge(['id' => $assetId], $data)
+        ]);
+    }
+
+    /**
+     * Update domain asset with DNS records
+     */
+    public function syncDomainAssetDns(\App\Models\Domain $domain, int $assetId, ?array $dnsRecords = null): array
+    {
+        try {
+            Log::info('Syncing DNS to HaloPSA asset', [
+                'domain' => $domain->name,
+                'asset_id' => $assetId
+            ]);
+
+            // Fetch the current asset to get existing notes
+            $asset = $this->getAsset($assetId);
+            $currentNotes = $asset['notes'] ?? $asset['Notes'] ?? '';
+
+            // Format DNS records
+            $dnsNotes = $this->formatDnsRecordsForNotes($dnsRecords ?? []);
+
+            // Combine with domain info
+            $lines = [];
+            $lines[] = '=== DomainDash Domain Info ===';
+            $lines[] = 'Domain: ' . $domain->name;
+            if ($domain->registrar) {
+                $lines[] = 'Registrar: ' . $domain->registrar;
+            }
+            if ($domain->expiry_date) {
+                $lines[] = 'Expiry: ' . $domain->expiry_date;
+            }
+            $lines[] = '';
+            $lines[] = $dnsNotes;
+
+            $newNotes = trim(rtrim((string) $currentNotes) . "\n\n" . implode("\n", $lines));
+
+            // Update the asset
+            $result = $this->updateAsset($assetId, [
+                'notes' => $newNotes
+            ]);
+
+            return [
+                'success' => true,
+                'asset_id' => $assetId,
+                'data' => $result
+            ];
+        } catch (\Exception $e) {
+            Log::error('HaloPSA syncDomainAssetDns error: ' . $e->getMessage(), [
+                'domain' => $domain->name,
+                'asset_id' => $assetId
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Format DNS records for notes
+     */
+    protected function formatDnsRecordsForNotes(array $dnsRecords): string
+    {
+        if (empty($dnsRecords)) {
+            return "No DNS records available.";
+        }
+
+        $notes = "=== DNS Records (Auto-synced) ===\n";
+        $notes .= "Last Updated: " . now()->format('Y-m-d H:i:s') . "\n\n";
+
+        $recordsByType = [];
+        foreach ($dnsRecords as $record) {
+            $type = is_object($record) ? ($record->type ?? 'UNKNOWN') : ($record['type'] ?? 'UNKNOWN');
+            if (!isset($recordsByType[$type])) {
+                $recordsByType[$type] = [];
+            }
+            $recordsByType[$type][] = $record;
+        }
+
+        foreach ($recordsByType as $type => $records) {
+            $notes .= "--- {$type} Records ---\n";
+            foreach ($records as $record) {
+                if (is_object($record)) {
+                    $hostname = $record->hostName ?? $record->hostname ?? '';
+                    $content = $record->content ?? '';
+                    $ttl = $record->ttl ?? '';
+                    $prio = isset($record->prio) && $record->prio > 0 ? " (Priority: {$record->prio})" : '';
+                } else {
+                    $hostname = $record['hostName'] ?? $record['hostname'] ?? '';
+                    $content = $record['content'] ?? '';
+                    $ttl = $record['ttl'] ?? '';
+                    $prio = isset($record['prio']) && $record['prio'] > 0 ? " (Priority: {$record['prio']})" : '';
+                }
+                
+                $notes .= "  {$hostname} -> {$content} [TTL: {$ttl}]{$prio}\n";
+            }
+            $notes .= "\n";
+        }
+
+        return $notes;
+    }
+
+    /**
+     * Create a ticket
+     */
     public function createTicket(array $data): array
     {
         return $this->request('POST', 'tickets', [
             'json' => $data,
-        ]);
-    }
-
-    /**
-     * Generic asset update helper (PUT /api/assets/{id}).
-     */
-    public function updateAsset(int $assetId, array $data): array
-    {
-        return $this->request('PUT', 'assets/' . $assetId, [
-            'json' => $data,
-        ]);
-    }
-
-    /**
-     * Helper to append DomainDash info into a Halo "Domain" asset's Notes field.
-     *
-     * You can call this from a sync job or from the client import flow.
-     *
-     * Example usage:
-     *   $halo->updateDomainAssetNotesFromDomain($asset, $domain);
-     */
-    public function updateDomainAssetNotesFromDomain(array $asset, \App\Models\Domain $domain): array
-    {
-        $assetId = $asset['Id'] ?? $asset['id'] ?? null;
-        if (!$assetId) {
-            return $asset;
-        }
-
-        // Existing notes (best-effort)
-        $currentNotes = $asset['Notes'] ?? $asset['notes'] ?? '';
-
-        $lines = [];
-        $lines[] = '--- DomainDash sync ---';
-        $lines[] = 'Domain: ' . $domain->name;
-        if (!empty($domain->expires_at)) {
-            $lines[] = 'Expiry: ' . $domain->expires_at;
-        }
-        if (!empty($domain->nameservers)) {
-            $lines[] = 'Name servers: ' . (is_array($domain->nameservers)
-                ? implode(', ', $domain->nameservers)
-                : $domain->nameservers);
-        }
-        if (!empty($domain->dns_records)) {
-            $lines[] = 'DNS records:';
-            $lines[] = is_string($domain->dns_records)
-                ? $domain->dns_records
-                : json_encode($domain->dns_records);
-        }
-
-        $newNotes = trim(
-            rtrim((string) $currentNotes) . "\n\n" . implode("\n", $lines)
-        );
-
-        return $this->updateAsset($assetId, [
-            'Notes' => $newNotes,
         ]);
     }
 }
