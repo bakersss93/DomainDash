@@ -124,8 +124,13 @@
                 </div>
                 <div class="dd-stat-card-body">
                     @php
+                        // Convert to float as API returns strings
                         $diskUsage = $serviceData['diskUsage'] ?? $service->disk_usage_mb ?? null;
+                        $diskUsage = $diskUsage ? (float) $diskUsage : null;
+
                         $diskLimit = $service->disk_limit_mb ?? null;
+                        $diskLimit = $diskLimit ? (float) $diskLimit : null;
+
                         $diskPercent = ($diskUsage && $diskLimit) ? round(($diskUsage / $diskLimit) * 100, 1) : null;
                     @endphp
                     <div class="dd-stat-row">
@@ -154,8 +159,13 @@
                 </div>
                 <div class="dd-stat-card-body">
                     @php
+                        // Convert to float as API returns mixed types
                         $bwUsed = $serviceData['bandwidth'] ?? $service->bandwidth_used_mb ?? null;
+                        $bwUsed = $bwUsed ? (float) $bwUsed : null;
+
                         $bwLimit = $service->bandwidth_limit_mb ?? null;
+                        $bwLimit = $bwLimit ? (float) $bwLimit : null;
+
                         $bwPercent = ($bwUsed && $bwLimit) ? round(($bwUsed / $bwLimit) * 100, 1) : null;
                     @endphp
                     <div class="dd-stat-row">
