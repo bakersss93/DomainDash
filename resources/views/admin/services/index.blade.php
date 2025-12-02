@@ -1,10 +1,11 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="dd-services-card">
-    <h1 class="dd-services-title">
-        Hosting Services
-    </h1>
+<div style="max-width: 1200px; margin: 0 auto;">
+    <div class="dd-services-card">
+        <h1 class="dd-services-title">
+            Hosting Services
+        </h1>
 
     {{-- Filter + sync toolbar --}}
     <div class="dd-services-toolbar">
@@ -195,6 +196,7 @@
     <div class="dd-services-pagination">
         {{ $services->links() }}
     </div>
+</div>
 </div>
 
 {{-- Password modal --}}

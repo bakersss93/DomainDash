@@ -11,7 +11,8 @@ class HostingService extends Model
 
     protected $fillable = [
         'client_id','domain_id','hoid','plan','username','server','disk_limit_mb','disk_usage_mb',
-        'bandwidth_limit_mb','bandwidth_used_mb','ip_address','next_renewal_due'
+        'bandwidth_limit_mb','bandwidth_used_mb','ip_address','next_renewal_due',
+        'domain_name','service_status','ip','dedicated_ipv4'
     ];
 
     protected $casts = [
