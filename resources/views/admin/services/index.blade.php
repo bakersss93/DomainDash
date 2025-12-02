@@ -23,6 +23,14 @@
                 @endforeach
             </select>
 
+            <select name="status"
+                    class="dd-pill-input dd-pill-select">
+                <option value="">All statuses</option>
+                <option value="ACTIVE" {{ (isset($statusFilter) && $statusFilter === 'ACTIVE') ? 'selected' : '' }}>Active</option>
+                <option value="SUSPENDED" {{ (isset($statusFilter) && $statusFilter === 'SUSPENDED') ? 'selected' : '' }}>Suspended</option>
+                <option value="TERMINATED" {{ (isset($statusFilter) && $statusFilter === 'TERMINATED') ? 'selected' : '' }}>Terminated</option>
+            </select>
+
             <button type="submit" class="btn-accent dd-pill-btn">
                 Filter
             </button>
@@ -114,6 +122,12 @@
 
                             {{-- Actions grid --}}
                             <div class="dd-service-options-grid">
+                                {{-- Overview --}}
+                                <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
+                                    <div class="dd-service-option-icon">👁️</div>
+                                    <div class="dd-service-option-label">Overview</div>
+                                </a>
+
                                 {{-- Show password --}}
                                 <button type="button"
                                         class="dd-service-option dd-password-btn"
