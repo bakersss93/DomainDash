@@ -101,6 +101,7 @@ Route::middleware(['auth','verified'])->group(function () {
         // ============================================================================
         Route::get('/services/hosting', [ServicesController::class, 'index'])->name('admin.services.hosting');
         Route::post('/services/hosting/sync', [ServicesController::class, 'sync'])->name('admin.services.hosting.sync');
+        Route::get('/services/hosting/{service}', [ServicesController::class, 'show'])->name('admin.services.hosting.show');
         Route::get('/services/hosting/{service}/details', [ServicesController::class, 'details'])->name('admin.services.hosting.details');
         Route::post('/services/hosting/{service}/password', [ServicesController::class, 'password'])->name('admin.services.hosting.password');
         Route::post('/services/hosting/{service}/login', [ServicesController::class, 'login'])->name('admin.services.hosting.login');
