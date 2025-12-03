@@ -130,7 +130,7 @@ class SynergyWholesaleClient
         // WSDL: listDNSZoneResponse.records (tns:listDNSZoneArray)
         $records = $res->records ?? [];
 
-        // Normalise – SOAP returns a single stdClass when there’s only one record
+        // Normalise – SOAP returns a single stdClass when there's only one record
         if (is_object($records)) {
             $records = [$records];
         }
@@ -202,42 +202,10 @@ class SynergyWholesaleClient
      |------------------------------------------------------------------*/
 
     /**
-     * List hosting services (with optional filtering and pagination).
-     *
-     * @param string|null $status   Filter by status (e.g., 'ACTIVE', 'SUSPENDED')
-     * @param int|null    $page     Page number for pagination
-     * @param int|null    $limit    Number of results per page
-     * @return array
-     */
-    public function listHosting(?string $status = null, ?int $page = null, ?int $limit = null): array
-    {
-        $params = $this->creds();
-
-        if ($status !== null) {
-            $params['status'] = $status;
-        }
-
-        if ($page !== null) {
-            $params['page'] = $page;
-        }
-
-        if ($limit !== null) {
-            $params['limit'] = $limit;
-        }
-
-        $res = $this->soap->__soapCall('listHosting', [$params]);
-
-        return (array) $res;
-    }
-
-    /**
-     * Get detailed information about a specific hosting service.
-     *
-     * Returns service details including password, domain, username, server,
-     * plan, disk usage, bandwidth, etc.
-     *
-     * @param string      $identifier  Domain name, username, or service identifier
-     * @param string|null $hoid        Hosting Order ID (optional)
+     * Get hosting service details including password.
+     * 
+     * @param string $identifier Domain, username, or hoid
+     * @param string|null $hoid Optional HOID for more specific lookup
      * @return array
      */
     public function hostingGetService(string $identifier, ?string $hoid = null): array
@@ -251,21 +219,17 @@ class SynergyWholesaleClient
         }
 
         $res = $this->soap->__soapCall('hostingGetService', [$params]);
-
         return (array) $res;
     }
 
     /**
-     * Get SSO login URL for cPanel access.
-     *
-     * Returns a temporary URL that provides automatic login to cPanel
-     * for the specified hosting service.
-     *
-     * @param string      $identifier  Domain name, username, or service identifier
-     * @param string|null $hoid        Hosting Order ID (optional)
-     * @return string|null The SSO login URL or null on failure
+     * Get cPanel SSO login URL.
+     * 
+     * @param string $identifier Domain, username, or hoid
+     * @param string|null $hoid Optional HOID for more specific lookup
+     * @return array
      */
-    public function hostingGetLogin(string $identifier, ?string $hoid = null): ?string
+    public function hostingGetLogin(string $identifier, ?string $hoid = null): array
     {
         $params = array_merge($this->creds(), [
             'identifier' => $identifier,
@@ -276,10 +240,29 @@ class SynergyWholesaleClient
         }
 
         $res = $this->soap->__soapCall('hostingGetLogin', [$params]);
+        return (array) $res;
+    }
 
-        // Response format: { status, errorMessage, url }
-        $result = (array) $res;
+    /**
+     * List hosting services with pagination.
+     * 
+     * @param string|null $status Filter by status
+     * @param int $page Page number
+     * @param int $limit Results per page
+     * @return array
+     */
+    public function listHosting(?string $status = null, int $page = 1, int $limit = 100): array
+    {
+        $params = array_merge($this->creds(), [
+            'page' => $page,
+            'limit' => $limit,
+        ]);
 
-        return $result['url'] ?? null;
+        if ($status !== null) {
+            $params['status'] = $status;
+        }
+
+        $res = $this->soap->__soapCall('listHosting', [$params]);
+        return (array) $res;
     }
 }
