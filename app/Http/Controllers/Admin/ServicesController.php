@@ -23,7 +23,9 @@ class ServicesController extends Controller
             $q->where('client_id', $clientId);
         }
 
-        $statusFilter = $request->get('status');
+        // Default to ACTIVE status if no filter specified (first page load)
+        // If user explicitly selects "All statuses", status param will be empty string
+        $statusFilter = $request->has('status') ? $request->get('status') : 'ACTIVE';
         if ($statusFilter && Schema::hasColumn('hosting_services', 'service_status')) {
             $q->where('service_status', $statusFilter);
         }

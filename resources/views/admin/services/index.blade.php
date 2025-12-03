@@ -648,6 +648,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Modal elements (declared at top level so they're accessible throughout)
+    const assignModal  = document.getElementById('dd-assign-modal');
+    const assignForm   = document.getElementById('dd-assign-form');
+    const assignSelect = document.getElementById('dd-assign-select');
+    const domainModal  = document.getElementById('dd-domain-modal');
+    const domainForm   = document.getElementById('dd-domain-form');
+    const domainInput  = document.getElementById('dd-domain-input');
+
     // Slide-down details toggles (click anywhere on row except controls)
     document.querySelectorAll('.dd-service-row').forEach(function (row) {
         const id = row.getAttribute('data-service-id');
@@ -656,12 +664,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const detailsWrapper = detailsRow
             ? detailsRow.querySelector('[data-details-for="' + id + '"]')
             : null;
-        const assignModal  = document.getElementById('dd-assign-modal');
-        const assignForm   = document.getElementById('dd-assign-form');
-        const assignSelect = document.getElementById('dd-assign-select');
-        const domainModal  = document.getElementById('dd-domain-modal');
-        const domainForm   = document.getElementById('dd-domain-form');
-        const domainInput  = document.getElementById('dd-domain-input');
 
         if (!detailsRow || !detailsWrapper) return;
 
