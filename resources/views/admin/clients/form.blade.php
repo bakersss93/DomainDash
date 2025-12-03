@@ -703,14 +703,20 @@
 
             console.log('Starting ITGlue sync for client:', clientId);
 
+            // Add timeout to fetch
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+
             fetch('/admin/clients/' + clientId + '/itglue/sync-domains', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json'
-                }
+                },
+                signal: controller.signal
             })
             .then(async r => {
+                clearTimeout(timeoutId);
                 console.log('ITGlue sync response status:', r.status);
 
                 const contentType = r.headers.get('content-type');
@@ -752,8 +758,20 @@
                 }
             })
             .catch(err => {
+                clearTimeout(timeoutId);
                 console.error('Sync error:', err);
-                statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (err.message || 'Error syncing to ITGlue') + '</div>';
+
+                let errorMsg = 'Error syncing to ITGlue';
+                if (err.name === 'AbortError') {
+                    errorMsg = 'Sync timed out after 2 minutes. Check server logs for details.';
+                } else if (err.message) {
+                    errorMsg = err.message;
+                }
+
+                statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + errorMsg + '</div>';
+            })
+            .finally(() => {
+                clearTimeout(timeoutId);
             });
         }
 
@@ -821,7 +839,7 @@
                 return;
             }
 
-            const haloUrl = @json(route('admin.clients.haloClients'));
+            const haloUrl = @json(route('admin.clients.haloClients')) + '?show_all=1';
 
             let haloLoaded = false;
             let allHaloClients = [];
