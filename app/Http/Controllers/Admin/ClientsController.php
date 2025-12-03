@@ -50,6 +50,12 @@ class ClientsController extends Controller
 
         $client = Client::create($validated);
 
+        // Log the creation to audit log
+        \App\Services\AuditLogger::logCreate(
+            $client,
+            "Created client: {$client->business_name}"
+        );
+
         return redirect()->route('admin.clients.index')
             ->with('success', 'Client created successfully.');
     }
@@ -74,6 +80,9 @@ class ClientsController extends Controller
             'request_data' => $request->all()
         ]);
 
+        // Store original values for audit log
+        $originalValues = $client->getAttributes();
+
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
@@ -91,6 +100,13 @@ class ClientsController extends Controller
 
         $client->update($validated);
 
+        // Log the update to audit log
+        \App\Services\AuditLogger::logUpdate(
+            $client,
+            $originalValues,
+            "Updated client: {$client->business_name}"
+        );
+
         Log::info('Client updated', [
             'client_id' => $client->id,
             'new_values' => $client->fresh()->toArray()
@@ -98,6 +114,56 @@ class ClientsController extends Controller
 
         return redirect()->route('admin.clients.index')
             ->with('success', 'Client updated successfully.');
+    }
+
+    /**
+     * Delete the specified client with email confirmation and audit logging
+     */
+    public function destroy(Request $request, Client $client)
+    {
+        $validated = $request->validate([
+            'confirmed_email' => 'required|email',
+        ]);
+
+        $confirmedEmail = $validated['confirmed_email'];
+
+        try {
+            // Log the deletion to audit log before deleting
+            \App\Services\AuditLogger::logDelete(
+                $client,
+                $confirmedEmail,
+                "Deleted client: {$client->business_name} (ID: {$client->id})"
+            );
+
+            // Store client name for success message
+            $clientName = $client->business_name;
+
+            // Delete the client (this will also remove relationships due to foreign key constraints)
+            $client->delete();
+
+            Log::info('Client deleted', [
+                'client_name' => $clientName,
+                'confirmed_email' => $confirmedEmail,
+                'user_id' => auth()->id(),
+                'ip' => $request->ip()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Client '{$clientName}' has been permanently deleted."
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error deleting client: ' . $e->getMessage(), [
+                'client_id' => $client->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to delete client. Please contact support.'
+            ], 500);
+        }
     }
 
     // ============================================================================

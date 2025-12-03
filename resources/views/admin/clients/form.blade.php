@@ -163,16 +163,27 @@
                 </div>
 
                 {{-- Buttons --}}
-                <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-                    <button type="submit" class="btn-accent" style="padding:8px 14px;">
-                        Save
-                    </button>
+                <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;">
+                    <div style="display:flex;gap:8px;">
+                        <button type="submit" class="btn-accent" style="padding:8px 14px;">
+                            Save
+                        </button>
 
-                    <a href="{{ route('admin.clients.index') }}"
-                       style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
-                              font-size:14px;text-decoration:none;">
-                        Cancel
-                    </a>
+                        <a href="{{ route('admin.clients.index') }}"
+                           style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
+                                  font-size:14px;text-decoration:none;">
+                            Cancel
+                        </a>
+                    </div>
+
+                    @if($client->exists)
+                        <button type="button"
+                                id="btn-delete-client"
+                                style="padding:8px 14px;border-radius:4px;border:1px solid #ef4444;
+                                       background:#ef4444;color:white;font-size:14px;cursor:pointer;">
+                            Delete Client
+                        </button>
+                    @endif
                 </div>
             </form>
         </div>
@@ -398,6 +409,57 @@
                         style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
                                font-size:14px;background:transparent;">
                     Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Delete confirmation modal --}}
+    <div id="delete-modal-backdrop"
+         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.9);
+                z-index:50;align-items:center;justify-content:center;">
+        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+                    width:100%;max-width:500px;box-shadow:0 20px 40px rgba(0,0,0,0.45);
+                    border:2px solid #ef4444;">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;color:#ef4444;">
+                ⚠️ Delete Client: {{ $client->business_name ?? 'Unnamed Client' }}
+            </h2>
+
+            <p style="font-size:14px;color:#e5e7eb;margin-bottom:16px;line-height:1.5;">
+                This action <strong style="color:#ef4444;">cannot be undone</strong>. Deleting this client will permanently remove:
+            </p>
+
+            <ul style="font-size:13px;color:#9ca3af;margin-bottom:16px;padding-left:20px;">
+                <li>Client record and all associated data</li>
+                <li>Links to domains (domains will become unassigned)</li>
+                <li>Links to users</li>
+                <li>Integration references (HaloPSA, ITGlue)</li>
+            </ul>
+
+            <p style="font-size:14px;color:#e5e7eb;margin-bottom:12px;">
+                To confirm deletion, please enter your email address:
+            </p>
+
+            <input type="email"
+                   id="delete-email-confirm"
+                   placeholder="your.email@example.com"
+                   style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid #1f2937;
+                          font-size:14px;margin-bottom:16px;background:#0f172a;color:#e5e7eb;">
+
+            <div id="delete-error" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px;"></div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button"
+                        id="delete-cancel"
+                        style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
+                               font-size:14px;background:transparent;">
+                    Cancel
+                </button>
+                <button type="button"
+                        id="delete-confirm"
+                        style="padding:8px 14px;border-radius:4px;border:1px solid #ef4444;
+                               background:#ef4444;color:white;font-size:14px;">
+                    Delete Permanently
                 </button>
             </div>
         </div>
@@ -1031,5 +1093,109 @@
                 });
             });
         })();
+
+        // ========================================================================
+        // DELETE CLIENT FUNCTIONALITY
+        // ========================================================================
+        @if($client->exists)
+        (function () {
+            const deleteBtn = document.getElementById('btn-delete-client');
+            const deleteBackdrop = document.getElementById('delete-modal-backdrop');
+            const deleteCancel = document.getElementById('delete-cancel');
+            const deleteConfirm = document.getElementById('delete-confirm');
+            const deleteEmailInput = document.getElementById('delete-email-confirm');
+            const deleteError = document.getElementById('delete-error');
+
+            if (!deleteBtn || !deleteBackdrop) {
+                return;
+            }
+
+            function openDeleteModal() {
+                deleteBackdrop.style.display = 'flex';
+                deleteEmailInput.value = '';
+                deleteError.style.display = 'none';
+                deleteEmailInput.focus();
+            }
+
+            function closeDeleteModal() {
+                deleteBackdrop.style.display = 'none';
+                deleteEmailInput.value = '';
+                deleteError.style.display = 'none';
+            }
+
+            async function confirmDelete() {
+                const email = deleteEmailInput.value.trim();
+
+                if (!email) {
+                    deleteError.textContent = 'Please enter your email address to confirm deletion.';
+                    deleteError.style.display = 'block';
+                    return;
+                }
+
+                // Basic email validation
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    deleteError.textContent = 'Please enter a valid email address.';
+                    deleteError.style.display = 'block';
+                    return;
+                }
+
+                // Disable button and show loading
+                deleteConfirm.disabled = true;
+                deleteConfirm.textContent = 'Deleting...';
+
+                try {
+                    const response = await fetch('{{ route("admin.clients.destroy", $client) }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            _method: 'DELETE',
+                            confirmed_email: email
+                        })
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+
+                    if (response.ok && data.success) {
+                        // Success - redirect to clients index
+                        window.location.href = '{{ route("admin.clients.index") }}';
+                    } else {
+                        deleteError.textContent = data.error || 'Failed to delete client. Please try again.';
+                        deleteError.style.display = 'block';
+                        deleteConfirm.disabled = false;
+                        deleteConfirm.textContent = 'Delete Permanently';
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    deleteError.textContent = 'An error occurred. Please try again.';
+                    deleteError.style.display = 'block';
+                    deleteConfirm.disabled = false;
+                    deleteConfirm.textContent = 'Delete Permanently';
+                }
+            }
+
+            deleteBtn.addEventListener('click', openDeleteModal);
+            deleteCancel.addEventListener('click', closeDeleteModal);
+            deleteConfirm.addEventListener('click', confirmDelete);
+
+            // Close on backdrop click
+            deleteBackdrop.addEventListener('click', function(e) {
+                if (e.target === deleteBackdrop) {
+                    closeDeleteModal();
+                }
+            });
+
+            // Allow Enter key to confirm
+            deleteEmailInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    confirmDelete();
+                }
+            });
+        })();
+        @endif
     </script>
 @endsection
