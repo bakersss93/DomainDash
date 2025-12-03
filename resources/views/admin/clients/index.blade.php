@@ -180,9 +180,16 @@
                 Import clients from HaloPSA
             </h2>
 
-            <p style="font-size:13px;color:#9ca3af;margin-bottom:8px;">
+            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
                 Select one or more Halo clients to import. Matching domain assets will be linked automatically.
             </p>
+
+            {{-- Search input --}}
+            <input type="text"
+                   id="halo-import-search"
+                   placeholder="Search clients..."
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
+                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
 
             <div id="halo-import-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
@@ -194,8 +201,12 @@
                     <thead>
                         <tr style="background:#020617;">
                             <th style="width:40px;padding:8px 6px;border-bottom:1px solid #1f2937;text-align:center;">&nbsp;</th>
-                            <th style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;">Name</th>
-                            <th style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;">Reference</th>
+                            <th data-import-sort="name" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                                Name <span class="import-sort-arrow">↕</span>
+                            </th>
+                            <th data-import-sort="reference" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                                Reference <span class="import-sort-arrow">↕</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="halo-import-tbody"></tbody>
@@ -204,6 +215,10 @@
 
             <div id="halo-import-empty" style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
                 No clients found from HaloPSA.
+            </div>
+
+            <div id="halo-import-no-results" style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                No clients match your search.
             </div>
 
             <div id="halo-import-error" style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
@@ -270,6 +285,11 @@
         const errorBox = document.getElementById('halo-import-error');
         const loadingEl = document.getElementById('halo-import-loading');
         const emptyEl = document.getElementById('halo-import-empty');
+        const noResultsEl = document.getElementById('halo-import-no-results');
+        const searchInput = document.getElementById('halo-import-search');
+
+        let allImportClients = [];
+        let currentImportSort = { column: 'name', direction: 'asc' };
 
         function showModal() {
             modal.style.display = 'flex';
@@ -284,6 +304,7 @@
             tbody.innerHTML = '';
             if (errorBox) errorBox.style.display = 'none';
             if (emptyEl) emptyEl.style.display = 'none';
+            if (noResultsEl) noResultsEl.style.display = 'none';
             if (loadingEl) loadingEl.style.display = 'block';
 
             try {
@@ -302,24 +323,12 @@
                 }
 
                 if (!Array.isArray(data) || data.length === 0) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = '<td colspan="3" style="padding:8px;color:#9ca3af;text-align:center;">No clients available to import.</td>';
-                    tbody.appendChild(tr);
                     if (emptyEl) emptyEl.style.display = 'block';
                     return;
                 }
 
-                data.forEach(function (client) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:6px 8px;text-align:center;">
-                            <input type="checkbox" class="halo-client-checkbox" value="${client.id}">
-                        </td>
-                        <td style="padding:6px 8px;">${client.name || ''}</td>
-                        <td style="padding:6px 8px;">${client.reference || ''}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                allImportClients = data;
+                renderImportClients();
             } catch (e) {
                 console.error('Load error', e);
                 if (errorBox) {
@@ -329,6 +338,91 @@
             } finally {
                 if (loadingEl) loadingEl.style.display = 'none';
             }
+        }
+
+        function renderImportClients() {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+            // Filter clients
+            let filteredClients = allImportClients;
+            if (searchTerm) {
+                filteredClients = allImportClients.filter(client => {
+                    const name = (client.name || '').toLowerCase();
+                    const ref = (client.reference || client.id || '').toString().toLowerCase();
+                    return name.includes(searchTerm) || ref.includes(searchTerm);
+                });
+            }
+
+            // Sort clients
+            filteredClients.sort((a, b) => {
+                let aVal, bVal;
+                if (currentImportSort.column === 'name') {
+                    aVal = (a.name || '').toLowerCase();
+                    bVal = (b.name || '').toLowerCase();
+                } else {
+                    aVal = (a.reference || a.id || '').toString().toLowerCase();
+                    bVal = (b.reference || b.id || '').toString().toLowerCase();
+                }
+
+                if (aVal < bVal) return currentImportSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentImportSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Clear tbody
+            tbody.innerHTML = '';
+
+            // Show/hide no results message
+            if (filteredClients.length === 0) {
+                if (searchTerm) {
+                    if (noResultsEl) noResultsEl.style.display = 'block';
+                } else {
+                    if (emptyEl) emptyEl.style.display = 'block';
+                }
+                return;
+            } else {
+                if (noResultsEl) noResultsEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'none';
+            }
+
+            // Render rows
+            filteredClients.forEach(function (client) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding:6px 8px;text-align:center;">
+                        <input type="checkbox" class="halo-client-checkbox" value="${client.id}">
+                    </td>
+                    <td style="padding:6px 8px;">${client.name || ''}</td>
+                    <td style="padding:6px 8px;">${client.reference || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function sortImportBy(column) {
+            if (currentImportSort.column === column) {
+                currentImportSort.direction = currentImportSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentImportSort.column = column;
+                currentImportSort.direction = 'asc';
+            }
+
+            // Update sort arrows
+            document.querySelectorAll('.import-sort-arrow').forEach(arrow => {
+                arrow.textContent = '↕';
+                arrow.style.opacity = '0.5';
+            });
+
+            const th = document.querySelector(`[data-import-sort="${column}"]`);
+            if (th) {
+                const arrow = th.querySelector('.import-sort-arrow');
+                if (arrow) {
+                    arrow.textContent = currentImportSort.direction === 'asc' ? '↑' : '↓';
+                    arrow.style.opacity = '1';
+                }
+            }
+
+            renderImportClients();
         }
 
         async function importSelected() {
@@ -379,6 +473,25 @@
         if (openBtn) openBtn.addEventListener('click', showModal);
         if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
         if (confirmBtn) confirmBtn.addEventListener('click', importSelected);
+
+        // Search input event listener
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (allImportClients.length > 0) {
+                    renderImportClients();
+                }
+            });
+        }
+
+        // Sort column event listeners
+        document.querySelectorAll('[data-import-sort]').forEach(th => {
+            th.addEventListener('click', function() {
+                const column = this.getAttribute('data-import-sort');
+                if (allImportClients.length > 0) {
+                    sortImportBy(column);
+                }
+            });
+        });
     });
     
     // Sync functions

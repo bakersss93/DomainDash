@@ -105,13 +105,13 @@ class ClientsController extends Controller
     // ============================================================================
 
     /**
-     * Fetch HaloPSA clients for import
+     * Fetch HaloPSA clients for import or reconnection
      */
-    public function haloClients()
+    public function haloClients(Request $request)
     {
         try {
             $token = $this->getHaloAccessToken();
-            
+
             if (!$token) {
                 return response()->json([
                     'error' => 'Failed to authenticate with HaloPSA'
@@ -120,7 +120,7 @@ class ClientsController extends Controller
 
             $haloSettings = Setting::get('halo', []);
             $baseUrl = rtrim($haloSettings['base_url'] ?? '', '/');
-            
+
             if (empty($baseUrl)) {
                 return response()->json([
                     'error' => 'HaloPSA base URL is not configured in settings'
@@ -145,43 +145,48 @@ class ClientsController extends Controller
                     'body' => $response->body(),
                     'url' => $baseUrl . '/Client'
                 ]);
-                
+
                 return response()->json([
                     'error' => 'Failed to fetch clients from HaloPSA: HTTP ' . $response->status()
                 ], 500);
             }
 
             $responseData = $response->json();
-            
-            $clients = $responseData['clients'] 
-                ?? $responseData['data'] 
-                ?? $responseData['Results'] 
+
+            $clients = $responseData['clients']
+                ?? $responseData['data']
+                ?? $responseData['Results']
                 ?? [];
 
             if (empty($clients) && is_array($responseData) && isset($responseData[0])) {
                 $clients = $responseData;
             }
 
-            $existingRefs = Client::whereNotNull('halopsa_reference')
-                ->pluck('halopsa_reference')
-                ->toArray();
+            // Only filter out existing clients if not showing all
+            $showAll = $request->query('show_all', false);
 
-            $availableClients = array_filter($clients, function($client) use ($existingRefs) {
-                $clientId = (string) ($client['id'] ?? $client['Id'] ?? '');
-                return !empty($clientId) && !in_array($clientId, $existingRefs);
-            });
+            if (!$showAll) {
+                $existingRefs = Client::whereNotNull('halopsa_reference')
+                    ->pluck('halopsa_reference')
+                    ->toArray();
+
+                $clients = array_filter($clients, function($client) use ($existingRefs) {
+                    $clientId = (string) ($client['id'] ?? $client['Id'] ?? '');
+                    return !empty($clientId) && !in_array($clientId, $existingRefs);
+                });
+            }
 
             $formatted = array_map(function($client) {
                 $id = $client['id'] ?? $client['Id'] ?? null;
                 $name = $client['name'] ?? $client['Name'] ?? 'Unknown';
-                
+
                 return [
                     'id' => $id,
                     'name' => $name,
                     'reference' => $id,
                     'full_data' => $client,
                 ];
-            }, array_values($availableClients));
+            }, array_values($clients));
 
             return response()->json($formatted);
 
@@ -189,7 +194,7 @@ class ClientsController extends Controller
             Log::error('Error fetching HaloPSA clients: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Error fetching HaloPSA clients: ' . $e->getMessage()
             ], 500);
