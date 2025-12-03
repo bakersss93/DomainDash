@@ -28,7 +28,6 @@
             <table style="width:100%;border-collapse:collapse;font-size:14px;">
                 <thead>
                     <tr>
-                        <th style="width:30px;padding:8px 6px;border-bottom:1px solid #1f2937;"></th>
                         <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Business Name</th>
                         <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">ABN</th>
                         <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">HaloPSA</th>
@@ -39,10 +38,7 @@
                 </thead>
                 <tbody>
                     @forelse($clients as $client)
-                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;">
-                            <td style="padding:8px 6px;border-bottom:1px solid #111827;">
-                                <span class="expand-icon" style="transition:transform 0.2s;">▶</span>
-                            </td>
+                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;transition:background-color 0.15s ease;">
                             <td style="padding:8px 6px;border-bottom:1px solid #111827;">
                                 <strong>{{ $client->business_name }}</strong>
                             </td>
@@ -77,13 +73,13 @@
                                 </a>
                             </td>
                         </tr>
-                        
+
                         {{-- Expandable details row --}}
                         <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
-                            <td colspan="7" style="padding:0;border-bottom:1px solid #111827;">
+                            <td colspan="6" style="padding:0;border-bottom:1px solid #111827;">
                                 <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                                        
+
                                         {{-- Info column --}}
                                         <div>
                                             <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#9ca3af;">Client Information</h4>
@@ -106,11 +102,11 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         {{-- Actions column --}}
                                         <div>
                                             <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#9ca3af;">Integration Actions</h4>
-                                            
+
                                             {{-- ITGlue Sync --}}
                                             @if($client->itglue_org_id)
                                                 <div style="margin-bottom:12px;">
@@ -127,7 +123,7 @@
                                                     Link ITGlue organization first
                                                 </div>
                                             @endif
-                                            
+
                                             {{-- HaloPSA DNS Sync --}}
                                             @if($client->halopsa_reference)
                                                 @php
@@ -160,7 +156,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" style="padding:12px 6px;text-align:center;color:#9ca3af;">
+                            <td colspan="6" style="padding:12px 6px;text-align:center;color:#9ca3af;">
                                 No clients found.
                             </td>
                         </tr>
@@ -245,18 +241,23 @@
         document.querySelectorAll('.client-row').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A') return; // Don't expand when clicking Edit
-                
+
                 const clientId = this.dataset.clientId;
                 const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
-                const icon = this.querySelector('.expand-icon');
-                
+
                 if (detailsRow.style.display === 'none') {
                     detailsRow.style.display = 'table-row';
-                    icon.style.transform = 'rotate(90deg)';
                 } else {
                     detailsRow.style.display = 'none';
-                    icon.style.transform = 'rotate(0deg)';
                 }
+            });
+
+            // Add hover effect
+            row.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'rgba(148,163,184,0.1)';
+            });
+            row.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
             });
         });
         
@@ -383,7 +384,7 @@
     // Sync functions
     function syncClientToItglue(clientId, event) {
         event.stopPropagation();
-        
+
         if (!confirm('Sync all domains to ITGlue with DNS records from Synergy?')) {
             return;
         }
@@ -399,12 +400,23 @@
             }
         })
         .then(async r => {
-            if (!r.ok) {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
                 const text = await r.text();
-                console.error('ITGlue sync failed:', text);
-                throw new Error('HTTP ' + r.status);
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
             }
-            return r.json();
+
+            if (!r.ok) {
+                console.error('ITGlue sync failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -415,13 +427,13 @@
         })
         .catch(err => {
             console.error('Sync error:', err);
-            statusDiv.innerHTML = '<span style="color:#f87171;">✗ Sync failed</span>';
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
     
     function syncClientDnsToHalo(clientId, event) {
         event.stopPropagation();
-        
+
         if (!confirm('Sync DNS records to HaloPSA asset notes?')) {
             return;
         }
@@ -437,12 +449,23 @@
             }
         })
         .then(async r => {
-            if (!r.ok) {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
                 const text = await r.text();
-                console.error('HaloPSA sync failed:', text);
-                throw new Error('HTTP ' + r.status);
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
             }
-            return r.json();
+
+            if (!r.ok) {
+                console.error('HaloPSA sync failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -453,7 +476,7 @@
         })
         .catch(err => {
             console.error('Sync error:', err);
-            statusDiv.innerHTML = '<span style="color:#f87171;">✗ Sync failed</span>';
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
     </script>

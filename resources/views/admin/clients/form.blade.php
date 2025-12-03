@@ -56,23 +56,44 @@
 
                 {{-- HaloPSA reference --}}
                 <div style="margin-bottom:12px;">
-                    <label for="halopsa_reference" style="display:block;font-size:14px;margin-bottom:4px;">
+                    <label for="halopsa_reference_display" style="display:block;font-size:14px;margin-bottom:4px;">
                         HaloPSA Reference
                     </label>
-                    <input id="halopsa_reference" 
-                           name="halopsa_reference" 
-                           type="text"
-                           value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#f9fafb;"
-                           {{ $client->halopsa_reference ? 'readonly' : '' }}>
+
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text"
+                               id="halopsa_reference_display"
+                               value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
+                               placeholder="Selected HaloPSA client reference"
+                               readonly
+                               style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#f9fafb;">
+
+                        {{-- Button opens the HaloPSA picker modal --}}
+                        <button type="button"
+                                id="btn-halopsa-picker"
+                                class="btn-accent"
+                                style="white-space:nowrap;padding:8px 12px;">
+                            {{ $client->halopsa_reference ? 'Change' : 'Select from HaloPSA' }}
+                        </button>
+
+                        @if($client->halopsa_reference)
+                            <button type="button"
+                                    id="btn-halopsa-clear"
+                                    style="padding:8px 12px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:transparent;white-space:nowrap;">
+                                Clear
+                            </button>
+                        @endif
+                    </div>
+
+                    {{-- Hidden field to actually store the data --}}
+                    <input type="hidden"
+                           id="halopsa_reference"
+                           name="halopsa_reference"
+                           value="{{ old('halopsa_reference', $client->halopsa_reference) }}">
+
                     @error('halopsa_reference')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
-                    @if($client->halopsa_reference)
-                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
-                            Imported from HaloPSA - cannot be changed
-                        </small>
-                    @endif
                 </div>
 
                 {{-- ITGlue Organisation --}}
@@ -250,9 +271,16 @@
                 Select ITGlue Organisation
             </h2>
 
-            <p style="font-size:13px;color:#9ca3af;margin-bottom:8px;">
+            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
                 Choose an organisation from ITGlue to link with this client.
             </p>
+
+            {{-- Search input --}}
+            <input type="text"
+                   id="itglue-search"
+                   placeholder="Search organisations..."
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
+                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
 
             <div id="itglue-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
@@ -263,8 +291,12 @@
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
                     <tr style="background:#020617;">
-                        <th style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;">Name</th>
-                        <th style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;">Reference / ID</th>
+                        <th data-sort="name" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                            Name <span class="sort-arrow">↕</span>
+                        </th>
+                        <th data-sort="ref" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                            Reference / ID <span class="sort-arrow">↕</span>
+                        </th>
                         <th style="width:120px;padding:8px 6px;border-bottom:1px solid #1f2937;text-align:right;">&nbsp;</th>
                     </tr>
                     </thead>
@@ -279,6 +311,11 @@
                 No organisations returned from ITGlue.
             </div>
 
+            <div id="itglue-no-results"
+                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                No organisations match your search.
+            </div>
+
             <div id="itglue-error"
                  style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
                 Failed to load organisations from ITGlue. Please check the ITGlue API settings.
@@ -287,6 +324,77 @@
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
                 <button type="button"
                         id="itglue-cancel"
+                        style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
+                               font-size:14px;background:transparent;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- HaloPSA client picker modal --}}
+    <div id="halopsa-modal-backdrop"
+         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);
+                z-index:50;align-items:center;justify-content:center;">
+        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);">
+            <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
+                Select HaloPSA Client
+            </h2>
+
+            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
+                Choose a client from HaloPSA to link with this client.
+            </p>
+
+            {{-- Search input --}}
+            <input type="text"
+                   id="halopsa-search"
+                   placeholder="Search clients..."
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
+                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
+
+            <div id="halopsa-loading"
+                 style="font-size:14px;color:#9ca3af;margin:8px 0;">
+                Loading clients from HaloPSA…
+            </div>
+
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                    <tr style="background:#020617;">
+                        <th data-halosort="name" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                            Name <span class="halosort-arrow">↕</span>
+                        </th>
+                        <th data-halosort="reference" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                            Reference <span class="halosort-arrow">↕</span>
+                        </th>
+                        <th style="width:120px;padding:8px 6px;border-bottom:1px solid #1f2937;text-align:right;">&nbsp;</th>
+                    </tr>
+                    </thead>
+                    <tbody id="halopsa-tbody">
+                    {{-- Populated by JS --}}
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="halopsa-empty"
+                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                No clients returned from HaloPSA.
+            </div>
+
+            <div id="halopsa-no-results"
+                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                No clients match your search.
+            </div>
+
+            <div id="halopsa-error"
+                 style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
+                Failed to load clients from HaloPSA. Please check the HaloPSA API settings.
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button type="button"
+                        id="halopsa-cancel"
                         style="padding:8px 14px;border-radius:4px;border:1px solid #e5e7eb;
                                font-size:14px;background:transparent;">
                     Cancel
@@ -328,8 +436,12 @@
             }
 
             const itglueUrl = @json(route('admin.clients.itglue.search'));
+            const searchInput = document.getElementById('itglue-search');
+            const noResultsEl = document.getElementById('itglue-no-results');
 
             let hasLoaded = false;
+            let allOrgs = [];
+            let currentSort = { column: 'name', direction: 'asc' };
 
             function openModal() {
                 console.log('Opening ITGlue modal');
@@ -386,6 +498,7 @@
                 hasLoaded = true;
                 loadingEl.style.display = 'block';
                 emptyEl.style.display   = 'none';
+                noResultsEl.style.display = 'none';
                 errorEl.style.display   = 'none';
                 tbody.innerHTML         = '';
 
@@ -415,46 +528,122 @@
 
                         console.log('Processing', list.length, 'ITGlue orgs');
 
-                        list.forEach(item => {
-                            const org = normaliseOrg(item);
-                            const tr  = document.createElement('tr');
-
-                            tr.innerHTML = `
-                                <td style="padding:6px;border-bottom:1px solid #111827;">${org.name}</td>
-                                <td style="padding:6px;border-bottom:1px solid #111827;">${org.ref || org.id || ''}</td>
-                                <td style="padding:6px;border-bottom:1px solid #111827;text-align:right;">
-                                    <button type="button"
-                                            class="btn-accent"
-                                            style="padding:6px 10px;font-size:13px;">
-                                        Select
-                                    </button>
-                                </td>
-                            `;
-
-                            const btnSelect = tr.querySelector('button');
-                            btnSelect.addEventListener('click', function () {
-                                console.log('Selected ITGlue org:', org);
-                                
-                                if (displayInput) displayInput.value = org.name;
-                                if (inputName) inputName.value = org.name;
-                                if (inputId && org.id != null) inputId.value = org.id;
-                                
-                                console.log('Form values set:', {
-                                    name: inputName ? inputName.value : 'N/A',
-                                    id: inputId ? inputId.value : 'N/A'
-                                });
-                                
-                                closeModal();
-                            });
-
-                            tbody.appendChild(tr);
-                        });
+                        allOrgs = list.map(item => normaliseOrg(item));
+                        renderOrgs();
                     })
                     .catch(() => {
                         console.error('Failed to load ITGlue orgs');
                         loadingEl.style.display = 'none';
                         errorEl.style.display   = 'block';
                     });
+            }
+
+            function renderOrgs() {
+                const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+                // Filter orgs
+                let filteredOrgs = allOrgs;
+                if (searchTerm) {
+                    filteredOrgs = allOrgs.filter(org => {
+                        const name = (org.name || '').toLowerCase();
+                        const ref = (org.ref || '').toLowerCase();
+                        const id = (org.id || '').toString().toLowerCase();
+                        return name.includes(searchTerm) || ref.includes(searchTerm) || id.includes(searchTerm);
+                    });
+                }
+
+                // Sort orgs
+                filteredOrgs.sort((a, b) => {
+                    let aVal, bVal;
+                    if (currentSort.column === 'name') {
+                        aVal = (a.name || '').toLowerCase();
+                        bVal = (b.name || '').toLowerCase();
+                    } else {
+                        aVal = (a.ref || a.id || '').toString().toLowerCase();
+                        bVal = (b.ref || b.id || '').toString().toLowerCase();
+                    }
+
+                    if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // Clear tbody
+                tbody.innerHTML = '';
+
+                // Show/hide no results message
+                if (filteredOrgs.length === 0) {
+                    if (searchTerm) {
+                        noResultsEl.style.display = 'block';
+                    } else {
+                        emptyEl.style.display = 'block';
+                    }
+                    return;
+                } else {
+                    noResultsEl.style.display = 'none';
+                    emptyEl.style.display = 'none';
+                }
+
+                // Render rows
+                filteredOrgs.forEach(org => {
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td style="padding:6px;border-bottom:1px solid #111827;">${org.name}</td>
+                        <td style="padding:6px;border-bottom:1px solid #111827;">${org.ref || org.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid #111827;text-align:right;">
+                            <button type="button"
+                                    class="btn-accent"
+                                    style="padding:6px 10px;font-size:13px;">
+                                Select
+                            </button>
+                        </td>
+                    `;
+
+                    const btnSelect = tr.querySelector('button');
+                    btnSelect.addEventListener('click', function () {
+                        console.log('Selected ITGlue org:', org);
+
+                        if (displayInput) displayInput.value = org.name;
+                        if (inputName) inputName.value = org.name;
+                        if (inputId && org.id != null) inputId.value = org.id;
+
+                        console.log('Form values set:', {
+                            name: inputName ? inputName.value : 'N/A',
+                            id: inputId ? inputId.value : 'N/A'
+                        });
+
+                        closeModal();
+                    });
+
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function sortBy(column) {
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+
+                // Update sort arrows
+                document.querySelectorAll('.sort-arrow').forEach(arrow => {
+                    arrow.textContent = '↕';
+                    arrow.style.opacity = '0.5';
+                });
+
+                const th = document.querySelector(`[data-sort="${column}"]`);
+                if (th) {
+                    const arrow = th.querySelector('.sort-arrow');
+                    if (arrow) {
+                        arrow.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+                        arrow.style.opacity = '1';
+                    }
+                }
+
+                renderOrgs();
             }
 
             btnOpen.addEventListener('click', openModal);
@@ -464,6 +653,25 @@
                 if (e.target === backdrop) {
                     closeModal();
                 }
+            });
+
+            // Search input event listener
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    if (allOrgs.length > 0) {
+                        renderOrgs();
+                    }
+                });
+            }
+
+            // Sort column event listeners
+            document.querySelectorAll('[data-sort]').forEach(th => {
+                th.addEventListener('click', function() {
+                    const column = this.getAttribute('data-sort');
+                    if (allOrgs.length > 0) {
+                        sortBy(column);
+                    }
+                });
             });
 
             // Log form submission to debug
@@ -504,21 +712,31 @@
             })
             .then(async r => {
                 console.log('ITGlue sync response status:', r.status);
-                
-                if (!r.ok) {
+
+                const contentType = r.headers.get('content-type');
+                let data;
+
+                if (contentType && contentType.includes('application/json')) {
+                    data = await r.json();
+                } else {
                     const text = await r.text();
-                    console.error('ITGlue sync failed:', text.substring(0, 500));
-                    throw new Error('HTTP ' + r.status);
+                    console.error('Non-JSON response:', text.substring(0, 500));
+                    throw new Error('Server returned non-JSON response');
                 }
-                
-                return r.json();
+
+                if (!r.ok) {
+                    console.error('ITGlue sync failed:', data);
+                    throw new Error(data.error || data.message || 'HTTP ' + r.status);
+                }
+
+                return data;
             })
             .then(data => {
                 console.log('ITGlue sync response:', data);
-                
+
                 if (data.success) {
                     let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
-                    
+
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
                         data.results.forEach(result => {
@@ -527,7 +745,7 @@
                         });
                         html += '</div>';
                     }
-                    
+
                     statusDiv.innerHTML = html;
                 } else {
                     statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
@@ -535,7 +753,7 @@
             })
             .catch(err => {
                 console.error('Sync error:', err);
-                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing to ITGlue. Check console.</div>';
+                statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (err.message || 'Error syncing to ITGlue') + '</div>';
             });
         }
 
@@ -558,7 +776,7 @@
             .then(data => {
                 if (data.success) {
                     let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
-                    
+
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
                         data.results.forEach(result => {
@@ -567,7 +785,7 @@
                         });
                         html += '</div>';
                     }
-                    
+
                     statusDiv.innerHTML = html;
                 } else {
                     statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
@@ -579,5 +797,221 @@
             });
         }
         @endif
+
+        // ========================================================================
+        // HALOPSA CLIENT PICKER
+        // ========================================================================
+        (function () {
+            const haloBackdrop = document.getElementById('halopsa-modal-backdrop');
+            const haloTbody = document.getElementById('halopsa-tbody');
+            const haloLoadingEl = document.getElementById('halopsa-loading');
+            const haloEmptyEl = document.getElementById('halopsa-empty');
+            const haloNoResultsEl = document.getElementById('halopsa-no-results');
+            const haloErrorEl = document.getElementById('halopsa-error');
+            const haloBtnOpen = document.getElementById('btn-halopsa-picker');
+            const haloBtnClear = document.getElementById('btn-halopsa-clear');
+            const haloBtnCancel = document.getElementById('halopsa-cancel');
+            const haloSearchInput = document.getElementById('halopsa-search');
+
+            const haloDisplayInput = document.getElementById('halopsa_reference_display');
+            const haloHiddenInput = document.getElementById('halopsa_reference');
+
+            if (!haloBtnOpen || !haloBackdrop) {
+                console.log('HaloPSA modal elements not found');
+                return;
+            }
+
+            const haloUrl = @json(route('admin.clients.haloClients'));
+
+            let haloLoaded = false;
+            let allHaloClients = [];
+            let currentHaloSort = { column: 'name', direction: 'asc' };
+
+            function openHaloModal() {
+                console.log('Opening HaloPSA modal');
+                haloBackdrop.style.display = 'flex';
+                if (!haloLoaded) {
+                    loadHaloClients();
+                }
+            }
+
+            function closeHaloModal() {
+                console.log('Closing HaloPSA modal');
+                haloBackdrop.style.display = 'none';
+            }
+
+            function clearHaloSelection() {
+                console.log('Clearing HaloPSA selection');
+                if (haloHiddenInput) haloHiddenInput.value = '';
+                if (haloDisplayInput) haloDisplayInput.value = '';
+            }
+
+            function loadHaloClients() {
+                haloLoaded = true;
+                haloLoadingEl.style.display = 'block';
+                haloEmptyEl.style.display = 'none';
+                haloNoResultsEl.style.display = 'none';
+                haloErrorEl.style.display = 'none';
+                haloTbody.innerHTML = '';
+
+                console.log('Fetching HaloPSA clients from:', haloUrl);
+
+                fetch(haloUrl, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                    .then(r => r.ok ? r.json() : Promise.reject())
+                    .then(data => {
+                        console.log('HaloPSA response:', data);
+                        haloLoadingEl.style.display = 'none';
+
+                        if (!Array.isArray(data) || data.length === 0) {
+                            haloEmptyEl.style.display = 'block';
+                            return;
+                        }
+
+                        console.log('Processing', data.length, 'HaloPSA clients');
+                        allHaloClients = data;
+                        renderHaloClients();
+                    })
+                    .catch(() => {
+                        console.error('Failed to load HaloPSA clients');
+                        haloLoadingEl.style.display = 'none';
+                        haloErrorEl.style.display = 'block';
+                    });
+            }
+
+            function renderHaloClients() {
+                const searchTerm = haloSearchInput ? haloSearchInput.value.toLowerCase() : '';
+
+                // Filter clients
+                let filteredClients = allHaloClients;
+                if (searchTerm) {
+                    filteredClients = allHaloClients.filter(client => {
+                        const name = (client.name || '').toLowerCase();
+                        const ref = (client.reference || client.id || '').toString().toLowerCase();
+                        return name.includes(searchTerm) || ref.includes(searchTerm);
+                    });
+                }
+
+                // Sort clients
+                filteredClients.sort((a, b) => {
+                    let aVal, bVal;
+                    if (currentHaloSort.column === 'name') {
+                        aVal = (a.name || '').toLowerCase();
+                        bVal = (b.name || '').toLowerCase();
+                    } else {
+                        aVal = (a.reference || a.id || '').toString().toLowerCase();
+                        bVal = (b.reference || b.id || '').toString().toLowerCase();
+                    }
+
+                    if (aVal < bVal) return currentHaloSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentHaloSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // Clear tbody
+                haloTbody.innerHTML = '';
+
+                // Show/hide no results message
+                if (filteredClients.length === 0) {
+                    if (searchTerm) {
+                        haloNoResultsEl.style.display = 'block';
+                    } else {
+                        haloEmptyEl.style.display = 'block';
+                    }
+                    return;
+                } else {
+                    haloNoResultsEl.style.display = 'none';
+                    haloEmptyEl.style.display = 'none';
+                }
+
+                // Render rows
+                filteredClients.forEach(client => {
+                    const tr = document.createElement('tr');
+
+                    tr.innerHTML = `
+                        <td style="padding:6px;border-bottom:1px solid #111827;">${client.name || 'Unknown'}</td>
+                        <td style="padding:6px;border-bottom:1px solid #111827;">${client.reference || client.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid #111827;text-align:right;">
+                            <button type="button"
+                                    class="btn-accent"
+                                    style="padding:6px 10px;font-size:13px;">
+                                Select
+                            </button>
+                        </td>
+                    `;
+
+                    const btnSelect = tr.querySelector('button');
+                    btnSelect.addEventListener('click', function () {
+                        console.log('Selected HaloPSA client:', client);
+
+                        if (haloDisplayInput) haloDisplayInput.value = client.reference || client.id || '';
+                        if (haloHiddenInput) haloHiddenInput.value = client.id || client.reference || '';
+
+                        console.log('Form values set:', {
+                            reference: haloHiddenInput ? haloHiddenInput.value : 'N/A'
+                        });
+
+                        closeHaloModal();
+                    });
+
+                    haloTbody.appendChild(tr);
+                });
+            }
+
+            function sortHaloBy(column) {
+                if (currentHaloSort.column === column) {
+                    currentHaloSort.direction = currentHaloSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentHaloSort.column = column;
+                    currentHaloSort.direction = 'asc';
+                }
+
+                // Update sort arrows
+                document.querySelectorAll('.halosort-arrow').forEach(arrow => {
+                    arrow.textContent = '↕';
+                    arrow.style.opacity = '0.5';
+                });
+
+                const th = document.querySelector(`[data-halosort="${column}"]`);
+                if (th) {
+                    const arrow = th.querySelector('.halosort-arrow');
+                    if (arrow) {
+                        arrow.textContent = currentHaloSort.direction === 'asc' ? '↑' : '↓';
+                        arrow.style.opacity = '1';
+                    }
+                }
+
+                renderHaloClients();
+            }
+
+            haloBtnOpen.addEventListener('click', openHaloModal);
+            if (haloBtnClear) haloBtnClear.addEventListener('click', clearHaloSelection);
+            haloBtnCancel.addEventListener('click', closeHaloModal);
+            haloBackdrop.addEventListener('click', function (e) {
+                if (e.target === haloBackdrop) {
+                    closeHaloModal();
+                }
+            });
+
+            // Search input event listener
+            if (haloSearchInput) {
+                haloSearchInput.addEventListener('input', function() {
+                    if (allHaloClients.length > 0) {
+                        renderHaloClients();
+                    }
+                });
+            }
+
+            // Sort column event listeners
+            document.querySelectorAll('[data-halosort]').forEach(th => {
+                th.addEventListener('click', function() {
+                    const column = this.getAttribute('data-halosort');
+                    if (allHaloClients.length > 0) {
+                        sortHaloBy(column);
+                    }
+                });
+            });
+        })();
     </script>
 @endsection
