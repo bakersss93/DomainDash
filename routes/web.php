@@ -67,6 +67,13 @@ Route::middleware(['auth','verified'])->group(function () {
         // DOMAINS ROUTES
         // ============================================================================
         Route::get('/domains', [AdminDomainController::class,'index'])->name('admin.domains');
+        Route::get('/domains/purchase', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'index'])->name('admin.domains.purchase');
+        Route::post('/domains/purchase/search', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'search'])->name('admin.domains.purchase.search');
+        Route::post('/domains/purchase/validate-au', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'validateAu'])->name('admin.domains.purchase.validateAu');
+        Route::post('/domains/purchase/complete', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'complete'])->name('admin.domains.purchase.complete');
+        Route::get('/domains/transfer/create', [\App\Http\Controllers\Admin\DomainTransferController::class,'create'])->name('admin.domains.transfer.create');
+        Route::post('/domains/transfer/validate', [\App\Http\Controllers\Admin\DomainTransferController::class,'validate'])->name('admin.domains.transfer.validate');
+        Route::post('/domains/transfer/complete', [\App\Http\Controllers\Admin\DomainTransferController::class,'complete'])->name('admin.domains.transfer.complete');
         Route::get('/domains/{domain}', [AdminDomainController::class,'show'])->name('admin.domains.show');
         Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])->name('admin.domains.bulkSync');
         Route::post('/domains/availability', [AdminDomainController::class,'searchAvailability'])->name('admin.domains.availability');
@@ -101,6 +108,8 @@ Route::middleware(['auth','verified'])->group(function () {
         // HOSTING SERVICES ROUTES
         // ============================================================================
         Route::get('/services/hosting', [ServicesController::class, 'index'])->name('admin.services.hosting');
+        Route::get('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'index'])->name('admin.services.hosting.purchase');
+        Route::post('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'purchase'])->name('admin.services.hosting.purchase.store');
         Route::post('/services/hosting/sync', [ServicesController::class, 'sync'])->name('admin.services.hosting.sync');
         Route::get('/services/hosting/{service}', [ServicesController::class, 'show'])->name('admin.services.hosting.show');
         Route::get('/services/hosting/{service}/details', [ServicesController::class, 'details'])->name('admin.services.hosting.details');
@@ -109,5 +118,11 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/services/hosting/{service}/assign-client', [ServicesController::class, 'assignClient'])->name('admin.services.hosting.assignClient');
         Route::post('/services/hosting/{service}/change-domain', [ServicesController::class, 'changePrimaryDomain'])->name('admin.services.hosting.changeDomain');
         Route::post('/services/hosting/{service}/suspend', [ServicesController::class, 'suspend'])->name('admin.services.hosting.suspend');
+
+        // ============================================================================
+        // SSL CERTIFICATE ROUTES
+        // ============================================================================
+        Route::get('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'index'])->name('admin.services.ssl.purchase');
+        Route::post('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'purchase'])->name('admin.services.ssl.purchase.store');
     });
 });

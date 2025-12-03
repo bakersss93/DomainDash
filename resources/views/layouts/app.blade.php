@@ -30,9 +30,84 @@
 
         .sidebar {
             width: 260px;
-            background: var(--primary);
+            background: #3f4553;
             color: #fff;
             min-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar nav {
+            padding: 8px;
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin-bottom: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-link.active {
+            background: rgba(139, 195, 74, 0.3);
+            background: #8bc34a;
+        }
+
+        .nav-link .icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .nav-link .text {
+            flex: 1;
+        }
+
+        .nav-link .arrow {
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .nav-section.expanded .nav-toggle .arrow {
+            transform: rotate(90deg);
+        }
+
+        .nav-submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding-left: 32px;
+        }
+
+        .nav-section.expanded .nav-submenu {
+            max-height: 500px;
+        }
+
+        .nav-submenu .nav-link {
+            padding: 8px 14px;
+            font-size: 13px;
         }
 
         .topbar {
@@ -520,47 +595,132 @@
 <body>
 <div style="display:flex;">
     <aside class="sidebar">
-        <div style="padding:12px;display:flex;align-items:center;gap:8px;">
+        <div style="padding:16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.1);">
             <img class="logo"
                  src="{{ \Storage::url(data_get(\App\Models\Setting::get('branding'), 'logo', '')) }}"
                  alt="Logo">
             <strong>DomainDash</strong>
         </div>
-        <nav style="padding:12px;">
-            <ul style="list-style:none;padding-left:0;margin:0;">
-                <li style="margin-bottom:4px;">
-                    <a href="{{ route('dashboard') }}" style="color:#fff;text-decoration:none;">Dashboard</a>
-                </li>
-                <li style="margin-bottom:4px;">
-                    <a href="{{ route('admin.domains') }}" style="color:#fff;text-decoration:none;">Domains</a>
-                </li>
-                <li style="margin-bottom:4px;">
-                    <a href="{{ route('admin.services.hosting') }}" style="color:#fff;text-decoration:none;">Services</a>
-                </li>
-                <li style="margin-bottom:4px;">
-                    <a href="{{ route('admin.services.ssls') }}" style="color:#fff;text-decoration:none;">SSLs</a>
+        <nav>
+            <ul>
+                <!-- Dashboard (no submenu) -->
+                <li class="nav-item">
+                    <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                        <span class="icon">🏠</span>
+                        <span class="text">Dashboard</span>
+                    </a>
                 </li>
 
+                <!-- Domains (with submenu) -->
+                <li class="nav-item nav-section {{ request()->routeIs('admin.domains*') ? 'expanded' : '' }}">
+                    <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                        <span class="icon">🌐</span>
+                        <span class="text">Domains</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <ul class="nav-submenu">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.domains') }}" class="nav-link {{ request()->routeIs('admin.domains') && !request()->routeIs('admin.domains.purchase') && !request()->routeIs('admin.domains.transfer') ? 'active' : '' }}">
+                                Manage
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.domains.transfer.create') }}" class="nav-link {{ request()->routeIs('admin.domains.transfer*') ? 'active' : '' }}">
+                                New Transfer
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.domains.purchase') }}" class="nav-link {{ request()->routeIs('admin.domains.purchase') ? 'active' : '' }}">
+                                Purchase New Domain
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Hosting Services (with submenu) -->
+                <li class="nav-item nav-section {{ request()->routeIs('admin.services.hosting*') ? 'expanded' : '' }}">
+                    <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                        <span class="icon">🖥️</span>
+                        <span class="text">Hosting Services</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <ul class="nav-submenu">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.services.hosting') }}" class="nav-link {{ request()->routeIs('admin.services.hosting') && !request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
+                                Manage Hosting
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.services.hosting.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
+                                Purchase Hosting
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- SSLs (with submenu) -->
+                <li class="nav-item nav-section {{ request()->routeIs('admin.services.ssl*') ? 'expanded' : '' }}">
+                    <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                        <span class="icon">🔒</span>
+                        <span class="text">SSLs</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <ul class="nav-submenu">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.services.ssls') }}" class="nav-link {{ request()->routeIs('admin.services.ssls') && !request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
+                                Manage SSLs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.services.ssl.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
+                                Purchase SSL
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Admin Section (hidden for non-admin users) -->
                 @role('Administrator')
-                    <li style="margin-top:12px;opacity:.8;">Admin</li>
-
-                    <li style="margin-bottom:4px;">
-                        <a href="{{ route('admin.clients.index') }}" style="color:#fff;text-decoration:none;">Clients</a>
-                    </li>
-                    <li style="margin-bottom:4px;">
-                        <a href="{{ route('admin.users') }}" style="color:#fff;text-decoration:none;">Users</a>
-                    </li>
-
-                    <li style="margin-bottom:4px;">
-                        <a href="{{ route('admin.settings') }}" style="color:#fff;text-decoration:none;">Settings</a>
-                    </li>
-                    <li style="margin-bottom:4px;">
-                        <a href="{{ route('admin.apikeys') }}" style="color:#fff;text-decoration:none;">API Keys</a>
+                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.apikeys') ? 'expanded' : '' }}">
+                        <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                            <span class="icon">⚙️</span>
+                            <span class="text">Admin</span>
+                            <span class="arrow">▶</span>
+                        </div>
+                        <ul class="nav-submenu">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.clients.index') }}" class="nav-link {{ request()->routeIs('admin.clients*') ? 'active' : '' }}">
+                                    Clients
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.users') }}" class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+                                    Users
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.apikeys') }}" class="nav-link {{ request()->routeIs('admin.apikeys') ? 'active' : '' }}">
+                                    API Keys
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings') ? 'active' : '' }}">
+                                    Settings
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 @endrole
             </ul>
         </nav>
     </aside>
+
+    <script>
+        function toggleNav(element) {
+            const section = element.closest('.nav-section');
+            section.classList.toggle('expanded');
+        }
+    </script>
 
     <main style="flex:1;">
         <div class="topbar">
