@@ -48,7 +48,8 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/clients', [ClientsController::class,'store'])->name('admin.clients.store');
         Route::get('/clients/{client}/edit', [ClientsController::class,'edit'])->name('admin.clients.edit');
         Route::put('/clients/{client}', [ClientsController::class,'update'])->name('admin.clients.update');
-        
+        Route::delete('/clients/{client}', [ClientsController::class,'destroy'])->name('admin.clients.destroy');
+
         // HaloPSA Import Routes
         Route::get('/clients/halo-clients', [ClientsController::class, 'haloClients'])->name('admin.clients.haloClients');
         Route::post('/clients/import-halo', [ClientsController::class, 'importHaloClients'])->name('admin.clients.importHalo');
