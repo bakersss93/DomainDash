@@ -12,7 +12,7 @@ use App\Services\Synergy\SynergyWholesaleClient;
 class ServicesController extends Controller
 {
     /**
-     * List hosting services with optional client filter.
+     * List hosting services with optional client and status filters.
      */
     public function index(Request $request)
     {
@@ -21,6 +21,13 @@ class ServicesController extends Controller
         $clientId = $request->get('client_id');
         if ($clientId) {
             $q->where('client_id', $clientId);
+        }
+
+        // Default to ACTIVE status if no filter specified (first page load)
+        // If user explicitly selects "All statuses", status param will be empty string
+        $statusFilter = $request->has('status') ? $request->get('status') : 'ACTIVE';
+        if ($statusFilter && Schema::hasColumn('hosting_services', 'service_status')) {
+            $q->where('service_status', $statusFilter);
         }
 
         // domain_name now exists; if it doesn't for some reason, drop the orderBy
@@ -32,9 +39,76 @@ class ServicesController extends Controller
         $clients  = Client::orderBy('business_name')->get();
 
         return view('admin.services.index', [
-            'services' => $services,
-            'clients'  => $clients,
-            'clientId' => $clientId,
+            'services'     => $services,
+            'clients'      => $clients,
+            'clientId'     => $clientId,
+            'statusFilter' => $statusFilter,
+        ]);
+    }
+
+    /**
+     * Show detailed overview of a hosting service with live stats from Synergy.
+     */
+    public function show(HostingService $service, SynergyWholesaleClient $synergy)
+    {
+        $serviceData = null;
+        $error = null;
+
+        try {
+            // Use HOID as primary identifier (per Synergy API docs page 107)
+            // HOID can be used as the identifier field
+            $identifier = $service->hoid ?: ($service->domain_name ?: $service->username);
+
+            \Log::info('Fetching service overview', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'identifier_type' => $service->hoid ? 'hoid' : ($service->domain_name ? 'domain' : 'username'),
+                'domain_name' => $service->domain_name,
+                'username' => $service->username,
+                'hoid' => $service->hoid
+            ]);
+
+            // When using HOID as identifier, don't pass hoid parameter separately
+            $serviceData = $synergy->hostingGetService($identifier, null);
+
+            \Log::info('Service overview data retrieved', [
+                'service_id' => $service->id,
+                'status' => $serviceData['status'] ?? 'no status',
+                'errorMessage' => $serviceData['errorMessage'] ?? 'no error message',
+                'data_keys' => array_keys($serviceData),
+                'has_diskUsage' => isset($serviceData['diskUsage']),
+                'has_bandwidth' => isset($serviceData['bandwidth']),
+                'full_response' => json_encode($serviceData)
+            ]);
+
+            // Check if the API call was successful (status can be 'OK', 'Active', etc.)
+            // Consider it an error only if there's no actual service data
+            $hasData = isset($serviceData['domain']) || isset($serviceData['username']);
+
+            if (!$hasData) {
+                $error = $serviceData['errorMessage'] ?? 'Failed to retrieve service data from Synergy.';
+                \Log::warning('Synergy API returned no service data', [
+                    'service_id' => $service->id,
+                    'status' => $serviceData['status'] ?? 'no status',
+                    'error' => $error,
+                    'identifier_used' => $identifier,
+                    'hoid_used' => $service->hoid
+                ]);
+            }
+
+        } catch (\Throwable $e) {
+            \Log::error('Failed to retrieve service overview', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $error = $e->getMessage();
+        }
+
+        return view('admin.services.show', [
+            'service' => $service,
+            'serviceData' => $serviceData,
+            'error' => $error
         ]);
     }
 
@@ -164,28 +238,54 @@ class ServicesController extends Controller
     public function password(HostingService $service, SynergyWholesaleClient $synergy)
     {
         try {
-            $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
-            
+            // Use HOID as primary identifier (per Synergy API docs page 107)
+            // HOID can be used as the identifier field
+            $identifier = $service->hoid ?: ($service->domain_name ?: $service->username);
+
+            \Log::info('Fetching password for service', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'identifier_type' => $service->hoid ? 'hoid' : ($service->domain_name ? 'domain' : 'username'),
+                'domain_name' => $service->domain_name,
+                'username' => $service->username,
+                'hoid' => $service->hoid
+            ]);
+
             // Call Synergy's hostingGetService to get password
-            $result = $synergy->hostingGetService($identifier, $service->hoid);
-            
-            if (($result['status'] ?? null) === 'OK') {
-                $password = $result['password'] ?? null;
-                
-                if ($password) {
-                    return response()->json([
-                        'ok'       => true,
-                        'password' => $password,
-                    ]);
-                }
+            // When using HOID as identifier, don't pass hoid parameter separately
+            $result = $synergy->hostingGetService($identifier, null);
+
+            \Log::info('Password fetch result', [
+                'service_id' => $service->id,
+                'status' => $result['status'] ?? 'no status',
+                'errorMessage' => $result['errorMessage'] ?? 'no error message',
+                'has_password' => isset($result['password']),
+                'result_keys' => array_keys($result),
+                'full_response' => json_encode($result)
+            ]);
+
+            // Check if password exists (status can be 'OK', 'Active', etc.)
+            $password = $result['password'] ?? null;
+
+            if ($password) {
+                return response()->json([
+                    'ok'       => true,
+                    'password' => $password,
+                ]);
             }
-            
+
             return response()->json([
                 'ok'      => false,
                 'message' => $result['errorMessage'] ?? 'Password not available from Synergy.',
             ], 400);
-            
+
         } catch (\Throwable $e) {
+            \Log::error('Password fetch error', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'ok'      => false,
                 'message' => 'Error fetching password: ' . $e->getMessage(),
@@ -199,16 +299,29 @@ class ServicesController extends Controller
     public function login(HostingService $service, SynergyWholesaleClient $synergy)
     {
         try {
-            $identifier = $service->domain_name ?: ($service->username ?: (string) $service->hoid);
-            
+            // Use HOID as primary identifier (per Synergy API docs page 107)
+            $identifier = $service->hoid ?: ($service->domain_name ?: $service->username);
+
+            \Log::info('Attempting cPanel login', [
+                'service_id' => $service->id,
+                'identifier' => $identifier,
+                'identifier_type' => $service->hoid ? 'hoid' : ($service->domain_name ? 'domain' : 'username')
+            ]);
+
             // Call Synergy's hostingGetLogin to get SSO URL
-            $result = $synergy->hostingGetLogin($identifier, $service->hoid);
-            
-            if (($result['status'] ?? null) === 'OK' && !empty($result['url'])) {
-                return redirect()->away($result['url']);
+            // When using HOID as identifier, don't pass hoid parameter separately
+            $url = $synergy->hostingGetLogin($identifier, null);
+
+            \Log::info('cPanel login URL retrieved', [
+                'service_id' => $service->id,
+                'has_url' => !empty($url)
+            ]);
+
+            if (!empty($url)) {
+                return redirect()->away($url);
             }
-            
-            return back()->with('error', $result['errorMessage'] ?? 'Unable to get cPanel login URL from Synergy.');
+
+            return back()->with('error', 'Unable to get cPanel login URL from Synergy.');
             
         } catch (\Throwable $e) {
             return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());

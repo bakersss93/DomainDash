@@ -23,6 +23,14 @@
                 @endforeach
             </select>
 
+            <select name="status"
+                    class="dd-pill-input dd-pill-select">
+                <option value="">All statuses</option>
+                <option value="ACTIVE" {{ (isset($statusFilter) && $statusFilter === 'ACTIVE') ? 'selected' : '' }}>Active</option>
+                <option value="SUSPENDED" {{ (isset($statusFilter) && $statusFilter === 'SUSPENDED') ? 'selected' : '' }}>Suspended</option>
+                <option value="TERMINATED" {{ (isset($statusFilter) && $statusFilter === 'TERMINATED') ? 'selected' : '' }}>Terminated</option>
+            </select>
+
             <button type="submit" class="btn-accent dd-pill-btn">
                 Filter
             </button>
@@ -99,70 +107,52 @@
                             $diskUsage = $service->disk_usage_mb ?? null;
                             $diskLimit = $service->disk_limit_mb ?? null;
                         @endphp
-                        <tr class="service-row" data-service-id="{{ $service->id }}">
-                            <td>
-                                <div class="font-medium text-gray-900 dark:text-gray-100">
-                                    {{ $domainLabel }}
+                        @if($usage !== null || $limit !== null)
+                            {{ $usage ?? '?' }} / {{ $limit ?? '?' }}
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td>
+                        {{ $service->ip
+                           ?? $service->ip_address
+                           ?? $service->dedicated_ipv4
+                           ?? '-' }}
+                    </td>
+                </tr>
+
+                {{-- Slide-down details row --}}
+                <tr data-service-panel="service-{{ $service->id }}" class="dd-service-panel">
+                    <td colspan="6">
+                        <div class="dd-service-panel-inner" data-details-for="{{ $service->id }}">
+                            {{-- Service info header --}}
+                            <div class="dd-service-panel-header">
+                                <div>
+                                    <div style="font-weight:600;">{{ $domainLabel }}</div>
+                                    <div style="font-size:13px;opacity:.8;">
+                                        <span class="dd-detail-plan">{{ $service->plan ?? 'Plan unknown' }}</span>
+                                        • Username: <span class="dd-detail-username">{{ $service->username ?? '—' }}</span>
+                                    </div>
                                 </div>
-                                @if($service->server)
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        {{ $service->server }}
-                                    </div>
-                                @endif
-                            </td>
-                            <td>
-                                <span class="text-sm text-gray-700 dark:text-gray-300">
-                                    {{ $clientLabel }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                    {{ $service->plan ?? '-' }}
-                                </span>
-                            </td>
-                            <td>
-                                <code class="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                    {{ $service->username ?? '-' }}
-                                </code>
-                            </td>
-                            <td>
-                                @if($diskUsage !== null || $diskLimit !== null)
-                                    <div class="text-sm">
-                                        <span class="font-medium">{{ $diskUsage ?? '?' }}</span>
-                                        <span class="text-gray-500 dark:text-gray-400">MB / </span>
-                                        <span class="font-medium">{{ $diskLimit ?? '?' }}</span>
-                                        <span class="text-gray-500 dark:text-gray-400">MB</span>
-                                    </div>
-                                    @if($diskUsage && $diskLimit)
-                                        @php
-                                            $percentage = ($diskUsage / $diskLimit) * 100;
-                                            $colorClass = $percentage > 90 ? 'bg-red-500' : ($percentage > 70 ? 'bg-yellow-500' : 'bg-green-500');
-                                        @endphp
-                                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1">
-                                            <div class="{{ $colorClass }} h-1.5 rounded-full" style="width: {{ min($percentage, 100) }}%"></div>
-                                        </div>
-                                    @endif
-                                @else
-                                    <span class="text-gray-400 dark:text-gray-500">-</span>
-                                @endif
-                            </td>
-                            <td>
-                                @if($service->service_status === 'Active')
-                                    <span class="status-badge status-active">Active</span>
-                                @elseif($service->is_suspended ?? false)
-                                    <span class="status-badge status-suspended">Suspended</span>
-                                @else
-                                    <span class="status-badge status-inactive">{{ $service->service_status ?? 'Unknown' }}</span>
-                                @endif
-                            </td>
-                            <td>
-                                <button type="button" 
-                                        class="btn btn-sm btn-secondary expand-btn"
-                                        data-service-id="{{ $service->id }}">
-                                    <svg class="w-4 h-4 expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                    Details
+                                <div style="font-size:13px;opacity:.7;">
+                                    Server: <span class="dd-detail-server">{{ $service->server ?? '—' }}</span>
+                                </div>
+                            </div>
+
+                            {{-- Actions grid --}}
+                            <div class="dd-service-options-grid">
+                                {{-- Overview --}}
+                                <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
+                                    <div class="dd-service-option-icon">👁️</div>
+                                    <div class="dd-service-option-label">Overview</div>
+                                </a>
+
+                                {{-- Show password --}}
+                                <button type="button"
+                                        class="dd-service-option dd-password-btn"
+                                        data-password-id="{{ $service->id }}">
+                                    <div class="dd-service-option-icon">🔐</div>
+                                    <div class="dd-service-option-label">Show password</div>
                                 </button>
                             </td>
                         </tr>
@@ -308,11 +298,79 @@
             </table>
         </div>
 
-        @if($services->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                {{ $services->links() }}
-            </div>
-        @endif
+                                {{-- Open cPanel --}}
+                                <form method="POST"
+                                      action="{{ route('admin.services.hosting.login', $service) }}"
+                                      class="dd-service-option"
+                                      target="_blank">
+                                    @csrf
+                                    <button type="submit" class="dd-service-option-btn">
+                                        <div class="dd-service-option-icon">💻</div>
+                                        <div class="dd-service-option-label">Open cPanel</div>
+                                    </button>
+                                </form>
+
+                                {{-- Assign client --}}
+                                <button type="button"
+                                        class="dd-service-option dd-assign-btn"
+                                        data-service-id="{{ $service->id }}"
+                                        data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
+                                        data-current-client-id="{{ $service->client_id ?? '' }}">
+                                    <div class="dd-service-option-icon">👥</div>
+                                    <div class="dd-service-option-label">Assign client</div>
+                                </button>
+
+                                {{-- Change primary domain --}}
+                                <button type="button"
+                                        class="dd-service-option dd-change-domain-btn"
+                                        data-service-id="{{ $service->id }}"
+                                        data-change-url="{{ route('admin.services.hosting.changeDomain', $service) }}"
+                                        data-domain="{{ $service->domain_name }}">
+                                    <div class="dd-service-option-icon">🌐</div>
+                                    <div class="dd-service-option-label">Change primary domain</div>
+                                </button>
+
+                                {{-- Suspend / Unsuspend --}}
+                                <form method="POST"
+                                      action="{{ route('admin.services.hosting.suspend', $service) }}"
+                                      class="dd-service-option dd-service-option-danger">
+                                    @csrf
+                                    <button type="submit" class="dd-service-option-btn">
+                                        <div class="dd-service-option-icon">
+                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
+                                                ▶️
+                                            @else
+                                                ⏸️
+                                            @endif
+                                        </div>
+                                        <div class="dd-service-option-label">
+                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
+                                                Unsuspend
+                                            @else
+                                                Suspend
+                                            @endif
+                                        </div>
+                                    </button>
+                                </form>
+                            </div>
+
+                        </div>
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="6"
+                        style="text-align:center;padding:12px 0;opacity:.7;">
+                        No hosting services found. Try syncing from Synergy.
+                    </td>
+                </tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dd-services-pagination">
+        {{ $services->links() }}
     </div>
 </div>
 </div>
@@ -439,18 +497,336 @@
 </div>
 
 <style>
-.status-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-.status-active {
-    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
-}
-.status-suspended {
-    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
-}
-.status-inactive {
-    @apply bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300;
-}
+    :root {
+        --dd-card-radius: 18px;
+        --dd-card-padding: 18px 20px;
+
+        --dd-pill-radius: 9999px;
+        --dd-pill-padding: 8px 14px;
+
+        --dd-card-bg: #ffffff;
+        --dd-card-border: #d1d5db;
+        --dd-pill-bg: #f3f4f6;
+        --dd-pill-border: #d1d5db;
+        --dd-text-color: #111827;
+        --dd-header-bg: #f9fafb;
+        --dd-header-text: #111827;
+        --dd-row-alt-bg: #f9f9fb;
+        --dd-hover-bg: rgba(148,163,184,0.12);
+        --dd-overlay-bg: rgba(15,23,42,0.65);
+    }
+
+    body.dark-mode,
+    body[data-theme="dark"],
+    html.dark,
+    html[data-theme="dark"] {
+        --dd-card-bg: #020617;
+        --dd-card-border: #1f2937;
+        --dd-pill-bg: #0f172a;
+        --dd-pill-border: #374151;
+        --dd-text-color: #e5e7eb;
+        --dd-header-bg: #020617;
+        --dd-header-text: #f9fafb;
+        --dd-row-alt-bg: #111827;
+        --dd-hover-bg: rgba(148,163,184,0.18);
+        --dd-overlay-bg: rgba(15,23,42,0.85);
+    }
+
+    .dd-hidden {
+        display: none;
+    }
+
+    .dd-services-card {
+        border-radius: var(--dd-card-radius);
+        padding: var(--dd-card-padding);
+        margin-top: 24px;
+        border: 1px solid var(--dd-card-border);
+        background: var(--dd-card-bg);
+        color: var(--dd-text-color);
+    }
+
+    .dd-services-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+
+    .dd-services-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .dd-services-filter {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .dd-services-sync {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .dd-services-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .dd-services-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .dd-services-table thead tr {
+        background: var(--dd-header-bg);
+        color: var(--dd-header-text);
+    }
+
+    .dd-services-table th,
+    .dd-services-table td {
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 1px solid rgba(148,163,184,0.4);
+    }
+
+    .dd-services-table tbody tr:nth-child(even) {
+        background: var(--dd-row-alt-bg);
+    }
+
+    .dd-services-pagination {
+        margin-top: 10px;
+    }
+
+    .dd-service-row {
+        cursor: pointer;
+    }
+
+    .dd-service-row:hover {
+        background-color: rgba(148,163,184,0.18);
+    }
+
+    .dd-service-domain-cell {
+        position: relative;
+    }
+
+    .dd-service-domain-text {
+        text-decoration: none;
+    }
+
+    /* Expandable panel with smooth transitions */
+    tr[data-service-panel] {
+        display: none;
+        height: 0;
+    }
+    tr[data-service-panel] > td {
+        padding: 0;
+        border: 0;
+    }
+    tr[data-service-panel].open {
+        display: table-row;
+        height: auto;
+    }
+
+    .dd-service-panel-inner {
+        max-height: 0;
+        padding: 0;
+        margin-top: 0;
+        border: 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition:
+            max-height 0.25s ease,
+            opacity 0.2s ease,
+            transform 0.2s ease,
+            padding 0.2s ease,
+            margin-top 0.2s ease,
+            border-width 0.2s ease;
+    }
+
+    tr[data-service-panel].open > td > .dd-service-panel-inner {
+        max-height: 600px;
+        opacity: 1;
+        transform: translateY(0);
+        padding: 16px 18px 18px;
+        margin-top: 0;
+        border-radius: 8px;
+        border: 1px solid var(--dd-card-border);
+        background: var(--dd-card-bg);
+    }
+
+    .dd-service-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: var(--dd-header-bg);
+        border: 1px solid var(--dd-card-border);
+        margin-bottom: 14px;
+    }
+
+    .dd-service-options-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+    }
+
+    .dd-service-option,
+    .dd-service-option-btn {
+        display: flex;
+        align-items: center;
+        padding: 10px 14px;
+        border-radius: 9999px;
+        background: var(--dd-pill-bg);
+        border: 1px solid var(--dd-pill-border);
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+        width: 100%;
+        color: var(--dd-text-color);
+        transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .dd-service-option:hover,
+    .dd-service-option-btn:hover {
+        background: var(--dd-hover-bg, rgba(148,163,184,0.18));
+        border-color: var(--accent);
+        transform: translateY(-1px);
+    }
+
+    .dd-service-option-btn {
+        background: transparent;
+        color: inherit;
+    }
+
+    .dd-service-option-icon {
+        width: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 8px;
+        font-size: 16px;
+    }
+
+    .dd-service-option-label {
+        flex: 1;
+        text-align: left;
+    }
+
+    .dd-service-option-danger {
+        border-color: #ef4444;
+    }
+
+    .dd-service-option-danger:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: #dc2626;
+    }
+
+    .dd-service-form {
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px solid var(--dd-card-border);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .dd-service-form-label {
+        font-size: 12px;
+        font-weight: 500;
+        margin-bottom: 2px;
+        display: block;
+    }
+
+    .dd-pill-input {
+        border-radius: var(--dd-pill-radius) !important;
+        border: 1px solid var(--dd-pill-border) !important;
+        padding: var(--dd-pill-padding) !important;
+        font-size: 14px;
+        outline: none;
+        background: var(--dd-pill-bg) !important;
+        color: var(--dd-text-color) !important;
+    }
+
+    .dd-pill-input:focus {
+        border-color: var(--accent, #4ade80) !important;
+    }
+
+    .dd-pill-select {
+        min-width: 200px;
+    }
+
+    .dd-pill-btn {
+        border-radius: var(--dd-pill-radius) !important;
+        padding: 8px 16px !important;
+    }
+
+    /* Password modal */
+    .dd-password-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dd-password-backdrop {
+        position: absolute;
+        inset: 0;
+        background: var(--dd-overlay-bg);
+    }
+
+    .dd-password-panel {
+        position: relative;
+        z-index: 1000;
+        max-width: 420px;
+        width: 100%;
+        border-radius: var(--dd-card-radius);
+        padding: 20px;
+        background: var(--dd-card-bg);
+        border: 1px solid var(--dd-card-border);
+    }
+
+    .dd-password-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .dd-password-input-wrapper {
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .dd-password-input {
+        width: 100%;
+        padding-right: 44px !important;
+    }
+
+    .dd-password-toggle {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .dd-password-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
 
 .expand-icon {
     transition: transform 0.2s ease;
@@ -461,21 +837,65 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    
-    // Toggle details rows
-    document.querySelectorAll('.expand-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const serviceId = this.dataset.serviceId;
-            const detailsRow = document.getElementById(`details-${serviceId}`);
-            
-            if (detailsRow.classList.contains('hidden')) {
-                detailsRow.classList.remove('hidden');
-                this.classList.add('expanded');
+document.addEventListener('DOMContentLoaded', function () {
+    // Modal elements (declared at top level so they're accessible throughout)
+    const assignModal  = document.getElementById('dd-assign-modal');
+    const assignForm   = document.getElementById('dd-assign-form');
+    const assignSelect = document.getElementById('dd-assign-select');
+    const domainModal  = document.getElementById('dd-domain-modal');
+    const domainForm   = document.getElementById('dd-domain-form');
+    const domainInput  = document.getElementById('dd-domain-input');
+
+    // Slide-down details toggles (click anywhere on row except controls)
+    document.querySelectorAll('.dd-service-row').forEach(function (row) {
+        const id = row.getAttribute('data-service-id');
+        const panelId = 'service-' + id;
+        const detailsRow = document.querySelector('[data-service-panel="' + panelId + '"]');
+        const detailsWrapper = detailsRow
+            ? detailsRow.querySelector('[data-details-for="' + id + '"]')
+            : null;
+
+        if (!detailsRow || !detailsWrapper) return;
+
+        let loaded = false;
+
+        function loadDetails() {
+            if (loaded) return;
+
+            fetch('{{ url('admin/services/hosting') }}/' + id + '/details', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                loaded = true;
+
+                // Update header info
+                const planSpan = detailsWrapper.querySelector('.dd-detail-plan');
+                if (planSpan) planSpan.textContent = data.plan || 'Plan unknown';
+
+                const serverSpan = detailsWrapper.querySelector('.dd-detail-server');
+                if (serverSpan) serverSpan.textContent = data.server || '—';
+
+                const usernameSpan = detailsWrapper.querySelector('.dd-detail-username');
+                if (usernameSpan) usernameSpan.textContent = data.username || '—';
+            })
+            .catch(() => { /* ignore */ });
+        }
+
+        row.addEventListener('click', function (e) {
+            // Don't toggle when clicking buttons, links, inputs, selects etc.
+            if (e.target.closest('button, form, a, select, input, label')) {
+                return;
+            }
+
+            const isOpen = detailsRow.classList.contains('open');
+            if (!isOpen) {
+                loadDetails();
+                detailsRow.classList.add('open');
             } else {
-                detailsRow.classList.add('hidden');
-                this.classList.remove('expanded');
+                detailsRow.classList.remove('open');
             }
         });
     });
