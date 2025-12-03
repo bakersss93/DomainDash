@@ -602,6 +602,10 @@
         font-size: 18px;
         padding: 4px 8px;
     }
+
+    .dd-password-modal.dd-hidden {
+        display: none !important;
+    }
 </style>
 
 <script>
