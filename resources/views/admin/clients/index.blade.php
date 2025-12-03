@@ -23,22 +23,18 @@
             <table class="dd-clients-table">
                 <thead>
                     <tr>
-                        <th style="width:30px;"></th>
-                        <th style="text-align:left;">Business Name</th>
-                        <th style="text-align:left;">ABN</th>
-                        <th style="text-align:center;">HaloPSA</th>
-                        <th style="text-align:center;">ITGlue</th>
-                        <th style="text-align:center;">Status</th>
-                        <th style="text-align:right;">Actions</th>
+                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Business Name</th>
+                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">ABN</th>
+                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">HaloPSA</th>
+                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">ITGlue</th>
+                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">Status</th>
+                        <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #1f2937;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($clients as $client)
-                        <tr class="dd-client-row" data-client-id="{{ $client->id }}">
-                            <td>
-                                <span class="expand-icon">▶</span>
-                            </td>
-                            <td>
+                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;transition:background-color 0.15s ease;">
+                            <td style="padding:8px 6px;border-bottom:1px solid #111827;">
                                 <strong>{{ $client->business_name }}</strong>
                             </td>
                             <td>
@@ -73,10 +69,12 @@
                         </tr>
 
                         {{-- Expandable details row --}}
-                        <tr class="dd-client-panel" data-client-panel="client-{{ $client->id }}">
-                            <td colspan="7">
-                                <div class="dd-client-panel-inner">
-                                    <div class="dd-client-panel-header">
+                        <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
+                            <td colspan="6" style="padding:0;border-bottom:1px solid #111827;">
+                                <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+                                        {{-- Info column --}}
                                         <div>
                                             <div style="font-weight:600;">{{ $client->business_name }}</div>
                                             <div style="font-size:13px;opacity:.8;">
@@ -105,9 +103,9 @@
                                             @endif
                                         </div>
 
-                                        {{-- Actions Section --}}
-                                        <div class="dd-client-actions-section">
-                                            <h4 class="dd-section-title">Actions</h4>
+                                        {{-- Actions column --}}
+                                        <div>
+                                            <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#9ca3af;">Integration Actions</h4>
 
                                             {{-- ITGlue Sync --}}
                                             @if($client->itglue_org_id)
@@ -152,7 +150,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="dd-empty-state">
+                            <td colspan="6" style="padding:12px 6px;text-align:center;color:#9ca3af;">
                                 No clients found.
                             </td>
                         </tr>
@@ -167,32 +165,60 @@
     </div>
 </div>
 
-{{-- Halo import modal --}}
-<div id="halo-import-backdrop" class="dd-modal">
-    <div class="dd-modal-backdrop"></div>
-    <div class="dd-modal-dialog dd-modal-wide">
-        <h2 class="dd-modal-title">Import clients from HaloPSA</h2>
+    {{-- Halo import modal (same as before) --}}
+    <div id="halo-import-backdrop"
+         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);
+                z-index:50;align-items:center;justify-content:center;">
+        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);">
+            <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
+                Import clients from HaloPSA
+            </h2>
 
-        <p class="dd-modal-description">
-            Select one or more Halo clients to import. Matching domain assets will be linked automatically.
-        </p>
+            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
+                Select one or more Halo clients to import. Matching domain assets will be linked automatically.
+            </p>
+
+            {{-- Search input --}}
+            <input type="text"
+                   id="halo-import-search"
+                   placeholder="Search clients..."
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
+                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
+
+            <div id="halo-import-loading"
+                 style="font-size:14px;color:#9ca3af;margin:8px 0;">
+                Loading clients from HaloPSA…
+            </div>
+
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
+                <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                        <tr style="background:#020617;">
+                            <th style="width:40px;padding:8px 6px;border-bottom:1px solid #1f2937;text-align:center;">&nbsp;</th>
+                            <th data-import-sort="name" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                                Name <span class="import-sort-arrow">↕</span>
+                            </th>
+                            <th data-import-sort="reference" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                                Reference <span class="import-sort-arrow">↕</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="halo-import-tbody"></tbody>
+                </table>
+            </div>
 
         <div id="halo-import-loading" class="dd-loading-text">
             Loading clients from HaloPSA…
         </div>
 
-        <div class="dd-modal-table-wrapper">
-            <table class="dd-modal-table">
-                <thead>
-                    <tr>
-                        <th style="width:40px;text-align:center;">&nbsp;</th>
-                        <th style="text-align:left;">Name</th>
-                        <th style="text-align:left;">Reference</th>
-                    </tr>
-                </thead>
-                <tbody id="halo-import-tbody"></tbody>
-            </table>
-        </div>
+            <div id="halo-import-no-results" style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                No clients match your search.
+            </div>
+
+            <div id="halo-import-error" style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
+                Failed to load clients from HaloPSA. Please check API settings.
+            </div>
 
         <div id="halo-import-empty" class="dd-hidden dd-status-muted dd-modal-message">
             No clients found from HaloPSA.
@@ -230,24 +256,24 @@
         // Expandable rows
         document.querySelectorAll('.dd-client-row').forEach(row => {
             row.addEventListener('click', function(e) {
-                // Don't expand when clicking buttons, links, or form elements
-                if (e.target.closest('a, button, form, input, select, textarea')) return;
+                if (e.target.tagName === 'A') return; // Don't expand when clicking Edit
 
                 const clientId = this.dataset.clientId;
-                const panelId = 'client-' + clientId;
-                const detailsRow = document.querySelector('[data-client-panel="' + panelId + '"]');
-                const icon = this.querySelector('.expand-icon');
+                const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
 
-                if (!detailsRow) return;
-
-                const isOpen = detailsRow.classList.contains('open');
-                if (isOpen) {
-                    detailsRow.classList.remove('open');
-                    icon.style.transform = 'rotate(0deg)';
+                if (detailsRow.style.display === 'none') {
+                    detailsRow.style.display = 'table-row';
                 } else {
-                    detailsRow.classList.add('open');
-                    icon.style.transform = 'rotate(90deg)';
+                    detailsRow.style.display = 'none';
                 }
+            });
+
+            // Add hover effect
+            row.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'rgba(148,163,184,0.1)';
+            });
+            row.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
             });
         });
         
@@ -260,6 +286,11 @@
         const errorBox = document.getElementById('halo-import-error');
         const loadingEl = document.getElementById('halo-import-loading');
         const emptyEl = document.getElementById('halo-import-empty');
+        const noResultsEl = document.getElementById('halo-import-no-results');
+        const searchInput = document.getElementById('halo-import-search');
+
+        let allImportClients = [];
+        let currentImportSort = { column: 'name', direction: 'asc' };
 
         function showModal() {
             modal.classList.remove('dd-hidden');
@@ -274,9 +305,10 @@
 
         async function loadHaloClients() {
             tbody.innerHTML = '';
-            if (errorBox) errorBox.classList.add('dd-hidden');
-            if (emptyEl) emptyEl.classList.add('dd-hidden');
-            if (loadingEl) loadingEl.classList.remove('dd-hidden');
+            if (errorBox) errorBox.style.display = 'none';
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (noResultsEl) noResultsEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'block';
 
             try {
                 const res = await fetch('{{ route("admin.clients.haloClients") }}', {
@@ -294,24 +326,12 @@
                 }
 
                 if (!Array.isArray(data) || data.length === 0) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = '<td colspan="3" class="dd-empty-state">No clients available to import.</td>';
-                    tbody.appendChild(tr);
-                    if (emptyEl) emptyEl.classList.remove('dd-hidden');
+                    if (emptyEl) emptyEl.style.display = 'block';
                     return;
                 }
 
-                data.forEach(function (client) {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td style="padding:6px 8px;text-align:center;">
-                            <input type="checkbox" class="halo-client-checkbox" value="${client.id}">
-                        </td>
-                        <td style="padding:6px 8px;">${client.name || ''}</td>
-                        <td style="padding:6px 8px;">${client.reference || ''}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                allImportClients = data;
+                renderImportClients();
             } catch (e) {
                 console.error('Load error', e);
                 if (errorBox) {
@@ -321,6 +341,91 @@
             } finally {
                 if (loadingEl) loadingEl.classList.add('dd-hidden');
             }
+        }
+
+        function renderImportClients() {
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+
+            // Filter clients
+            let filteredClients = allImportClients;
+            if (searchTerm) {
+                filteredClients = allImportClients.filter(client => {
+                    const name = (client.name || '').toLowerCase();
+                    const ref = (client.reference || client.id || '').toString().toLowerCase();
+                    return name.includes(searchTerm) || ref.includes(searchTerm);
+                });
+            }
+
+            // Sort clients
+            filteredClients.sort((a, b) => {
+                let aVal, bVal;
+                if (currentImportSort.column === 'name') {
+                    aVal = (a.name || '').toLowerCase();
+                    bVal = (b.name || '').toLowerCase();
+                } else {
+                    aVal = (a.reference || a.id || '').toString().toLowerCase();
+                    bVal = (b.reference || b.id || '').toString().toLowerCase();
+                }
+
+                if (aVal < bVal) return currentImportSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentImportSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Clear tbody
+            tbody.innerHTML = '';
+
+            // Show/hide no results message
+            if (filteredClients.length === 0) {
+                if (searchTerm) {
+                    if (noResultsEl) noResultsEl.style.display = 'block';
+                } else {
+                    if (emptyEl) emptyEl.style.display = 'block';
+                }
+                return;
+            } else {
+                if (noResultsEl) noResultsEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'none';
+            }
+
+            // Render rows
+            filteredClients.forEach(function (client) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding:6px 8px;text-align:center;">
+                        <input type="checkbox" class="halo-client-checkbox" value="${client.id}">
+                    </td>
+                    <td style="padding:6px 8px;">${client.name || ''}</td>
+                    <td style="padding:6px 8px;">${client.reference || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function sortImportBy(column) {
+            if (currentImportSort.column === column) {
+                currentImportSort.direction = currentImportSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentImportSort.column = column;
+                currentImportSort.direction = 'asc';
+            }
+
+            // Update sort arrows
+            document.querySelectorAll('.import-sort-arrow').forEach(arrow => {
+                arrow.textContent = '↕';
+                arrow.style.opacity = '0.5';
+            });
+
+            const th = document.querySelector(`[data-import-sort="${column}"]`);
+            if (th) {
+                const arrow = th.querySelector('.import-sort-arrow');
+                if (arrow) {
+                    arrow.textContent = currentImportSort.direction === 'asc' ? '↑' : '↓';
+                    arrow.style.opacity = '1';
+                }
+            }
+
+            renderImportClients();
         }
 
         async function importSelected() {
@@ -371,12 +476,31 @@
         if (openBtn) openBtn.addEventListener('click', showModal);
         if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
         if (confirmBtn) confirmBtn.addEventListener('click', importSelected);
+
+        // Search input event listener
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                if (allImportClients.length > 0) {
+                    renderImportClients();
+                }
+            });
+        }
+
+        // Sort column event listeners
+        document.querySelectorAll('[data-import-sort]').forEach(th => {
+            th.addEventListener('click', function() {
+                const column = this.getAttribute('data-import-sort');
+                if (allImportClients.length > 0) {
+                    sortImportBy(column);
+                }
+            });
+        });
     });
     
     // Sync functions
     function syncClientToItglue(clientId, event) {
         event.stopPropagation();
-        
+
         if (!confirm('Sync all domains to ITGlue with DNS records from Synergy?')) {
             return;
         }
@@ -392,12 +516,23 @@
             }
         })
         .then(async r => {
-            if (!r.ok) {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
                 const text = await r.text();
-                console.error('ITGlue sync failed:', text);
-                throw new Error('HTTP ' + r.status);
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
             }
-            return r.json();
+
+            if (!r.ok) {
+                console.error('ITGlue sync failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -408,13 +543,13 @@
         })
         .catch(err => {
             console.error('Sync error:', err);
-            statusDiv.innerHTML = '<span style="color:#f87171;">✗ Sync failed</span>';
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
     
     function syncClientDnsToHalo(clientId, event) {
         event.stopPropagation();
-        
+
         if (!confirm('Sync DNS records to HaloPSA asset notes?')) {
             return;
         }
@@ -430,12 +565,23 @@
             }
         })
         .then(async r => {
-            if (!r.ok) {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
                 const text = await r.text();
-                console.error('HaloPSA sync failed:', text);
-                throw new Error('HTTP ' + r.status);
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
             }
-            return r.json();
+
+            if (!r.ok) {
+                console.error('HaloPSA sync failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
         })
         .then(data => {
             if (data.success) {
@@ -446,7 +592,7 @@
         })
         .catch(err => {
             console.error('Sync error:', err);
-            statusDiv.innerHTML = '<span style="color:#f87171;">✗ Sync failed</span>';
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
     </script>
