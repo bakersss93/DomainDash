@@ -230,8 +230,8 @@
                         </span>
                     </div>
                     <div class="dd-stat-row">
-                        <span class="dd-stat-label">Plan ID</span>
-                        <span class="dd-stat-value">{{ $serviceData['planID'] ?? '—' }}</span>
+                        <span class="dd-stat-label">Plan</span>
+                        <span class="dd-stat-value">{{ $serviceData['plan'] ?? $service->plan ?? '—' }}</span>
                     </div>
                     <div class="dd-stat-row">
                         <span class="dd-stat-label">Client</span>
@@ -497,7 +497,7 @@
     }
 
     .dd-password-show-btn {
-        background: var(--dd-accent);
+        background: var(--accent);
         color: #fff;
         border: none;
         padding: 6px 14px;
