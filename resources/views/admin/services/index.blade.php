@@ -122,6 +122,12 @@
 
                             {{-- Actions grid --}}
                             <div class="dd-service-options-grid">
+                                {{-- Overview --}}
+                                <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
+                                    <div class="dd-service-option-icon">👁️</div>
+                                    <div class="dd-service-option-label">Overview</div>
+                                </a>
+
                                 {{-- Show password --}}
                                 <button type="button"
                                         class="dd-service-option dd-password-btn"

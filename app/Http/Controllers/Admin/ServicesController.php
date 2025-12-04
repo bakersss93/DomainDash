@@ -310,20 +310,32 @@ class ServicesController extends Controller
 
             // Call Synergy's hostingGetLogin to get SSO URL
             // When using HOID as identifier, don't pass hoid parameter separately
-            $url = $synergy->hostingGetLogin($identifier, null);
+            $result = $synergy->hostingGetLogin($identifier, null);
 
-            \Log::info('cPanel login URL retrieved', [
+            \Log::info('cPanel login response received', [
                 'service_id' => $service->id,
-                'has_url' => !empty($url)
+                'status' => $result['status'] ?? 'no status',
+                'has_url' => isset($result['url']),
+                'response_keys' => array_keys($result),
+                'full_response' => json_encode($result)
             ]);
+
+            // Extract the URL from the response
+            $url = $result['url'] ?? $result['loginUrl'] ?? null;
 
             if (!empty($url)) {
                 return redirect()->away($url);
             }
 
-            return back()->with('error', 'Unable to get cPanel login URL from Synergy.');
-            
+            $errorMsg = $result['errorMessage'] ?? 'Unable to get cPanel login URL from Synergy.';
+            return back()->with('error', $errorMsg);
+
         } catch (\Throwable $e) {
+            \Log::error('cPanel login error', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());
         }
     }
