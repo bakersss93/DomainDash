@@ -107,8 +107,8 @@
                             $diskUsage = $service->disk_usage_mb ?? null;
                             $diskLimit = $service->disk_limit_mb ?? null;
                         @endphp
-                        @if($usage !== null || $limit !== null)
-                            {{ $usage ?? '?' }} / {{ $limit ?? '?' }}
+                        @if($diskUsage !== null || $diskLimit !== null)
+                            {{ $diskUsage ?? '?' }} / {{ $diskLimit ?? '?' }}
                         @else
                             -
                         @endif
