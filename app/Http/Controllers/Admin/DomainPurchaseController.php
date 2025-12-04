@@ -113,7 +113,6 @@ class DomainPurchaseController extends Controller
             'years' => 'required|integer|min:1|max:10',
             'client_type' => 'required|in:existing,new',
             'client_id' => 'required_if:client_type,existing|exists:clients,id',
-            'domain_id' => 'required_if:client_type,existing|exists:domains,id',
 
             // New client fields
             'business_name' => 'required_if:client_type,new|string|max:255',
@@ -140,23 +139,30 @@ class DomainPurchaseController extends Controller
             // Get or create client
             if ($request->client_type === 'existing') {
                 $client = Client::findOrFail($request->client_id);
-                $existingDomain = Domain::findOrFail($request->domain_id);
 
-                // We'll use default contact info from an existing domain for Synergy API
+                // Use stored contact info from the client
                 $contacts = [
                     'registrantName' => $client->business_name,
-                    'registrantEmail' => 'admin@' . $existingDomain->name,
-                    'registrantPhone' => '+61.400000000',
-                    'registrantAddress' => '123 Main St',
-                    'registrantCity' => 'Melbourne',
-                    'registrantState' => 'VIC',
-                    'registrantPostcode' => '3000',
-                    'registrantCountry' => 'AU',
+                    'registrantEmail' => $client->email ?? 'admin@example.com',
+                    'registrantPhone' => $client->phone ?? '+61.400000000',
+                    'registrantAddress' => $client->address ?? '123 Main St',
+                    'registrantCity' => $client->city ?? 'Melbourne',
+                    'registrantState' => $client->state ?? 'VIC',
+                    'registrantPostcode' => $client->postcode ?? '3000',
+                    'registrantCountry' => $client->country ?? 'AU',
                 ];
             } else {
-                // Create new client with only the fields that exist in the table
+                // Create new client with all contact fields
                 $client = Client::create([
                     'business_name' => $request->business_name,
+                    'primary_contact_name' => $request->first_name . ' ' . $request->last_name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'city' => $request->city,
+                    'state' => $request->state,
+                    'postcode' => $request->postcode,
+                    'country' => $request->country,
                     'active' => true,
                 ]);
 

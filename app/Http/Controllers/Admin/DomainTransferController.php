@@ -74,10 +74,9 @@ class DomainTransferController extends Controller
         $request->validate([
             'domain' => 'required|string',
             'epp_code' => 'required|string',
-            'years' => 'required|integer|min:1|max:10',
+            'auto_renew' => 'required|boolean',
             'client_type' => 'required|in:existing,new',
             'client_id' => 'required_if:client_type,existing|exists:clients,id',
-            'domain_id' => 'required_if:client_type,existing|exists:domains,id',
 
             // New client fields
             'business_name' => 'required_if:client_type,new|string|max:255',
@@ -98,24 +97,30 @@ class DomainTransferController extends Controller
             // Get or create client
             if ($request->client_type === 'existing') {
                 $client = Client::findOrFail($request->client_id);
-                $existingDomain = Domain::findOrFail($request->domain_id);
 
-                // We'll get contact info from an existing domain for Synergy API
-                // This is a simplified approach - in production, you might want to store contact info separately
+                // Use stored contact info from the client
                 $contacts = [
                     'registrantName' => $client->business_name,
-                    'registrantEmail' => 'admin@' . $existingDomain->name,
-                    'registrantPhone' => '+61.400000000',
-                    'registrantAddress' => '123 Main St',
-                    'registrantCity' => 'Melbourne',
-                    'registrantState' => 'VIC',
-                    'registrantPostcode' => '3000',
-                    'registrantCountry' => 'AU',
+                    'registrantEmail' => $client->email ?? 'admin@example.com',
+                    'registrantPhone' => $client->phone ?? '+61.400000000',
+                    'registrantAddress' => $client->address ?? '123 Main St',
+                    'registrantCity' => $client->city ?? 'Melbourne',
+                    'registrantState' => $client->state ?? 'VIC',
+                    'registrantPostcode' => $client->postcode ?? '3000',
+                    'registrantCountry' => $client->country ?? 'AU',
                 ];
             } else {
-                // Create new client with only the fields that exist in the table
+                // Create new client with all contact fields
                 $client = Client::create([
                     'business_name' => $request->business_name,
+                    'primary_contact_name' => $request->first_name . ' ' . $request->last_name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'city' => $request->city,
+                    'state' => $request->state,
+                    'postcode' => $request->postcode,
+                    'country' => $request->country,
                     'active' => true,
                 ]);
 
@@ -141,11 +146,11 @@ class DomainTransferController extends Controller
                 ];
             }
 
-            // Transfer domain with Synergy
+            // Transfer domain with Synergy (default to 1 year transfer)
             $result = $this->synergy->transferDomain(
                 $request->domain,
                 $request->epp_code,
-                $request->years,
+                1, // Transfers are typically 1 year
                 $contacts
             );
 
@@ -156,8 +161,8 @@ class DomainTransferController extends Controller
                     'name' => $request->domain,
                     'status' => 'pending_transfer',
                     'transfer_status' => 'pending',
-                    'expiry_date' => now()->addYears($request->years),
-                    'auto_renew' => false,
+                    'expiry_date' => now()->addYear(),
+                    'auto_renew' => $request->auto_renew,
                     'name_servers' => json_encode(['ns1.synergywholesale.com', 'ns2.synergywholesale.com']),
                     'dns_config' => 'custom_ns',
                     'registry_id' => $result['domainID'] ?? null,

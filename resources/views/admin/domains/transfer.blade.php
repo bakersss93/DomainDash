@@ -25,16 +25,13 @@
             </div>
 
             <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Transfer Years *</label>
-                <div class="fancy-select-wrapper" style="width: 100%;">
-                    <select id="transfer-years" class="fancy-select">
-                        <option value="1">1 Year</option>
-                        <option value="2">2 Years</option>
-                        <option value="3">3 Years</option>
-                        <option value="4">4 Years</option>
-                        <option value="5">5 Years</option>
-                    </select>
-                </div>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="auto-renew" style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="font-weight: 500;">Enable Auto-Renewal</span>
+                </label>
+                <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    Automatically renew this domain before it expires.
+                </p>
             </div>
 
             <button onclick="validateTransfer()" class="btn-accent" style="padding: 12px 32px;">
@@ -63,24 +60,15 @@
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Select Client</label>
                     <div class="fancy-select-wrapper" style="width: 100%;">
-                        <select id="existing-client-id" class="fancy-select" onchange="loadClientDomains()">
+                        <select id="existing-client-id" class="fancy-select">
                             <option value="">Select a client</option>
                             @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
                                 <option value="{{ $client->id }}">{{ $client->business_name }}</option>
                             @endforeach
                         </select>
                     </div>
-                </div>
-
-                <div id="client-domains-wrapper" style="display: none; margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Copy Details From Domain</label>
-                    <div class="fancy-select-wrapper" style="width: 100%;">
-                        <select id="existing-domain-id" class="fancy-select">
-                            <option value="">Select a domain</option>
-                        </select>
-                    </div>
                     <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-                        Contact details will be copied from the selected domain.
+                        Contact details will be taken from the client's stored information.
                     </p>
                 </div>
             </div>
@@ -217,45 +205,22 @@ function toggleClientFields() {
     document.getElementById('new-client-fields').style.display = clientType === 'new' ? 'block' : 'none';
 }
 
-function loadClientDomains() {
-    const clientId = document.getElementById('existing-client-id').value;
-    if (!clientId) {
-        document.getElementById('client-domains-wrapper').style.display = 'none';
-        return;
-    }
-
-    fetch(`/admin/clients/${clientId}`)
-        .then(res => res.json())
-        .then(data => {
-            const select = document.getElementById('existing-domain-id');
-            select.innerHTML = '<option value="">Select a domain</option>';
-
-            if (data.domains && data.domains.length > 0) {
-                data.domains.forEach(domain => {
-                    select.innerHTML += `<option value="${domain.id}">${domain.name}</option>`;
-                });
-                document.getElementById('client-domains-wrapper').style.display = 'block';
-            }
-        });
-}
-
 function completeTransfer() {
     const clientType = document.getElementById('client-type').value;
-    const transferYears = parseInt(document.getElementById('transfer-years').value);
+    const autoRenew = document.getElementById('auto-renew').checked;
 
     let formData = {
         domain: validatedDomain,
         epp_code: validatedEppCode,
-        years: transferYears,
+        auto_renew: autoRenew,
         client_type: clientType
     };
 
     if (clientType === 'existing') {
         formData.client_id = document.getElementById('existing-client-id').value;
-        formData.domain_id = document.getElementById('existing-domain-id').value;
 
-        if (!formData.client_id || !formData.domain_id) {
-            alert('Please select a client and a domain to copy details from.');
+        if (!formData.client_id) {
+            alert('Please select a client.');
             return;
         }
     } else {

@@ -105,22 +105,16 @@
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Select Client</label>
                     <div class="fancy-select-wrapper" style="width: 100%;">
-                        <select id="existing-client-id" class="fancy-select" onchange="loadClientDomains()">
+                        <select id="existing-client-id" class="fancy-select">
                             <option value="">Select a client</option>
                             @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
                                 <option value="{{ $client->id }}">{{ $client->business_name }}</option>
                             @endforeach
                         </select>
                     </div>
-                </div>
-
-                <div id="client-domains-wrapper" style="display: none; margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Copy Details From Domain</label>
-                    <div class="fancy-select-wrapper" style="width: 100%;">
-                        <select id="existing-domain-id" class="fancy-select">
-                            <option value="">Select a domain</option>
-                        </select>
-                    </div>
+                    <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                        Contact details will be taken from the client's stored information.
+                    </p>
                 </div>
             </div>
 
@@ -300,28 +294,6 @@ function toggleClientFields() {
     document.getElementById('new-client-fields').style.display = clientType === 'new' ? 'block' : 'none';
 }
 
-function loadClientDomains() {
-    const clientId = document.getElementById('existing-client-id').value;
-    if (!clientId) {
-        document.getElementById('client-domains-wrapper').style.display = 'none';
-        return;
-    }
-
-    fetch(`/admin/clients/${clientId}`)
-        .then(res => res.json())
-        .then(data => {
-            const select = document.getElementById('existing-domain-id');
-            select.innerHTML = '<option value="">Select a domain</option>';
-
-            if (data.domains && data.domains.length > 0) {
-                data.domains.forEach(domain => {
-                    select.innerHTML += `<option value="${domain.id}">${domain.name}</option>`;
-                });
-                document.getElementById('client-domains-wrapper').style.display = 'block';
-            }
-        });
-}
-
 function completePurchase() {
     const clientType = document.getElementById('client-type').value;
 
@@ -333,10 +305,9 @@ function completePurchase() {
 
     if (clientType === 'existing') {
         formData.client_id = document.getElementById('existing-client-id').value;
-        formData.domain_id = document.getElementById('existing-domain-id').value;
 
-        if (!formData.client_id || !formData.domain_id) {
-            alert('Please select a client and a domain to copy details from.');
+        if (!formData.client_id) {
+            alert('Please select a client.');
             return;
         }
     } else {
