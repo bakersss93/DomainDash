@@ -237,9 +237,7 @@
                         <span class="dd-stat-label">Client</span>
                         <span class="dd-stat-value">
                             @if($service->client)
-                                <a href="{{ route('admin.clients.show', $service->client) }}" class="dd-link">
-                                    {{ $service->client->business_name ?? $service->client->name }}
-                                </a>
+                                {{ $service->client->business_name ?? $service->client->name }}
                             @else
                                 <span style="opacity: 0.6;">Not assigned</span>
                             @endif
