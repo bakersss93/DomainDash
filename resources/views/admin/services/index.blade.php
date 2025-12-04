@@ -51,36 +51,8 @@
         </form>
     </div>
 
-    {{-- Filter Card --}}
-    <div class="card mb-6">
-        <form method="GET" action="{{ route('admin.services.hosting') }}" class="flex items-center gap-4">
-            <div class="flex-1">
-                <label for="client_filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Filter by Client
-                </label>
-                <select name="client_id" 
-                        id="client_filter"
-                        class="input w-full">
-                    <option value="">All clients</option>
-                    @foreach($clients as $client)
-                        <option value="{{ $client->id }}"
-                            {{ (isset($clientId) && (int)$clientId === $client->id) ? 'selected' : '' }}>
-                            {{ $client->business_name ?? $client->name ?? ('Client #' . $client->id) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="pt-7">
-                <button type="submit" class="btn btn-primary">
-                    Apply Filter
-                </button>
-            </div>
-        </form>
-    </div>
-
-    {{-- Services Table Card --}}
-    <div class="card">
+    {{-- Services Table --}}
+    <div style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 16px;">
         <div class="overflow-x-auto">
             <table class="table">
                 <thead>
@@ -107,56 +79,33 @@
                             $diskUsage = $service->disk_usage_mb ?? null;
                             $diskLimit = $service->disk_limit_mb ?? null;
                         @endphp
-                        @if($diskUsage !== null || $diskLimit !== null)
-                            {{ $diskUsage ?? '?' }} / {{ $diskLimit ?? '?' }}
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td>
-                        {{ $service->ip
-                           ?? $service->ip_address
-                           ?? $service->dedicated_ipv4
-                           ?? '-' }}
-                    </td>
-                </tr>
 
-                {{-- Slide-down details row --}}
-                <tr data-service-panel="service-{{ $service->id }}" class="dd-service-panel">
-                    <td colspan="6">
-                        <div class="dd-service-panel-inner" data-details-for="{{ $service->id }}">
-                            {{-- Service info header --}}
-                            <div class="dd-service-panel-header">
-                                <div>
-                                    <div style="font-weight:600;">{{ $domainLabel }}</div>
-                                    <div style="font-size:13px;opacity:.8;">
-                                        <span class="dd-detail-plan">{{ $service->plan ?? 'Plan unknown' }}</span>
-                                        • Username: <span class="dd-detail-username">{{ $service->username ?? '—' }}</span>
-                                    </div>
-                                </div>
-                                <div style="font-size:13px;opacity:.7;">
-                                    Server: <span class="dd-detail-server">{{ $service->server ?? '—' }}</span>
-                                </div>
-                            </div>
-
-                            {{-- Actions grid --}}
-                            <div class="dd-service-options-grid">
-                                {{-- Overview --}}
-                                <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
-                                    <div class="dd-service-option-icon">👁️</div>
-                                    <div class="dd-service-option-label">Overview</div>
-                                </a>
-
-                                {{-- Show password --}}
+                        <tr>
+                            <td>{{ $domainLabel }}</td>
+                            <td>{{ $clientLabel }}</td>
+                            <td>{{ $service->plan ?? '-' }}</td>
+                            <td>{{ $service->username ?? '-' }}</td>
+                            <td>
+                                @if($diskUsage !== null || $diskLimit !== null)
+                                    {{ $diskUsage ?? '?' }} / {{ $diskLimit ?? '?' }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge {{ $service->service_status === 'ACTIVE' ? 'badge-success' : 'badge-warning' }}">
+                                    {{ $service->service_status ?? 'Unknown' }}
+                                </span>
+                            </td>
+                            <td>
                                 <button type="button"
-                                        class="dd-service-option dd-password-btn"
-                                        data-password-id="{{ $service->id }}">
-                                    <div class="dd-service-option-icon">🔐</div>
-                                    <div class="dd-service-option-label">Show password</div>
+                                        class="btn btn-sm btn-secondary"
+                                        onclick="document.getElementById('details-{{ $service->id }}').classList.toggle('hidden')">
+                                    View Details
                                 </button>
                             </td>
                         </tr>
-                        
+
                         {{-- Expandable details row --}}
                         <tr class="details-row hidden" id="details-{{ $service->id }}">
                             <td colspan="7" class="bg-gray-50 dark:bg-gray-800/50">
