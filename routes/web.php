@@ -72,7 +72,7 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/domains/purchase/validate-au', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'validateAu'])->name('admin.domains.purchase.validateAu');
         Route::post('/domains/purchase/complete', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'complete'])->name('admin.domains.purchase.complete');
         Route::get('/domains/transfer/create', [\App\Http\Controllers\Admin\DomainTransferController::class,'create'])->name('admin.domains.transfer.create');
-        Route::post('/domains/transfer/validate', [\App\Http\Controllers\Admin\DomainTransferController::class,'validate'])->name('admin.domains.transfer.validate');
+        Route::post('/domains/transfer/validate', [\App\Http\Controllers\Admin\DomainTransferController::class,'validateTransfer'])->name('admin.domains.transfer.validate');
         Route::post('/domains/transfer/complete', [\App\Http\Controllers\Admin\DomainTransferController::class,'complete'])->name('admin.domains.transfer.complete');
         Route::get('/domains/{domain}', [AdminDomainController::class,'show'])->name('admin.domains.show');
         Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])->name('admin.domains.bulkSync');

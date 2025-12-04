@@ -32,7 +32,7 @@ class DomainTransferController extends Controller
     /**
      * Validate domain transfer with EPP code.
      */
-    public function validate(Request $request)
+    public function validateTransfer(Request $request)
     {
         $request->validate([
             'domain' => 'required|string',
