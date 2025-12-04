@@ -266,6 +266,18 @@ class SynergyWholesaleClient
         return (array) $res;
     }
 
+    /**
+     * List available hosting packages from Synergy.
+     *
+     * @return array Response with packages list
+     */
+    public function hostingListPackages(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('hostingListPackages', [$params]);
+        return (array) $res;
+    }
+
     /* -----------------------------------------------------------------
      |  Domain Registration & Transfer
      |------------------------------------------------------------------*/

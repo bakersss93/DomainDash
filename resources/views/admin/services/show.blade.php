@@ -177,7 +177,8 @@
                         $bwUsed = $serviceData['bandwidth'] ?? $service->bandwidth_used_mb ?? null;
                         $bwUsed = $bwUsed ? (float) $bwUsed : null;
 
-                        $bwLimit = $service->bandwidth_limit_mb ?? null;
+                        // Get bandwidth limit from package if available
+                        $bwLimit = $service->bandwidth_limit_mb ?? ($package->bandwidth_mb ?? null);
                         $bwLimit = $bwLimit ? (float) $bwLimit : null;
 
                         $bwPercent = ($bwUsed && $bwLimit) ? round(($bwUsed / $bwLimit) * 100, 1) : null;
@@ -512,7 +513,7 @@
     }
 </style>
 
-{{-- Password Modal (reused from services index) --}}
+{{-- Password modal --}}
 <div id="dd-password-modal" class="dd-password-modal dd-hidden" aria-hidden="true">
     <div class="dd-password-backdrop" data-dd-password-close></div>
     <div class="dd-password-panel">
@@ -525,21 +526,21 @@
                 value="••••••••">
             <button type="button"
                     id="dd-password-toggle"
-                    class="dd-password-toggle">
+                    class="dd-password-toggle"
+                    aria-label="Toggle password visibility">
                 👁
             </button>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-            <button type="button"
-                    id="dd-password-copy"
-                    class="btn-accent dd-pill-btn"
-                    style="flex:1;">
-                Copy to clipboard
-            </button>
+        <div class="dd-password-actions">
             <button type="button"
                     class="btn-secondary dd-pill-btn"
                     data-dd-password-close>
                 Close
+            </button>
+            <button type="button"
+                    class="btn-accent dd-pill-btn"
+                    id="dd-password-copy">
+                Copy to clipboard
             </button>
         </div>
     </div>
@@ -591,14 +592,29 @@
 
     .dd-password-toggle {
         position: absolute;
-        right: 8px;
+        right: 12px;
         top: 50%;
         transform: translateY(-50%);
-        background: none;
         border: none;
+        background: transparent;
         cursor: pointer;
         font-size: 18px;
+        color: var(--dd-text-color);
+        opacity: 0.7;
         padding: 4px 8px;
+        border-radius: 4px;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
+    }
+
+    .dd-password-toggle:hover {
+        opacity: 1;
+        background: var(--dd-pill-bg);
+    }
+
+    .dd-password-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
     }
 
     .dd-password-modal.dd-hidden {

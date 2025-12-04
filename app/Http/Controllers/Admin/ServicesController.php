@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use App\Models\HostingService;
+use App\Models\HostingPackage;
 use App\Models\Client;
 use App\Services\Synergy\SynergyWholesaleClient;
 
@@ -53,6 +54,12 @@ class ServicesController extends Controller
     {
         $serviceData = null;
         $error = null;
+
+        // Get the hosting package for bandwidth limits
+        $package = null;
+        if ($service->plan) {
+            $package = HostingPackage::where('package_name', $service->plan)->first();
+        }
 
         try {
             // Use HOID as primary identifier (per Synergy API docs page 107)
@@ -108,7 +115,8 @@ class ServicesController extends Controller
         return view('admin.services.show', [
             'service' => $service,
             'serviceData' => $serviceData,
-            'error' => $error
+            'error' => $error,
+            'package' => $package
         ]);
     }
 
@@ -117,6 +125,9 @@ class ServicesController extends Controller
      */
     public function sync(Request $request, SynergyWholesaleClient $synergy)
     {
+        // First, sync hosting packages
+        $this->syncPackages($synergy);
+
         $page          = 1;
         $limit         = 100;
         $totalImported = 0;
@@ -426,5 +437,119 @@ class ServicesController extends Controller
 
         // Default: treat as MB (covers "M", "MB", or bare number)
         return (int) round($number);
+    }
+
+    /**
+     * Sync hosting packages from Synergy.
+     *
+     * @param SynergyWholesaleClient $synergy
+     * @return int Number of packages synced
+     */
+    private function syncPackages(SynergyWholesaleClient $synergy): int
+    {
+        try {
+            $response = $synergy->hostingListPackages();
+
+            if (($response['status'] ?? null) !== 'OK') {
+                \Log::warning('Failed to sync hosting packages', [
+                    'status' => $response['status'] ?? 'no status',
+                    'errorMessage' => $response['errorMessage'] ?? 'no error message'
+                ]);
+                return 0;
+            }
+
+            $packages = $response['packages'] ?? [];
+            if (!is_array($packages)) {
+                \Log::warning('Packages response is not an array', ['type' => gettype($packages)]);
+                return 0;
+            }
+
+            $count = 0;
+            foreach ($packages as $pkg) {
+                $packageName = $pkg['packageName'] ?? $pkg['name'] ?? null;
+                if (!$packageName) {
+                    continue;
+                }
+
+                $model = HostingPackage::firstOrNew(['package_name' => $packageName]);
+
+                // Map Synergy package fields to our database
+                $model->category = $pkg['category'] ?? null;
+
+                // Disk space
+                if (isset($pkg['diskSpace'])) {
+                    $model->disk_mb = $this->parseDiskMb($pkg['diskSpace']);
+                }
+
+                // Bandwidth
+                if (isset($pkg['bandwidth'])) {
+                    $model->bandwidth_mb = $this->parseDiskMb($pkg['bandwidth']);
+                }
+
+                // CPU (usually comes as percentage like "200%")
+                if (isset($pkg['cpu'])) {
+                    $model->cpu_percent = (int) filter_var($pkg['cpu'], FILTER_SANITIZE_NUMBER_INT);
+                }
+
+                // Memory
+                if (isset($pkg['memory'])) {
+                    $model->memory_mb = $this->parseDiskMb($pkg['memory']);
+                }
+
+                // IO (usually like "8MB/s")
+                if (isset($pkg['io'])) {
+                    $model->io_mbps = (int) filter_var($pkg['io'], FILTER_SANITIZE_NUMBER_INT);
+                }
+
+                // Inodes
+                if (isset($pkg['inodesSoft'])) {
+                    $model->inodes_soft = (int) $pkg['inodesSoft'];
+                }
+                if (isset($pkg['inodesHard'])) {
+                    $model->inodes_hard = (int) $pkg['inodesHard'];
+                }
+
+                // Email accounts
+                if (isset($pkg['emailAccounts'])) {
+                    $model->email_accounts = (int) $pkg['emailAccounts'];
+                }
+
+                // Databases
+                if (isset($pkg['databases'])) {
+                    $model->databases = (int) $pkg['databases'];
+                }
+
+                // SSH access
+                if (isset($pkg['sshAccess'])) {
+                    $model->ssh_access = (bool) $pkg['sshAccess'];
+                }
+
+                // Pricing
+                if (isset($pkg['priceMonthly'])) {
+                    $model->price_monthly = (float) $pkg['priceMonthly'];
+                }
+                if (isset($pkg['priceAnnually'])) {
+                    $model->price_annually = (float) $pkg['priceAnnually'];
+                }
+
+                // Description
+                if (isset($pkg['description'])) {
+                    $model->description = $pkg['description'];
+                }
+
+                $model->save();
+                $count++;
+            }
+
+            \Log::info('Hosting packages synced', ['count' => $count]);
+            return $count;
+
+        } catch (\Throwable $e) {
+            \Log::error('Error syncing hosting packages', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return 0;
+        }
     }
 }
