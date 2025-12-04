@@ -47,7 +47,7 @@
                 <select id="client-id" class="fancy-select">
                     <option value="">Select a client</option>
                     @foreach($clients as $client)
-                        <option value="{{ $client->id }}">{{ $client->company_name }}</option>
+                        <option value="{{ $client->id }}">{{ $client->business_name }}</option>
                     @endforeach
                 </select>
             </div>

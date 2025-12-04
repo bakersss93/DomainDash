@@ -107,8 +107,8 @@
                     <div class="fancy-select-wrapper" style="width: 100%;">
                         <select id="existing-client-id" class="fancy-select" onchange="loadClientDomains()">
                             <option value="">Select a client</option>
-                            @foreach(\App\Models\Client::orderBy('company_name')->get() as $client)
-                                <option value="{{ $client->id }}">{{ $client->company_name }}</option>
+                            @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
+                                <option value="{{ $client->id }}">{{ $client->business_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -138,8 +138,8 @@
                 </div>
 
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Company Name *</label>
-                    <input type="text" id="company-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Business Name *</label>
+                    <input type="text" id="business-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
                 </div>
 
                 <div style="margin-bottom: 16px;">
@@ -340,7 +340,7 @@ function completePurchase() {
             return;
         }
     } else {
-        formData.company_name = document.getElementById('company-name').value;
+        formData.business_name = document.getElementById('business-name').value;
         formData.first_name = document.getElementById('first-name').value;
         formData.last_name = document.getElementById('last-name').value;
         formData.email = document.getElementById('email').value;
@@ -351,7 +351,7 @@ function completePurchase() {
         formData.postcode = document.getElementById('postcode').value;
         formData.country = document.getElementById('country').value;
 
-        if (!formData.company_name || !formData.first_name || !formData.last_name ||
+        if (!formData.business_name || !formData.first_name || !formData.last_name ||
             !formData.email || !formData.phone || !formData.address ||
             !formData.city || !formData.state || !formData.postcode) {
             alert('Please fill in all required fields.');

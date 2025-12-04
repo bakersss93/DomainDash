@@ -26,13 +26,13 @@ class SslPurchaseController extends Controller
     {
         try {
             $products = $this->synergy->listSSLProducts();
-            $clients = Client::orderBy('company_name')->get();
+            $clients = Client::orderBy('business_name')->get();
 
             return view('admin.services.ssl-purchase', compact('products', 'clients'));
         } catch (\Exception $e) {
             return view('admin.services.ssl-purchase', [
                 'products' => [],
-                'clients' => Client::orderBy('company_name')->get(),
+                'clients' => Client::orderBy('business_name')->get(),
                 'error' => 'Unable to load SSL products: ' . $e->getMessage()
             ]);
         }

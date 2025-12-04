@@ -26,13 +26,13 @@ class HostingPurchaseController extends Controller
     {
         try {
             $plans = $this->synergy->listHostingPlans();
-            $clients = Client::orderBy('company_name')->get();
+            $clients = Client::orderBy('business_name')->get();
 
             return view('admin.services.hosting-purchase', compact('plans', 'clients'));
         } catch (\Exception $e) {
             return view('admin.services.hosting-purchase', [
                 'plans' => [],
-                'clients' => Client::orderBy('company_name')->get(),
+                'clients' => Client::orderBy('business_name')->get(),
                 'error' => 'Unable to load hosting plans: ' . $e->getMessage()
             ]);
         }

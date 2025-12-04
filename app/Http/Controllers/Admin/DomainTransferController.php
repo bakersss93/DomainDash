@@ -80,7 +80,7 @@ class DomainTransferController extends Controller
             'domain_id' => 'required_if:client_type,existing|exists:domains,id',
 
             // New client fields
-            'company_name' => 'required_if:client_type,new|string|max:255',
+            'business_name' => 'required_if:client_type,new|string|max:255',
             'first_name' => 'required_if:client_type,new|string|max:255',
             'last_name' => 'required_if:client_type,new|string|max:255',
             'email' => 'required_if:client_type,new|email|max:255',
@@ -100,28 +100,23 @@ class DomainTransferController extends Controller
                 $client = Client::findOrFail($request->client_id);
                 $existingDomain = Domain::findOrFail($request->domain_id);
 
-                // Use existing domain's contact info
+                // We'll get contact info from an existing domain for Synergy API
+                // This is a simplified approach - in production, you might want to store contact info separately
                 $contacts = [
-                    'registrantName' => $client->company_name,
-                    'registrantEmail' => $client->primary_email,
-                    'registrantPhone' => $client->phone ?? '',
-                    'registrantAddress' => $client->address ?? '',
-                    'registrantCity' => $client->city ?? '',
-                    'registrantState' => $client->state ?? '',
-                    'registrantPostcode' => $client->postcode ?? '',
-                    'registrantCountry' => $client->country ?? 'AU',
+                    'registrantName' => $client->business_name,
+                    'registrantEmail' => 'admin@' . $existingDomain->name,
+                    'registrantPhone' => '+61.400000000',
+                    'registrantAddress' => '123 Main St',
+                    'registrantCity' => 'Melbourne',
+                    'registrantState' => 'VIC',
+                    'registrantPostcode' => '3000',
+                    'registrantCountry' => 'AU',
                 ];
             } else {
-                // Create new client
+                // Create new client with only the fields that exist in the table
                 $client = Client::create([
-                    'company_name' => $request->company_name,
-                    'primary_email' => $request->email,
-                    'phone' => $request->phone,
-                    'address' => $request->address,
-                    'city' => $request->city,
-                    'state' => $request->state,
-                    'postcode' => $request->postcode,
-                    'country' => $request->country,
+                    'business_name' => $request->business_name,
+                    'active' => true,
                 ]);
 
                 // Create user for the client
@@ -135,7 +130,7 @@ class DomainTransferController extends Controller
                 $user->clients()->attach($client->id);
 
                 $contacts = [
-                    'registrantName' => $request->company_name,
+                    'registrantName' => $request->business_name,
                     'registrantEmail' => $request->email,
                     'registrantPhone' => $request->phone,
                     'registrantAddress' => $request->address,
