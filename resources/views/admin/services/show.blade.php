@@ -292,6 +292,8 @@
         --dd-accent: #4ade80;
         --dd-progress-bg: rgba(148,163,184,0.2);
         --dd-progress-fill: #4ade80;
+        --dd-pill-bg: #f3f4f6;
+        --dd-overlay-bg: rgba(15,23,42,0.65);
     }
 
     body.dark-mode,
@@ -304,6 +306,8 @@
         --dd-text-muted: #9ca3af;
         --dd-progress-bg: rgba(148,163,184,0.15);
         --dd-progress-fill: #4ade80;
+        --dd-pill-bg: #0f172a;
+        --dd-overlay-bg: rgba(15,23,42,0.85);
     }
 
     .dd-service-overview-container {

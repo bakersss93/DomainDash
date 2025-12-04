@@ -450,6 +450,13 @@ class ServicesController extends Controller
         try {
             $response = $synergy->hostingListPackages();
 
+            \Log::info('Hosting packages API response', [
+                'status' => $response['status'] ?? 'no status',
+                'has_packages' => isset($response['packages']),
+                'packages_type' => isset($response['packages']) ? gettype($response['packages']) : 'not set',
+                'full_response' => json_encode($response)
+            ]);
+
             if (($response['status'] ?? null) !== 'OK') {
                 \Log::warning('Failed to sync hosting packages', [
                     'status' => $response['status'] ?? 'no status',
@@ -466,79 +473,32 @@ class ServicesController extends Controller
 
             $count = 0;
             foreach ($packages as $pkg) {
-                $packageName = $pkg['packageName'] ?? $pkg['name'] ?? null;
+                // API returns: name, product, price
+                $packageName = $pkg['name'] ?? null;
                 if (!$packageName) {
                     continue;
                 }
 
                 $model = HostingPackage::firstOrNew(['package_name' => $packageName]);
 
-                // Map Synergy package fields to our database
-                $model->category = $pkg['category'] ?? null;
-
-                // Disk space
-                if (isset($pkg['diskSpace'])) {
-                    $model->disk_mb = $this->parseDiskMb($pkg['diskSpace']);
+                // Product/category
+                if (isset($pkg['product'])) {
+                    $model->category = $pkg['product'];
                 }
 
-                // Bandwidth
-                if (isset($pkg['bandwidth'])) {
-                    $model->bandwidth_mb = $this->parseDiskMb($pkg['bandwidth']);
-                }
-
-                // CPU (usually comes as percentage like "200%")
-                if (isset($pkg['cpu'])) {
-                    $model->cpu_percent = (int) filter_var($pkg['cpu'], FILTER_SANITIZE_NUMBER_INT);
-                }
-
-                // Memory
-                if (isset($pkg['memory'])) {
-                    $model->memory_mb = $this->parseDiskMb($pkg['memory']);
-                }
-
-                // IO (usually like "8MB/s")
-                if (isset($pkg['io'])) {
-                    $model->io_mbps = (int) filter_var($pkg['io'], FILTER_SANITIZE_NUMBER_INT);
-                }
-
-                // Inodes
-                if (isset($pkg['inodesSoft'])) {
-                    $model->inodes_soft = (int) $pkg['inodesSoft'];
-                }
-                if (isset($pkg['inodesHard'])) {
-                    $model->inodes_hard = (int) $pkg['inodesHard'];
-                }
-
-                // Email accounts
-                if (isset($pkg['emailAccounts'])) {
-                    $model->email_accounts = (int) $pkg['emailAccounts'];
-                }
-
-                // Databases
-                if (isset($pkg['databases'])) {
-                    $model->databases = (int) $pkg['databases'];
-                }
-
-                // SSH access
-                if (isset($pkg['sshAccess'])) {
-                    $model->ssh_access = (bool) $pkg['sshAccess'];
-                }
-
-                // Pricing
-                if (isset($pkg['priceMonthly'])) {
-                    $model->price_monthly = (float) $pkg['priceMonthly'];
-                }
-                if (isset($pkg['priceAnnually'])) {
-                    $model->price_annually = (float) $pkg['priceAnnually'];
-                }
-
-                // Description
-                if (isset($pkg['description'])) {
-                    $model->description = $pkg['description'];
+                // Price (appears to be a single price field, store as monthly)
+                if (isset($pkg['price'])) {
+                    $model->price_monthly = (float) $pkg['price'];
                 }
 
                 $model->save();
                 $count++;
+
+                \Log::info('Package synced', [
+                    'name' => $packageName,
+                    'product' => $pkg['product'] ?? null,
+                    'price' => $pkg['price'] ?? null
+                ]);
             }
 
             \Log::info('Hosting packages synced', ['count' => $count]);
