@@ -612,6 +612,7 @@
         font-size: 18px;
         font-weight: 600;
         margin-bottom: 10px;
+        color: var(--dd-text-color);
     }
 
     .dd-password-input-wrapper {
@@ -626,13 +627,23 @@
 
     .dd-password-toggle {
         position: absolute;
-        right: 8px;
+        right: 12px;
         top: 50%;
         transform: translateY(-50%);
         border: none;
         background: transparent;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 18px;
+        color: var(--dd-text-color);
+        opacity: 0.7;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
+    }
+
+    .dd-password-toggle:hover {
+        opacity: 1;
+        background: var(--dd-pill-bg);
     }
 
     .dd-password-actions {
