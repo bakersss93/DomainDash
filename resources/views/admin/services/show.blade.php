@@ -571,7 +571,7 @@
         z-index: 1000;
         max-width: 420px;
         width: 100%;
-        border-radius: 12px;
+        border-radius: var(--dd-card-radius);
         padding: 20px;
         background: var(--dd-card-bg);
         border: 1px solid var(--dd-card-border);
@@ -591,7 +591,7 @@
 
     .dd-password-input {
         width: 100%;
-        padding-right: 44px !important;
+        padding-right: 50px !important;
     }
 
     .dd-password-toggle {
