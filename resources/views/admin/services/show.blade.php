@@ -285,6 +285,10 @@
 
 <style>
     :root {
+        --dd-card-radius: 18px;
+        --dd-pill-radius: 9999px;
+        --dd-pill-padding: 8px 14px;
+
         --dd-card-bg: #ffffff;
         --dd-card-border: #d1d5db;
         --dd-text-color: #111827;
@@ -293,6 +297,7 @@
         --dd-progress-bg: rgba(148,163,184,0.2);
         --dd-progress-fill: #4ade80;
         --dd-pill-bg: #f3f4f6;
+        --dd-pill-border: #d1d5db;
         --dd-overlay-bg: rgba(15,23,42,0.65);
     }
 
@@ -307,6 +312,7 @@
         --dd-progress-bg: rgba(148,163,184,0.15);
         --dd-progress-fill: #4ade80;
         --dd-pill-bg: #0f172a;
+        --dd-pill-border: #374151;
         --dd-overlay-bg: rgba(15,23,42,0.85);
     }
 
@@ -354,8 +360,22 @@
     }
 
     .dd-pill-btn {
-        border-radius: 9999px !important;
+        border-radius: var(--dd-pill-radius) !important;
         padding: 8px 16px !important;
+    }
+
+    .dd-pill-input {
+        border-radius: var(--dd-pill-radius) !important;
+        border: 1px solid var(--dd-pill-border) !important;
+        padding: var(--dd-pill-padding) !important;
+        font-size: 14px;
+        outline: none;
+        background: var(--dd-pill-bg) !important;
+        color: var(--dd-text-color) !important;
+    }
+
+    .dd-pill-input:focus {
+        border-color: var(--accent, #4ade80) !important;
     }
 
     .dd-stats-grid {
