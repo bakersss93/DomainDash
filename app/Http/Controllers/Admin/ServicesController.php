@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use App\Models\HostingService;
+use App\Models\HostingPackage;
 use App\Models\Client;
 use App\Services\Synergy\SynergyWholesaleClient;
 
@@ -53,6 +54,12 @@ class ServicesController extends Controller
     {
         $serviceData = null;
         $error = null;
+
+        // Get the hosting package for bandwidth limits
+        $package = null;
+        if ($service->plan) {
+            $package = HostingPackage::where('package_name', $service->plan)->first();
+        }
 
         try {
             // Use HOID as primary identifier (per Synergy API docs page 107)
@@ -108,7 +115,8 @@ class ServicesController extends Controller
         return view('admin.services.show', [
             'service' => $service,
             'serviceData' => $serviceData,
-            'error' => $error
+            'error' => $error,
+            'package' => $package
         ]);
     }
 
@@ -117,6 +125,9 @@ class ServicesController extends Controller
      */
     public function sync(Request $request, SynergyWholesaleClient $synergy)
     {
+        // First, sync hosting packages
+        $this->syncPackages($synergy);
+
         $page          = 1;
         $limit         = 100;
         $totalImported = 0;
@@ -310,20 +321,32 @@ class ServicesController extends Controller
 
             // Call Synergy's hostingGetLogin to get SSO URL
             // When using HOID as identifier, don't pass hoid parameter separately
-            $url = $synergy->hostingGetLogin($identifier, null);
+            $result = $synergy->hostingGetLogin($identifier, null);
 
-            \Log::info('cPanel login URL retrieved', [
+            \Log::info('cPanel login response received', [
                 'service_id' => $service->id,
-                'has_url' => !empty($url)
+                'status' => $result['status'] ?? 'no status',
+                'has_url' => isset($result['url']),
+                'response_keys' => array_keys($result),
+                'full_response' => json_encode($result)
             ]);
+
+            // Extract the URL from the response
+            $url = $result['url'] ?? $result['loginUrl'] ?? null;
 
             if (!empty($url)) {
                 return redirect()->away($url);
             }
 
-            return back()->with('error', 'Unable to get cPanel login URL from Synergy.');
-            
+            $errorMsg = $result['errorMessage'] ?? 'Unable to get cPanel login URL from Synergy.';
+            return back()->with('error', $errorMsg);
+
         } catch (\Throwable $e) {
+            \Log::error('cPanel login error', [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());
         }
     }
@@ -414,5 +437,79 @@ class ServicesController extends Controller
 
         // Default: treat as MB (covers "M", "MB", or bare number)
         return (int) round($number);
+    }
+
+    /**
+     * Sync hosting packages from Synergy.
+     *
+     * @param SynergyWholesaleClient $synergy
+     * @return int Number of packages synced
+     */
+    private function syncPackages(SynergyWholesaleClient $synergy): int
+    {
+        try {
+            $response = $synergy->hostingListPackages();
+
+            \Log::info('Hosting packages API response', [
+                'status' => $response['status'] ?? 'no status',
+                'has_packages' => isset($response['packages']),
+                'packages_type' => isset($response['packages']) ? gettype($response['packages']) : 'not set',
+                'full_response' => json_encode($response)
+            ]);
+
+            if (($response['status'] ?? null) !== 'OK') {
+                \Log::warning('Failed to sync hosting packages', [
+                    'status' => $response['status'] ?? 'no status',
+                    'errorMessage' => $response['errorMessage'] ?? 'no error message'
+                ]);
+                return 0;
+            }
+
+            $packages = $response['packages'] ?? [];
+            if (!is_array($packages)) {
+                \Log::warning('Packages response is not an array', ['type' => gettype($packages)]);
+                return 0;
+            }
+
+            $count = 0;
+            foreach ($packages as $pkg) {
+                // API returns: name, product, price
+                $packageName = $pkg['name'] ?? null;
+                if (!$packageName) {
+                    continue;
+                }
+
+                $model = HostingPackage::firstOrNew(['package_name' => $packageName]);
+
+                // Product/category
+                if (isset($pkg['product'])) {
+                    $model->category = $pkg['product'];
+                }
+
+                // Price (appears to be a single price field, store as monthly)
+                if (isset($pkg['price'])) {
+                    $model->price_monthly = (float) $pkg['price'];
+                }
+
+                $model->save();
+                $count++;
+
+                \Log::info('Package synced', [
+                    'name' => $packageName,
+                    'product' => $pkg['product'] ?? null,
+                    'price' => $pkg['price'] ?? null
+                ]);
+            }
+
+            \Log::info('Hosting packages synced', ['count' => $count]);
+            return $count;
+
+        } catch (\Throwable $e) {
+            \Log::error('Error syncing hosting packages', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return 0;
+        }
     }
 }

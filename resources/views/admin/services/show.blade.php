@@ -177,7 +177,8 @@
                         $bwUsed = $serviceData['bandwidth'] ?? $service->bandwidth_used_mb ?? null;
                         $bwUsed = $bwUsed ? (float) $bwUsed : null;
 
-                        $bwLimit = $service->bandwidth_limit_mb ?? null;
+                        // Get bandwidth limit from package if available
+                        $bwLimit = $service->bandwidth_limit_mb ?? ($package->bandwidth_mb ?? null);
                         $bwLimit = $bwLimit ? (float) $bwLimit : null;
 
                         $bwPercent = ($bwUsed && $bwLimit) ? round(($bwUsed / $bwLimit) * 100, 1) : null;
@@ -230,16 +231,14 @@
                         </span>
                     </div>
                     <div class="dd-stat-row">
-                        <span class="dd-stat-label">Plan ID</span>
-                        <span class="dd-stat-value">{{ $serviceData['planID'] ?? '—' }}</span>
+                        <span class="dd-stat-label">Plan</span>
+                        <span class="dd-stat-value">{{ $serviceData['plan'] ?? $service->plan ?? '—' }}</span>
                     </div>
                     <div class="dd-stat-row">
                         <span class="dd-stat-label">Client</span>
                         <span class="dd-stat-value">
                             @if($service->client)
-                                <a href="{{ route('admin.clients.show', $service->client) }}" class="dd-link">
-                                    {{ $service->client->business_name ?? $service->client->name }}
-                                </a>
+                                {{ $service->client->business_name ?? $service->client->name }}
                             @else
                                 <span style="opacity: 0.6;">Not assigned</span>
                             @endif
@@ -286,6 +285,10 @@
 
 <style>
     :root {
+        --dd-card-radius: 18px;
+        --dd-pill-radius: 9999px;
+        --dd-pill-padding: 8px 14px;
+
         --dd-card-bg: #ffffff;
         --dd-card-border: #d1d5db;
         --dd-text-color: #111827;
@@ -293,6 +296,9 @@
         --dd-accent: #4ade80;
         --dd-progress-bg: rgba(148,163,184,0.2);
         --dd-progress-fill: #4ade80;
+        --dd-pill-bg: #f3f4f6;
+        --dd-pill-border: #d1d5db;
+        --dd-overlay-bg: rgba(15,23,42,0.65);
     }
 
     body.dark-mode,
@@ -305,6 +311,9 @@
         --dd-text-muted: #9ca3af;
         --dd-progress-bg: rgba(148,163,184,0.15);
         --dd-progress-fill: #4ade80;
+        --dd-pill-bg: #0f172a;
+        --dd-pill-border: #374151;
+        --dd-overlay-bg: rgba(15,23,42,0.85);
     }
 
     .dd-service-overview-container {
@@ -351,8 +360,22 @@
     }
 
     .dd-pill-btn {
-        border-radius: 9999px !important;
+        border-radius: var(--dd-pill-radius) !important;
         padding: 8px 16px !important;
+    }
+
+    .dd-pill-input {
+        border-radius: var(--dd-pill-radius) !important;
+        border: 1px solid var(--dd-pill-border) !important;
+        padding: var(--dd-pill-padding) !important;
+        font-size: 14px;
+        outline: none;
+        background: var(--dd-pill-bg) !important;
+        color: var(--dd-text-color) !important;
+    }
+
+    .dd-pill-input:focus {
+        border-color: var(--accent, #4ade80) !important;
     }
 
     .dd-stats-grid {
@@ -499,7 +522,7 @@
     }
 
     .dd-password-show-btn {
-        background: var(--dd-accent);
+        background: var(--accent);
         color: #fff;
         border: none;
         padding: 6px 14px;
@@ -514,7 +537,7 @@
     }
 </style>
 
-{{-- Password Modal (reused from services index) --}}
+{{-- Password modal --}}
 <div id="dd-password-modal" class="dd-password-modal dd-hidden" aria-hidden="true">
     <div class="dd-password-backdrop" data-dd-password-close></div>
     <div class="dd-password-panel">
@@ -527,21 +550,21 @@
                 value="••••••••">
             <button type="button"
                     id="dd-password-toggle"
-                    class="dd-password-toggle">
+                    class="dd-password-toggle"
+                    aria-label="Toggle password visibility">
                 👁
             </button>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-            <button type="button"
-                    id="dd-password-copy"
-                    class="btn-accent dd-pill-btn"
-                    style="flex:1;">
-                Copy to clipboard
-            </button>
+        <div class="dd-password-actions">
             <button type="button"
                     class="btn-secondary dd-pill-btn"
                     data-dd-password-close>
                 Close
+            </button>
+            <button type="button"
+                    class="btn-accent dd-pill-btn"
+                    id="dd-password-copy">
+                Copy to clipboard
             </button>
         </div>
     </div>
@@ -568,7 +591,7 @@
         z-index: 1000;
         max-width: 420px;
         width: 100%;
-        border-radius: 12px;
+        border-radius: var(--dd-card-radius);
         padding: 20px;
         background: var(--dd-card-bg);
         border: 1px solid var(--dd-card-border);
@@ -588,19 +611,34 @@
 
     .dd-password-input {
         width: 100%;
-        padding-right: 44px !important;
+        padding-right: 50px !important;
     }
 
     .dd-password-toggle {
         position: absolute;
-        right: 8px;
+        right: 12px;
         top: 50%;
         transform: translateY(-50%);
-        background: none;
         border: none;
+        background: transparent;
         cursor: pointer;
         font-size: 18px;
+        color: var(--dd-text-color);
+        opacity: 0.7;
         padding: 4px 8px;
+        border-radius: 4px;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
+    }
+
+    .dd-password-toggle:hover {
+        opacity: 1;
+        background: var(--dd-pill-bg);
+    }
+
+    .dd-password-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
     }
 
     .dd-password-modal.dd-hidden {

@@ -11,6 +11,14 @@ class Client extends Model
 
     protected $fillable = [
         'business_name',
+        'primary_contact_name',
+        'email',
+        'phone',
+        'address',
+        'city',
+        'state',
+        'postcode',
+        'country',
         'abn',
         'halopsa_reference',  // Changed from halopsa_id
         'itglue_org_id',

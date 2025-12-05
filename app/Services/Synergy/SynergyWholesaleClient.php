@@ -245,7 +245,7 @@ class SynergyWholesaleClient
 
     /**
      * List hosting services with pagination.
-     * 
+     *
      * @param string|null $status Filter by status
      * @param int $page Page number
      * @param int $limit Results per page
@@ -263,6 +263,268 @@ class SynergyWholesaleClient
         }
 
         $res = $this->soap->__soapCall('listHosting', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * List available hosting packages from Synergy.
+     *
+     * @return array Response with packages list
+     */
+    public function hostingListPackages(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('hostingListPackages', [$params]);
+        return (array) $res;
+    }
+
+    /* -----------------------------------------------------------------
+     |  Domain Registration & Transfer
+     |------------------------------------------------------------------*/
+
+    /**
+     * Check domain availability.
+     *
+     * @param string $domainName Full domain name (e.g., example.com.au)
+     * @return array Response with availability status
+     */
+    public function checkDomain(string $domainName): array
+    {
+        $params = array_merge($this->creds(), [
+            'domainName' => $domainName,
+        ]);
+
+        $res = $this->soap->__soapCall('checkDomain', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Get .au registrant information from ABN/ACN.
+     *
+     * @param string $idType Type of ID (ABN, ACN, etc.)
+     * @param string $idValue The actual ID value
+     * @return array Registrant information
+     */
+    public function auRegistrantInfo(string $idType, string $idValue): array
+    {
+        $params = array_merge($this->creds(), [
+            'idType' => $idType,
+            'idNumber' => $idValue,
+        ]);
+
+        $res = $this->soap->__soapCall('auRegistrantInfo', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Register a new domain.
+     *
+     * @param string $domainName Domain to register
+     * @param int $years Number of years
+     * @param array $contacts Contact information
+     * @param array $nameservers Array of nameservers
+     * @param array $extra Extra parameters (e.g., .au specific fields)
+     * @return array Response
+     */
+    public function registerDomain(
+        string $domainName,
+        int $years,
+        array $contacts,
+        array $nameservers = [],
+        array $extra = []
+    ): array {
+        $params = array_merge($this->creds(), [
+            'domainName' => $domainName,
+            'years' => $years,
+        ]);
+
+        // Add contacts
+        if (!empty($contacts)) {
+            $params = array_merge($params, $contacts);
+        }
+
+        // Add nameservers
+        if (!empty($nameservers)) {
+            $params['nameServers'] = array_values(array_filter($nameservers));
+        }
+
+        // Add extra parameters (e.g., for .au domains)
+        if (!empty($extra)) {
+            $params = array_merge($params, $extra);
+        }
+
+        $res = $this->soap->__soapCall('registerDomain', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Transfer a domain.
+     *
+     * @param string $domainName Domain to transfer
+     * @param string $authCode EPP/authorization code
+     * @param int $years Number of years to renew
+     * @param array $contacts Contact information
+     * @return array Response
+     */
+    public function transferDomain(
+        string $domainName,
+        string $authCode,
+        int $years = 1,
+        array $contacts = []
+    ): array {
+        $params = array_merge($this->creds(), [
+            'domainName' => $domainName,
+            'authCode' => $authCode,
+            'years' => $years,
+        ]);
+
+        if (!empty($contacts)) {
+            $params = array_merge($params, $contacts);
+        }
+
+        $res = $this->soap->__soapCall('transferDomain', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Renew a domain.
+     *
+     * @param string $domainName Domain to renew
+     * @param int $years Number of years
+     * @return array Response
+     */
+    public function renewDomain(string $domainName, int $years = 1): array
+    {
+        $params = array_merge($this->creds(), [
+            'domainName' => $domainName,
+            'years' => $years,
+        ]);
+
+        $res = $this->soap->__soapCall('renewDomain', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * List all domains.
+     *
+     * @param int $page Page number
+     * @param int $limit Results per page
+     * @return array List of domains
+     */
+    public function listDomains(int $page = 1, int $limit = 100): array
+    {
+        $params = array_merge($this->creds(), [
+            'page' => $page,
+            'limit' => $limit,
+        ]);
+
+        $res = $this->soap->__soapCall('listDomains', [$params]);
+        return (array) $res;
+    }
+
+    /* -----------------------------------------------------------------
+     |  Hosting Plans & Purchase
+     |------------------------------------------------------------------*/
+
+    /**
+     * List available hosting plans.
+     *
+     * @return array List of hosting plans
+     */
+    public function listHostingPlans(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('listHostingPlans', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Purchase hosting service.
+     *
+     * @param string $planId Plan ID from listHostingPlans
+     * @param string $domain Primary domain for hosting
+     * @param string $email Contact email
+     * @param array $extra Additional parameters
+     * @return array Response with service details
+     */
+    public function purchaseHosting(
+        string $planId,
+        string $domain,
+        string $email,
+        array $extra = []
+    ): array {
+        $params = array_merge($this->creds(), [
+            'planID' => $planId,
+            'domain' => $domain,
+            'email' => $email,
+        ]);
+
+        if (!empty($extra)) {
+            $params = array_merge($params, $extra);
+        }
+
+        $res = $this->soap->__soapCall('purchaseHosting', [$params]);
+        return (array) $res;
+    }
+
+    /* -----------------------------------------------------------------
+     |  SSL Certificates
+     |------------------------------------------------------------------*/
+
+    /**
+     * List available SSL products.
+     *
+     * @return array List of SSL products
+     */
+    public function listSSLProducts(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('listSSLProducts', [$params]);
+        return (array) $res;
+    }
+
+    /**
+     * Purchase SSL certificate.
+     *
+     * @param string $productId SSL product ID
+     * @param string $domain Domain for SSL
+     * @param int $years Number of years
+     * @param array $extra Additional parameters (CSR, etc.)
+     * @return array Response
+     */
+    public function purchaseSSL(
+        string $productId,
+        string $domain,
+        int $years = 1,
+        array $extra = []
+    ): array {
+        $params = array_merge($this->creds(), [
+            'productID' => $productId,
+            'domain' => $domain,
+            'years' => $years,
+        ]);
+
+        if (!empty($extra)) {
+            $params = array_merge($params, $extra);
+        }
+
+        $res = $this->soap->__soapCall('purchaseSSL', [$params]);
+        return (array) $res;
+    }
+
+    /* -----------------------------------------------------------------
+     |  Account Balance
+     |------------------------------------------------------------------*/
+
+    /**
+     * Get account balance.
+     *
+     * @return array Balance information
+     */
+    public function balanceQuery(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('balanceQuery', [$params]);
         return (array) $res;
     }
 }
