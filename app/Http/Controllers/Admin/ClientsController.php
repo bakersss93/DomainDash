@@ -738,6 +738,8 @@ class ClientsController extends Controller
             }
 
             $linked = 0;
+            $matched = 0;
+            $alreadyLinked = 0;
             $updated = [];
 
             foreach ($domainAssets as $asset) {
@@ -753,6 +755,8 @@ class ClientsController extends Controller
                 if (!$domain) {
                     continue;
                 }
+
+                $matched++;
 
                 $changes = [];
 
@@ -772,10 +776,13 @@ class ClientsController extends Controller
                         'halo_asset_id' => $assetId,
                         'changes' => array_keys($changes),
                     ];
+                } else {
+                    $alreadyLinked++;
                 }
             }
 
-            if ($linked === 0) {
+            // If we matched assets but nothing needed updating, treat as success
+            if ($linked === 0 && $matched === 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No matching HaloPSA domain assets found to link'
@@ -784,8 +791,12 @@ class ClientsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Linked {$linked} HaloPSA domain asset" . ($linked === 1 ? '' : 's'),
+                'message' => $linked > 0
+                    ? "Linked {$linked} HaloPSA domain asset" . ($linked === 1 ? '' : 's')
+                    : "All {$alreadyLinked} HaloPSA domain assets are already linked",
                 'linked' => $linked,
+                'already_linked' => $alreadyLinked,
+                'matched' => $matched,
                 'updated' => $updated,
             ]);
 
