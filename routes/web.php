@@ -62,6 +62,7 @@ Route::middleware(['auth','verified'])->group(function () {
         
         // HaloPSA DNS Sync Routes
         Route::post('/clients/{client}/halo/sync-dns', [ClientsController::class, 'syncDnsToHalo'])->name('admin.clients.halo.syncDns');
+        Route::post('/clients/{client}/halo/link-domains', [ClientsController::class, 'linkHaloDomainAssets'])->name('admin.clients.halo.linkDomains');
         
         // ============================================================================
         // DOMAINS ROUTES

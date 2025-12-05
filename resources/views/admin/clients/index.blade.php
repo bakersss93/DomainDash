@@ -124,6 +124,12 @@
 
                                             {{-- HaloPSA DNS Sync --}}
                                             @if($client->halopsa_reference)
+                                                <button type="button"
+                                                        onclick="linkHaloDomains({{ $client->id }}, event)"
+                                                        class="btn-accent dd-pill-btn dd-sync-btn">
+                                                    🔄 Link HaloPSA Domains
+                                                </button>
+                                                <div id="halo-link-status-{{ $client->id }}" class="dd-sync-status"></div>
                                                 @php
                                                     $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
                                                 @endphp
@@ -598,6 +604,60 @@
         .catch(err => {
             console.error('Sync error:', err);
             statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
+        });
+    }
+
+    function linkHaloDomains(clientId, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+
+        const statusDiv = document.getElementById(`halo-link-status-${clientId}`);
+
+        if (statusDiv) {
+            statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Checking HaloPSA assets...</span>';
+        }
+
+        fetch(`/admin/clients/${clientId}/halo/link-domains`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(async r => {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
+                const text = await r.text();
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
+            }
+
+            if (!r.ok) {
+                console.error('HaloPSA link failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
+        })
+        .then(data => {
+            if (statusDiv) {
+                if (data.success) {
+                    statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
+                } else {
+                    statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Linking error:', err);
+            if (statusDiv) {
+                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Linking failed'}</span>`;
+            }
         });
     }
     </script>

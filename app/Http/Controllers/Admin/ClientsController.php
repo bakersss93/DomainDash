@@ -717,6 +717,91 @@ class ClientsController extends Controller
     }
 
     /**
+     * Re-link HaloPSA domain assets to the DomainDash client
+     */
+    public function linkHaloDomainAssets(Client $client)
+    {
+        try {
+            if (!$client->halopsa_reference) {
+                return response()->json([
+                    'error' => 'Client must be linked to HaloPSA first'
+                ], 400);
+            }
+
+            $halo = new \App\Services\Halo\HaloPsaClient();
+            $domainAssets = $halo->listDomainAssetsForClient((int) $client->halopsa_reference);
+
+            if (empty($domainAssets)) {
+                return response()->json([
+                    'error' => 'No domain assets found in HaloPSA for this client'
+                ], 400);
+            }
+
+            $linked = 0;
+            $updated = [];
+
+            foreach ($domainAssets as $asset) {
+                $assetId = $asset['id'] ?? $asset['Id'] ?? null;
+                $domainName = $this->extractDomainName($asset);
+
+                if (!$assetId || !$domainName) {
+                    continue;
+                }
+
+                $domain = Domain::where('name', $domainName)->first();
+
+                if (!$domain) {
+                    continue;
+                }
+
+                $changes = [];
+
+                if ($domain->client_id !== $client->id) {
+                    $changes['client_id'] = $client->id;
+                }
+
+                if ($domain->halo_asset_id !== $assetId) {
+                    $changes['halo_asset_id'] = $assetId;
+                }
+
+                if (!empty($changes)) {
+                    $domain->update($changes);
+                    $linked++;
+                    $updated[] = [
+                        'domain' => $domain->name,
+                        'halo_asset_id' => $assetId,
+                        'changes' => array_keys($changes),
+                    ];
+                }
+            }
+
+            if ($linked === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No matching HaloPSA domain assets found to link'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Linked {$linked} HaloPSA domain asset" . ($linked === 1 ? '' : 's'),
+                'linked' => $linked,
+                'updated' => $updated,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error linking HaloPSA domain assets: ' . $e->getMessage(), [
+                'client_id' => $client->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error linking HaloPSA domain assets: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Extract domain name from asset data
      */
     private function extractDomainName($asset)
