@@ -23,58 +23,59 @@
             <table class="dd-clients-table">
                 <thead>
                     <tr>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Business Name</th>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">ABN</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">HaloPSA</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">ITGlue</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">Status</th>
-                        <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #1f2937;">Actions</th>
+                        <th>Business Name</th>
+                        <th>ABN</th>
+                        <th style="text-align:center;">HaloPSA</th>
+                        <th style="text-align:center;">ITGlue</th>
+                        <th style="text-align:center;">Status</th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($clients as $client)
-                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;transition:background-color 0.15s ease;">
-                            <td style="padding:8px 6px;border-bottom:1px solid #111827;">
+                        <tr class="dd-client-row" data-client-toggle="client-{{ $client->id }}">
+                            <td class="dd-client-name">
                                 <strong>{{ $client->business_name }}</strong>
                             </td>
                             <td>
-                                {{ $client->abn }}
+                                {{ $client->abn ?: '—' }}
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-center">
                                 @if($client->halopsa_reference)
                                     <span class="dd-status-success">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-center">
                                 @if($client->itglue_org_id)
                                     <span class="dd-status-info">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-center">
                                 <span class="{{ $client->active ? 'dd-status-success' : 'dd-status-muted' }}">
                                     {{ $client->active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td style="text-align:right;">
-                                <a href="{{ route('admin.clients.edit', $client) }}"
-                                   onclick="event.stopPropagation();"
-                                   class="dd-edit-btn">
-                                    Edit
-                                </a>
+                            <td class="dd-right">
+                                <div class="dd-client-row-actions">
+                                    <a href="{{ route('admin.clients.edit', $client) }}"
+                                       onclick="event.stopPropagation();"
+                                       class="dd-edit-btn">
+                                        Edit
+                                    </a>
+                                    <span class="expand-icon" aria-hidden="true">▾</span>
+                                </div>
                             </td>
                         </tr>
 
                         {{-- Expandable details row --}}
-                        <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
-                            <td colspan="6" style="padding:0;border-bottom:1px solid #111827;">
-                                <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-
-                                        {{-- Info column --}}
+                        <tr class="client-details" data-client-panel="client-{{ $client->id }}">
+                            <td colspan="6">
+                                <div class="dd-client-panel-inner">
+                                    <div class="dd-client-panel-header">
                                         <div>
                                             <div style="font-weight:600;">{{ $client->business_name }}</div>
                                             <div style="font-size:13px;opacity:.8;">
@@ -104,8 +105,8 @@
                                         </div>
 
                                         {{-- Actions column --}}
-                                        <div>
-                                            <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#9ca3af;">Integration Actions</h4>
+                                        <div class="dd-client-actions-section">
+                                            <h4 class="dd-section-title">Integration Actions</h4>
 
                                             {{-- ITGlue Sync --}}
                                             @if($client->itglue_org_id)
@@ -150,7 +151,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" style="padding:12px 6px;text-align:center;color:#9ca3af;">
+                            <td colspan="6" class="dd-empty-state">
                                 No clients found.
                             </td>
                         </tr>
@@ -258,13 +259,17 @@
             row.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A') return; // Don't expand when clicking Edit
 
-                const clientId = this.dataset.clientId;
-                const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
+                const panelId = this.dataset.clientToggle;
+                const detailsRow = document.querySelector(`tr[data-client-panel="${panelId}"]`);
+                const icon = this.querySelector('.expand-icon');
 
-                if (detailsRow.style.display === 'none') {
-                    detailsRow.style.display = 'table-row';
-                } else {
-                    detailsRow.style.display = 'none';
+                if (!detailsRow) return;
+
+                const isOpen = detailsRow.classList.contains('open');
+                detailsRow.classList.toggle('open', !isOpen);
+
+                if (icon) {
+                    icon.style.transform = !isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
                 }
             });
 
@@ -692,6 +697,19 @@
         border-bottom: 1px solid rgba(148,163,184,0.4);
     }
 
+    .dd-clients-table th:first-child,
+    .dd-clients-table td:first-child {
+        border-left: 1px solid rgba(148,163,184,0.35);
+    }
+
+    .dd-clients-table th:last-child,
+    .dd-clients-table td:last-child {
+        border-right: 1px solid rgba(148,163,184,0.35);
+    }
+
+    .dd-center { text-align: center; }
+    .dd-right { text-align: right; }
+
     .dd-clients-table tbody tr:nth-child(4n+1),
     .dd-clients-table tbody tr:nth-child(4n+2) {
         background: var(--dd-row-alt-bg);
@@ -750,9 +768,14 @@
         border-color: var(--accent, #4ade80);
     }
 
+    .dd-client-row-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     /* Expandable panel */
     tr[data-client-panel] {
-        display: none;
         height: 0;
     }
 
@@ -761,14 +784,9 @@
         border: 0;
     }
 
-    tr[data-client-panel].open {
-        display: table-row;
-        height: auto;
-    }
-
     .dd-client-panel-inner {
         max-height: 0;
-        padding: 0;
+        padding: 0 18px;
         margin-top: 0;
         border: 0;
         overflow: hidden;
@@ -780,7 +798,12 @@
             transform 0.2s ease,
             padding 0.2s ease,
             margin-top 0.2s ease,
-            border-width 0.2s ease;
+            border-width 0.2s ease,
+            background 0.2s ease;
+    }
+
+    tr[data-client-panel].open {
+        height: auto;
     }
 
     tr[data-client-panel].open > td > .dd-client-panel-inner {
