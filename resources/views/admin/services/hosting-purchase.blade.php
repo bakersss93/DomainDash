@@ -13,23 +13,24 @@
     <div style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
         <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Select Hosting Plan</h2>
 
-        @if(!empty($plans))
+        @if(isset($packages) && $packages->count() > 0)
             <div style="margin-bottom: 24px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Hosting Plan *</label>
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Hosting Package *</label>
                 <div class="fancy-select-wrapper" style="width: 100%;">
                     <select id="plan-id" class="fancy-select">
-                        <option value="">Select a hosting plan</option>
-                        @foreach($plans as $plan)
-                            <option value="{{ $plan['planID'] ?? $plan['id'] ?? '' }}">
-                                {{ $plan['planName'] ?? $plan['name'] ?? 'Unknown Plan' }} -
-                                ${{ number_format($plan['price'] ?? 0, 2) }}/{{ $plan['period'] ?? 'month' }}
+                        <option value="">Select a hosting package</option>
+                        @foreach($packages as $package)
+                            <option value="{{ $package->package_name }}">
+                                {{ $package->package_name }}
+                                @if($package->category) ({{ $package->category }}) @endif
+                                @if($package->price_monthly) - ${{ number_format($package->price_monthly, 2) }}/month @endif
                             </option>
                         @endforeach
                     </select>
                 </div>
             </div>
         @else
-            <p style="color: #6b7280; margin-bottom: 24px;">No hosting plans available. Please configure your Synergy API settings.</p>
+            <p style="color: #6b7280; margin-bottom: 24px;">No hosting packages available. Please <a href="{{ route('admin.services.hosting') }}" style="color: #3b82f6; text-decoration: underline;">sync hosting services</a> first to load available packages.</p>
         @endif
 
         <div style="margin-bottom: 16px;">

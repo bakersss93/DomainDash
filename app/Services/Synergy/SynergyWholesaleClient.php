@@ -423,25 +423,13 @@ class SynergyWholesaleClient
     }
 
     /* -----------------------------------------------------------------
-     |  Hosting Plans & Purchase
+     |  Hosting Purchase
      |------------------------------------------------------------------*/
-
-    /**
-     * List available hosting plans.
-     *
-     * @return array List of hosting plans
-     */
-    public function listHostingPlans(): array
-    {
-        $params = $this->creds();
-        $res = $this->soap->__soapCall('listHostingPlans', [$params]);
-        return (array) $res;
-    }
 
     /**
      * Purchase hosting service.
      *
-     * @param string $planId Plan ID from listHostingPlans
+     * @param string $planId Package name from hostingListPackages
      * @param string $domain Primary domain for hosting
      * @param string $email Contact email
      * @param array $extra Additional parameters

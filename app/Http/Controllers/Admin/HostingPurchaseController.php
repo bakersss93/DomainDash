@@ -7,6 +7,7 @@ use App\Services\Synergy\SynergyWholesaleClient;
 use App\Models\Client;
 use App\Models\Domain;
 use App\Models\HostingService;
+use App\Models\HostingPackage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -24,18 +25,20 @@ class HostingPurchaseController extends Controller
      */
     public function index()
     {
-        try {
-            $plans = $this->synergy->listHostingPlans();
-            $clients = Client::orderBy('business_name')->get();
+        // Load hosting packages from database (synced via Services > Hosting > Sync)
+        $packages = HostingPackage::orderBy('package_name')->get();
+        $clients = Client::orderBy('business_name')->get();
 
-            return view('admin.services.hosting-purchase', compact('plans', 'clients'));
-        } catch (\Exception $e) {
+        // If no packages exist, show a message prompting to sync
+        if ($packages->isEmpty()) {
             return view('admin.services.hosting-purchase', [
-                'plans' => [],
-                'clients' => Client::orderBy('business_name')->get(),
-                'error' => 'Unable to load hosting plans: ' . $e->getMessage()
+                'packages' => collect(),
+                'clients' => $clients,
+                'error' => 'No hosting packages found. Please sync hosting services first to load available packages.',
             ]);
         }
+
+        return view('admin.services.hosting-purchase', compact('packages', 'clients'));
     }
 
     /**
