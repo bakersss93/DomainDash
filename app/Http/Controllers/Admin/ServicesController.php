@@ -473,6 +473,9 @@ class ServicesController extends Controller
 
             $count = 0;
             foreach ($packages as $pkg) {
+                // SOAP returns stdClass objects, cast to array for consistent access
+                $pkg = (array) $pkg;
+
                 // API returns: name, product, price
                 $packageName = $pkg['name'] ?? null;
                 if (!$packageName) {
