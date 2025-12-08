@@ -226,6 +226,13 @@
                             @php
                                 $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
                             @endphp
+                            <button type="button"
+                                    onclick="linkHaloDomains({{ $client->id }})"
+                                    class="btn-accent"
+                                    style="padding:6px 12px;font-size:13px;margin-bottom:6px;">
+                                🔄 Link HaloPSA Domains
+                            </button>
+                            <div id="halo-link-status" style="margin-top:2px;font-size:13px;"></div>
                             @if($domainsWithAssets > 0)
                                 <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">
                                     Update HaloPSA asset notes with DNS records ({{ $domainsWithAssets }} domain{{ $domainsWithAssets !== 1 ? 's' : '' }})
@@ -834,6 +841,37 @@
             })
             .finally(() => {
                 clearTimeout(timeoutId);
+            });
+        }
+
+        function linkHaloDomains(clientId) {
+            const statusDiv = document.getElementById('halo-link-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Checking HaloPSA assets...</span>';
+            }
+
+            fetch('/admin/clients/' + clientId + '/halo/link-domains', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (statusDiv) {
+                    if (data.success) {
+                        statusDiv.innerHTML = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
+                    } else {
+                        statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Linking error:', err);
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error linking HaloPSA domains</div>';
+                }
             });
         }
 
