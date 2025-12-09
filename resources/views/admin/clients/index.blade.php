@@ -8,13 +8,25 @@
         {{-- Header / actions --}}
         <div class="dd-clients-toolbar">
             {{-- Search bar --}}
-            <div class="dd-search-wrapper">
+            <form method="GET"
+                  action="{{ route('admin.clients.index') }}"
+                  class="dd-search-form">
                 <input type="text"
+                       name="search"
                        id="client-search"
                        placeholder="Search clients..."
                        class="dd-search-input"
                        value="{{ $search ?? '' }}">
-            </div>
+                <button type="submit" class="btn-accent dd-search-btn">Search</button>
+
+                {{-- Preserve sort parameters --}}
+                @if(request('sort'))
+                    <input type="hidden" name="sort" value="{{ request('sort') }}">
+                @endif
+                @if(request('direction'))
+                    <input type="hidden" name="direction" value="{{ request('direction') }}">
+                @endif
+            </form>
 
             <div class="dd-clients-actions">
                 <a href="{{ route('admin.clients.create') }}" class="btn-accent dd-pill-btn">
@@ -342,39 +354,8 @@
             });
         });
 
-        // Client search with server-side filtering
-        const clientSearchInput = document.getElementById('client-search');
-        if (clientSearchInput) {
-            let searchTimeout = null;
-
-            clientSearchInput.addEventListener('input', function() {
-                const searchTerm = this.value.trim();
-
-                // Clear existing timeout
-                if (searchTimeout) {
-                    clearTimeout(searchTimeout);
-                }
-
-                // Debounce search for 500ms
-                searchTimeout = setTimeout(() => {
-                    // Build URL with search parameter
-                    const url = new URL(window.location.href);
-
-                    if (searchTerm) {
-                        url.searchParams.set('search', searchTerm);
-                    } else {
-                        url.searchParams.delete('search');
-                    }
-
-                    // Keep existing sort parameters
-                    const currentSort = url.searchParams.get('sort');
-                    const currentDirection = url.searchParams.get('direction');
-
-                    // Navigate to the new URL
-                    window.location.href = url.toString();
-                }, 500);
-            });
-        }
+        // Client search is handled by form submission
+        // No additional JavaScript needed - form handles the search
 
         // HaloPSA import modal functionality
         const openBtn = document.getElementById('btn-halo-import');
@@ -787,17 +768,17 @@
     /* Card styling */
     .dd-clients-card {
         border-radius: var(--dd-card-radius);
-        padding: var(--dd-card-padding);
-        margin-top: 24px;
+        padding: 16px 20px;
+        margin-top: 0;
         border: 1px solid var(--dd-card-border);
         background: var(--dd-card-bg);
         color: var(--dd-text-color);
     }
 
     .dd-clients-title {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
     }
 
     /* Toolbar */
@@ -817,32 +798,39 @@
         flex-wrap: wrap;
     }
 
-    /* Search bar */
-    .dd-search-wrapper {
+    /* Search form */
+    .dd-search-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex: 1;
-        min-width: 200px;
-        max-width: 400px;
+        min-width: 250px;
     }
 
     .dd-search-input {
-        width: 100%;
-        padding: 10px 16px;
-        border-radius: var(--dd-pill-radius) !important;
-        border: 1px solid #1e293b !important;
-        background: #0f172a !important;
-        color: #e5e7eb !important;
+        flex: 1;
+        padding: 6px 12px;
+        border-radius: 9999px;
+        border: 1px solid #4b5563;
+        background: #020617;
+        color: #f9fafb;
         font-size: 14px;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        transition: border-color 0.15s ease;
     }
 
     .dd-search-input:focus {
         outline: none;
-        border-color: #334155 !important;
-        box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
+        border-color: #6b7280;
     }
 
     .dd-search-input::placeholder {
-        color: #64748b !important;
+        color: #6b7280;
+    }
+
+    .dd-search-btn {
+        white-space: nowrap;
+        padding: 6px 16px !important;
+        border-radius: 6px !important;
     }
 
     /* Table styling */
