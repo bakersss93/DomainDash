@@ -809,29 +809,29 @@
 
     .dd-search-input {
         flex: 1;
-        padding: 10px 16px;
-        border-radius: var(--dd-pill-radius);
-        border: 1px solid #1e293b;
-        background: #0f172a;
-        color: #e5e7eb;
+        padding: 10px 16px !important;
+        border-radius: 9999px !important;
+        border: 1px solid #1e293b !important;
+        background: #0f172a !important;
+        color: #e5e7eb !important;
         font-size: 14px;
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .dd-search-input:focus {
         outline: none;
-        border-color: #334155;
+        border-color: #334155 !important;
         box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
     }
 
     .dd-search-input::placeholder {
-        color: #64748b;
+        color: #64748b !important;
     }
 
     .dd-search-btn {
         white-space: nowrap;
-        padding: 6px 16px !important;
-        border-radius: 6px !important;
+        padding: 8px 16px !important;
+        border-radius: 9999px !important;
     }
 
     /* Table styling */
