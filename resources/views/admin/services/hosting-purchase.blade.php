@@ -17,16 +17,45 @@
             <div style="margin-bottom: 24px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">Hosting Package *</label>
                 <div class="fancy-select-wrapper" style="width: 100%;">
-                    <select id="plan-id" class="fancy-select">
+                    <select id="plan-id" class="fancy-select" onchange="showPackageDetails()">
                         <option value="">Select a hosting package</option>
                         @foreach($packages as $package)
-                            <option value="{{ $package->package_name }}">
+                            <option value="{{ $package->package_name }}"
+                                    data-disk="{{ $package->disk_mb }}"
+                                    data-memory="{{ $package->memory_mb }}"
+                                    data-cpu="{{ $package->cpu_percent }}"
+                                    data-bandwidth="{{ $package->bandwidth_mb }}"
+                                    data-price="{{ $package->price_monthly }}">
                                 {{ $package->package_name }}
-                                @if($package->category) ({{ $package->category }}) @endif
-                                @if($package->price_monthly) - ${{ number_format($package->price_monthly, 2) }}/month @endif
+                                @if(auth()->user()->hasRole('admin') && $package->price_monthly)
+                                    - ${{ number_format($package->price_monthly, 2) }}/month
+                                @endif
                             </option>
                         @endforeach
                     </select>
+                </div>
+            </div>
+
+            <!-- Package Details Section -->
+            <div id="package-details" style="display: none; margin-bottom: 24px; padding: 16px; background: var(--bg-secondary, #f9fafb); border: 1px solid #e5e7eb; border-radius: 6px;">
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #6b7280;">Package Resources</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                    <div>
+                        <span style="font-size: 12px; color: #6b7280;">Disk Space</span>
+                        <p id="detail-disk" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #6b7280;">Memory</span>
+                        <p id="detail-memory" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #6b7280;">CPU</span>
+                        <p id="detail-cpu" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #6b7280;">Bandwidth</span>
+                        <p id="detail-bandwidth" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
+                    </div>
                 </div>
             </div>
         @else
@@ -67,6 +96,37 @@
 </div>
 
 <script>
+function formatBytes(mb) {
+    if (!mb || mb === 0) return '-';
+    if (mb >= 1024) {
+        return (mb / 1024).toFixed(0) + ' GB';
+    }
+    return mb + ' MB';
+}
+
+function showPackageDetails() {
+    const select = document.getElementById('plan-id');
+    const detailsDiv = document.getElementById('package-details');
+    const selectedOption = select.options[select.selectedIndex];
+
+    if (!select.value) {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+
+    const disk = selectedOption.getAttribute('data-disk');
+    const memory = selectedOption.getAttribute('data-memory');
+    const cpu = selectedOption.getAttribute('data-cpu');
+    const bandwidth = selectedOption.getAttribute('data-bandwidth');
+
+    document.getElementById('detail-disk').textContent = formatBytes(disk);
+    document.getElementById('detail-memory').textContent = formatBytes(memory);
+    document.getElementById('detail-cpu').textContent = cpu ? cpu + '%' : '-';
+    document.getElementById('detail-bandwidth').textContent = formatBytes(bandwidth);
+
+    detailsDiv.style.display = 'block';
+}
+
 function purchaseHosting() {
     const planId = document.getElementById('plan-id').value;
     const domain = document.getElementById('domain').value.trim();
