@@ -813,15 +813,15 @@
     .dd-search-wrapper {
         flex: 1;
         min-width: 200px;
-        max-width: 300px;
+        max-width: 400px;
     }
 
     .dd-search-input {
         width: 100%;
-        padding: 8px 12px;
+        padding: 10px 16px;
         border-radius: var(--dd-pill-radius);
-        border: 1px solid var(--dd-pill-border);
-        background: var(--dd-pill-bg);
+        border: 1px solid #1e293b;
+        background: #0f172a;
         color: var(--dd-text-color);
         font-size: 14px;
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -829,12 +829,12 @@
 
     .dd-search-input:focus {
         outline: none;
-        border-color: var(--accent, #4ade80);
-        box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+        border-color: #334155;
+        box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
     }
 
     .dd-search-input::placeholder {
-        color: #6b7280;
+        color: #64748b;
     }
 
     /* Table styling */
