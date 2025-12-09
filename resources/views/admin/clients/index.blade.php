@@ -809,22 +809,23 @@
 
     .dd-search-input {
         flex: 1;
-        padding: 6px 12px;
-        border-radius: 9999px;
-        border: 1px solid #4b5563;
-        background: #020617;
-        color: #f9fafb;
+        padding: 10px 16px;
+        border-radius: var(--dd-pill-radius);
+        border: 1px solid #1e293b;
+        background: #0f172a;
+        color: #e5e7eb;
         font-size: 14px;
-        transition: border-color 0.15s ease;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .dd-search-input:focus {
         outline: none;
-        border-color: #6b7280;
+        border-color: #334155;
+        box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
     }
 
     .dd-search-input::placeholder {
-        color: #6b7280;
+        color: #64748b;
     }
 
     .dd-search-btn {
