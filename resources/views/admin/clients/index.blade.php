@@ -7,6 +7,14 @@
 
         {{-- Header / actions --}}
         <div class="dd-clients-toolbar">
+            {{-- Search bar --}}
+            <div class="dd-search-wrapper">
+                <input type="text"
+                       id="client-search"
+                       placeholder="Search clients..."
+                       class="dd-search-input">
+            </div>
+
             <div class="dd-clients-actions">
                 <a href="{{ route('admin.clients.create') }}" class="btn-accent dd-pill-btn">
                     New client
@@ -23,43 +31,96 @@
             <table class="dd-clients-table">
                 <thead>
                     <tr>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Business Name</th>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">ABN</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">HaloPSA</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">ITGlue</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">Status</th>
-                        <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #1f2937;">Actions</th>
+                        <th class="dd-sortable-header" data-sort="business_name">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'business_name', 'direction' => ($sortColumn === 'business_name' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                Business Name
+                                <span class="dd-sort-arrow {{ $sortColumn === 'business_name' ? 'active' : '' }}">
+                                    @if($sortColumn === 'business_name')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" data-sort="abn">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'abn', 'direction' => ($sortColumn === 'abn' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                ABN
+                                <span class="dd-sort-arrow {{ $sortColumn === 'abn' ? 'active' : '' }}">
+                                    @if($sortColumn === 'abn')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="halopsa_reference">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'halopsa_reference', 'direction' => ($sortColumn === 'halopsa_reference' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                HaloPSA
+                                <span class="dd-sort-arrow {{ $sortColumn === 'halopsa_reference' ? 'active' : '' }}">
+                                    @if($sortColumn === 'halopsa_reference')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="itglue_org_id">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'itglue_org_id', 'direction' => ($sortColumn === 'itglue_org_id' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                ITGlue
+                                <span class="dd-sort-arrow {{ $sortColumn === 'itglue_org_id' ? 'active' : '' }}">
+                                    @if($sortColumn === 'itglue_org_id')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="active">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'active', 'direction' => ($sortColumn === 'active' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                Status
+                                <span class="dd-sort-arrow {{ $sortColumn === 'active' ? 'active' : '' }}">
+                                    @if($sortColumn === 'active')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($clients as $client)
-                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;transition:background-color 0.15s ease;">
-                            <td style="padding:8px 6px;border-bottom:1px solid #111827;">
+                        <tr class="client-row" data-client-id="{{ $client->id }}">
+                            <td>
                                 <strong>{{ $client->business_name }}</strong>
                             </td>
-                            <td>
-                                {{ $client->abn }}
-                            </td>
-                            <td style="text-align:center;">
+                            <td>{{ $client->abn }}</td>
+                            <td class="dd-cell-center">
                                 @if($client->halopsa_reference)
                                     <span class="dd-status-success">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-cell-center">
                                 @if($client->itglue_org_id)
                                     <span class="dd-status-info">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-cell-center">
                                 <span class="{{ $client->active ? 'dd-status-success' : 'dd-status-muted' }}">
                                     {{ $client->active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td style="text-align:right;">
+                            <td class="dd-cell-right">
                                 <a href="{{ route('admin.clients.edit', $client) }}"
                                    onclick="event.stopPropagation();"
                                    class="dd-edit-btn">
@@ -70,7 +131,7 @@
 
                         {{-- Expandable details row --}}
                         <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
-                            <td colspan="6" style="padding:0;border-bottom:1px solid #111827;">
+                            <td colspan="6" class="dd-expandable-cell">
                                 <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
@@ -121,11 +182,22 @@
                                                 </div>
                                             @endif
 
-                                            {{-- HaloPSA DNS Sync --}}
+                                            {{-- HaloPSA Actions --}}
                                             @if($client->halopsa_reference)
                                                 @php
                                                     $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
+                                                    $totalDomains = $client->domains()->count();
                                                 @endphp
+
+                                                {{-- Link Domains from Halo button --}}
+                                                <button type="button"
+                                                        onclick="linkDomainsFromHalo({{ $client->id }}, event)"
+                                                        class="btn-accent dd-pill-btn dd-sync-btn">
+                                                    🔗 Link Domains from Halo
+                                                </button>
+                                                <div id="halo-link-status-{{ $client->id }}" class="dd-sync-status"></div>
+
+                                                {{-- Sync DNS to HaloPSA --}}
                                                 @if($domainsWithAssets > 0)
                                                     <button type="button"
                                                             onclick="syncClientDnsToHalo({{ $client->id }}, event)"
@@ -135,7 +207,7 @@
                                                     <div id="halo-status-{{ $client->id }}" class="dd-sync-status"></div>
                                                 @else
                                                     <div class="dd-status-muted dd-no-integration">
-                                                        No domains with HaloPSA assets
+                                                        No domains with HaloPSA assets yet
                                                     </div>
                                                 @endif
                                             @else
@@ -150,7 +222,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" style="padding:12px 6px;text-align:center;color:#9ca3af;">
+                            <td colspan="6" class="dd-empty-state">
                                 No clients found.
                             </td>
                         </tr>
@@ -254,7 +326,7 @@
         }
         
         // Expandable rows
-        document.querySelectorAll('.dd-client-row').forEach(row => {
+        document.querySelectorAll('.client-row').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A') return; // Don't expand when clicking Edit
 
@@ -267,16 +339,35 @@
                     detailsRow.style.display = 'none';
                 }
             });
-
-            // Add hover effect
-            row.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = 'rgba(148,163,184,0.1)';
-            });
-            row.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = '';
-            });
         });
-        
+
+        // Client search filtering
+        const clientSearchInput = document.getElementById('client-search');
+        if (clientSearchInput) {
+            clientSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                const clientRows = document.querySelectorAll('.client-row');
+
+                clientRows.forEach(row => {
+                    const clientId = row.dataset.clientId;
+                    const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
+
+                    // Get text content from all visible cells
+                    const rowText = row.textContent.toLowerCase();
+
+                    if (searchTerm === '' || rowText.includes(searchTerm)) {
+                        row.style.display = '';
+                        // Keep details row hidden unless it was expanded
+                    } else {
+                        row.style.display = 'none';
+                        if (detailsRow) {
+                            detailsRow.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
         // HaloPSA import modal functionality
         const openBtn = document.getElementById('btn-halo-import');
         const modal = document.getElementById('halo-import-backdrop');
@@ -595,6 +686,55 @@
             statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
+
+    function linkDomainsFromHalo(clientId, event) {
+        event.stopPropagation();
+
+        const statusDiv = document.getElementById(`halo-link-status-${clientId}`);
+        statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Linking...</span>';
+
+        fetch(`/admin/clients/${clientId}/halo/link-domains`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(async r => {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
+                const text = await r.text();
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
+            }
+
+            if (!r.ok) {
+                console.error('Link domains failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
+                // Reload after a short delay if new domains were linked
+                if (data.linked > 0) {
+                    setTimeout(() => window.location.reload(), 1500);
+                }
+            } else {
+                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
+            }
+        })
+        .catch(err => {
+            console.error('Link error:', err);
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Link failed'}</span>`;
+        });
+    }
     </script>
 
 <style>
@@ -656,7 +796,7 @@
     .dd-clients-toolbar {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 12px;
         margin-bottom: 16px;
         flex-wrap: wrap;
@@ -667,6 +807,34 @@
         gap: 8px;
         align-items: center;
         flex-wrap: wrap;
+    }
+
+    /* Search bar */
+    .dd-search-wrapper {
+        flex: 1;
+        min-width: 200px;
+        max-width: 400px;
+    }
+
+    .dd-search-input {
+        width: 100%;
+        padding: 10px 16px;
+        border-radius: var(--dd-pill-radius) !important;
+        border: 1px solid #1e293b !important;
+        background: #0f172a !important;
+        color: #e5e7eb !important;
+        font-size: 14px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dd-search-input:focus {
+        outline: none;
+        border-color: #334155 !important;
+        box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
+    }
+
+    .dd-search-input::placeholder {
+        color: #64748b !important;
     }
 
     /* Table styling */
@@ -701,7 +869,64 @@
         margin-top: 10px;
     }
 
+    /* Cell alignment */
+    .dd-cell-center {
+        text-align: center;
+    }
+
+    .dd-cell-right {
+        text-align: right;
+    }
+
+    /* Expandable cell */
+    .dd-expandable-cell {
+        padding: 0;
+    }
+
+    /* Sortable headers */
+    .dd-sortable-header {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .dd-sort-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+        white-space: nowrap;
+    }
+
+    .dd-sort-link:hover {
+        color: var(--accent, #4ade80);
+    }
+
+    .dd-sort-arrow {
+        opacity: 0.4;
+        font-size: 12px;
+        transition: opacity 0.15s ease;
+    }
+
+    .dd-sort-arrow.active {
+        opacity: 1;
+        color: var(--accent, #4ade80);
+    }
+
+    .dd-sortable-header:hover .dd-sort-arrow {
+        opacity: 0.8;
+    }
+
     /* Client rows */
+    .client-row {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .client-row:hover {
+        background-color: var(--dd-hover-bg) !important;
+    }
+
     .dd-client-row {
         cursor: pointer;
         transition: background 0.15s ease;

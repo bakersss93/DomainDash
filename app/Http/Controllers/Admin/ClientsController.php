@@ -17,10 +17,26 @@ class ClientsController extends Controller
     /**
      * Display a listing of clients
      */
-    public function index()
+    public function index(Request $request)
     {
-        $clients = Client::paginate(15);
-        return view('admin.clients.index', compact('clients'));
+        $sortColumn = $request->get('sort', 'business_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        // Validate sort column to prevent SQL injection
+        $allowedColumns = ['business_name', 'abn', 'halopsa_reference', 'itglue_org_id', 'active'];
+        if (!in_array($sortColumn, $allowedColumns)) {
+            $sortColumn = 'business_name';
+        }
+
+        // Validate direction
+        $sortDirection = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
+
+        $clients = Client::orderBy($sortColumn, $sortDirection)->paginate(15);
+
+        // Preserve sort parameters in pagination links
+        $clients->appends(['sort' => $sortColumn, 'direction' => $sortDirection]);
+
+        return view('admin.clients.index', compact('clients', 'sortColumn', 'sortDirection'));
     }
 
     /**
@@ -660,9 +676,96 @@ class ClientsController extends Controller
             Log::error('Error syncing DNS to HaloPSA: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'error' => 'Error syncing DNS to HaloPSA: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Link domain assets from HaloPSA to client domains
+     */
+    public function linkDomainsFromHalo(Client $client)
+    {
+        try {
+            if (!$client->halopsa_reference) {
+                return response()->json([
+                    'error' => 'Client must be linked to HaloPSA first'
+                ], 400);
+            }
+
+            Log::info('Linking domains from HaloPSA', [
+                'client_id' => $client->id,
+                'halopsa_reference' => $client->halopsa_reference
+            ]);
+
+            $halo = new \App\Services\Halo\HaloPsaClient();
+            $domainAssets = $halo->listDomainAssetsForClient((int) $client->halopsa_reference);
+
+            if (empty($domainAssets)) {
+                return response()->json([
+                    'error' => 'No domain assets found in HaloPSA for this client'
+                ], 400);
+            }
+
+            $linked = 0;
+            $alreadyLinked = 0;
+            $notFound = 0;
+
+            foreach ($domainAssets as $asset) {
+                $assetId = $asset['id'] ?? $asset['Id'] ?? null;
+                $assetName = $asset['inventory_number']
+                    ?? $asset['asset_tag']
+                    ?? $asset['name']
+                    ?? null;
+
+                if ($assetName && $assetId) {
+                    $domainName = $this->extractDomainName(['name' => $assetName]);
+
+                    if ($domainName) {
+                        $domain = $client->domains()->where('name', $domainName)->first();
+                        if ($domain) {
+                            if ($domain->halo_asset_id) {
+                                $alreadyLinked++;
+                            } else {
+                                $domain->update(['halo_asset_id' => $assetId]);
+                                $linked++;
+                                Log::info("Linked domain to HaloPSA asset", [
+                                    'domain' => $domain->name,
+                                    'halo_asset_id' => $assetId
+                                ]);
+                            }
+                        } else {
+                            $notFound++;
+                        }
+                    }
+                }
+            }
+
+            $message = "Found {$linked} new domain(s) to link";
+            if ($alreadyLinked > 0) {
+                $message .= ", {$alreadyLinked} already linked";
+            }
+            if ($notFound > 0) {
+                $message .= ", {$notFound} not in DomainDash";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'linked' => $linked,
+                'already_linked' => $alreadyLinked,
+                'not_found' => $notFound
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error linking domains from HaloPSA: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Error linking domains from HaloPSA: ' . $e->getMessage()
             ], 500);
         }
     }
