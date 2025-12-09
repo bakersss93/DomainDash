@@ -7,6 +7,14 @@
 
         {{-- Header / actions --}}
         <div class="dd-clients-toolbar">
+            {{-- Search bar --}}
+            <div class="dd-search-wrapper">
+                <input type="text"
+                       id="client-search"
+                       placeholder="Search clients..."
+                       class="dd-search-input">
+            </div>
+
             <div class="dd-clients-actions">
                 <a href="{{ route('admin.clients.create') }}" class="btn-accent dd-pill-btn">
                     New client
@@ -174,11 +182,22 @@
                                                 </div>
                                             @endif
 
-                                            {{-- HaloPSA DNS Sync --}}
+                                            {{-- HaloPSA Actions --}}
                                             @if($client->halopsa_reference)
                                                 @php
                                                     $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
+                                                    $totalDomains = $client->domains()->count();
                                                 @endphp
+
+                                                {{-- Link Domains from Halo button --}}
+                                                <button type="button"
+                                                        onclick="linkDomainsFromHalo({{ $client->id }}, event)"
+                                                        class="btn-accent dd-pill-btn dd-sync-btn">
+                                                    🔗 Link Domains from Halo
+                                                </button>
+                                                <div id="halo-link-status-{{ $client->id }}" class="dd-sync-status"></div>
+
+                                                {{-- Sync DNS to HaloPSA --}}
                                                 @if($domainsWithAssets > 0)
                                                     <button type="button"
                                                             onclick="syncClientDnsToHalo({{ $client->id }}, event)"
@@ -188,7 +207,7 @@
                                                     <div id="halo-status-{{ $client->id }}" class="dd-sync-status"></div>
                                                 @else
                                                     <div class="dd-status-muted dd-no-integration">
-                                                        No domains with HaloPSA assets
+                                                        No domains with HaloPSA assets yet
                                                     </div>
                                                 @endif
                                             @else
@@ -321,7 +340,34 @@
                 }
             });
         });
-        
+
+        // Client search filtering
+        const clientSearchInput = document.getElementById('client-search');
+        if (clientSearchInput) {
+            clientSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                const clientRows = document.querySelectorAll('.client-row');
+
+                clientRows.forEach(row => {
+                    const clientId = row.dataset.clientId;
+                    const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
+
+                    // Get text content from all visible cells
+                    const rowText = row.textContent.toLowerCase();
+
+                    if (searchTerm === '' || rowText.includes(searchTerm)) {
+                        row.style.display = '';
+                        // Keep details row hidden unless it was expanded
+                    } else {
+                        row.style.display = 'none';
+                        if (detailsRow) {
+                            detailsRow.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
         // HaloPSA import modal functionality
         const openBtn = document.getElementById('btn-halo-import');
         const modal = document.getElementById('halo-import-backdrop');
@@ -640,6 +686,55 @@
             statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
         });
     }
+
+    function linkDomainsFromHalo(clientId, event) {
+        event.stopPropagation();
+
+        const statusDiv = document.getElementById(`halo-link-status-${clientId}`);
+        statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Linking...</span>';
+
+        fetch(`/admin/clients/${clientId}/halo/link-domains`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(async r => {
+            const contentType = r.headers.get('content-type');
+            let data;
+
+            if (contentType && contentType.includes('application/json')) {
+                data = await r.json();
+            } else {
+                const text = await r.text();
+                console.error('Non-JSON response:', text.substring(0, 500));
+                throw new Error('Server returned non-JSON response');
+            }
+
+            if (!r.ok) {
+                console.error('Link domains failed:', data);
+                throw new Error(data.error || data.message || 'HTTP ' + r.status);
+            }
+
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
+                // Reload after a short delay if new domains were linked
+                if (data.linked > 0) {
+                    setTimeout(() => window.location.reload(), 1500);
+                }
+            } else {
+                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
+            }
+        })
+        .catch(err => {
+            console.error('Link error:', err);
+            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Link failed'}</span>`;
+        });
+    }
     </script>
 
 <style>
@@ -701,7 +796,7 @@
     .dd-clients-toolbar {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 12px;
         margin-bottom: 16px;
         flex-wrap: wrap;
@@ -712,6 +807,34 @@
         gap: 8px;
         align-items: center;
         flex-wrap: wrap;
+    }
+
+    /* Search bar */
+    .dd-search-wrapper {
+        flex: 1;
+        min-width: 200px;
+        max-width: 300px;
+    }
+
+    .dd-search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: var(--dd-pill-radius);
+        border: 1px solid var(--dd-pill-border);
+        background: var(--dd-pill-bg);
+        color: var(--dd-text-color);
+        font-size: 14px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dd-search-input:focus {
+        outline: none;
+        border-color: var(--accent, #4ade80);
+        box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+    }
+
+    .dd-search-input::placeholder {
+        color: #6b7280;
     }
 
     /* Table styling */
