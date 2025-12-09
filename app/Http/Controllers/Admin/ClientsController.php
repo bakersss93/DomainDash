@@ -21,6 +21,7 @@ class ClientsController extends Controller
     {
         $sortColumn = $request->get('sort', 'business_name');
         $sortDirection = $request->get('direction', 'asc');
+        $search = $request->get('search', '');
 
         // Validate sort column to prevent SQL injection
         $allowedColumns = ['business_name', 'abn', 'halopsa_reference', 'itglue_org_id', 'active'];
@@ -31,12 +32,29 @@ class ClientsController extends Controller
         // Validate direction
         $sortDirection = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
 
-        $clients = Client::orderBy($sortColumn, $sortDirection)->paginate(15);
+        // Build query with search filter
+        $query = Client::query();
 
-        // Preserve sort parameters in pagination links
-        $clients->appends(['sort' => $sortColumn, 'direction' => $sortDirection]);
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('business_name', 'like', '%' . $search . '%')
+                  ->orWhere('abn', 'like', '%' . $search . '%')
+                  ->orWhere('halopsa_reference', 'like', '%' . $search . '%')
+                  ->orWhere('itglue_org_id', 'like', '%' . $search . '%')
+                  ->orWhere('itglue_org_name', 'like', '%' . $search . '%');
+            });
+        }
 
-        return view('admin.clients.index', compact('clients', 'sortColumn', 'sortDirection'));
+        $clients = $query->orderBy($sortColumn, $sortDirection)->paginate(15);
+
+        // Preserve sort and search parameters in pagination links
+        $clients->appends([
+            'sort' => $sortColumn,
+            'direction' => $sortDirection,
+            'search' => $search
+        ]);
+
+        return view('admin.clients.index', compact('clients', 'sortColumn', 'sortDirection', 'search'));
     }
 
     /**

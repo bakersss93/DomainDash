@@ -12,7 +12,8 @@
                 <input type="text"
                        id="client-search"
                        placeholder="Search clients..."
-                       class="dd-search-input">
+                       class="dd-search-input"
+                       value="{{ $search ?? '' }}">
             </div>
 
             <div class="dd-clients-actions">
@@ -341,30 +342,37 @@
             });
         });
 
-        // Client search filtering
+        // Client search with server-side filtering
         const clientSearchInput = document.getElementById('client-search');
         if (clientSearchInput) {
+            let searchTimeout = null;
+
             clientSearchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase().trim();
-                const clientRows = document.querySelectorAll('.client-row');
+                const searchTerm = this.value.trim();
 
-                clientRows.forEach(row => {
-                    const clientId = row.dataset.clientId;
-                    const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
+                // Clear existing timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
 
-                    // Get text content from all visible cells
-                    const rowText = row.textContent.toLowerCase();
+                // Debounce search for 500ms
+                searchTimeout = setTimeout(() => {
+                    // Build URL with search parameter
+                    const url = new URL(window.location.href);
 
-                    if (searchTerm === '' || rowText.includes(searchTerm)) {
-                        row.style.display = '';
-                        // Keep details row hidden unless it was expanded
+                    if (searchTerm) {
+                        url.searchParams.set('search', searchTerm);
                     } else {
-                        row.style.display = 'none';
-                        if (detailsRow) {
-                            detailsRow.style.display = 'none';
-                        }
+                        url.searchParams.delete('search');
                     }
-                });
+
+                    // Keep existing sort parameters
+                    const currentSort = url.searchParams.get('sort');
+                    const currentDirection = url.searchParams.get('direction');
+
+                    // Navigate to the new URL
+                    window.location.href = url.toString();
+                }, 500);
             });
         }
 
