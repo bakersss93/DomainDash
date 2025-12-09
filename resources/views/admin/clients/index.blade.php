@@ -8,12 +8,25 @@
         {{-- Header / actions --}}
         <div class="dd-clients-toolbar">
             {{-- Search bar --}}
-            <div class="dd-search-wrapper">
+            <form method="GET"
+                  action="{{ route('admin.clients.index') }}"
+                  class="dd-search-form">
                 <input type="text"
+                       name="search"
                        id="client-search"
                        placeholder="Search clients..."
-                       class="dd-search-input">
-            </div>
+                       class="dd-search-input"
+                       value="{{ $search ?? '' }}">
+                <button type="submit" class="btn-accent dd-search-btn">Search</button>
+
+                {{-- Preserve sort parameters --}}
+                @if(request('sort'))
+                    <input type="hidden" name="sort" value="{{ request('sort') }}">
+                @endif
+                @if(request('direction'))
+                    <input type="hidden" name="direction" value="{{ request('direction') }}">
+                @endif
+            </form>
 
             <div class="dd-clients-actions">
                 <a href="{{ route('admin.clients.create') }}" class="btn-accent dd-pill-btn">
@@ -341,32 +354,8 @@
             });
         });
 
-        // Client search filtering
-        const clientSearchInput = document.getElementById('client-search');
-        if (clientSearchInput) {
-            clientSearchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase().trim();
-                const clientRows = document.querySelectorAll('.client-row');
-
-                clientRows.forEach(row => {
-                    const clientId = row.dataset.clientId;
-                    const detailsRow = document.querySelector(`.client-details[data-client-id="${clientId}"]`);
-
-                    // Get text content from all visible cells
-                    const rowText = row.textContent.toLowerCase();
-
-                    if (searchTerm === '' || rowText.includes(searchTerm)) {
-                        row.style.display = '';
-                        // Keep details row hidden unless it was expanded
-                    } else {
-                        row.style.display = 'none';
-                        if (detailsRow) {
-                            detailsRow.style.display = 'none';
-                        }
-                    }
-                });
-            });
-        }
+        // Client search is handled by form submission
+        // No additional JavaScript needed - form handles the search
 
         // HaloPSA import modal functionality
         const openBtn = document.getElementById('btn-halo-import');
@@ -779,17 +768,17 @@
     /* Card styling */
     .dd-clients-card {
         border-radius: var(--dd-card-radius);
-        padding: var(--dd-card-padding);
-        margin-top: 24px;
+        padding: 16px 20px;
+        margin-top: 0;
         border: 1px solid var(--dd-card-border);
         background: var(--dd-card-bg);
         color: var(--dd-text-color);
     }
 
     .dd-clients-title {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
     }
 
     /* Toolbar */
@@ -809,17 +798,19 @@
         flex-wrap: wrap;
     }
 
-    /* Search bar */
-    .dd-search-wrapper {
+    /* Search form */
+    .dd-search-form {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex: 1;
-        min-width: 200px;
-        max-width: 400px;
+        min-width: 250px;
     }
 
     .dd-search-input {
-        width: 100%;
-        padding: 10px 16px;
-        border-radius: var(--dd-pill-radius) !important;
+        flex: 1;
+        padding: 10px 16px !important;
+        border-radius: 9999px !important;
         border: 1px solid #1e293b !important;
         background: #0f172a !important;
         color: #e5e7eb !important;
@@ -835,6 +826,12 @@
 
     .dd-search-input::placeholder {
         color: #64748b !important;
+    }
+
+    .dd-search-btn {
+        white-space: nowrap;
+        padding: 8px 16px !important;
+        border-radius: 9999px !important;
     }
 
     /* Table styling */
