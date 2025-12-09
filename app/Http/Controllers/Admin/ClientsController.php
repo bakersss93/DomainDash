@@ -17,10 +17,26 @@ class ClientsController extends Controller
     /**
      * Display a listing of clients
      */
-    public function index()
+    public function index(Request $request)
     {
-        $clients = Client::paginate(15);
-        return view('admin.clients.index', compact('clients'));
+        $sortColumn = $request->get('sort', 'business_name');
+        $sortDirection = $request->get('direction', 'asc');
+
+        // Validate sort column to prevent SQL injection
+        $allowedColumns = ['business_name', 'abn', 'halopsa_reference', 'itglue_org_id', 'active'];
+        if (!in_array($sortColumn, $allowedColumns)) {
+            $sortColumn = 'business_name';
+        }
+
+        // Validate direction
+        $sortDirection = strtolower($sortDirection) === 'desc' ? 'desc' : 'asc';
+
+        $clients = Client::orderBy($sortColumn, $sortDirection)->paginate(15);
+
+        // Preserve sort parameters in pagination links
+        $clients->appends(['sort' => $sortColumn, 'direction' => $sortDirection]);
+
+        return view('admin.clients.index', compact('clients', 'sortColumn', 'sortDirection'));
     }
 
     /**

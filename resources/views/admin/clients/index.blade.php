@@ -23,43 +23,96 @@
             <table class="dd-clients-table">
                 <thead>
                     <tr>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Business Name</th>
-                        <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">ABN</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">HaloPSA</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">ITGlue</th>
-                        <th style="text-align:center;padding:8px 6px;border-bottom:1px solid #1f2937;">Status</th>
-                        <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #1f2937;">Actions</th>
+                        <th class="dd-sortable-header" data-sort="business_name">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'business_name', 'direction' => ($sortColumn === 'business_name' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                Business Name
+                                <span class="dd-sort-arrow {{ $sortColumn === 'business_name' ? 'active' : '' }}">
+                                    @if($sortColumn === 'business_name')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" data-sort="abn">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'abn', 'direction' => ($sortColumn === 'abn' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                ABN
+                                <span class="dd-sort-arrow {{ $sortColumn === 'abn' ? 'active' : '' }}">
+                                    @if($sortColumn === 'abn')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="halopsa_reference">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'halopsa_reference', 'direction' => ($sortColumn === 'halopsa_reference' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                HaloPSA
+                                <span class="dd-sort-arrow {{ $sortColumn === 'halopsa_reference' ? 'active' : '' }}">
+                                    @if($sortColumn === 'halopsa_reference')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="itglue_org_id">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'itglue_org_id', 'direction' => ($sortColumn === 'itglue_org_id' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                ITGlue
+                                <span class="dd-sort-arrow {{ $sortColumn === 'itglue_org_id' ? 'active' : '' }}">
+                                    @if($sortColumn === 'itglue_org_id')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th class="dd-sortable-header" style="text-align:center;" data-sort="active">
+                            <a href="{{ route('admin.clients.index', ['sort' => 'active', 'direction' => ($sortColumn === 'active' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="dd-sort-link">
+                                Status
+                                <span class="dd-sort-arrow {{ $sortColumn === 'active' ? 'active' : '' }}">
+                                    @if($sortColumn === 'active')
+                                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                                    @else
+                                        ↕
+                                    @endif
+                                </span>
+                            </a>
+                        </th>
+                        <th style="text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($clients as $client)
-                        <tr class="client-row" data-client-id="{{ $client->id }}" style="cursor:pointer;transition:background-color 0.15s ease;">
-                            <td style="padding:8px 6px;border-bottom:1px solid #111827;">
+                        <tr class="client-row" data-client-id="{{ $client->id }}">
+                            <td>
                                 <strong>{{ $client->business_name }}</strong>
                             </td>
-                            <td>
-                                {{ $client->abn }}
-                            </td>
-                            <td style="text-align:center;">
+                            <td>{{ $client->abn }}</td>
+                            <td class="dd-cell-center">
                                 @if($client->halopsa_reference)
                                     <span class="dd-status-success">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-cell-center">
                                 @if($client->itglue_org_id)
                                     <span class="dd-status-info">✓</span>
                                 @else
                                     <span class="dd-status-muted">—</span>
                                 @endif
                             </td>
-                            <td style="text-align:center;">
+                            <td class="dd-cell-center">
                                 <span class="{{ $client->active ? 'dd-status-success' : 'dd-status-muted' }}">
                                     {{ $client->active ? 'Active' : 'Inactive' }}
                                 </span>
                             </td>
-                            <td style="text-align:right;">
+                            <td class="dd-cell-right">
                                 <a href="{{ route('admin.clients.edit', $client) }}"
                                    onclick="event.stopPropagation();"
                                    class="dd-edit-btn">
@@ -70,7 +123,7 @@
 
                         {{-- Expandable details row --}}
                         <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
-                            <td colspan="6" style="padding:0;border-bottom:1px solid #111827;">
+                            <td colspan="6" class="dd-expandable-cell">
                                 <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
@@ -150,7 +203,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" style="padding:12px 6px;text-align:center;color:#9ca3af;">
+                            <td colspan="6" class="dd-empty-state">
                                 No clients found.
                             </td>
                         </tr>
@@ -254,7 +307,7 @@
         }
         
         // Expandable rows
-        document.querySelectorAll('.dd-client-row').forEach(row => {
+        document.querySelectorAll('.client-row').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A') return; // Don't expand when clicking Edit
 
@@ -266,14 +319,6 @@
                 } else {
                     detailsRow.style.display = 'none';
                 }
-            });
-
-            // Add hover effect
-            row.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = 'rgba(148,163,184,0.1)';
-            });
-            row.addEventListener('mouseleave', function() {
-                this.style.backgroundColor = '';
             });
         });
         
@@ -701,7 +746,64 @@
         margin-top: 10px;
     }
 
+    /* Cell alignment */
+    .dd-cell-center {
+        text-align: center;
+    }
+
+    .dd-cell-right {
+        text-align: right;
+    }
+
+    /* Expandable cell */
+    .dd-expandable-cell {
+        padding: 0;
+    }
+
+    /* Sortable headers */
+    .dd-sortable-header {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .dd-sort-link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: inherit;
+        white-space: nowrap;
+    }
+
+    .dd-sort-link:hover {
+        color: var(--accent, #4ade80);
+    }
+
+    .dd-sort-arrow {
+        opacity: 0.4;
+        font-size: 12px;
+        transition: opacity 0.15s ease;
+    }
+
+    .dd-sort-arrow.active {
+        opacity: 1;
+        color: var(--accent, #4ade80);
+    }
+
+    .dd-sortable-header:hover .dd-sort-arrow {
+        opacity: 0.8;
+    }
+
     /* Client rows */
+    .client-row {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .client-row:hover {
+        background-color: var(--dd-hover-bg) !important;
+    }
+
     .dd-client-row {
         cursor: pointer;
         transition: background 0.15s ease;
