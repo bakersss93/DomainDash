@@ -463,11 +463,19 @@
                 </div>
             </div>
 
-            {{-- Save button --}}
-            <div style="padding:20px;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;text-align:center;">
-                <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
-                    💾 Save All Settings
-                </button>
+            {{-- Action buttons --}}
+            <div style="padding:20px;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;">
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                    <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
+                        💾 Save All Settings
+                    </button>
+                    <button type="button" onclick="openHaloSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#10b981,#059669);">
+                        🔄 Sync with Halo
+                    </button>
+                    <button type="button" onclick="openItGlueSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#f59e0b,#d97706);">
+                        🔄 Sync IT Glue
+                    </button>
+                </div>
             </div>
         </form>
 
@@ -509,6 +517,134 @@
         </div>
     </div>
 
+    {{-- Halo Sync Modal --}}
+    <div id="haloSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔄 Sync with HaloPSA</h2>
+                <button onclick="closeHaloSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;overflow-y:auto;flex:1;">
+                <div style="display:flex;gap:16px;margin-bottom:24px;">
+                    <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#10b981,#059669);border:2px solid #10b981;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                        👥 Sync Clients
+                    </button>
+                    <button onclick="showHaloDomainSync()" id="haloDomainsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:#94a3b8;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                        🌐 Sync Domains
+                    </button>
+                </div>
+
+                <div id="haloClientSyncContent" style="display:block;">
+                    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Client Mapping</h3>
+                        <button onclick="loadHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                            🔄 Refresh List
+                        </button>
+                    </div>
+                    <div id="haloClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
+                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                            Click "Refresh List" to load clients from HaloPSA
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
+                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="syncHaloClients()" class="btn-accent" style="padding:10px 24px;">
+                            Sync Selected Clients
+                        </button>
+                    </div>
+                </div>
+
+                <div id="haloDomainSyncContent" style="display:none;">
+                    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Domain Assets</h3>
+                        <button onclick="loadHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                            🔄 Refresh List
+                        </button>
+                    </div>
+                    <div id="haloDomainList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
+                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                            Click "Refresh List" to load domains from DomainDash
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
+                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="syncHaloDomains()" class="btn-accent" style="padding:10px 24px;">
+                            Sync Selected Domains
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- IT Glue Sync Modal --}}
+    <div id="itglueSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔄 Sync with IT Glue</h2>
+                <button onclick="closeItGlueSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;overflow-y:auto;flex:1;">
+                <div style="display:flex;gap:16px;margin-bottom:24px;">
+                    <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #f59e0b;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                        👥 Sync Clients
+                    </button>
+                    <button onclick="showItGlueConfigSync()" id="itglueConfigBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:#94a3b8;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                        ⚙️ Sync Configurations
+                    </button>
+                </div>
+
+                <div id="itglueClientSyncContent" style="display:block;">
+                    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Organization Mapping</h3>
+                        <button onclick="loadItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                            🔄 Refresh List
+                        </button>
+                    </div>
+                    <div id="itglueClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
+                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                            Click "Refresh List" to load clients from DomainDash
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
+                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="syncItGlueClients()" class="btn-accent" style="padding:10px 24px;">
+                            Save Mappings
+                        </button>
+                    </div>
+                </div>
+
+                <div id="itglueConfigSyncContent" style="display:none;">
+                    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Configuration Items</h3>
+                        <button onclick="loadItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                            🔄 Refresh List
+                        </button>
+                    </div>
+                    <div id="itglueConfigList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
+                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                            Click "Refresh List" to load configuration items
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
+                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="syncItGlueConfigs()" class="btn-accent" style="padding:10px 24px;">
+                            Sync Selected Items
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function toggleSection(sectionName) {
             const content = document.getElementById(sectionName + '-content');
@@ -535,5 +671,458 @@
                 });
             });
         });
+
+        // Halo Sync Modal Functions
+        function openHaloSyncModal() {
+            document.getElementById('haloSyncModal').style.display = 'flex';
+        }
+
+        function closeHaloSyncModal() {
+            document.getElementById('haloSyncModal').style.display = 'none';
+        }
+
+        function showHaloClientSync() {
+            document.getElementById('haloClientSyncContent').style.display = 'block';
+            document.getElementById('haloDomainSyncContent').style.display = 'none';
+            document.getElementById('haloClientsBtn').style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            document.getElementById('haloClientsBtn').style.borderColor = '#10b981';
+            document.getElementById('haloClientsBtn').style.color = '#fff';
+            document.getElementById('haloDomainsBtn').style.background = 'rgba(15,23,42,0.4)';
+            document.getElementById('haloDomainsBtn').style.borderColor = 'rgba(148,163,184,0.2)';
+            document.getElementById('haloDomainsBtn').style.color = '#94a3b8';
+        }
+
+        function showHaloDomainSync() {
+            document.getElementById('haloClientSyncContent').style.display = 'none';
+            document.getElementById('haloDomainSyncContent').style.display = 'block';
+            document.getElementById('haloDomainsBtn').style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            document.getElementById('haloDomainsBtn').style.borderColor = '#10b981';
+            document.getElementById('haloDomainsBtn').style.color = '#fff';
+            document.getElementById('haloClientsBtn').style.background = 'rgba(15,23,42,0.4)';
+            document.getElementById('haloClientsBtn').style.borderColor = 'rgba(148,163,184,0.2)';
+            document.getElementById('haloClientsBtn').style.color = '#94a3b8';
+        }
+
+        async function loadHaloClients() {
+            const listEl = document.getElementById('haloClientList');
+            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients from HaloPSA...</div>';
+
+            try {
+                const response = await fetch('/admin/sync/halo/clients');
+                const data = await response.json();
+
+                if (data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    return;
+                }
+
+                renderHaloClientList(data.clients);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${error.message}</div>`;
+            }
+        }
+
+        function renderHaloClientList(clients) {
+            const listEl = document.getElementById('haloClientList');
+
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                    <input type="checkbox" id="selectAllHaloClients" onchange="toggleAllHaloClients(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                    <div>HaloPSA Client</div>
+                    <div>DomainDash Client</div>
+                    <div style="text-align:center;">Updated</div>
+                    <div style="text-align:center;">Action</div>
+                </div>
+            `;
+
+            clients.forEach((client, index) => {
+                html += `
+                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;">
+                        <input type="checkbox" class="halo-client-checkbox" data-client-id="${client.halo_id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:#f8fafc;">${client.halo_name}</div>
+                        <select class="halo-client-mapping" data-halo-id="${client.halo_id}" style="padding:8px;background:#0b1120;border:1px solid rgba(148,163,184,0.2);border-radius:4px;color:#f8fafc;width:100%;">
+                            <option value="">-- Select Client --</option>
+                            ${client.suggestions.map(s => `<option value="${s.id}" ${s.id === client.mapped_id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                        </select>
+                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${client.updated || 'N/A'}</div>
+                        <div style="text-align:center;">
+                            ${client.mapped_id ? '' : '<button onclick="createClientFromHalo(\'' + client.halo_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;">+</button>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        function toggleAllHaloClients(checkbox) {
+            const checkboxes = document.querySelectorAll('.halo-client-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        async function syncHaloClients() {
+            const selectedClients = [];
+            document.querySelectorAll('.halo-client-checkbox:checked').forEach(checkbox => {
+                const haloId = checkbox.dataset.clientId;
+                const mappingSelect = document.querySelector(`.halo-client-mapping[data-halo-id="${haloId}"]`);
+                const dashClientId = mappingSelect.value;
+
+                if (dashClientId) {
+                    selectedClients.push({
+                        halo_id: haloId,
+                        dash_client_id: dashClientId
+                    });
+                }
+            });
+
+            if (selectedClients.length === 0) {
+                alert('Please select at least one client to sync');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/sync/halo/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ clients: selectedClients })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Successfully synced ${data.synced_count} client(s)`);
+                    closeHaloSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
+            }
+        }
+
+        async function loadHaloDomains() {
+            const listEl = document.getElementById('haloDomainList');
+            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains from DomainDash...</div>';
+
+            try {
+                const response = await fetch('/admin/sync/halo/domains');
+                const data = await response.json();
+
+                if (data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    return;
+                }
+
+                renderHaloDomainList(data.domains);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${error.message}</div>`;
+            }
+        }
+
+        function renderHaloDomainList(domains) {
+            const listEl = document.getElementById('haloDomainList');
+
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                    <input type="checkbox" id="selectAllHaloDomains" onchange="toggleAllHaloDomains(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                    <div>Domain Name</div>
+                    <div>Client</div>
+                    <div style="text-align:center;">Expiry</div>
+                    <div style="text-align:center;">Status</div>
+                </div>
+            `;
+
+            domains.forEach(domain => {
+                const statusColor = domain.exists_in_halo ? '#10b981' : '#94a3b8';
+                const statusText = domain.exists_in_halo ? 'Exists' : 'Will Create';
+
+                html += `
+                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
+                        <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${domain.id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:#f8fafc;">${domain.name}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${domain.client || 'No Client'}</div>
+                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${domain.expiry || 'N/A'}</div>
+                        <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        function toggleAllHaloDomains(checkbox) {
+            const checkboxes = document.querySelectorAll('.halo-domain-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        async function syncHaloDomains() {
+            const selectedDomains = [];
+            document.querySelectorAll('.halo-domain-checkbox:checked').forEach(checkbox => {
+                selectedDomains.push(checkbox.dataset.domainId);
+            });
+
+            if (selectedDomains.length === 0) {
+                alert('Please select at least one domain to sync');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/sync/halo/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ domain_ids: selectedDomains })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Successfully synced ${data.synced_count} domain(s)`);
+                    closeHaloSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
+            }
+        }
+
+        // IT Glue Sync Modal Functions
+        function openItGlueSyncModal() {
+            document.getElementById('itglueSyncModal').style.display = 'flex';
+        }
+
+        function closeItGlueSyncModal() {
+            document.getElementById('itglueSyncModal').style.display = 'none';
+        }
+
+        function showItGlueClientSync() {
+            document.getElementById('itglueClientSyncContent').style.display = 'block';
+            document.getElementById('itglueConfigSyncContent').style.display = 'none';
+            document.getElementById('itglueClientsBtn').style.background = 'linear-gradient(135deg,#f59e0b,#d97706)';
+            document.getElementById('itglueClientsBtn').style.borderColor = '#f59e0b';
+            document.getElementById('itglueClientsBtn').style.color = '#fff';
+            document.getElementById('itglueConfigBtn').style.background = 'rgba(15,23,42,0.4)';
+            document.getElementById('itglueConfigBtn').style.borderColor = 'rgba(148,163,184,0.2)';
+            document.getElementById('itglueConfigBtn').style.color = '#94a3b8';
+        }
+
+        function showItGlueConfigSync() {
+            document.getElementById('itglueClientSyncContent').style.display = 'none';
+            document.getElementById('itglueConfigSyncContent').style.display = 'block';
+            document.getElementById('itglueConfigBtn').style.background = 'linear-gradient(135deg,#f59e0b,#d97706)';
+            document.getElementById('itglueConfigBtn').style.borderColor = '#f59e0b';
+            document.getElementById('itglueConfigBtn').style.color = '#fff';
+            document.getElementById('itglueClientsBtn').style.background = 'rgba(15,23,42,0.4)';
+            document.getElementById('itglueClientsBtn').style.borderColor = 'rgba(148,163,184,0.2)';
+            document.getElementById('itglueClientsBtn').style.color = '#94a3b8';
+        }
+
+        async function loadItGlueClients() {
+            const listEl = document.getElementById('itglueClientList');
+            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients...</div>';
+
+            try {
+                const response = await fetch('/admin/sync/itglue/clients');
+                const data = await response.json();
+
+                if (data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    return;
+                }
+
+                renderItGlueClientList(data.clients);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${error.message}</div>`;
+            }
+        }
+
+        function renderItGlueClientList(clients) {
+            const listEl = document.getElementById('itglueClientList');
+
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                    <div>DomainDash Client</div>
+                    <div>IT Glue Organization</div>
+                    <div style="text-align:center;">Action</div>
+                </div>
+            `;
+
+            clients.forEach(client => {
+                html += `
+                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
+                        <div style="color:#f8fafc;">${client.dash_name}</div>
+                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" style="padding:8px;background:#0b1120;border:1px solid rgba(148,163,184,0.2);border-radius:4px;color:#f8fafc;width:100%;">
+                            <option value="">-- Select Organization --</option>
+                            ${client.organizations.map(org => `<option value="${org.id}" ${org.id === client.mapped_id ? 'selected' : ''}>${org.name}</option>`).join('')}
+                        </select>
+                        <div style="text-align:center;">
+                            ${!client.mapped_id ? '<button onclick="suggestItGlueOrg(\'' + client.dash_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">Suggest</button>' : '<span style="color:#10b981;font-size:13px;">✓ Mapped</span>'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        async function suggestItGlueOrg(dashClientId) {
+            try {
+                const response = await fetch(`/admin/sync/itglue/suggest/${dashClientId}`);
+                const data = await response.json();
+
+                if (data.suggested_org_id) {
+                    const select = document.querySelector(`.itglue-client-mapping[data-dash-id="${dashClientId}"]`);
+                    select.value = data.suggested_org_id;
+                } else {
+                    alert('No matching organization found');
+                }
+            } catch (error) {
+                alert('Failed to suggest organization: ' + error.message);
+            }
+        }
+
+        async function syncItGlueClients() {
+            const mappings = [];
+            document.querySelectorAll('.itglue-client-mapping').forEach(select => {
+                const dashId = select.dataset.dashId;
+                const orgId = select.value;
+
+                if (orgId) {
+                    mappings.push({
+                        dash_client_id: dashId,
+                        itglue_org_id: orgId
+                    });
+                }
+            });
+
+            if (mappings.length === 0) {
+                alert('Please map at least one client');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/sync/itglue/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ mappings: mappings })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Successfully saved ${data.mapped_count} mapping(s)`);
+                    closeItGlueSyncModal();
+                    location.reload();
+                } else {
+                    alert('Save failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Save failed: ' + error.message);
+            }
+        }
+
+        async function loadItGlueConfigs() {
+            const listEl = document.getElementById('itglueConfigList');
+            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading configuration items...</div>';
+
+            try {
+                const response = await fetch('/admin/sync/itglue/configurations');
+                const data = await response.json();
+
+                if (data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    return;
+                }
+
+                renderItGlueConfigList(data.items);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load items: ${error.message}</div>`;
+            }
+        }
+
+        function renderItGlueConfigList(items) {
+            const listEl = document.getElementById('itglueConfigList');
+
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                    <input type="checkbox" id="selectAllItGlueConfigs" onchange="toggleAllItGlueConfigs(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                    <div>Name</div>
+                    <div>Client</div>
+                    <div>Type</div>
+                    <div style="text-align:center;">Status</div>
+                </div>
+            `;
+
+            items.forEach(item => {
+                const statusColor = item.exists_in_itglue ? '#10b981' : '#94a3b8';
+                const statusText = item.exists_in_itglue ? 'Exists' : 'Will Create';
+
+                html += `
+                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
+                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${item.id}" data-item-type="${item.type}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:#f8fafc;">${item.name}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${item.client || 'No Client'}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${item.type}</div>
+                        <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        function toggleAllItGlueConfigs(checkbox) {
+            const checkboxes = document.querySelectorAll('.itglue-config-checkbox');
+            checkboxes.forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        async function syncItGlueConfigs() {
+            const selectedItems = [];
+            document.querySelectorAll('.itglue-config-checkbox:checked').forEach(checkbox => {
+                selectedItems.push({
+                    id: checkbox.dataset.itemId,
+                    type: checkbox.dataset.itemType
+                });
+            });
+
+            if (selectedItems.length === 0) {
+                alert('Please select at least one item to sync');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/sync/itglue/configurations/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ items: selectedItems })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Successfully synced ${data.synced_count} item(s)`);
+                    closeItGlueSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
+            }
+        }
     </script>
 @endsection
