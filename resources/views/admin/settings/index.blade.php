@@ -11,6 +11,25 @@
             Configure your DomainDash installation and integrations
         </p>
 
+        {{-- Success Message --}}
+        @if(session('status'))
+            <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#10b981;">
+                <strong>✓</strong> {{ session('status') }}
+            </div>
+        @endif
+
+        {{-- Error Messages --}}
+        @if($errors->any())
+            <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#ef4444;">
+                <strong>⚠</strong>
+                <ul style="margin:4px 0 0 20px;padding:0;">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <form method="POST"
               action="{{ route('admin.settings.update') }}"
               enctype="multipart/form-data">
@@ -348,13 +367,13 @@
 
                 <div style="margin-bottom:12px;">
                     <label for="smtp_host" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
-                        SMTP host
+                        SMTP Host
                     </label>
                     <input id="smtp_host"
                            type="text"
                            name="smtp[host]"
                            value="{{ $settings['smtp']['host'] ?? '' }}"
-                           placeholder="SMTP host"
+                           placeholder="smtp.example.com"
                            style="width:100%;padding:8px 10px;border-radius:4px;
                                   border:1px solid #e5e7eb;font-size:14px;">
                 </div>
@@ -367,20 +386,77 @@
                            type="number"
                            name="smtp[port]"
                            value="{{ $settings['smtp']['port'] ?? 587 }}"
-                           placeholder="Port"
+                           placeholder="587"
+                           style="width:100%;padding:8px 10px;border-radius:4px;
+                                  border:1px solid #e5e7eb;font-size:14px;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Common ports: 587 (TLS), 465 (SSL), 25 (unencrypted)
+                    </small>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="smtp_encryption" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        Encryption
+                    </label>
+                    <select id="smtp_encryption"
+                            name="smtp[encryption]"
+                            style="width:100%;padding:8px 10px;border-radius:4px;
+                                   border:1px solid #e5e7eb;font-size:14px;background:#0b1120;color:#f8fafc;">
+                        <option value="">None</option>
+                        <option value="tls" {{ ($settings['smtp']['encryption'] ?? '') === 'tls' ? 'selected' : '' }}>TLS</option>
+                        <option value="ssl" {{ ($settings['smtp']['encryption'] ?? '') === 'ssl' ? 'selected' : '' }}>SSL</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="smtp_username" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        Username
+                    </label>
+                    <input id="smtp_username"
+                           type="text"
+                           name="smtp[username]"
+                           value="{{ $settings['smtp']['username'] ?? '' }}"
+                           placeholder="SMTP username (if required)"
                            style="width:100%;padding:8px 10px;border-radius:4px;
                                   border:1px solid #e5e7eb;font-size:14px;">
                 </div>
 
-                <div style="margin-bottom:0;">
+                <div style="margin-bottom:12px;">
+                    <label for="smtp_password" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        Password
+                    </label>
+                    <input id="smtp_password"
+                           type="password"
+                           name="smtp[password]"
+                           value="{{ $settings['smtp']['password'] ?? '' }}"
+                           placeholder="SMTP password (if required)"
+                           autocomplete="new-password"
+                           style="width:100%;padding:8px 10px;border-radius:4px;
+                                  border:1px solid #e5e7eb;font-size:14px;">
+                </div>
+
+                <div style="margin-bottom:12px;">
                     <label for="smtp_from" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
-                        From address
+                        From Address
                     </label>
                     <input id="smtp_from"
                            type="email"
                            name="smtp[from]"
                            value="{{ $settings['smtp']['from'] ?? '' }}"
-                           placeholder="from@yourdomain.com"
+                           placeholder="noreply@yourdomain.com"
+                           style="width:100%;padding:8px 10px;border-radius:4px;
+                                  border:1px solid #e5e7eb;font-size:14px;">
+                </div>
+
+                <div style="margin-bottom:0;">
+                    <label for="smtp_from_name" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        From Name
+                    </label>
+                    <input id="smtp_from_name"
+                           type="text"
+                           name="smtp[from_name]"
+                           value="{{ $settings['smtp']['from_name'] ?? 'DomainDash' }}"
+                           placeholder="DomainDash"
                            style="width:100%;padding:8px 10px;border-radius:4px;
                                   border:1px solid #e5e7eb;font-size:14px;">
                 </div>
