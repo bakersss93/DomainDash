@@ -39,22 +39,25 @@ class SyncController extends Controller
             }
 
             $haloClients = $response->json('clients') ?? [];
-            $dashClients = Client::all();
+
+            // Get all DomainDash clients - ensure we select the fields we need
+            $dashClients = Client::select('id', 'name', 'halo_psa_client_id')->get();
 
             // Match clients
             $matchedClients = [];
             foreach ($haloClients as $haloClient) {
-                $suggestions = $this->findClientMatches($haloClient['name'], $dashClients);
-
                 // Check if already mapped
-                $mappedClient = Client::where('halo_psa_client_id', $haloClient['id'])->first();
+                $mappedClient = $dashClients->firstWhere('halo_psa_client_id', $haloClient['id']);
+
+                // Get all clients as suggestions, sorted by best match
+                $suggestions = $this->findClientMatches($haloClient['name'], $dashClients);
 
                 $matchedClients[] = [
                     'halo_id' => $haloClient['id'],
-                    'halo_name' => $haloClient['name'],
+                    'halo_name' => $haloClient['name'] ?? 'Unknown Client',
                     'mapped_id' => $mappedClient ? $mappedClient->id : null,
                     'suggestions' => $suggestions,
-                    'updated' => $haloClient['datemodified'] ?? null,
+                    'updated' => isset($haloClient['datemodified']) ? date('Y-m-d H:i', strtotime($haloClient['datemodified'])) : null,
                 ];
             }
 
@@ -428,11 +431,16 @@ class SyncController extends Controller
         $matches = [];
 
         foreach ($dashClients as $client) {
-            $score = similar_text(strtolower($haloClientName), strtolower($client->name));
+            // Skip if client doesn't have a name
+            if (empty($client->name)) {
+                continue;
+            }
+
+            $score = similar_text(strtolower($haloClientName ?? ''), strtolower($client->name));
 
             $matches[] = [
                 'id' => $client->id,
-                'name' => $client->name,
+                'name' => $client->name ?? 'Unnamed Client',
                 'score' => $score
             ];
         }
