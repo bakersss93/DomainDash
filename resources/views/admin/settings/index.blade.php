@@ -32,7 +32,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
-                <div id="branding-content" class="settings-content" style="padding:20px 24px;">
+                <div id="branding-content" class="settings-content" style="padding:20px 24px;display:none;">
 
                 <div style="margin-bottom:12px;">
                     <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
