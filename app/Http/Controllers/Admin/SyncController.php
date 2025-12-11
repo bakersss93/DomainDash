@@ -40,14 +40,14 @@ class SyncController extends Controller
 
             $haloClients = $response->json('clients') ?? [];
 
-            // Get all DomainDash clients - ensure we select the fields we need
-            $dashClients = Client::select('id', 'name', 'halo_psa_client_id')->get();
+            // Get all DomainDash clients - use existing column names
+            $dashClients = Client::select('id', 'business_name', 'halopsa_reference')->get();
 
             // Match clients
             $matchedClients = [];
             foreach ($haloClients as $haloClient) {
-                // Check if already mapped
-                $mappedClient = $dashClients->firstWhere('halo_psa_client_id', $haloClient['id']);
+                // Check if already mapped using existing halopsa_reference column
+                $mappedClient = $dashClients->firstWhere('halopsa_reference', $haloClient['id']);
 
                 // Get all clients as suggestions, sorted by best match
                 $suggestions = $this->findClientMatches($haloClient['name'], $dashClients);
@@ -96,8 +96,8 @@ class SyncController extends Controller
 
                 $haloClient = $response->json();
 
-                // Update DomainDash client with Halo data
-                $dashClient->halo_psa_client_id = $haloClient['id'];
+                // Update DomainDash client with Halo reference using existing column
+                $dashClient->halopsa_reference = $haloClient['id'];
 
                 // Sync ABN if available (assuming it's stored in a custom field)
                 if (isset($haloClient['customfields'])) {
@@ -153,7 +153,7 @@ class SyncController extends Controller
                 $domainList[] = [
                     'id' => $domain->id,
                     'name' => $domain->name,
-                    'client' => $domain->client ? $domain->client->name : null,
+                    'client' => $domain->client ? $domain->client->business_name : null,
                     'client_id' => $domain->client_id,
                     'expiry' => $domain->expiry_date,
                     'nameservers' => $domain->nameservers,
@@ -188,7 +188,7 @@ class SyncController extends Controller
 
                 // Create or update domain asset in Halo
                 $assetData = [
-                    'client_id' => $domain->client->halo_psa_client_id,
+                    'client_id' => $domain->client->halopsa_reference,
                     'assettype_id' => 1, // Domain asset type (may need adjustment)
                     'name' => $domain->name,
                     'fields' => [
@@ -253,7 +253,8 @@ class SyncController extends Controller
 
             $itglueOrgs = $response->json('data') ?? [];
 
-            $dashClients = Client::all();
+            // Get clients with existing column names
+            $dashClients = Client::select('id', 'business_name', 'itglue_org_id')->get();
             $clientList = [];
 
             foreach ($dashClients as $dashClient) {
@@ -267,8 +268,8 @@ class SyncController extends Controller
 
                 $clientList[] = [
                     'dash_id' => $dashClient->id,
-                    'dash_name' => $dashClient->name,
-                    'mapped_id' => $dashClient->itglue_organization_id,
+                    'dash_name' => $dashClient->business_name,
+                    'mapped_id' => $dashClient->itglue_org_id,
                     'organizations' => $organizations,
                 ];
             }
@@ -301,7 +302,7 @@ class SyncController extends Controller
             $bestScore = 0;
 
             foreach ($itglueOrgs as $org) {
-                $score = similar_text(strtolower($client->name), strtolower($org['attributes']['name']));
+                $score = similar_text(strtolower($client->business_name), strtolower($org['attributes']['name']));
                 if ($score > $bestScore) {
                     $bestScore = $score;
                     $bestMatch = $org['id'];
@@ -326,7 +327,8 @@ class SyncController extends Controller
             foreach ($mappings as $mapping) {
                 $client = Client::find($mapping['dash_client_id']);
                 if ($client) {
-                    $client->itglue_organization_id = $mapping['itglue_org_id'];
+                    // Use existing itglue_org_id column
+                    $client->itglue_org_id = $mapping['itglue_org_id'];
                     $client->save();
                     $mappedCount++;
                 }
@@ -352,12 +354,12 @@ class SyncController extends Controller
             // Get domains
             $domains = Domain::with('client')->get();
             foreach ($domains as $domain) {
-                if ($domain->client && $domain->client->itglue_organization_id) {
+                if ($domain->client && $domain->client->itglue_org_id) {
                     $items[] = [
                         'id' => $domain->id,
                         'type' => 'domain',
                         'name' => $domain->name,
-                        'client' => $domain->client->name,
+                        'client' => $domain->client->business_name,
                         'exists_in_itglue' => false, // TODO: Check if exists
                     ];
                 }
@@ -384,7 +386,7 @@ class SyncController extends Controller
             foreach ($items as $item) {
                 if ($item['type'] === 'domain') {
                     $domain = Domain::with('client')->find($item['id']);
-                    if ($domain && $domain->client && $domain->client->itglue_organization_id) {
+                    if ($domain && $domain->client && $domain->client->itglue_org_id) {
                         $this->syncDomainToItGlue($domain, $itglueConfig);
                         $syncedCount++;
                     }
@@ -431,16 +433,16 @@ class SyncController extends Controller
         $matches = [];
 
         foreach ($dashClients as $client) {
-            // Skip if client doesn't have a name
-            if (empty($client->name)) {
+            // Skip if client doesn't have a business_name
+            if (empty($client->business_name)) {
                 continue;
             }
 
-            $score = similar_text(strtolower($haloClientName ?? ''), strtolower($client->name));
+            $score = similar_text(strtolower($haloClientName ?? ''), strtolower($client->business_name));
 
             $matches[] = [
                 'id' => $client->id,
-                'name' => $client->name ?? 'Unnamed Client',
+                'name' => $client->business_name ?? 'Unnamed Client',
                 'score' => $score
             ];
         }
@@ -516,7 +518,7 @@ class SyncController extends Controller
                 'data' => [
                     'type' => 'configurations',
                     'attributes' => [
-                        'organization-id' => $domain->client->itglue_organization_id,
+                        'organization-id' => $domain->client->itglue_org_id,
                         'configuration-type-id' => 'domain', // May need to be numeric ID
                         'name' => $domain->name,
                         'contact-name' => null,
