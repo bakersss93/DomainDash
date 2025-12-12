@@ -176,30 +176,51 @@ class SyncController extends Controller
         try {
             $domainIds = $request->input('domain_ids', []);
             $halo = new \App\Services\Halo\HaloPsaClient();
+            $haloConfig = Setting::get('halo', []);
+            $token = $this->getHaloAccessToken($haloConfig);
 
             $syncedCount = 0;
             $errors = [];
+
+            // First, get the asset type ID for "Domain" assets
+            $domainAssetTypeId = $this->getDomainAssetTypeId($token, $haloConfig);
+
+            if (!$domainAssetTypeId) {
+                return response()->json([
+                    'error' => 'Could not determine Domain asset type ID in HaloPSA. Please ensure a "Domain" asset type exists.'
+                ], 500);
+            }
+
+            Log::info('Starting domain sync to Halo', [
+                'domain_count' => count($domainIds),
+                'asset_type_id' => $domainAssetTypeId
+            ]);
 
             foreach ($domainIds as $domainId) {
                 $domain = Domain::with('client')->find($domainId);
                 if (!$domain || !$domain->client) {
                     $errors[] = "Domain {$domainId}: No client assigned";
+                    Log::warning("Domain sync skipped - no client", ['domain_id' => $domainId]);
                     continue;
                 }
 
                 if (!$domain->client->halopsa_reference) {
                     $errors[] = "Domain {$domain->name}: Client not linked to HaloPSA";
+                    Log::warning("Domain sync skipped - client not linked", [
+                        'domain' => $domain->name,
+                        'client' => $domain->client->business_name
+                    ]);
                     continue;
                 }
 
                 try {
-                    // Create domain asset in Halo using the service
+                    // Create domain asset in Halo
                     $assetData = [
                         'client_id' => (int) $domain->client->halopsa_reference,
-                        'inventory_number' => $domain->name,  // This is the key field for domain name
+                        'assettype_id' => $domainAssetTypeId,
+                        'inventory_number' => $domain->name,
                         'asset_tag' => $domain->name,
                         'name' => $domain->name,
-                        'agent_id' => (int) $domain->client->halopsa_reference,
                     ];
 
                     // Add notes with domain information
@@ -216,7 +237,18 @@ class SyncController extends Controller
                     }
                     $assetData['notes'] = $notes;
 
+                    Log::info('Creating domain asset in Halo', [
+                        'domain' => $domain->name,
+                        'client_id' => $domain->client->halopsa_reference,
+                        'asset_type_id' => $domainAssetTypeId
+                    ]);
+
                     $result = $halo->createDomainAsset($assetData);
+
+                    Log::info('Halo API response', [
+                        'domain' => $domain->name,
+                        'response' => $result
+                    ]);
 
                     if (isset($result['id']) || isset($result['Id'])) {
                         $assetId = $result['id'] ?? $result['Id'];
@@ -232,13 +264,17 @@ class SyncController extends Controller
                             'asset_id' => $assetId
                         ]);
                     } else {
-                        $errors[] = "Domain {$domain->name}: Failed to create asset - no ID returned";
+                        $errorMsg = "Domain {$domain->name}: Failed to create asset - no ID in response";
+                        $errors[] = $errorMsg;
+                        Log::error($errorMsg, ['response' => $result]);
                     }
                 } catch (\Exception $e) {
-                    $errors[] = "Domain {$domain->name}: {$e->getMessage()}";
+                    $errorMsg = "Domain {$domain->name}: {$e->getMessage()}";
+                    $errors[] = $errorMsg;
                     Log::error('Error creating domain asset', [
                         'domain' => $domain->name,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -254,8 +290,46 @@ class SyncController extends Controller
 
             return response()->json($response);
         } catch (\Exception $e) {
-            Log::error('Halo domain sync error: ' . $e->getMessage());
+            Log::error('Halo domain sync error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get the asset type ID for Domain assets in HaloPSA
+     */
+    private function getDomainAssetTypeId($token, $haloConfig)
+    {
+        try {
+            // Fetch asset types from HaloPSA
+            $response = Http::withToken($token)
+                ->get($haloConfig['base_url'] . '/AssetType');
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                $assetTypes = $responseData['assettypes']
+                    ?? $responseData['data']
+                    ?? $responseData['Results']
+                    ?? $responseData;
+
+                // Find the Domain asset type
+                foreach ($assetTypes as $type) {
+                    $name = $type['name'] ?? $type['Name'] ?? null;
+                    if ($name && strcasecmp($name, 'Domain') === 0) {
+                        $typeId = $type['id'] ?? $type['Id'] ?? null;
+                        Log::info('Found Domain asset type', ['id' => $typeId, 'name' => $name]);
+                        return $typeId;
+                    }
+                }
+            }
+
+            Log::warning('Could not find Domain asset type in HaloPSA');
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Error fetching asset types: ' . $e->getMessage());
+            return null;
         }
     }
 
