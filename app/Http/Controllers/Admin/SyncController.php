@@ -175,54 +175,84 @@ class SyncController extends Controller
     {
         try {
             $domainIds = $request->input('domain_ids', []);
-            $haloConfig = Setting::get('halo', []);
-            $token = $this->getHaloAccessToken($haloConfig);
+            $halo = new \App\Services\Halo\HaloPsaClient();
 
             $syncedCount = 0;
+            $errors = [];
 
             foreach ($domainIds as $domainId) {
                 $domain = Domain::with('client')->find($domainId);
                 if (!$domain || !$domain->client) {
+                    $errors[] = "Domain {$domainId}: No client assigned";
                     continue;
                 }
 
-                // Create or update domain asset in Halo
-                $assetData = [
-                    'client_id' => $domain->client->halopsa_reference,
-                    'assettype_id' => 1, // Domain asset type (may need adjustment)
-                    'name' => $domain->name,
-                    'fields' => [
-                        [
-                            'name' => 'Asset Tag',
-                            'value' => $domain->name
-                        ],
-                        [
-                            'name' => 'Domain Name',
-                            'value' => $domain->name
-                        ],
-                        [
-                            'name' => 'Domain Expiry',
-                            'value' => $domain->expiry_date
-                        ],
-                        [
-                            'name' => 'Name Servers',
-                            'value' => is_array($domain->nameservers) ? implode(', ', $domain->nameservers) : $domain->nameservers
-                        ],
-                    ]
-                ];
+                if (!$domain->client->halopsa_reference) {
+                    $errors[] = "Domain {$domain->name}: Client not linked to HaloPSA";
+                    continue;
+                }
 
-                $response = Http::withToken($token)
-                    ->post($haloConfig['base_url'] . '/asset', $assetData);
+                try {
+                    // Create domain asset in Halo using the service
+                    $assetData = [
+                        'client_id' => (int) $domain->client->halopsa_reference,
+                        'inventory_number' => $domain->name,  // This is the key field for domain name
+                        'asset_tag' => $domain->name,
+                        'name' => $domain->name,
+                        'agent_id' => (int) $domain->client->halopsa_reference,
+                    ];
 
-                if ($response->successful()) {
-                    $syncedCount++;
+                    // Add notes with domain information
+                    $notes = "Domain: {$domain->name}\n";
+                    if ($domain->expiry_date) {
+                        $notes .= "Expiry: {$domain->expiry_date}\n";
+                    }
+                    if ($domain->registrar) {
+                        $notes .= "Registrar: {$domain->registrar}\n";
+                    }
+                    if ($domain->nameservers) {
+                        $nameservers = is_array($domain->nameservers) ? implode(', ', $domain->nameservers) : $domain->nameservers;
+                        $notes .= "Name Servers: {$nameservers}\n";
+                    }
+                    $assetData['notes'] = $notes;
+
+                    $result = $halo->createDomainAsset($assetData);
+
+                    if (isset($result['id']) || isset($result['Id'])) {
+                        $assetId = $result['id'] ?? $result['Id'];
+
+                        // Update domain with Halo asset ID
+                        $domain->halo_asset_id = $assetId;
+                        $domain->save();
+
+                        $syncedCount++;
+
+                        Log::info('Created domain asset in Halo', [
+                            'domain' => $domain->name,
+                            'asset_id' => $assetId
+                        ]);
+                    } else {
+                        $errors[] = "Domain {$domain->name}: Failed to create asset - no ID returned";
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Domain {$domain->name}: {$e->getMessage()}";
+                    Log::error('Error creating domain asset', [
+                        'domain' => $domain->name,
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'synced_count' => $syncedCount
-            ]);
+            ];
+
+            if (!empty($errors)) {
+                $response['warnings'] = $errors;
+            }
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Halo domain sync error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
@@ -492,17 +522,45 @@ class SyncController extends Controller
 
     private function checkDomainExistsInHalo($domainName, $token, $haloConfig)
     {
-        // Search for domain asset in Halo
+        // Use HaloPsaClient service to properly check for domain assets
         try {
+            $halo = new \App\Services\Halo\HaloPsaClient();
+
+            // Get all domain assets from all clients
+            // Since we need to search across all clients, we'll use a direct API call
             $response = Http::withToken($token)
-                ->get($haloConfig['base_url'] . '/asset', [
+                ->get($haloConfig['base_url'] . '/Asset', [
+                    'count' => 1000,
                     'search' => $domainName,
-                    'assettype_id' => 1
                 ]);
 
             if ($response->successful()) {
-                $assets = $response->json('assets') ?? [];
-                return count($assets) > 0;
+                $responseData = $response->json();
+                $assets = $responseData['assets']
+                    ?? $responseData['data']
+                    ?? $responseData['Results']
+                    ?? [];
+
+                // Filter for domain type assets
+                foreach ($assets as $asset) {
+                    $typeName = $asset['assettype_name']
+                        ?? $asset['assettypename']
+                        ?? $asset['AssetTypeName']
+                        ?? null;
+
+                    // Check if it's a domain asset
+                    if ($typeName && strcasecmp($typeName, 'Domain') === 0) {
+                        // Check if the asset matches this domain
+                        $assetName = $asset['inventory_number']
+                            ?? $asset['asset_tag']
+                            ?? $asset['name']
+                            ?? null;
+
+                        if ($assetName && strcasecmp($assetName, $domainName) === 0) {
+                            return true;
+                        }
+                    }
+                }
             }
         } catch (\Exception $e) {
             Log::error('Check domain exists error: ' . $e->getMessage());

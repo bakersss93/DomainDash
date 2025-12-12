@@ -537,9 +537,14 @@
                 <div id="haloClientSyncContent" style="display:block;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                         <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Client Mapping</h3>
-                        <button onclick="loadHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                            🔄 Refresh List
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="loadHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                🔄 Refresh List
+                            </button>
+                            <button onclick="syncHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                ✓ Sync Selected
+                            </button>
+                        </div>
                     </div>
                     <div id="haloClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
                         <div style="text-align:center;color:#94a3b8;padding:40px;">
@@ -550,18 +555,20 @@
                         <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
                             Cancel
                         </button>
-                        <button onclick="syncHaloClients()" class="btn-accent" style="padding:10px 24px;">
-                            Sync Selected Clients
-                        </button>
                     </div>
                 </div>
 
                 <div id="haloDomainSyncContent" style="display:none;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                         <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Domain Assets</h3>
-                        <button onclick="loadHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                            🔄 Refresh List
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="loadHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                🔄 Refresh List
+                            </button>
+                            <button onclick="syncHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                ✓ Sync Selected
+                            </button>
+                        </div>
                     </div>
                     <div id="haloDomainList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
                         <div style="text-align:center;color:#94a3b8;padding:40px;">
@@ -571,9 +578,6 @@
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
                         <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
                             Cancel
-                        </button>
-                        <button onclick="syncHaloDomains()" class="btn-accent" style="padding:10px 24px;">
-                            Sync Selected Domains
                         </button>
                     </div>
                 </div>
@@ -601,9 +605,14 @@
                 <div id="itglueClientSyncContent" style="display:block;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                         <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Organization Mapping</h3>
-                        <button onclick="loadItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                            🔄 Refresh List
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="loadItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                🔄 Refresh List
+                            </button>
+                            <button onclick="syncItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                ✓ Save Mappings
+                            </button>
+                        </div>
                     </div>
                     <div id="itglueClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
                         <div style="text-align:center;color:#94a3b8;padding:40px;">
@@ -614,18 +623,20 @@
                         <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
                             Cancel
                         </button>
-                        <button onclick="syncItGlueClients()" class="btn-accent" style="padding:10px 24px;">
-                            Save Mappings
-                        </button>
                     </div>
                 </div>
 
                 <div id="itglueConfigSyncContent" style="display:none;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                         <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Configuration Items</h3>
-                        <button onclick="loadItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                            🔄 Refresh List
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button onclick="loadItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                🔄 Refresh List
+                            </button>
+                            <button onclick="syncItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
+                                ✓ Sync Selected
+                            </button>
+                        </div>
                     </div>
                     <div id="itglueConfigList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
                         <div style="text-align:center;color:#94a3b8;padding:40px;">
@@ -635,9 +646,6 @@
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
                         <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
                             Cancel
-                        </button>
-                        <button onclick="syncItGlueConfigs()" class="btn-accent" style="padding:10px 24px;">
-                            Sync Selected Items
                         </button>
                     </div>
                 </div>
