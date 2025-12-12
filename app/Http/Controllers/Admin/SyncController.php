@@ -214,28 +214,32 @@ class SyncController extends Controller
                 }
 
                 try {
-                    // Create domain asset in Halo
+                    // Fetch WHOIS data from Synergy
+                    $whoisData = $this->fetchWhoisFromSynergy($domain->name);
+
+                    // Prepare nameservers
+                    $nameservers = '';
+                    if ($domain->nameservers) {
+                        $nameservers = is_array($domain->nameservers)
+                            ? implode(', ', $domain->nameservers)
+                            : $domain->nameservers;
+                    }
+
+                    // Create domain asset in Halo with correct field mapping
                     $assetData = [
                         'client_id' => (int) $domain->client->halopsa_reference,
                         'assettype_id' => $domainAssetTypeId,
-                        'inventory_number' => $domain->name,
-                        'asset_tag' => $domain->name,
-                        'name' => $domain->name,
+                        'inventory_id' => $domain->name,  // Asset tag field
+                        'key_field' => $domain->name,     // Domain name
+                        'key_field2' => $domain->expiry_date ?? '',  // Domain expiry
+                        'key_field3' => $nameservers,     // Name servers
+                        'fields' => [
+                            [
+                                'id' => 165,  // Notes field
+                                'value' => $whoisData
+                            ]
+                        ]
                     ];
-
-                    // Add notes with domain information
-                    $notes = "Domain: {$domain->name}\n";
-                    if ($domain->expiry_date) {
-                        $notes .= "Expiry: {$domain->expiry_date}\n";
-                    }
-                    if ($domain->registrar) {
-                        $notes .= "Registrar: {$domain->registrar}\n";
-                    }
-                    if ($domain->nameservers) {
-                        $nameservers = is_array($domain->nameservers) ? implode(', ', $domain->nameservers) : $domain->nameservers;
-                        $notes .= "Name Servers: {$nameservers}\n";
-                    }
-                    $assetData['notes'] = $notes;
 
                     Log::info('Creating domain asset in Halo', [
                         'domain' => $domain->name,
@@ -625,8 +629,9 @@ class SyncController extends Controller
                     // Check if it's a domain asset
                     if ($typeName && strcasecmp($typeName, 'Domain') === 0) {
                         // Check if the asset matches this domain
-                        $assetName = $asset['inventory_number']
-                            ?? $asset['asset_tag']
+                        // inventory_id is the asset tag field, key_field is the domain name
+                        $assetName = $asset['inventory_id']
+                            ?? $asset['key_field']
                             ?? $asset['name']
                             ?? null;
 
@@ -666,6 +671,79 @@ class SyncController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Sync domain to IT Glue error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fetch WHOIS data from Synergy Wholesale
+     */
+    private function fetchWhoisFromSynergy($domainName)
+    {
+        try {
+            $synergySettings = Setting::get('synergy', []);
+            $wsdlPath = $synergySettings['wsdl_path'] ?? null;
+            $resellerId = $synergySettings['reseller_id'] ?? null;
+            $apiKey = $synergySettings['api_key'] ?? null;
+
+            if (empty($wsdlPath) || empty($resellerId) || empty($apiKey)) {
+                Log::warning('Synergy Wholesale not fully configured for WHOIS lookup');
+                return "WHOIS data unavailable - Synergy Wholesale not configured";
+            }
+
+            $client = new \SoapClient($wsdlPath, [
+                'trace' => 1,
+                'exceptions' => true
+            ]);
+
+            $params = [
+                'resellerID' => $resellerId,
+                'apiKey' => $apiKey,
+                'domainName' => $domainName
+            ];
+
+            $response = $client->__soapCall('domainInfo', [$params]);
+
+            if ($response->status === 'OK') {
+                // Format WHOIS data
+                $whois = "=== WHOIS Information for {$domainName} ===\n\n";
+
+                if (isset($response->registrantName)) {
+                    $whois .= "Registrant: {$response->registrantName}\n";
+                }
+                if (isset($response->registrantOrganisation)) {
+                    $whois .= "Organization: {$response->registrantOrganisation}\n";
+                }
+                if (isset($response->registrantEmail)) {
+                    $whois .= "Email: {$response->registrantEmail}\n";
+                }
+                if (isset($response->expiryDate)) {
+                    $whois .= "Expiry Date: {$response->expiryDate}\n";
+                }
+                if (isset($response->registrarName)) {
+                    $whois .= "Registrar: {$response->registrarName}\n";
+                }
+                if (isset($response->status)) {
+                    $whois .= "Status: {$response->status}\n";
+                }
+
+                // Add nameservers
+                if (isset($response->nameServers) && is_array($response->nameServers)) {
+                    $whois .= "\nName Servers:\n";
+                    foreach ($response->nameServers as $ns) {
+                        $whois .= "  - {$ns}\n";
+                    }
+                }
+
+                $whois .= "\nLast Updated: " . now()->format('Y-m-d H:i:s') . "\n";
+
+                return $whois;
+            }
+
+            return "WHOIS lookup failed: " . ($response->statusDescription ?? 'Unknown error');
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching WHOIS from Synergy: ' . $e->getMessage());
+            return "WHOIS data unavailable - Error: " . $e->getMessage();
         }
     }
 }
