@@ -41,6 +41,20 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
 
         // ============================================================================
+        // SYNC ROUTES
+        // ============================================================================
+        Route::get('/sync/halo/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloClients']);
+        Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
+        Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
+        Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
+
+        Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
+        Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
+        Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
+        Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
+        Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
+
+        // ============================================================================
         // CLIENTS ROUTES
         // ============================================================================
         Route::get('/clients', [ClientsController::class,'index'])->name('admin.clients.index');
