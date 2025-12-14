@@ -891,7 +891,13 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(`Successfully synced ${data.synced_count} domain(s)`);
+                    let message = `Successfully synced ${data.synced_count} domain(s)`;
+
+                    if (data.warnings && data.warnings.length > 0) {
+                        message += '\n\nWarnings:\n' + data.warnings.join('\n');
+                    }
+
+                    alert(message);
                     closeHaloSyncModal();
                     location.reload();
                 } else {
