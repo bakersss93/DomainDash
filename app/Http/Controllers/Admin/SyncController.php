@@ -459,27 +459,64 @@ class SyncController extends Controller
             $client = Client::findOrFail($clientId);
             $itglueConfig = Setting::get('itglue', []);
 
-            $response = Http::withHeaders([
-                'x-api-key' => $itglueConfig['api_key'],
-                'Content-Type' => 'application/vnd.api+json'
-            ])->get($itglueConfig['base_url'] . '/organizations');
+            // Fetch ALL organizations with pagination
+            $itglueOrgs = $this->fetchAllItGlueOrganizations($itglueConfig);
 
-            $itglueOrgs = $response->json('data') ?? [];
+            if (empty($itglueOrgs)) {
+                return response()->json(['error' => 'No organizations found in IT Glue'], 500);
+            }
 
-            // Find best match
+            // Find best match using multiple matching strategies
             $bestMatch = null;
             $bestScore = 0;
 
+            $clientName = strtolower(trim($client->business_name));
+
             foreach ($itglueOrgs as $org) {
-                $score = similar_text(strtolower($client->business_name), strtolower($org['attributes']['name']));
+                $orgName = strtolower(trim($org['attributes']['name'] ?? ''));
+
+                if (empty($orgName)) {
+                    continue;
+                }
+
+                // Calculate similarity score
+                $score = 0;
+
+                // Strategy 1: Exact match (highest priority)
+                if ($clientName === $orgName) {
+                    $score = 1000;
+                }
+                // Strategy 2: One name contains the other
+                else if (strpos($orgName, $clientName) !== false || strpos($clientName, $orgName) !== false) {
+                    $score = 500 + similar_text($clientName, $orgName);
+                }
+                // Strategy 3: Similar text comparison
+                else {
+                    similar_text($clientName, $orgName, $percent);
+                    $score = $percent;
+                }
+
+                Log::debug('Organization match score', [
+                    'client' => $client->business_name,
+                    'org' => $org['attributes']['name'],
+                    'score' => $score
+                ]);
+
                 if ($score > $bestScore) {
                     $bestScore = $score;
                     $bestMatch = $org['id'];
                 }
             }
 
+            Log::info('Best IT Glue match found', [
+                'client' => $client->business_name,
+                'best_score' => $bestScore,
+                'org_id' => $bestMatch
+            ]);
+
             return response()->json(['suggested_org_id' => $bestMatch]);
         } catch (\Exception $e) {
+            Log::error('Error suggesting IT Glue organization: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
