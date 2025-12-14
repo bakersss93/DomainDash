@@ -349,31 +349,34 @@ class SyncController extends Controller
                 return response()->json(['error' => 'IT Glue is not configured'], 400);
             }
 
-            // Fetch organizations from IT Glue
-            $response = Http::withHeaders([
-                'x-api-key' => $itglueConfig['api_key'],
-                'Content-Type' => 'application/vnd.api+json'
-            ])->get($itglueConfig['base_url'] . '/organizations');
+            // Fetch ALL organizations from IT Glue with pagination
+            $itglueOrgs = $this->fetchAllItGlueOrganizations($itglueConfig);
 
-            if (!$response->successful()) {
-                return response()->json(['error' => 'Failed to fetch organizations from IT Glue'], 500);
+            if (empty($itglueOrgs)) {
+                return response()->json(['error' => 'No organizations found in IT Glue'], 500);
             }
 
-            $itglueOrgs = $response->json('data') ?? [];
+            Log::info('Fetched IT Glue organizations', ['count' => count($itglueOrgs)]);
 
             // Get clients with existing column names
             $dashClients = Client::select('id', 'business_name', 'itglue_org_id')->get();
             $clientList = [];
 
-            foreach ($dashClients as $dashClient) {
-                $organizations = [];
-                foreach ($itglueOrgs as $org) {
-                    $organizations[] = [
-                        'id' => $org['id'],
-                        'name' => $org['attributes']['name']
-                    ];
-                }
+            // Build organizations array once (not duplicated for each client)
+            $organizations = [];
+            foreach ($itglueOrgs as $org) {
+                $organizations[] = [
+                    'id' => $org['id'],
+                    'name' => $org['attributes']['name'] ?? 'Unknown Organization'
+                ];
+            }
 
+            // Sort organizations alphabetically
+            usort($organizations, function($a, $b) {
+                return strcasecmp($a['name'], $b['name']);
+            });
+
+            foreach ($dashClients as $dashClient) {
                 $clientList[] = [
                     'dash_id' => $dashClient->id,
                     'dash_name' => $dashClient->business_name,
@@ -386,6 +389,64 @@ class SyncController extends Controller
         } catch (\Exception $e) {
             Log::error('IT Glue client fetch error: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Fetch all organizations from IT Glue with pagination
+     */
+    private function fetchAllItGlueOrganizations($itglueConfig)
+    {
+        $allOrgs = [];
+        $page = 1;
+        $perPage = 100; // IT Glue max per page
+
+        try {
+            do {
+                $response = Http::withHeaders([
+                    'x-api-key' => $itglueConfig['api_key'],
+                    'Content-Type' => 'application/vnd.api+json'
+                ])->get($itglueConfig['base_url'] . '/organizations', [
+                    'page' => ['number' => $page, 'size' => $perPage]
+                ]);
+
+                if (!$response->successful()) {
+                    Log::error('Failed to fetch IT Glue organizations page', [
+                        'page' => $page,
+                        'status' => $response->status()
+                    ]);
+                    break;
+                }
+
+                $responseData = $response->json();
+                $pageOrgs = $responseData['data'] ?? [];
+                $allOrgs = array_merge($allOrgs, $pageOrgs);
+
+                Log::info('Fetched IT Glue organizations page', [
+                    'page' => $page,
+                    'count' => count($pageOrgs),
+                    'total_so_far' => count($allOrgs)
+                ]);
+
+                // Check if there are more pages
+                $meta = $responseData['meta'] ?? [];
+                $totalPages = $meta['total-pages'] ?? 1;
+
+                if ($page >= $totalPages || empty($pageOrgs)) {
+                    break;
+                }
+
+                $page++;
+
+                // Add a small delay to avoid rate limiting
+                usleep(100000); // 100ms delay between requests
+
+            } while (true);
+
+            return $allOrgs;
+        } catch (\Exception $e) {
+            Log::error('Error fetching all IT Glue organizations: ' . $e->getMessage());
+            return $allOrgs; // Return what we have so far
         }
     }
 
