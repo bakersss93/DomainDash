@@ -215,14 +215,22 @@ class SyncController extends Controller
 
                 try {
                     // Fetch WHOIS data from Synergy
-                    $whoisData = $this->fetchWhoisFromSynergy($domain->name);
+                    $whoisResponse = $this->fetchWhoisFromSynergy($domain->name);
 
-                    // Prepare nameservers
+                    // Extract nameservers from WHOIS response if not in domain record
                     $nameservers = '';
                     if ($domain->nameservers) {
                         $nameservers = is_array($domain->nameservers)
                             ? implode(', ', $domain->nameservers)
                             : $domain->nameservers;
+                    } else {
+                        // Try to extract nameservers from WHOIS data
+                        $nameservers = $this->extractNameserversFromWhois($whoisResponse['nameservers'] ?? []);
+                    }
+
+                    // Ensure we have at least something for key_field3 (required field)
+                    if (empty($nameservers)) {
+                        $nameservers = 'N/A';
                     }
 
                     // Create domain asset in Halo - use top-level fields, not fields array
@@ -232,8 +240,8 @@ class SyncController extends Controller
                         'inventory_number' => $domain->name,
                         'key_field' => $domain->name,  // Domain Name
                         'key_field2' => $domain->expiry_date,  // Domain Expiry
-                        'key_field3' => $nameservers,  // Name Servers
-                        'notes' => $whoisData  // WHOIS data in notes
+                        'key_field3' => $nameservers,  // Name Servers (required)
+                        'notes' => $whoisResponse['formatted']  // WHOIS data in notes
                     ];
 
                     Log::info('Creating domain asset in Halo', [
@@ -781,7 +789,10 @@ class SyncController extends Controller
 
             if (empty($wsdlPath) || empty($resellerId) || empty($apiKey)) {
                 Log::warning('Synergy Wholesale not fully configured for WHOIS lookup');
-                return "WHOIS data unavailable - Synergy Wholesale not configured";
+                return [
+                    'formatted' => "WHOIS data unavailable - Synergy Wholesale not configured",
+                    'nameservers' => []
+                ];
             }
 
             $client = new \SoapClient($wsdlPath, [
@@ -798,6 +809,12 @@ class SyncController extends Controller
             $response = $client->__soapCall('domainInfo', [$params]);
 
             if ($response->status === 'OK') {
+                // Extract nameservers array
+                $nameservers = [];
+                if (isset($response->nameServers) && is_array($response->nameServers)) {
+                    $nameservers = $response->nameServers;
+                }
+
                 // Format WHOIS data
                 $whois = "=== WHOIS Information for {$domainName} ===\n\n";
 
@@ -821,23 +838,44 @@ class SyncController extends Controller
                 }
 
                 // Add nameservers
-                if (isset($response->nameServers) && is_array($response->nameServers)) {
+                if (!empty($nameservers)) {
                     $whois .= "\nName Servers:\n";
-                    foreach ($response->nameServers as $ns) {
+                    foreach ($nameservers as $ns) {
                         $whois .= "  - {$ns}\n";
                     }
                 }
 
                 $whois .= "\nLast Updated: " . now()->format('Y-m-d H:i:s') . "\n";
 
-                return $whois;
+                return [
+                    'formatted' => $whois,
+                    'nameservers' => $nameservers
+                ];
             }
 
-            return "WHOIS lookup failed: " . ($response->statusDescription ?? 'Unknown error');
+            return [
+                'formatted' => "WHOIS lookup failed: " . ($response->statusDescription ?? 'Unknown error'),
+                'nameservers' => []
+            ];
 
         } catch (\Exception $e) {
             Log::error('Error fetching WHOIS from Synergy: ' . $e->getMessage());
-            return "WHOIS data unavailable - Error: " . $e->getMessage();
+            return [
+                'formatted' => "WHOIS data unavailable - Error: " . $e->getMessage(),
+                'nameservers' => []
+            ];
         }
+    }
+
+    /**
+     * Extract nameservers from WHOIS nameservers array
+     */
+    private function extractNameserversFromWhois($nameservers)
+    {
+        if (empty($nameservers) || !is_array($nameservers)) {
+            return '';
+        }
+
+        return implode(', ', $nameservers);
     }
 }
