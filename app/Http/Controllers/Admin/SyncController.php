@@ -233,15 +233,47 @@ class SyncController extends Controller
                         $nameservers = 'N/A';
                     }
 
-                    // Create domain asset in Halo - use top-level fields, not fields array
+                    if (!$domain->expiry_date) {
+                        $errors[] = "Domain {$domain->name}: Missing expiry date";
+                        Log::warning('Domain sync skipped - missing expiry date', [
+                            'domain' => $domain->name
+                        ]);
+                        continue;
+                    }
+
+                    $expiryDate = $domain->expiry_date instanceof \Illuminate\Support\Carbon
+                        ? $domain->expiry_date->toDateString()
+                        : (string) $domain->expiry_date;
+
+                    $whoisNotes = $whoisResponse['formatted'] ?? '';
+
+                    // Create domain asset in Halo - include both key fields and the fields array so mandatory fields are satisfied
                     $assetData = [
                         'client_id' => (int) $domain->client->halopsa_reference,
                         'assettype_id' => $domainAssetTypeId,
                         'inventory_number' => $domain->name,
                         'key_field' => $domain->name,  // Domain Name
-                        'key_field2' => $domain->expiry_date,  // Domain Expiry
+                        'key_field2' => $expiryDate,  // Domain Expiry
                         'key_field3' => $nameservers,  // Name Servers (required)
-                        'notes' => $whoisResponse['formatted']  // WHOIS data in notes
+                        'notes' => $whoisNotes,  // WHOIS data in notes
+                        'fields' => [
+                            [
+                                'id' => 148,
+                                'value' => $domain->name,
+                            ],
+                            [
+                                'id' => 149,
+                                'value' => $expiryDate,
+                            ],
+                            [
+                                'id' => 150,
+                                'value' => $nameservers,
+                            ],
+                            [
+                                'id' => 165,
+                                'value' => $whoisNotes,
+                            ],
+                        ]
                     ];
 
                     Log::info('Creating domain asset in Halo', [

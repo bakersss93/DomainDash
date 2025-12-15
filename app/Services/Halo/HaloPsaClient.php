@@ -273,9 +273,17 @@ class HaloPsaClient
         // creating a single item. Sending a plain object results in a 400 with
         // "Cannot deserialize the current JSON object". Wrap the payload in an
         // array to match the expected contract.
-        return $this->request('POST', 'asset', [
+        $result = $this->request('POST', 'asset', [
             'json' => [$data],
         ]);
+
+        // Some Halo environments return an array of created assets. Unwrap to a
+        // single asset structure so callers can rely on consistent shape.
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
     }
 
     /**
