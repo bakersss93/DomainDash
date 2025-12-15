@@ -225,26 +225,30 @@ class SyncController extends Controller
                             : $domain->nameservers;
                     }
 
-                    // Create domain asset in Halo - use minimal required fields
+                    // Create domain asset in Halo using the correct API structure
                     $assetData = [
                         'client_id' => (int) $domain->client->halopsa_reference,
                         'assettype_id' => $domainAssetTypeId,
                         'inventory_number' => $domain->name,
+                        'fields' => [
+                            [
+                                'id' => 148,  // Domain Name
+                                'value' => $domain->name
+                            ],
+                            [
+                                'id' => 149,  // Domain Expiry
+                                'value' => $domain->expiry_date ?? ''
+                            ],
+                            [
+                                'id' => 150,  // Name Servers
+                                'value' => $nameservers
+                            ],
+                            [
+                                'id' => 165,  // Notes
+                                'value' => $whoisData
+                            ]
+                        ]
                     ];
-
-                    // Add key fields for domain-specific data
-                    if ($domain->expiry_date) {
-                        $assetData['key_field2'] = $domain->expiry_date;
-                    }
-
-                    if ($nameservers) {
-                        $assetData['key_field3'] = $nameservers;
-                    }
-
-                    // Add WHOIS notes if available
-                    if ($whoisData) {
-                        $assetData['notes'] = $whoisData;
-                    }
 
                     Log::info('Creating domain asset in Halo', [
                         'domain' => $domain->name,
