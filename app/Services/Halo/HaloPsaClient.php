@@ -269,8 +269,12 @@ class HaloPsaClient
      */
     public function createDomainAsset(array $data): array
     {
+        // Halo's Asset POST endpoint expects an array of assets, even when
+        // creating a single item. Sending a plain object results in a 400 with
+        // "Cannot deserialize the current JSON object". Wrap the payload in an
+        // array to match the expected contract.
         return $this->request('POST', 'asset', [
-            'json' => $data,
+            'json' => [$data],
         ]);
     }
 
