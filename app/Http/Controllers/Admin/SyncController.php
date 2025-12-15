@@ -219,10 +219,10 @@ class SyncController extends Controller
 
                     // Extract nameservers from WHOIS response if not in domain record
                     $nameservers = '';
-                    if ($domain->nameservers) {
-                        $nameservers = is_array($domain->nameservers)
-                            ? implode(', ', $domain->nameservers)
-                            : $domain->nameservers;
+                    if ($domain->name_servers) {
+                        $nameservers = is_array($domain->name_servers)
+                            ? implode(', ', $domain->name_servers)
+                            : $domain->name_servers;
                     } else {
                         // Try to extract nameservers from WHOIS data
                         $nameservers = $this->extractNameserversFromWhois($whoisResponse['nameservers'] ?? []);
@@ -249,7 +249,9 @@ class SyncController extends Controller
 
                     // Create domain asset in Halo - include both key fields and the fields array so mandatory fields are satisfied
                     $assetData = [
+                        // Include explicit client identifiers to ensure Halo assigns the asset
                         'client_id' => (int) $domain->client->halopsa_reference,
+                        'clientid' => (int) $domain->client->halopsa_reference,
                         'assettype_id' => $domainAssetTypeId,
                         'inventory_number' => $domain->name,
                         'key_field' => $domain->name,  // Domain Name
