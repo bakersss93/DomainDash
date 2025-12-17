@@ -269,9 +269,21 @@ class HaloPsaClient
      */
     public function createDomainAsset(array $data): array
     {
-        return $this->request('POST', 'asset', [
-            'json' => $data,
+        // Halo's Asset POST endpoint expects an array of assets, even when
+        // creating a single item. Sending a plain object results in a 400 with
+        // "Cannot deserialize the current JSON object". Wrap the payload in an
+        // array to match the expected contract.
+        $result = $this->request('POST', 'asset', [
+            'json' => [$data],
         ]);
+
+        // Some Halo environments return an array of created assets. Unwrap to a
+        // single asset structure so callers can rely on consistent shape.
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
     }
 
     /**
@@ -279,9 +291,104 @@ class HaloPsaClient
      */
     public function updateAsset(int $assetId, array $data): array
     {
-        return $this->request('POST', 'asset/' . $assetId, [
-            'json' => array_merge(['id' => $assetId], $data)
+        // Halo asset updates use POST on /asset with an array payload, the same
+        // shape as create. Including the ID tells Halo to update instead of
+        // create. Using PUT on /asset/{id} returns 405.
+        $payload = array_merge(['id' => $assetId], $data);
+
+        $result = $this->request('POST', 'asset', [
+            'json' => [$payload],
         ]);
+
+        // Unwrap array responses to a single asset for consistency
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Find an asset for a client by inventory number / domain name
+     */
+    public function findAssetByInventory(int $clientId, int $assetTypeId, string $inventoryNumber): ?array
+    {
+        $result = $this->request('GET', 'asset', [
+            'query' => [
+                'client_id' => $clientId,
+                'assettype_id' => $assetTypeId,
+                'search' => $inventoryNumber,
+                'count' => 100,
+            ],
+        ]);
+
+        $assets = $result['assets']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        foreach ($assets as $asset) {
+            $inventory = $asset['inventory_number']
+                ?? $asset['InventoryNumber']
+                ?? $asset['inventory_id']
+                ?? $asset['inventoryid']
+                ?? $asset['key_field']
+                ?? $asset['KeyField']
+                ?? null;
+
+            if ($inventory && strcasecmp((string) $inventory, $inventoryNumber) === 0) {
+                return $asset;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Try to determine the default site for a client
+     */
+    public function getDefaultSiteForClient(int $clientId): array
+    {
+        $client = $this->getClient($clientId);
+
+        $siteId = $client['site_id']
+            ?? $client['siteid']
+            ?? $client['SiteId']
+            ?? $client['site_id_default']
+            ?? null;
+
+        $siteName = $client['site_name']
+            ?? $client['sitename']
+            ?? $client['SiteName']
+            ?? null;
+
+        // If no direct site info is present, try the sites list
+        if ((!$siteId || !$siteName) && isset($client['sites']) && is_array($client['sites'])) {
+            foreach ($client['sites'] as $site) {
+                $candidateName = $site['name'] ?? $site['Name'] ?? null;
+                $candidateId = $site['id'] ?? $site['Id'] ?? null;
+
+                if ($candidateName && strcasecmp($candidateName, 'Main') === 0) {
+                    $siteId = $candidateId ?? $siteId;
+                    $siteName = $candidateName;
+                    break;
+                }
+
+                if (!$siteId && $candidateId) {
+                    $siteId = $candidateId;
+                    $siteName = $candidateName;
+                }
+            }
+        }
+
+        if (!$siteName && $siteId) {
+            $siteName = 'Main';
+        }
+
+        return [
+            'site_id' => $siteId,
+            'site_name' => $siteName,
+        ];
     }
 
     /**
