@@ -7,6 +7,7 @@ use App\Models\Domain;
 use App\Models\Client;
 use Illuminate\Http\Request;
 use App\Services\Synergy\SynergyWholesaleClient;
+use App\Support\WhoisFormatter;
 
 class DomainController extends Controller
 {
@@ -58,7 +59,35 @@ class DomainController extends Controller
 
         $clients = Client::orderBy('business_name')->get();
 
-        return view('admin.domains.show', compact('domain', 'dnsLabel', 'clients'));
+        $whoisOverview = WhoisFormatter::overview(
+            $domain->whois_data ?? [],
+            $domain->name,
+            $domain->whois_synced_at
+        );
+
+        $whoisText = WhoisFormatter::formatText(
+            $domain->whois_data ?? [],
+            $domain->name,
+            $domain->whois_synced_at
+        );
+
+        $nameservers = $domain->name_servers;
+        if (empty($nameservers) && !empty($whoisOverview['nameservers'])) {
+            $nameservers = $whoisOverview['nameservers'];
+        }
+
+        if (is_string($nameservers)) {
+            $nameservers = array_filter(array_map('trim', explode(',', $nameservers)));
+        }
+
+        return view('admin.domains.show', compact(
+            'domain',
+            'dnsLabel',
+            'clients',
+            'whoisOverview',
+            'whoisText',
+            'nameservers'
+        ));
     }
 
     public function assignClient(Request $request, Domain $domain)

@@ -3,6 +3,7 @@
 namespace App\Services\Halo;
 
 use App\Models\Setting;
+use App\Support\WhoisFormatter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\Cache;
@@ -409,6 +410,13 @@ class HaloPsaClient
             // Format DNS records
             $dnsNotes = $this->formatDnsRecordsForNotes($dnsRecords ?? []);
 
+            // Format WHOIS details if available
+            $whoisNotes = WhoisFormatter::formatText(
+                $domain->whois_data ?? [],
+                $domain->name,
+                $domain->whois_synced_at
+            );
+
             // Combine with domain info
             $lines = [];
             $lines[] = '=== DomainDash Domain Info ===';
@@ -421,6 +429,11 @@ class HaloPsaClient
             }
             $lines[] = '';
             $lines[] = $dnsNotes;
+
+            if ($whoisNotes) {
+                $lines[] = '';
+                $lines[] = $whoisNotes;
+            }
 
             $newNotes = trim(rtrim((string) $currentNotes) . "\n\n" . implode("\n", $lines));
 
