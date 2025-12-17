@@ -718,6 +718,16 @@ class SyncController extends Controller
                     $synced++;
                     $results[] = ['id' => $domain->id, 'success' => true];
                 } else {
+                    // Treat "no data found" as a soft warning so bulk sync can proceed
+                    if (!empty($lookup['not_found'])) {
+                        $results[] = [
+                            'id' => $domain->id,
+                            'success' => false,
+                            'warning' => 'No WHOIS data found for this domain',
+                        ];
+                        continue;
+                    }
+
                     $results[] = [
                         'id' => $domain->id,
                         'success' => false,

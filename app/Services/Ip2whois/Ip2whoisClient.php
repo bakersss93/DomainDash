@@ -35,13 +35,33 @@ class Ip2whoisClient
 
             if (!$resp->successful()) {
                 $body = $resp->json();
-                $error = $body['error_message'] ?? $resp->body();
-                Log::warning('IP2WHOIS lookup failed', [
+                $error = $body['error']['error_message']
+                    ?? $body['error_message']
+                    ?? $resp->body();
+                $code = $body['error']['error_code']
+                    ?? $body['error_code']
+                    ?? null;
+
+                $payload = [
                     'domain' => $domain,
                     'status' => $resp->status(),
                     'error' => $error,
-                ]);
-                return ['success' => false, 'error' => $error];
+                    'code' => $code,
+                ];
+
+                // Common "no data" response (404 / code 10006) should be treated as a soft miss
+                if ($resp->status() === 404 || (int) $code === 10006) {
+                    Log::info('IP2WHOIS lookup returned no data', $payload);
+                    return [
+                        'success' => false,
+                        'error' => $error,
+                        'code' => $code,
+                        'not_found' => true,
+                    ];
+                }
+
+                Log::warning('IP2WHOIS lookup failed', $payload);
+                return ['success' => false, 'error' => $error, 'code' => $code];
             }
 
             $data = $resp->json();
