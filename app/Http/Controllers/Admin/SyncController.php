@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Domain;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use SoapClient;
 
 class SyncController extends Controller
 {
@@ -635,7 +636,7 @@ class SyncController extends Controller
                         'type' => 'domain',
                         'name' => $domain->name,
                         'client' => $domain->client->business_name,
-                        'exists_in_itglue' => false, // TODO: Check if exists
+                        'exists_in_itglue' => !empty($domain->itglue_id),
                     ];
                 }
             }
@@ -655,25 +656,78 @@ class SyncController extends Controller
     {
         try {
             $items = $request->input('items', []);
-            $itglueConfig = Setting::get('itglue', []);
             $syncedCount = 0;
+            $results = [];
+
+            Log::info('Starting ITGlue configuration sync from settings', [
+                'item_count' => count($items)
+            ]);
+
+            $itglue = new \App\Services\ItGlue\ItGlueClient();
 
             foreach ($items as $item) {
-                if ($item['type'] === 'domain') {
-                    $domain = Domain::with('client')->find($item['id']);
-                    if ($domain && $domain->client && $domain->client->itglue_org_id) {
-                        $this->syncDomainToItGlue($domain, $itglueConfig);
-                        $syncedCount++;
-                    }
+                if (($item['type'] ?? '') !== 'domain') {
+                    continue; // Only domains supported today
                 }
-                // TODO: Handle SSL and Web Hosting types
+
+                $domain = Domain::with('client')->find($item['id'] ?? null);
+
+                if (!$domain) {
+                    $results[] = [
+                        'item' => $item,
+                        'success' => false,
+                        'error' => 'Domain not found'
+                    ];
+                    continue;
+                }
+
+                if (!$domain->client || !$domain->client->itglue_org_id) {
+                    $results[] = [
+                        'item' => $item,
+                        'success' => false,
+                        'error' => 'Domain is not linked to an ITGlue organization'
+                    ];
+                    continue;
+                }
+
+                $dnsRecords = $this->fetchDnsRecordsFromSynergy($domain->name);
+                $syncResult = $itglue->syncDomain(
+                    $domain,
+                    (int) $domain->client->itglue_org_id,
+                    $dnsRecords
+                );
+
+                if ($syncResult['success'] ?? false) {
+                    $syncedCount++;
+
+                    if (!empty($syncResult['flexible_asset_id'])) {
+                        $domain->update(['itglue_id' => $syncResult['flexible_asset_id']]);
+                    }
+
+                    $results[] = [
+                        'item' => $item,
+                        'success' => true,
+                        'action' => $syncResult['action'] ?? 'updated'
+                    ];
+                } else {
+                    $results[] = [
+                        'item' => $item,
+                        'success' => false,
+                        'error' => $syncResult['error'] ?? 'Unknown error'
+                    ];
+                }
             }
 
             return response()->json([
                 'success' => true,
-                'synced_count' => $syncedCount
+                'synced_count' => $syncedCount,
+                'results' => $results
             ]);
         } catch (\Exception $e) {
+            Log::error('Error syncing ITGlue configurations: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -815,29 +869,44 @@ class SyncController extends Controller
         return false;
     }
 
-    private function syncDomainToItGlue($domain, $itglueConfig)
+    /**
+     * Fetch DNS records from Synergy Wholesale
+     */
+    private function fetchDnsRecordsFromSynergy($domainName)
     {
         try {
-            $configData = [
-                'data' => [
-                    'type' => 'configurations',
-                    'attributes' => [
-                        'organization-id' => $domain->client->itglue_org_id,
-                        'configuration-type-id' => 'domain', // May need to be numeric ID
-                        'name' => $domain->name,
-                        'contact-name' => null,
-                        'notes' => "Domain: {$domain->name}\nExpiry: {$domain->expiry_date}",
-                    ]
-                ]
+            $synergySettings = Setting::get('synergy', []);
+            $wsdlPath = $synergySettings['wsdl_path'] ?? null;
+            $resellerId = $synergySettings['reseller_id'] ?? null;
+            $apiKey = $synergySettings['api_key'] ?? null;
+
+            if (empty($wsdlPath) || empty($resellerId) || empty($apiKey)) {
+                Log::warning('Synergy Wholesale not fully configured for DNS sync');
+                return [];
+            }
+
+            $client = new SoapClient($wsdlPath, [
+                'trace' => 1,
+                'exceptions' => true
+            ]);
+
+            $params = [
+                'resellerID' => $resellerId,
+                'apiKey' => $apiKey,
+                'domainName' => $domainName
             ];
 
-            Http::withHeaders([
-                'x-api-key' => $itglueConfig['api_key'],
-                'Content-Type' => 'application/vnd.api+json'
-            ])->post($itglueConfig['base_url'] . '/configurations', $configData);
+            $response = $client->__soapCall('listDNSZone', [$params]);
+
+            if ($response->status === 'OK') {
+                return $response->records ?? [];
+            }
+
+            return [];
 
         } catch (\Exception $e) {
-            Log::error('Sync domain to IT Glue error: ' . $e->getMessage());
+            Log::error('Error fetching DNS from Synergy: ' . $e->getMessage());
+            return [];
         }
     }
 
@@ -860,7 +929,7 @@ class SyncController extends Controller
                 ];
             }
 
-            $client = new \SoapClient($wsdlPath, [
+            $client = new SoapClient($wsdlPath, [
                 'trace' => 1,
                 'exceptions' => true
             ]);
