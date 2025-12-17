@@ -4,6 +4,7 @@ namespace App\Services\ItGlue;
 
 use App\Models\Domain;
 use App\Models\Setting;
+use App\Support\WhoisFormatter;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 
@@ -274,7 +275,11 @@ class ItGlueClient
         }
 
         if ($whoisKey = $this->traitKey('whois')) {
-            $traits[$whoisKey] = 'WHOIS data not available from DomainDash at this time.';
+            $traits[$whoisKey] = WhoisFormatter::formatText(
+                $domain->whois_data ?? [],
+                $domain->name,
+                $domain->whois_synced_at
+            );
         }
 
         if ($dnsKey = $this->traitKey('dns')) {

@@ -10,6 +10,7 @@ use App\Models\Domain;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\Ip2whois\Ip2whoisClient;
+use App\Support\WhoisFormatter;
 use SoapClient;
 
 class SyncController extends Controller
@@ -216,18 +217,31 @@ class SyncController extends Controller
                 }
 
                 try {
-                    // Fetch WHOIS data from Synergy
-                    $whoisResponse = $this->fetchWhoisFromSynergy($domain->name);
+                    $whoisData = $domain->whois_data ?? [];
+                    $whoisOverview = WhoisFormatter::overview($whoisData, $domain->name, $domain->whois_synced_at);
+                    $whoisNotes = WhoisFormatter::formatText($whoisData, $domain->name, $domain->whois_synced_at);
 
-                    // Extract nameservers from WHOIS response if not in domain record
-                    $nameservers = '';
-                    if ($domain->name_servers) {
-                        $nameservers = is_array($domain->name_servers)
-                            ? implode(', ', $domain->name_servers)
-                            : $domain->name_servers;
-                    } else {
-                        // Try to extract nameservers from WHOIS data
-                        $nameservers = $this->extractNameserversFromWhois($whoisResponse['nameservers'] ?? []);
+                    // Extract nameservers from the domain record or WHOIS overview
+                    $nameservers = $domain->name_servers;
+                    if (empty($nameservers) && !empty($whoisOverview['nameservers'])) {
+                        $nameservers = $whoisOverview['nameservers'];
+                    }
+
+                    // Fallback to Synergy WHOIS when nothing is available from IP2WHOIS
+                    if (empty($nameservers) || !$whoisOverview['has_data']) {
+                        $whoisResponse = $this->fetchWhoisFromSynergy($domain->name);
+
+                        if (empty($nameservers)) {
+                            $nameservers = $this->extractNameserversFromWhois($whoisResponse['nameservers'] ?? []);
+                        }
+
+                        if (!$whoisOverview['has_data'] && !empty($whoisResponse['formatted'])) {
+                            $whoisNotes = $whoisResponse['formatted'];
+                        }
+                    }
+
+                    if (is_array($nameservers)) {
+                        $nameservers = implode(', ', array_filter($nameservers));
                     }
 
                     // Ensure we have at least something for key_field3 (required field)
@@ -246,8 +260,6 @@ class SyncController extends Controller
                     $expiryDate = $domain->expiry_date instanceof \Illuminate\Support\Carbon
                         ? $domain->expiry_date->toDateString()
                         : (string) $domain->expiry_date;
-
-                    $whoisNotes = $whoisResponse['formatted'] ?? '';
                     $clientHaloId = (int) $domain->client->halopsa_reference;
 
                     // Determine client site (default to "Main" when possible)
@@ -706,6 +718,16 @@ class SyncController extends Controller
                     $synced++;
                     $results[] = ['id' => $domain->id, 'success' => true];
                 } else {
+                    // Treat "no data found" as a soft warning so bulk sync can proceed
+                    if (!empty($lookup['not_found'])) {
+                        $results[] = [
+                            'id' => $domain->id,
+                            'success' => false,
+                            'warning' => 'No WHOIS data found for this domain',
+                        ];
+                        continue;
+                    }
+
                     $results[] = [
                         'id' => $domain->id,
                         'success' => false,

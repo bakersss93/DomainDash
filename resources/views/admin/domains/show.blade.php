@@ -55,15 +55,44 @@
         {{-- Right: Nameservers + transactions placeholder --}}
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
-                <div style="font-weight:600;margin-bottom:8px;">Nameserver information</div>
-                <div style="font-size:14px;opacity:.8;margin-bottom:4px;">Nameservers</div>
-                <div style="font-size:14px;">
-                    {{-- placeholder – later you can pull this from Synergy or your DNS store --}}
-                    <div>ns1.nameserver.net.au</div>
-                    <div>ns2.nameserver.net.au</div>
-                    <div>ns3.nameserver.net.au</div>
-                </div>
+            <div style="font-weight:600;margin-bottom:8px;">Nameserver information</div>
+            <div style="font-size:14px;opacity:.8;margin-bottom:4px;">Nameservers</div>
+            <div style="font-size:14px;">
+                    @php
+                        $nameserverList = collect($nameserverDetails ?? [])
+                            ->map(function($ns) {
+                                $host = $ns['host'] ?? '';
+                                $ips = collect($ns['ips'] ?? [])->filter()->values();
+                                return [
+                                    'host' => $host,
+                                    'ips' => $ips,
+                                ];
+                            })
+                            ->filter(fn($ns) => !empty($ns['host']))
+                            ->values();
+
+                        if ($nameserverList->isEmpty()) {
+                            $nameserverList = collect($nameservers ?? [])->filter()->map(fn($ns) => [
+                                'host' => $ns,
+                                'ips' => collect(),
+                            ]);
+                        }
+                    @endphp
+
+                    @if($nameserverList->isEmpty())
+                        <div style="opacity:.7;">No nameservers available. Sync WHOIS to populate.</div>
+                    @else
+                        @foreach($nameserverList as $ns)
+                            <div>
+                                <div>{{ $ns['host'] }}</div>
+                                @if($ns['ips']->isNotEmpty())
+                                    <div style="font-size:12px;opacity:.7;">{{ $ns['ips']->implode(', ') }}</div>
+                                @endif
+                            </div>
+                        @endforeach
+                    @endif
             </div>
+        </div>
 
             <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
                 <div style="font-weight:600;margin-bottom:8px;">Transactions</div>
@@ -72,6 +101,86 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    {{-- WHOIS details --}}
+    <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+            <div style="font-weight:600;">WHOIS information</div>
+            <div style="font-size:12px;color:#94a3b8;">
+                {{ $whoisOverview['synced_at'] ? 'Last synced: '.$whoisOverview['synced_at'] : 'No WHOIS sync recorded yet' }}
+            </div>
+        </div>
+
+        @if($whoisOverview['has_data'])
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;font-size:14px;">
+                <div>
+                    <div style="opacity:.75;">Registrar</div>
+                    <div>{{ $whoisOverview['registrar'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Domain ID</div>
+                    <div>{{ $whoisOverview['domain_id'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant</div>
+                    <div>{{ $whoisOverview['registrant'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant email</div>
+                    <div>{{ $whoisOverview['registrant_email'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant phone</div>
+                    <div>{{ $whoisOverview['registrant_phone'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant location</div>
+                    <div>
+                        @php
+                            $locationParts = array_filter([
+                                $whoisOverview['registrant_city'] ?? null,
+                                $whoisOverview['registrant_state'] ?? null,
+                                $whoisOverview['registrant_postal'] ?? null,
+                                $whoisOverview['registrant_country'] ?? null,
+                            ]);
+                        @endphp
+                        {{ $locationParts ? implode(', ', $locationParts) : '—' }}
+                    </div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Created</div>
+                    <div>{{ $whoisOverview['created_at'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Last updated</div>
+                    <div>{{ $whoisOverview['updated_at'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Expires</div>
+                    <div>{{ $whoisOverview['expires_at'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Status</div>
+                    <div>{{ $whoisOverview['status'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrar URL</div>
+                    <div style="word-break:break-all;">{{ $whoisOverview['registrar_url'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrar WHOIS</div>
+                    <div style="word-break:break-all;">{{ $whoisOverview['registrar_whois'] ?? '—' }}</div>
+                </div>
+            </div>
+
+            <div style="margin-top:12px;">
+                <div style="opacity:.75;font-size:13px;margin-bottom:4px;">WHOIS text</div>
+                <div style="background:#0f172a;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;font-size:13px;white-space:pre-wrap;overflow:auto;">{!! nl2br(e($whoisText)) !!}</div>
+            </div>
+        @else
+            <div style="font-size:14px;color:#94a3b8;">No WHOIS data available yet. Run an IP2WHOIS sync to populate these details.</div>
+        @endif
     </div>
 
     {{-- Client assignment box --}}
