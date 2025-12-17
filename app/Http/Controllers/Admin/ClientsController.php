@@ -566,12 +566,12 @@ class ClientsController extends Controller
                     'message' => $result['success'] 
                         ? ucfirst($result['action']) 
                         : ($result['error'] ?? 'Failed'),
-                    'configuration_id' => $result['configuration_id'] ?? null
+                    'flexible_asset_id' => $result['flexible_asset_id'] ?? null
                 ];
                 
-                // Update domain with ITGlue configuration ID
-                if ($result['success'] && isset($result['configuration_id'])) {
-                    $domain->update(['itglue_configuration_id' => $result['configuration_id']]);
+                // Update domain with ITGlue flexible asset ID
+                if ($result['success'] && isset($result['flexible_asset_id'])) {
+                    $domain->update(['itglue_id' => $result['flexible_asset_id']]);
                 }
             }
 

@@ -344,6 +344,55 @@
                            style="width:100%;padding:8px 10px;border-radius:4px;
                                   border:1px solid #e5e7eb;font-size:14px;">
                 </div>
+
+                @php
+                    $flexibleAssetTraits = $settings['itglue']['flexible_asset_traits'] ?? [
+                        'domain' => 'domain-name',
+                        'name_servers' => 'name-servers',
+                        'expiry' => 'expiry',
+                        'whois' => 'whois',
+                        'dns' => 'dns',
+                    ];
+                @endphp
+
+                <div style="margin-top:16px;">
+                    <label for="itglue_flexible_asset_type_id" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        Flexible Asset Type ID
+                    </label>
+                    <input id="itglue_flexible_asset_type_id"
+                           type="text"
+                           name="itglue[flexible_asset_type_id]"
+                           value="{{ $settings['itglue']['flexible_asset_type_id'] ?? '' }}"
+                           placeholder="e.g. 4521154692859938"
+                           style="width:100%;padding:8px 10px;border-radius:4px;
+                                  border:1px solid #e5e7eb;font-size:14px;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Required when syncing domains to flexible assets.
+                    </small>
+                </div>
+
+                <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Domain trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][domain]" value="{{ $flexibleAssetTraits['domain'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="domain-name">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Name servers trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][name_servers]" value="{{ $flexibleAssetTraits['name_servers'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="name-servers">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Expiry trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][expiry]" value="{{ $flexibleAssetTraits['expiry'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="expiry">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">WHOIS trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][whois]" value="{{ $flexibleAssetTraits['whois'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="whois">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">DNS trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][dns]" value="{{ $flexibleAssetTraits['dns'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="dns">
+                    </div>
+                </div>
                 </div>
             </div>
 

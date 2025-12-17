@@ -2,6 +2,7 @@
 
 namespace App\Services\ItGlue;
 
+use App\Models\Domain;
 use App\Models\Setting;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +13,8 @@ class ItGlueClient
 
     protected string $baseUrl;
     protected ?string $apiKey;
+    protected ?int $flexibleAssetTypeId;
+    protected array $flexibleAssetTraits;
 
     public function __construct()
     {
@@ -25,6 +28,16 @@ class ItGlueClient
 
         $this->baseUrl = rtrim($base, '/');
         $this->apiKey  = $cfg['api_key'] ?? null;
+        $this->flexibleAssetTypeId = isset($cfg['flexible_asset_type_id'])
+            ? (int) $cfg['flexible_asset_type_id']
+            : null;
+        $this->flexibleAssetTraits = $cfg['flexible_asset_traits'] ?? [
+            'domain' => 'domain-name',
+            'name_servers' => 'name-servers',
+            'expiry' => 'expiry',
+            'whois' => 'whois',
+            'dns' => 'dns',
+        ];
 
         $this->http = new Client([
             'base_uri' => $this->baseUrl,
@@ -68,187 +81,165 @@ class ItGlueClient
     }
 
     /**
-     * Find a domain configuration by organization ID and domain name
+     * Ensure a flexible asset type ID has been configured
      */
-    public function findDomainConfiguration(int $organizationId, string $domainName): ?array
+    protected function getFlexibleAssetTypeId(): int
+    {
+        if (!$this->flexibleAssetTypeId) {
+            throw new \RuntimeException('ITGlue flexible asset type ID is not configured in settings.');
+        }
+
+        return $this->flexibleAssetTypeId;
+    }
+
+    /**
+     * Resolve a trait key from configuration
+     */
+    protected function traitKey(string $key): ?string
+    {
+        return $this->flexibleAssetTraits[$key] ?? null;
+    }
+
+    /**
+     * Find an existing flexible asset for a domain by organisation and type
+     */
+    public function findDomainFlexibleAsset(int $organizationId, int $flexibleAssetTypeId, string $domainName): ?array
     {
         try {
-            $resp = $this->http->get('/configurations', [
+            $resp = $this->http->get('/flexible_assets', [
                 'headers' => $this->headers(),
                 'query' => [
                     'filter' => [
                         'organization-id' => $organizationId,
-                        'configuration-type-name' => 'Domain',
+                        'flexible-asset-type-id' => $flexibleAssetTypeId,
                         'name' => $domainName
-                    ]
+                    ],
+                    'page' => ['size' => 1]
                 ]
             ]);
 
             $data = json_decode((string) $resp->getBody(), true);
-            $configs = $data['data'] ?? [];
+            $assets = $data['data'] ?? [];
 
-            return !empty($configs) ? $configs[0] : null;
+            return !empty($assets) ? $assets[0] : null;
         } catch (\Exception $e) {
-            Log::error('ITGlue findDomainConfiguration error: ' . $e->getMessage());
+            Log::error('ITGlue findFlexibleAsset error: ' . $e->getMessage());
             return null;
         }
     }
 
     /**
-     * Create a domain configuration in ITGlue
+     * Create a flexible asset for a domain in ITGlue
      */
-    public function createDomainConfiguration(int $organizationId, string $domainName, array $attributes = []): array
+    public function createFlexibleAsset(int $organizationId, int $flexibleAssetTypeId, string $domainName, array $traits = []): array
     {
         try {
-            // Get the Domain configuration type ID
-            $configTypeId = $this->getDomainConfigurationTypeId();
-
             $payload = [
                 'data' => [
-                    'type' => 'configurations',
-                    'attributes' => array_merge([
+                    'type' => 'flexible-assets',
+                    'attributes' => [
                         'organization-id' => $organizationId,
-                        'configuration-type-id' => $configTypeId,
+                        'flexible-asset-type-id' => $flexibleAssetTypeId,
                         'name' => $domainName,
-                    ], $attributes)
+                        'traits' => $traits,
+                    ]
                 ]
             ];
 
-            Log::info('Creating ITGlue domain configuration', [
+            Log::info('Creating ITGlue flexible asset', [
                 'organization_id' => $organizationId,
-                'domain' => $domainName
+                'domain' => $domainName,
+                'flexible_asset_type_id' => $flexibleAssetTypeId,
             ]);
 
-            $resp = $this->http->post('/configurations', [
+            $resp = $this->http->post('/flexible_assets', [
                 'headers' => $this->headers(),
                 'json' => $payload
             ]);
 
             return json_decode((string) $resp->getBody(), true);
         } catch (\Exception $e) {
-            Log::error('ITGlue createDomainConfiguration error: ' . $e->getMessage(), [
+            Log::error('ITGlue createFlexibleAsset error: ' . $e->getMessage(), [
                 'organization_id' => $organizationId,
-                'domain' => $domainName
+                'domain' => $domainName,
+                'flexible_asset_type_id' => $flexibleAssetTypeId,
             ]);
             throw $e;
         }
     }
 
     /**
-     * Update a domain configuration in ITGlue
+     * Update an existing flexible asset in ITGlue
      */
-    public function updateDomainConfiguration(int $configurationId, array $attributes): array
+    public function updateFlexibleAsset(int $assetId, string $domainName, array $traits): array
     {
         try {
             $payload = [
                 'data' => [
-                    'type' => 'configurations',
-                    'attributes' => $attributes
+                    'type' => 'flexible-assets',
+                    'attributes' => [
+                        'name' => $domainName,
+                        'traits' => $traits,
+                    ]
                 ]
             ];
 
-            Log::info('Updating ITGlue domain configuration', [
-                'configuration_id' => $configurationId
+            Log::info('Updating ITGlue flexible asset', [
+                'asset_id' => $assetId,
+                'domain' => $domainName,
             ]);
 
-            $resp = $this->http->patch('/configurations/' . $configurationId, [
+            $resp = $this->http->patch('/flexible_assets/' . $assetId, [
                 'headers' => $this->headers(),
                 'json' => $payload
             ]);
 
             return json_decode((string) $resp->getBody(), true);
         } catch (\Exception $e) {
-            Log::error('ITGlue updateDomainConfiguration error: ' . $e->getMessage(), [
-                'configuration_id' => $configurationId
+            Log::error('ITGlue updateFlexibleAsset error: ' . $e->getMessage(), [
+                'asset_id' => $assetId
             ]);
             throw $e;
-        }
-    }
-
-    /**
-     * Get or cache the Domain configuration type ID
-     */
-    protected function getDomainConfigurationTypeId(): int
-    {
-        // Check cache first
-        $cacheKey = 'itglue_domain_config_type_id';
-        if ($cached = \Cache::get($cacheKey)) {
-            return $cached;
-        }
-
-        try {
-            $resp = $this->http->get('/configuration_types', [
-                'headers' => $this->headers(),
-                'query' => [
-                    'filter' => ['name' => 'Domain']
-                ]
-            ]);
-
-            $data = json_decode((string) $resp->getBody(), true);
-            $types = $data['data'] ?? [];
-
-            if (empty($types)) {
-                // Default to ID 1 if not found
-                Log::warning('Domain configuration type not found in ITGlue, using default ID 1');
-                return 1;
-            }
-
-            $typeId = (int) $types[0]['id'];
-            \Cache::put($cacheKey, $typeId, 3600); // Cache for 1 hour
-
-            return $typeId;
-        } catch (\Exception $e) {
-            Log::error('ITGlue getDomainConfigurationTypeId error: ' . $e->getMessage());
-            return 1; // Fallback to ID 1
         }
     }
 
     /**
      * Sync a domain to ITGlue with DNS records
      */
-    public function syncDomain(\App\Models\Domain $domain, int $organizationId, ?array $dnsRecords = null): array
+    public function syncDomain(Domain $domain, int $organizationId, ?array $dnsRecords = null): array
     {
         try {
-            // Find existing configuration
-            $existing = $this->findDomainConfiguration($organizationId, $domain->name);
+            $flexibleAssetTypeId = $this->getFlexibleAssetTypeId();
 
-            // Prepare attributes
-            $attributes = [
-                'notes' => $this->formatDnsRecordsForNotes($dnsRecords ?? [])
-            ];
+            // Find existing flexible asset
+            $existing = $this->findDomainFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name);
 
-            // Add optional fields if available
-            if ($domain->registrar) {
-                $attributes['notes'] = "Registrar: {$domain->registrar}\n\n" . $attributes['notes'];
-            }
-            
-            if ($domain->expiry_date) {
-                $attributes['notes'] = "Expiry Date: {$domain->expiry_date}\n" . $attributes['notes'];
-            }
+            // Prepare traits
+            $traits = $this->buildDomainTraits($domain, $dnsRecords ?? []);
 
             if ($existing) {
                 // Update existing
-                $configId = (int) $existing['id'];
-                $result = $this->updateDomainConfiguration($configId, $attributes);
-                
+                $assetId = (int) $existing['id'];
+                $result = $this->updateFlexibleAsset($assetId, $domain->name, $traits);
+
                 return [
                     'success' => true,
                     'action' => 'updated',
-                    'configuration_id' => $configId,
-                    'data' => $result
-                ];
-            } else {
-                // Create new
-                $result = $this->createDomainConfiguration($organizationId, $domain->name, $attributes);
-                $configId = (int) ($result['data']['id'] ?? null);
-                
-                return [
-                    'success' => true,
-                    'action' => 'created',
-                    'configuration_id' => $configId,
+                    'flexible_asset_id' => $assetId,
                     'data' => $result
                 ];
             }
+
+            // Create new
+            $result = $this->createFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name, $traits);
+            $assetId = (int) ($result['data']['id'] ?? null);
+            
+            return [
+                'success' => true,
+                'action' => 'created',
+                'flexible_asset_id' => $assetId,
+                'data' => $result
+            ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -258,46 +249,104 @@ class ItGlueClient
     }
 
     /**
-     * Format DNS records for ITGlue notes
+     * Build flexible asset traits for a domain
      */
-    protected function formatDnsRecordsForNotes(array $dnsRecords): string
+    protected function buildDomainTraits(Domain $domain, array $dnsRecords): array
     {
-        if (empty($dnsRecords)) {
-            return "No DNS records available.";
+        $traits = [];
+
+        if ($domainKey = $this->traitKey('domain')) {
+            $traits[$domainKey] = $domain->name;
         }
 
-        $notes = "=== DNS Records (Auto-synced from Domain Dash) ===\n";
-        $notes .= "Last Updated: " . now()->format('Y-m-d H:i:s') . "\n\n";
+        if ($nameServersKey = $this->traitKey('name_servers')) {
+            $nameServers = $this->formatNameServers($domain->name_servers);
+            if ($nameServers !== null) {
+                $traits[$nameServersKey] = $nameServers;
+            }
+        }
+
+        if ($expiryKey = $this->traitKey('expiry')) {
+            $expiry = $domain->expiry_date ? $domain->expiry_date->toDateString() : null;
+            if ($expiry !== null) {
+                $traits[$expiryKey] = $expiry;
+            }
+        }
+
+        if ($whoisKey = $this->traitKey('whois')) {
+            $traits[$whoisKey] = 'WHOIS data not available from DomainDash at this time.';
+        }
+
+        if ($dnsKey = $this->traitKey('dns')) {
+            $traits[$dnsKey] = $this->formatDnsRecordsAsHtml($dnsRecords);
+        }
+
+        return $traits;
+    }
+
+    /**
+     * Format name servers for flexible asset traits
+     */
+    protected function formatNameServers($nameServers): ?string
+    {
+        if (empty($nameServers)) {
+            return null;
+        }
+
+        if (is_array($nameServers)) {
+            $filtered = array_filter($nameServers, fn ($ns) => $ns !== null && $ns !== '');
+            return empty($filtered) ? null : implode("\n", $filtered);
+        }
+
+        return trim((string) $nameServers) ?: null;
+    }
+
+    /**
+     * Format DNS records as HTML for flexible asset rich text fields
+     */
+    protected function formatDnsRecordsAsHtml(array $dnsRecords): string
+    {
+        if (empty($dnsRecords)) {
+            return '<div>No DNS records available.</div>';
+        }
+
+        $html = '<div style="font-family:Arial, sans-serif;">';
+        $html .= '<p><strong>DNS Records (Auto-synced from DomainDash)</strong><br />';
+        $html .= 'Last Updated: ' . now()->format('Y-m-d H:i:s') . '</p>';
 
         $recordsByType = [];
         foreach ($dnsRecords as $record) {
             $type = is_object($record) ? ($record->type ?? 'UNKNOWN') : ($record['type'] ?? 'UNKNOWN');
-            if (!isset($recordsByType[$type])) {
-                $recordsByType[$type] = [];
-            }
             $recordsByType[$type][] = $record;
         }
 
         foreach ($recordsByType as $type => $records) {
-            $notes .= "--- {$type} Records ---\n";
+            $html .= '<h4 style="margin:8px 0 4px;">' . htmlspecialchars($type) . ' Records</h4>';
+            $html .= '<ul style="margin:0 0 12px 16px; padding:0;">';
             foreach ($records as $record) {
                 if (is_object($record)) {
                     $hostname = $record->hostName ?? $record->hostname ?? '';
                     $content = $record->content ?? '';
                     $ttl = $record->ttl ?? '';
-                    $prio = isset($record->prio) && $record->prio > 0 ? " (Priority: {$record->prio})" : '';
+                    $prio = isset($record->prio) && $record->prio > 0 ? ' (Priority: ' . $record->prio . ')' : '';
                 } else {
                     $hostname = $record['hostName'] ?? $record['hostname'] ?? '';
                     $content = $record['content'] ?? '';
                     $ttl = $record['ttl'] ?? '';
-                    $prio = isset($record['prio']) && $record['prio'] > 0 ? " (Priority: {$record['prio']})" : '';
+                    $prio = isset($record['prio']) && $record['prio'] > 0 ? ' (Priority: ' . $record['prio'] . ')' : '';
                 }
-                
-                $notes .= "  {$hostname} -> {$content} [TTL: {$ttl}]{$prio}\n";
+
+                $html .= '<li style="margin-bottom:4px;">';
+                $html .= '<strong>' . htmlspecialchars((string) $hostname) . '</strong> → ';
+                $html .= '<code>' . htmlspecialchars((string) $content) . '</code> ';
+                $html .= '<span style="color:#64748b;">TTL: ' . htmlspecialchars((string) $ttl) . $prio . '</span>';
+                $html .= '</li>';
             }
-            $notes .= "\n";
+            $html .= '</ul>';
         }
 
-        return $notes;
+        $html .= '</div>';
+
+        return $html;
     }
 }
