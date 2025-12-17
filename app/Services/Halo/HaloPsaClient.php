@@ -291,10 +291,21 @@ class HaloPsaClient
      */
     public function updateAsset(int $assetId, array $data): array
     {
-        // Halo updates use PUT on the asset/{id} endpoint. POST can return 405.
-        return $this->request('PUT', 'asset/' . $assetId, [
-            'json' => array_merge(['id' => $assetId], $data),
+        // Halo asset updates use POST on /asset with an array payload, the same
+        // shape as create. Including the ID tells Halo to update instead of
+        // create. Using PUT on /asset/{id} returns 405.
+        $payload = array_merge(['id' => $assetId], $data);
+
+        $result = $this->request('POST', 'asset', [
+            'json' => [$payload],
         ]);
+
+        // Unwrap array responses to a single asset for consistency
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
     }
 
     /**
