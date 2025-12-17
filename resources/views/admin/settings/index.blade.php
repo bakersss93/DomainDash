@@ -1210,15 +1210,15 @@
                 overlay.innerHTML = `
                     <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:24px;min-width:320px;text-align:center;color:#e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
                         <div style="font-size:18px;font-weight:700;margin-bottom:12px;">Syncing to IT Glue…</div>
-                        <div style="width:100%;background:rgba(148,163,184,0.2);border-radius:9999px;overflow:hidden;">
-                            <div id="itglueProgressBar" style="width:35%;height:10px;background:linear-gradient(135deg,#f59e0b,#d97706);animation:glow 1.2s ease-in-out infinite alternate;"></div>
+                        <div style="display:flex;align-items:center;justify-content:center;margin:12px 0;">
+                            <div style="width:42px;height:42px;border:4px solid rgba(245,158,11,0.35);border-top-color:#f59e0b;border-radius:50%;animation:itglue-spin 1s linear infinite;"></div>
                         </div>
-                        <div style="margin-top:10px;font-size:13px;color:#cbd5e1;">Please keep this tab open while we sync.</div>
+                        <div style="margin-top:6px;font-size:13px;color:#cbd5e1;">Please keep this tab open while we sync.</div>
                     </div>
                     <style>
-                        @keyframes glow {
-                            from { width: 20%; opacity: 0.7; }
-                            to   { width: 80%; opacity: 1; }
+                        @keyframes itglue-spin {
+                            from { transform: rotate(0deg); }
+                            to { transform: rotate(360deg); }
                         }
                     </style>
                 `;
