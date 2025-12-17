@@ -58,11 +58,98 @@
                 <div style="font-weight:600;margin-bottom:8px;">Nameserver information</div>
                 <div style="font-size:14px;opacity:.8;margin-bottom:4px;">Nameservers</div>
                 <div style="font-size:14px;">
-                    {{-- placeholder – later you can pull this from Synergy or your DNS store --}}
-                    <div>ns1.nameserver.net.au</div>
-                    <div>ns2.nameserver.net.au</div>
-                    <div>ns3.nameserver.net.au</div>
+                    @if($domain->name_servers && is_array($domain->name_servers))
+                        @foreach($domain->name_servers as $nameserver)
+                            @if($nameserver)
+                                <div>{{ $nameserver }}</div>
+                            @endif
+                        @endforeach
+                    @elseif($domain->name_servers)
+                        <div>{{ $domain->name_servers }}</div>
+                    @else
+                        <div style="opacity:.6;">No nameservers configured</div>
+                    @endif
                 </div>
+            </div>
+
+            <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
+                <div style="font-weight:600;margin-bottom:8px;">WHOIS Information</div>
+                @if($domain->whois_data && is_array($domain->whois_data))
+                    <div style="font-size:13px;">
+                        @if(isset($domain->whois_data['registrant']))
+                            @php
+                                $registrant = $domain->whois_data['registrant'];
+                            @endphp
+                            @if(!empty($registrant['name']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Registrant:</span>
+                                    <span>{{ $registrant['name'] }}</span>
+                                </div>
+                            @endif
+                            @if(!empty($registrant['organization']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Organization:</span>
+                                    <span>{{ $registrant['organization'] }}</span>
+                                </div>
+                            @endif
+                            @if(!empty($registrant['country']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Country:</span>
+                                    <span>{{ $registrant['country'] }}</span>
+                                </div>
+                            @endif
+                        @endif
+
+                        @if(isset($domain->whois_data['registrar']))
+                            @php
+                                $registrar = $domain->whois_data['registrar'];
+                            @endphp
+                            @if(!empty($registrar['name']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Registrar:</span>
+                                    <span>{{ $registrar['name'] }}</span>
+                                </div>
+                            @endif
+                        @endif
+
+                        @if(isset($domain->whois_data['domain']))
+                            @php
+                                $domainInfo = $domain->whois_data['domain'];
+                            @endphp
+                            @if(!empty($domainInfo['created_date']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Created:</span>
+                                    <span>{{ $domainInfo['created_date'] }}</span>
+                                </div>
+                            @endif
+                            @if(!empty($domainInfo['updated_date']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Updated:</span>
+                                    <span>{{ $domainInfo['updated_date'] }}</span>
+                                </div>
+                            @endif
+                            @if(!empty($domainInfo['expires_date']))
+                                <div style="margin-bottom:6px;">
+                                    <span style="opacity:.7;">Expires:</span>
+                                    <span>{{ $domainInfo['expires_date'] }}</span>
+                                </div>
+                            @endif
+                        @endif
+
+                        @if($domain->whois_synced_at)
+                            <div style="margin-top:10px;font-size:12px;opacity:.6;">
+                                Last synced: {{ $domain->whois_synced_at->format('Y-m-d H:i') }}
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <div style="font-size:14px;opacity:.6;">
+                        WHOIS data not available.
+                        @if(!$domain->whois_synced_at)
+                            Sync WHOIS data from the domain list.
+                        @endif
+                    </div>
+                @endif
             </div>
 
             <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">

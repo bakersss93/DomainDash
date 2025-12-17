@@ -216,8 +216,14 @@ class SyncController extends Controller
                 }
 
                 try {
-                    // Fetch WHOIS data from Synergy
-                    $whoisResponse = $this->fetchWhoisFromSynergy($domain->name);
+                    // Use IP2WHOIS data if available, otherwise fall back to Synergy
+                    if ($domain->whois_data && is_array($domain->whois_data)) {
+                        // Use IP2WHOIS data from database
+                        $whoisResponse = $this->formatIp2whoisDataForHalo($domain);
+                    } else {
+                        // Fall back to Synergy WHOIS
+                        $whoisResponse = $this->fetchWhoisFromSynergy($domain->name);
+                    }
 
                     // Extract nameservers from WHOIS response if not in domain record
                     $nameservers = '';
@@ -1087,5 +1093,157 @@ class SyncController extends Controller
         }
 
         return implode(', ', $nameservers);
+    }
+
+    /**
+     * Format IP2WHOIS data for HaloPSA notes field
+     */
+    private function formatIp2whoisDataForHalo(Domain $domain): array
+    {
+        if (empty($domain->whois_data) || !is_array($domain->whois_data)) {
+            return [
+                'formatted' => '',
+                'nameservers' => []
+            ];
+        }
+
+        $whoisData = $domain->whois_data;
+        $formatted = "=== WHOIS Information (IP2WHOIS) ===\n\n";
+
+        // Domain information
+        if (isset($whoisData['domain'])) {
+            $domainInfo = $whoisData['domain'];
+            $formatted .= "Domain: {$domain->name}\n";
+
+            if (!empty($domainInfo['domain_id'])) {
+                $formatted .= "Domain ID: {$domainInfo['domain_id']}\n";
+            }
+            if (!empty($domainInfo['status'])) {
+                $status = is_array($domainInfo['status'])
+                    ? implode(', ', $domainInfo['status'])
+                    : $domainInfo['status'];
+                $formatted .= "Status: {$status}\n";
+            }
+            if (!empty($domainInfo['created_date'])) {
+                $formatted .= "Created Date: {$domainInfo['created_date']}\n";
+            }
+            if (!empty($domainInfo['updated_date'])) {
+                $formatted .= "Updated Date: {$domainInfo['updated_date']}\n";
+            }
+            if (!empty($domainInfo['expires_date'])) {
+                $formatted .= "Expires Date: {$domainInfo['expires_date']}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Registrar information
+        if (isset($whoisData['registrar'])) {
+            $registrar = $whoisData['registrar'];
+            $formatted .= "Registrar Information:\n";
+
+            if (!empty($registrar['name'])) {
+                $formatted .= "  Name: {$registrar['name']}\n";
+            }
+            if (!empty($registrar['iana_id'])) {
+                $formatted .= "  IANA ID: {$registrar['iana_id']}\n";
+            }
+            if (!empty($registrar['url'])) {
+                $formatted .= "  URL: {$registrar['url']}\n";
+            }
+            if (!empty($registrar['email'])) {
+                $formatted .= "  Email: {$registrar['email']}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Registrant information
+        if (isset($whoisData['registrant'])) {
+            $registrant = $whoisData['registrant'];
+            $formatted .= "Registrant Information:\n";
+
+            if (!empty($registrant['name'])) {
+                $formatted .= "  Name: {$registrant['name']}\n";
+            }
+            if (!empty($registrant['organization'])) {
+                $formatted .= "  Organization: {$registrant['organization']}\n";
+            }
+            if (!empty($registrant['email'])) {
+                $formatted .= "  Email: {$registrant['email']}\n";
+            }
+            if (!empty($registrant['address'])) {
+                $formatted .= "  Address: {$registrant['address']}\n";
+            }
+            if (!empty($registrant['city'])) {
+                $formatted .= "  City: {$registrant['city']}\n";
+            }
+            if (!empty($registrant['state'])) {
+                $formatted .= "  State: {$registrant['state']}\n";
+            }
+            if (!empty($registrant['zip_code'])) {
+                $formatted .= "  Zip Code: {$registrant['zip_code']}\n";
+            }
+            if (!empty($registrant['country'])) {
+                $formatted .= "  Country: {$registrant['country']}\n";
+            }
+            if (!empty($registrant['phone'])) {
+                $formatted .= "  Phone: {$registrant['phone']}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Administrative contact
+        if (isset($whoisData['admin'])) {
+            $admin = $whoisData['admin'];
+            $formatted .= "Administrative Contact:\n";
+
+            if (!empty($admin['name'])) {
+                $formatted .= "  Name: {$admin['name']}\n";
+            }
+            if (!empty($admin['organization'])) {
+                $formatted .= "  Organization: {$admin['organization']}\n";
+            }
+            if (!empty($admin['email'])) {
+                $formatted .= "  Email: {$admin['email']}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Technical contact
+        if (isset($whoisData['tech'])) {
+            $tech = $whoisData['tech'];
+            $formatted .= "Technical Contact:\n";
+
+            if (!empty($tech['name'])) {
+                $formatted .= "  Name: {$tech['name']}\n";
+            }
+            if (!empty($tech['organization'])) {
+                $formatted .= "  Organization: {$tech['organization']}\n";
+            }
+            if (!empty($tech['email'])) {
+                $formatted .= "  Email: {$tech['email']}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Extract nameservers
+        $nameservers = [];
+        if (isset($whoisData['nameservers']) && is_array($whoisData['nameservers'])) {
+            $nameservers = $whoisData['nameservers'];
+            $formatted .= "Nameservers:\n";
+            foreach ($nameservers as $ns) {
+                $formatted .= "  - {$ns}\n";
+            }
+            $formatted .= "\n";
+        }
+
+        // Add sync timestamp
+        if ($domain->whois_synced_at) {
+            $formatted .= "Last Synced: " . $domain->whois_synced_at->format('Y-m-d H:i:s') . "\n";
+        }
+
+        return [
+            'formatted' => $formatted,
+            'nameservers' => $nameservers
+        ];
     }
 }
