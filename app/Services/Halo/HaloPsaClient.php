@@ -297,6 +297,89 @@ class HaloPsaClient
     }
 
     /**
+     * Find an asset for a client by inventory number / domain name
+     */
+    public function findAssetByInventory(int $clientId, int $assetTypeId, string $inventoryNumber): ?array
+    {
+        $result = $this->request('GET', 'asset', [
+            'query' => [
+                'client_id' => $clientId,
+                'assettype_id' => $assetTypeId,
+                'search' => $inventoryNumber,
+                'count' => 100,
+            ],
+        ]);
+
+        $assets = $result['assets']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        foreach ($assets as $asset) {
+            $inventory = $asset['inventory_number']
+                ?? $asset['InventoryNumber']
+                ?? $asset['inventory_id']
+                ?? $asset['inventoryid']
+                ?? $asset['key_field']
+                ?? $asset['KeyField']
+                ?? null;
+
+            if ($inventory && strcasecmp((string) $inventory, $inventoryNumber) === 0) {
+                return $asset;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Try to determine the default site for a client
+     */
+    public function getDefaultSiteForClient(int $clientId): array
+    {
+        $client = $this->getClient($clientId);
+
+        $siteId = $client['site_id']
+            ?? $client['siteid']
+            ?? $client['SiteId']
+            ?? $client['site_id_default']
+            ?? null;
+
+        $siteName = $client['site_name']
+            ?? $client['sitename']
+            ?? $client['SiteName']
+            ?? null;
+
+        // If no direct site info is present, try the sites list
+        if ((!$siteId || !$siteName) && isset($client['sites']) && is_array($client['sites'])) {
+            foreach ($client['sites'] as $site) {
+                $candidateName = $site['name'] ?? $site['Name'] ?? null;
+                $candidateId = $site['id'] ?? $site['Id'] ?? null;
+
+                if ($candidateName && strcasecmp($candidateName, 'Main') === 0) {
+                    $siteId = $candidateId ?? $siteId;
+                    $siteName = $candidateName;
+                    break;
+                }
+
+                if (!$siteId && $candidateId) {
+                    $siteId = $candidateId;
+                    $siteName = $candidateName;
+                }
+            }
+        }
+
+        if (!$siteName && $siteId) {
+            $siteName = 'Main';
+        }
+
+        return [
+            'site_id' => $siteId,
+            'site_name' => $siteName,
+        ];
+    }
+
+    /**
      * Update domain asset with DNS records
      */
     public function syncDomainAssetDns(\App\Models\Domain $domain, int $assetId, ?array $dnsRecords = null): array

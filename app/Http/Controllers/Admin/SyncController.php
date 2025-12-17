@@ -246,12 +246,21 @@ class SyncController extends Controller
                         : (string) $domain->expiry_date;
 
                     $whoisNotes = $whoisResponse['formatted'] ?? '';
+                    $clientHaloId = (int) $domain->client->halopsa_reference;
+
+                    // Determine client site (default to "Main" when possible)
+                    $clientSite = $halo->getDefaultSiteForClient($clientHaloId);
+                    $siteId = $clientSite['site_id'] ?? null;
+                    $siteName = $clientSite['site_name'] ?? 'Main';
 
                     // Create domain asset in Halo - include both key fields and the fields array so mandatory fields are satisfied
                     $assetData = [
                         // Include explicit client identifiers to ensure Halo assigns the asset
-                        'client_id' => (int) $domain->client->halopsa_reference,
-                        'clientid' => (int) $domain->client->halopsa_reference,
+                        'client_id' => $clientHaloId,
+                        'clientid' => $clientHaloId,
+                        'site_id' => $siteId,
+                        'siteid' => $siteId,
+                        'site_name' => $siteName,
                         'assettype_id' => $domainAssetTypeId,
                         'inventory_number' => $domain->name,
                         'key_field' => $domain->name,  // Domain Name
@@ -278,14 +287,36 @@ class SyncController extends Controller
                         ]
                     ];
 
-                    Log::info('Creating domain asset in Halo', [
-                        'domain' => $domain->name,
-                        'client_id' => $domain->client->halopsa_reference,
-                        'asset_type_id' => $domainAssetTypeId,
-                        'payload' => json_encode($assetData, JSON_PRETTY_PRINT)
-                    ]);
+                    // If an asset already exists for this domain, update it instead of creating a duplicate
+                    $existingAsset = $halo->findAssetByInventory($clientHaloId, $domainAssetTypeId, $domain->name);
+                    if ($existingAsset) {
+                        $assetId = $existingAsset['id'] ?? $existingAsset['Id'] ?? null;
+                        if ($assetId) {
+                            Log::info('Updating existing domain asset in Halo', [
+                                'domain' => $domain->name,
+                                'client_id' => $clientHaloId,
+                                'asset_id' => $assetId,
+                                'payload' => json_encode($assetData, JSON_PRETTY_PRINT)
+                            ]);
+                            $result = $halo->updateAsset((int) $assetId, $assetData);
+                        } else {
+                            Log::warning('Existing domain asset found without ID, creating new asset instead', [
+                                'domain' => $domain->name,
+                                'client_id' => $clientHaloId,
+                                'existing_asset' => $existingAsset
+                            ]);
+                            $result = $halo->createDomainAsset($assetData);
+                        }
+                    } else {
+                        Log::info('Creating domain asset in Halo', [
+                            'domain' => $domain->name,
+                            'client_id' => $domain->client->halopsa_reference,
+                            'asset_type_id' => $domainAssetTypeId,
+                            'payload' => json_encode($assetData, JSON_PRETTY_PRINT)
+                        ]);
 
-                    $result = $halo->createDomainAsset($assetData);
+                        $result = $halo->createDomainAsset($assetData);
+                    }
 
                     Log::info('Halo API response', [
                         'domain' => $domain->name,
@@ -301,12 +332,12 @@ class SyncController extends Controller
 
                         $syncedCount++;
 
-                        Log::info('Created domain asset in Halo', [
+                        Log::info('Saved domain asset in Halo', [
                             'domain' => $domain->name,
                             'asset_id' => $assetId
                         ]);
                     } else {
-                        $errorMsg = "Domain {$domain->name}: Failed to create asset - no ID in response";
+                        $errorMsg = "Domain {$domain->name}: Failed to sync asset - no ID in response";
                         $errors[] = $errorMsg;
                         Log::error($errorMsg, ['response' => $result]);
                     }
