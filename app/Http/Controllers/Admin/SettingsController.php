@@ -99,10 +99,39 @@ class SettingsController extends Controller
 
     public function testSmtp(Request $request)
     {
-        $request->validate(['to'=>'required|email']);
-        Mail::raw('DomainDash SMTP test OK', function($m) use ($request){
-            $m->to($request->to)->subject('DomainDash SMTP Test');
-        });
-        return back()->with('status','Test email sent.');
+        $request->validate(['to' => 'required|email']);
+
+        // Load SMTP settings from database
+        $smtp = Setting::get('smtp', []);
+
+        // Validate that SMTP settings are configured
+        if (empty($smtp['host']) || empty($smtp['port']) || empty($smtp['from'])) {
+            return back()->withErrors(['smtp' => 'SMTP settings are not fully configured. Please configure host, port, and from address.']);
+        }
+
+        try {
+            // Temporarily configure mail settings using database values
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.transport' => 'smtp',
+                'mail.mailers.smtp.host' => $smtp['host'],
+                'mail.mailers.smtp.port' => $smtp['port'],
+                'mail.mailers.smtp.username' => $smtp['username'] ?? null,
+                'mail.mailers.smtp.password' => $smtp['password'] ?? null,
+                'mail.mailers.smtp.encryption' => $smtp['encryption'] ?? null,
+                'mail.from.address' => $smtp['from'],
+                'mail.from.name' => $smtp['from_name'] ?? 'DomainDash',
+            ]);
+
+            // Send test email
+            Mail::raw('This is a test email from DomainDash. If you received this, your SMTP configuration is working correctly!', function($m) use ($request) {
+                $m->to($request->to)
+                  ->subject('DomainDash SMTP Test');
+            });
+
+            return back()->with('status', 'Test email sent successfully to ' . $request->to);
+        } catch (\Exception $e) {
+            return back()->withErrors(['smtp' => 'Failed to send test email: ' . $e->getMessage()]);
+        }
     }
 }
