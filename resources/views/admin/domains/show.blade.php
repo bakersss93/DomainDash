@@ -59,16 +59,36 @@
             <div style="font-size:14px;opacity:.8;margin-bottom:4px;">Nameservers</div>
             <div style="font-size:14px;">
                     @php
-                        $nameserverList = collect($nameservers ?? [])
-                            ->filter(fn($ns) => !empty($ns))
+                        $nameserverList = collect($nameserverDetails ?? [])
+                            ->map(function($ns) {
+                                $host = $ns['host'] ?? '';
+                                $ips = collect($ns['ips'] ?? [])->filter()->values();
+                                return [
+                                    'host' => $host,
+                                    'ips' => $ips,
+                                ];
+                            })
+                            ->filter(fn($ns) => !empty($ns['host']))
                             ->values();
+
+                        if ($nameserverList->isEmpty()) {
+                            $nameserverList = collect($nameservers ?? [])->filter()->map(fn($ns) => [
+                                'host' => $ns,
+                                'ips' => collect(),
+                            ]);
+                        }
                     @endphp
 
                     @if($nameserverList->isEmpty())
                         <div style="opacity:.7;">No nameservers available. Sync WHOIS to populate.</div>
                     @else
                         @foreach($nameserverList as $ns)
-                            <div>{{ $ns }}</div>
+                            <div>
+                                <div>{{ $ns['host'] }}</div>
+                                @if($ns['ips']->isNotEmpty())
+                                    <div style="font-size:12px;opacity:.7;">{{ $ns['ips']->implode(', ') }}</div>
+                                @endif
+                            </div>
                         @endforeach
                     @endif
             </div>

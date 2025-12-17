@@ -80,13 +80,16 @@ class DomainController extends Controller
             $nameservers = array_filter(array_map('trim', explode(',', $nameservers)));
         }
 
+        $nameserverDetails = $whoisOverview['nameservers_detail'] ?? [];
+
         return view('admin.domains.show', compact(
             'domain',
             'dnsLabel',
             'clients',
             'whoisOverview',
             'whoisText',
-            'nameservers'
+            'nameservers',
+            'nameserverDetails'
         ));
     }
 
