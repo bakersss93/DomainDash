@@ -23,7 +23,18 @@ class WhoisFormatter
         $nameservers = array_values(array_unique(array_filter(array_map('trim', $nameservers))));
 
         $registrar = $data['registrar']['name']
+            ?? $data['registrar_name']
             ?? $data['registrar']
+            ?? null;
+
+        $registrarUrl = $data['registrar']['url']
+            ?? $data['registrar_url']
+            ?? $data['whois_server']
+            ?? null;
+
+        $registrarWhois = $data['registrar']['whois_server']
+            ?? $data['registrar_whois_server']
+            ?? $data['whois_server']
             ?? null;
 
         $registrantName = $data['registrant']['name']
@@ -40,6 +51,43 @@ class WhoisFormatter
             ?? $data['registrant_email']
             ?? null;
 
+        $registrantPhone = $data['registrant']['phone']
+            ?? $data['registrant_phone']
+            ?? null;
+
+        $registrantCountry = $data['registrant']['country']
+            ?? $data['registrant_country']
+            ?? null;
+
+        $registrantState = $data['registrant']['state']
+            ?? $data['registrant_state']
+            ?? null;
+
+        $registrantCity = $data['registrant']['city']
+            ?? $data['registrant_city']
+            ?? null;
+
+        $registrantPostal = $data['registrant']['postal_code']
+            ?? $data['registrant_postal_code']
+            ?? null;
+
+        $registrantAddress = $data['registrant']['street_address']
+            ?? $data['registrant_address']
+            ?? null;
+
+        $statusRaw = $data['domain_status']
+            ?? $data['status']
+            ?? null;
+
+        $statusList = [];
+        if (is_array($statusRaw)) {
+            $statusList = $statusRaw;
+        } elseif (is_string($statusRaw)) {
+            $statusList = preg_split('/\s*[,;\n]+\s*/', $statusRaw);
+        }
+
+        $statusList = array_values(array_filter(array_map('trim', $statusList)));
+
         $syncedLabel = null;
         if ($syncedAt) {
             $syncedLabel = $syncedAt instanceof Carbon
@@ -50,8 +98,12 @@ class WhoisFormatter
         return [
             'has_data' => !empty($data),
             'domain' => $data['domain_name'] ?? $domain,
+            'domain_id' => $data['domain_id'] ?? $data['registry_domain_id'] ?? null,
             'registrar' => $registrar,
-            'status' => $data['status'] ?? null,
+            'registrar_url' => $registrarUrl,
+            'registrar_whois' => $registrarWhois,
+            'status' => $statusList ? implode(', ', $statusList) : null,
+            'status_list' => $statusList,
             'created_at' => self::formatDate($data['create_date'] ?? $data['created'] ?? null),
             'updated_at' => self::formatDate($data['update_date'] ?? $data['updated'] ?? null),
             'expires_at' => self::formatDate($data['expiry_date'] ?? $data['expires'] ?? null),
@@ -59,6 +111,12 @@ class WhoisFormatter
                 ? $registrantName . ' (' . $registrantOrg . ')'
                 : ($registrantName ?? $registrantOrg),
             'registrant_email' => $registrantEmail,
+            'registrant_phone' => $registrantPhone,
+            'registrant_address' => $registrantAddress,
+            'registrant_city' => $registrantCity,
+            'registrant_state' => $registrantState,
+            'registrant_postal' => $registrantPostal,
+            'registrant_country' => $registrantCountry,
             'nameservers' => $nameservers,
             'synced_at' => $syncedLabel,
         ];
@@ -85,6 +143,18 @@ class WhoisFormatter
             $lines[] = 'Registrar: ' . $overview['registrar'];
         }
 
+        if ($overview['registrar_url']) {
+            $lines[] = 'Registrar URL: ' . $overview['registrar_url'];
+        }
+
+        if ($overview['registrar_whois']) {
+            $lines[] = 'Registrar WHOIS: ' . $overview['registrar_whois'];
+        }
+
+        if ($overview['domain_id']) {
+            $lines[] = 'Domain ID: ' . $overview['domain_id'];
+        }
+
         if ($overview['status']) {
             $lines[] = 'Status: ' . $overview['status'];
         }
@@ -107,6 +177,25 @@ class WhoisFormatter
 
         if ($overview['registrant_email']) {
             $lines[] = 'Registrant Email: ' . $overview['registrant_email'];
+        }
+
+        if ($overview['registrant_phone']) {
+            $lines[] = 'Registrant Phone: ' . $overview['registrant_phone'];
+        }
+
+        $locationParts = array_filter([
+            $overview['registrant_city'] ?? null,
+            $overview['registrant_state'] ?? null,
+            $overview['registrant_postal'] ?? null,
+            $overview['registrant_country'] ?? null,
+        ]);
+
+        if (!empty($locationParts)) {
+            $lines[] = 'Registrant Location: ' . implode(', ', $locationParts);
+        }
+
+        if ($overview['registrant_address']) {
+            $lines[] = 'Registrant Address: ' . $overview['registrant_address'];
         }
 
         if (!empty($overview['nameservers'])) {

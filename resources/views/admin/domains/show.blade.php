@@ -99,12 +99,34 @@
                     <div>{{ $whoisOverview['registrar'] ?? '—' }}</div>
                 </div>
                 <div>
+                    <div style="opacity:.75;">Domain ID</div>
+                    <div>{{ $whoisOverview['domain_id'] ?? '—' }}</div>
+                </div>
+                <div>
                     <div style="opacity:.75;">Registrant</div>
                     <div>{{ $whoisOverview['registrant'] ?? '—' }}</div>
                 </div>
                 <div>
                     <div style="opacity:.75;">Registrant email</div>
                     <div>{{ $whoisOverview['registrant_email'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant phone</div>
+                    <div>{{ $whoisOverview['registrant_phone'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrant location</div>
+                    <div>
+                        @php
+                            $locationParts = array_filter([
+                                $whoisOverview['registrant_city'] ?? null,
+                                $whoisOverview['registrant_state'] ?? null,
+                                $whoisOverview['registrant_postal'] ?? null,
+                                $whoisOverview['registrant_country'] ?? null,
+                            ]);
+                        @endphp
+                        {{ $locationParts ? implode(', ', $locationParts) : '—' }}
+                    </div>
                 </div>
                 <div>
                     <div style="opacity:.75;">Created</div>
@@ -121,6 +143,14 @@
                 <div>
                     <div style="opacity:.75;">Status</div>
                     <div>{{ $whoisOverview['status'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrar URL</div>
+                    <div style="word-break:break-all;">{{ $whoisOverview['registrar_url'] ?? '—' }}</div>
+                </div>
+                <div>
+                    <div style="opacity:.75;">Registrar WHOIS</div>
+                    <div style="word-break:break-all;">{{ $whoisOverview['registrar_whois'] ?? '—' }}</div>
                 </div>
             </div>
 
