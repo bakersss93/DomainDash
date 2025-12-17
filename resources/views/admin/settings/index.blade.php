@@ -1164,6 +1164,8 @@
                 return;
             }
 
+            showItGlueSyncProgress();
+
             try {
                 const response = await fetch('/admin/sync/itglue/configurations/sync', {
                     method: 'POST',
@@ -1185,6 +1187,50 @@
                 }
             } catch (error) {
                 alert('Sync failed: ' + error.message);
+            } finally {
+                hideItGlueSyncProgress();
+            }
+        }
+
+        function showItGlueSyncProgress() {
+            let overlay = document.getElementById('itglueSyncProgress');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'itglueSyncProgress';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.background = 'rgba(0,0,0,0.65)';
+                overlay.style.zIndex = '10000';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.innerHTML = `
+                    <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:24px;min-width:320px;text-align:center;color:#e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+                        <div style="font-size:18px;font-weight:700;margin-bottom:12px;">Syncing to IT Glue…</div>
+                        <div style="width:100%;background:rgba(148,163,184,0.2);border-radius:9999px;overflow:hidden;">
+                            <div id="itglueProgressBar" style="width:35%;height:10px;background:linear-gradient(135deg,#f59e0b,#d97706);animation:glow 1.2s ease-in-out infinite alternate;"></div>
+                        </div>
+                        <div style="margin-top:10px;font-size:13px;color:#cbd5e1;">Please keep this tab open while we sync.</div>
+                    </div>
+                    <style>
+                        @keyframes glow {
+                            from { width: 20%; opacity: 0.7; }
+                            to   { width: 80%; opacity: 1; }
+                        }
+                    </style>
+                `;
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+        }
+
+        function hideItGlueSyncProgress() {
+            const overlay = document.getElementById('itglueSyncProgress');
+            if (overlay) {
+                overlay.style.display = 'none';
             }
         }
     </script>

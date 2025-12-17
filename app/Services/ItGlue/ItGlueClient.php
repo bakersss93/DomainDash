@@ -278,7 +278,7 @@ class ItGlueClient
         }
 
         if ($dnsKey = $this->traitKey('dns')) {
-            $traits[$dnsKey] = $this->formatDnsRecordsAsHtml($dnsRecords);
+            $traits[$dnsKey] = $this->formatDnsRecordsAsHtml($dnsRecords, $domain);
         }
 
         return $traits;
@@ -304,15 +304,24 @@ class ItGlueClient
     /**
      * Format DNS records as HTML for flexible asset rich text fields
      */
-    protected function formatDnsRecordsAsHtml(array $dnsRecords): string
+    protected function formatDnsRecordsAsHtml(array $dnsRecords, Domain $domain): string
     {
-        if (empty($dnsRecords)) {
-            return '<div>No DNS records available.</div>';
-        }
-
         $html = '<div style="font-family:Arial, sans-serif;">';
         $html .= '<p><strong>DNS Records (Auto-synced from DomainDash)</strong><br />';
         $html .= 'Last Updated: ' . now()->format('Y-m-d H:i:s') . '</p>';
+
+        $dnsModeLabel = $this->formatDnsModeLabel($domain->dns_config);
+        $nameservers  = $this->formatNameServers($domain->name_servers) ?? 'Not set';
+
+        if ($dnsModeLabel) {
+            $html .= '<p style="margin:8px 0 12px;"><strong>DNS Mode:</strong> ' . htmlspecialchars($dnsModeLabel) . '<br />';
+            $html .= '<strong>Nameservers:</strong><br /><span style="white-space:pre-line;">' . htmlspecialchars($nameservers) . '</span></p>';
+        }
+
+        if (empty($dnsRecords)) {
+            $html .= '<div>No DNS records available.</div></div>';
+            return $html;
+        }
 
         $recordsByType = [];
         foreach ($dnsRecords as $record) {
@@ -321,8 +330,14 @@ class ItGlueClient
         }
 
         foreach ($recordsByType as $type => $records) {
-            $html .= '<h4 style="margin:8px 0 4px;">' . htmlspecialchars($type) . ' Records</h4>';
-            $html .= '<ul style="margin:0 0 12px 16px; padding:0;">';
+            $html .= '<h4 style="margin:12px 0 6px;">' . htmlspecialchars($type) . ' Records</h4>';
+            $html .= '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px;">';
+            $html .= '<thead><tr style="background:#f8fafc;color:#111827;text-align:left;">';
+            $html .= '<th style="padding:6px 8px;border:1px solid #e2e8f0;">Host</th>';
+            $html .= '<th style="padding:6px 8px;border:1px solid #e2e8f0;">Value</th>';
+            $html .= '<th style="padding:6px 8px;border:1px solid #e2e8f0;">TTL</th>';
+            $html .= '<th style="padding:6px 8px;border:1px solid #e2e8f0;">Priority</th>';
+            $html .= '</tr></thead><tbody>';
             foreach ($records as $record) {
                 if (is_object($record)) {
                     $hostname = $record->hostName ?? $record->hostname ?? '';
@@ -336,17 +351,37 @@ class ItGlueClient
                     $prio = isset($record['prio']) && $record['prio'] > 0 ? ' (Priority: ' . $record['prio'] . ')' : '';
                 }
 
-                $html .= '<li style="margin-bottom:4px;">';
-                $html .= '<strong>' . htmlspecialchars((string) $hostname) . '</strong> → ';
-                $html .= '<code>' . htmlspecialchars((string) $content) . '</code> ';
-                $html .= '<span style="color:#64748b;">TTL: ' . htmlspecialchars((string) $ttl) . $prio . '</span>';
-                $html .= '</li>';
+                $html .= '<tr>'; 
+                $html .= '<td style="padding:6px 8px;border:1px solid #e2e8f0;">' . htmlspecialchars((string) $hostname) . '</td>';
+                $html .= '<td style="padding:6px 8px;border:1px solid #e2e8f0;"><code>' . htmlspecialchars((string) $content) . '</code></td>';
+                $html .= '<td style="padding:6px 8px;border:1px solid #e2e8f0;color:#64748b;">' . htmlspecialchars((string) $ttl) . '</td>';
+                $html .= '<td style="padding:6px 8px;border:1px solid #e2e8f0;color:#64748b;">' . htmlspecialchars($prio ?: '—') . '</td>';
+                $html .= '</tr>';
             }
-            $html .= '</ul>';
+            $html .= '</tbody></table>';
         }
 
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * Render a human-friendly DNS mode label
+     */
+    protected function formatDnsModeLabel($dnsConfig): ?string
+    {
+        if ($dnsConfig === null) {
+            return null;
+        }
+
+        $map = [
+            1 => 'Custom nameservers',
+            2 => 'URL & Email forwarding',
+            3 => 'Parked',
+            4 => 'DNS hosting',
+        ];
+
+        return $map[(int) $dnsConfig] ?? (string) $dnsConfig;
     }
 }
