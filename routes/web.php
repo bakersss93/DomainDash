@@ -53,6 +53,8 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
         Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
         Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
+        Route::get('/sync/ip2whois/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getIp2whoisDomains']);
+        Route::post('/sync/ip2whois/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncIp2whoisDomains']);
 
         // ============================================================================
         // CLIENTS ROUTES

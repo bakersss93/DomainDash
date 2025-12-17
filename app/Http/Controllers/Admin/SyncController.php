@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Domain;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\Ip2whois\Ip2whoisClient;
 use SoapClient;
 
 class SyncController extends Controller
@@ -645,6 +646,81 @@ class SyncController extends Controller
 
             return response()->json(['items' => $items]);
         } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * List domains for IP2WHOIS syncing
+     */
+    public function getIp2whoisDomains()
+    {
+        try {
+            $domains = Domain::with('client')->get();
+
+            $items = $domains->map(function ($domain) {
+                return [
+                    'id' => $domain->id,
+                    'name' => $domain->name,
+                    'client' => optional($domain->client)->business_name,
+                    'synced_at' => $domain->whois_synced_at,
+                    'has_data' => !empty($domain->whois_data),
+                ];
+            });
+
+            return response()->json(['items' => $items]);
+        } catch (\Exception $e) {
+            Log::error('Error loading IP2WHOIS domains: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Sync WHOIS data from IP2WHOIS for selected domains
+     */
+    public function syncIp2whoisDomains(Request $request)
+    {
+        $items = $request->input('items', []);
+
+        $synced = 0;
+        $results = [];
+
+        try {
+            $client = new Ip2whoisClient();
+
+            foreach ($items as $item) {
+                $domain = Domain::find($item['id'] ?? null);
+
+                if (!$domain) {
+                    $results[] = ['id' => $item['id'] ?? null, 'success' => false, 'error' => 'Domain not found'];
+                    continue;
+                }
+
+                $lookup = $client->lookup($domain->name);
+
+                if ($lookup['success']) {
+                    $domain->whois_data = $lookup['data'];
+                    $domain->whois_synced_at = now();
+                    $domain->save();
+
+                    $synced++;
+                    $results[] = ['id' => $domain->id, 'success' => true];
+                } else {
+                    $results[] = [
+                        'id' => $domain->id,
+                        'success' => false,
+                        'error' => $lookup['error'] ?? 'Lookup failed'
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'synced_count' => $synced,
+                'results' => $results
+            ]);
+        } catch (\Exception $e) {
+            Log::error('IP2WHOIS sync error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

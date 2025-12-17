@@ -18,6 +18,7 @@ class SettingsController extends Controller
             'synergy'  => Setting::get('synergy', []),
             'halo'     => Setting::get('halo', []),
             'itglue'   => Setting::get('itglue', []),
+            'ip2whois' => Setting::get('ip2whois', []),
             'backup'   => Setting::get('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
         ];
@@ -32,6 +33,7 @@ class SettingsController extends Controller
             'synergy'       => 'array',
             'halo'          => 'array',
             'itglue'        => 'array',
+            'ip2whois'      => 'array',
             'backup'        => 'array',
             'notifications' => 'array',
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
