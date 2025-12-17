@@ -203,6 +203,12 @@
                                 <div class="dd-domain-option-label">Password / auth code</div>
                             </a>
 
+                            {{-- WHOIS sync --}}
+                            <button type="button" class="dd-domain-option" onclick="syncDomainWhois({{ $domain->id }}, '{{ $domain->name }}')">
+                                <div class="dd-domain-option-icon">🔍</div>
+                                <div class="dd-domain-option-label">WHOIS sync</div>
+                            </button>
+
                             {{-- Delete placeholder --}}
                             <a href="#" class="dd-domain-option dd-domain-option-danger">
                                 <div class="dd-domain-option-icon">✖️</div>
@@ -338,6 +344,37 @@
                 });
             }
         });
+
+        async function syncDomainWhois(domainId, domainName) {
+            if (!confirm(`Sync WHOIS data for ${domainName}?`)) {
+                return;
+            }
+
+            showGlobalSpinner('Syncing WHOIS…');
+
+            try {
+                const response = await fetch('/admin/sync/ip2whois/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ items: [{ id: domainId }] })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`WHOIS sync completed (updated ${data.synced_count} domain${data.synced_count === 1 ? '' : 's'})`);
+                } else {
+                    alert('WHOIS sync failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('WHOIS sync failed: ' + error.message);
+            } finally {
+                hideGlobalSpinner();
+            }
+        }
 
         /**
          * Tiny “searchable select” widget.

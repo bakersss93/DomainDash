@@ -12,13 +12,15 @@ class Domain extends Model
     use HasFactory;
 
     protected $fillable = [
-        'client_id','name','status','expiry_date','auto_renew','name_servers','dns_config','registry_id','transfer_status','halo_asset_id','itglue_id'
+        'client_id','name','status','expiry_date','auto_renew','name_servers','dns_config','registry_id','transfer_status','halo_asset_id','itglue_id','whois_data','whois_synced_at'
     ];
 
     protected $casts = [
         'name_servers' => 'array',
         'auto_renew'   => 'boolean',
-        'expiry_date'  => 'date'
+        'expiry_date'  => 'date',
+        'whois_data'   => 'array',
+        'whois_synced_at' => 'datetime'
     ];
 
     public function client()

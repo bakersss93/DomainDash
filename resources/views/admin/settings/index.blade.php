@@ -344,6 +344,95 @@
                            style="width:100%;padding:8px 10px;border-radius:4px;
                                   border:1px solid #e5e7eb;font-size:14px;">
                 </div>
+
+                @php
+                    $flexibleAssetTraits = $settings['itglue']['flexible_asset_traits'] ?? [
+                        'domain' => 'domain-name',
+                        'name_servers' => 'name-servers',
+                        'expiry' => 'expiry',
+                        'whois' => 'whois',
+                        'dns' => 'dns',
+                    ];
+                @endphp
+
+                <div style="margin-top:16px;">
+                    <label for="itglue_flexible_asset_type_id" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                        Flexible Asset Type ID
+                    </label>
+                    <input id="itglue_flexible_asset_type_id"
+                           type="text"
+                           name="itglue[flexible_asset_type_id]"
+                           value="{{ $settings['itglue']['flexible_asset_type_id'] ?? '' }}"
+                           placeholder="e.g. 4521154692859938"
+                           style="width:100%;padding:8px 10px;border-radius:4px;
+                                  border:1px solid #e5e7eb;font-size:14px;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Required when syncing domains to flexible assets.
+                    </small>
+                </div>
+
+                <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Domain trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][domain]" value="{{ $flexibleAssetTraits['domain'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="domain-name">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Name servers trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][name_servers]" value="{{ $flexibleAssetTraits['name_servers'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="name-servers">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Expiry trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][expiry]" value="{{ $flexibleAssetTraits['expiry'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="expiry">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">WHOIS trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][whois]" value="{{ $flexibleAssetTraits['whois'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="whois">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">DNS trait key</label>
+                        <input type="text" name="itglue[flexible_asset_traits][dns]" value="{{ $flexibleAssetTraits['dns'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="dns">
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            {{-- IP2WHOIS SECTION --}}
+            <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div class="settings-header" onclick="toggleSection('ip2whois')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);transition:background 0.2s;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+                            🌐
+                        </div>
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin:0;color:#f8fafc;">IP2WHOIS</h3>
+                            <p style="font-size:13px;color:#94a3b8;margin:0;">IP2Location.io WHOIS lookups</p>
+                        </div>
+                    </div>
+                    <svg id="ip2whois-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+                <div id="ip2whois-content" class="settings-content" style="padding:20px 24px;display:none;">
+
+                    <div style="margin-bottom:12px;">
+                        <label for="ip2whois_api_key" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                            API Key
+                        </label>
+                        <input id="ip2whois_api_key"
+                               type="text"
+                               name="ip2whois[api_key]"
+                               value="{{ $settings['ip2whois']['api_key'] ?? '' }}"
+                               placeholder="Enter IP2WHOIS API key"
+                               style="width:100%;padding:8px 10px;border-radius:4px;
+                                      border:1px solid #e5e7eb;font-size:14px;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            Get your key from IP2Location.io &gt; IP2WHOIS.
+                        </small>
+                    </div>
+
+                    <button type="button" class="btn-accent" style="margin-top:12px;" onclick="openIp2whoisModal();">
+                        🔍 Sync WHOIS (select domains)
+                    </button>
                 </div>
             </div>
 
@@ -653,6 +742,30 @@
         </div>
     </div>
 
+    {{-- IP2WHOIS Sync Modal --}}
+    <div id="ip2whoisSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:900px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔍 Sync WHOIS (IP2WHOIS)</h2>
+                <button onclick="closeIp2whoisModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;overflow-y:auto;flex:1;">
+                <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Domains</h3>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="loadIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">🔄 Refresh List</button>
+                        <button onclick="syncIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">✓ Sync Selected</button>
+                    </div>
+                </div>
+                <div id="ip2whoisDomainList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
+                    <div style="text-align:center;color:#94a3b8;padding:40px;">
+                        Click "Refresh List" to load domains
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function toggleSection(sectionName) {
             const content = document.getElementById(sectionName + '-content');
@@ -665,6 +778,16 @@
                 content.style.display = 'none';
                 icon.style.transform = 'rotate(0deg)';
             }
+        }
+
+        // IP2WHOIS Modal
+        function openIp2whoisModal() {
+            document.getElementById('ip2whoisSyncModal').style.display = 'flex';
+            loadIp2whoisDomains();
+        }
+
+        function closeIp2whoisModal() {
+            document.getElementById('ip2whoisSyncModal').style.display = 'none';
         }
 
         // Add hover effect to section headers
@@ -1046,6 +1169,99 @@
             }
         }
 
+        async function loadIp2whoisDomains() {
+            const listEl = document.getElementById('ip2whoisDomainList');
+            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains…</div>';
+
+            try {
+                const response = await fetch('/admin/sync/ip2whois/domains');
+                const data = await response.json();
+
+                if (data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    return;
+                }
+
+                renderIp2whoisDomainList(data.items || []);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${error.message}</div>`;
+            }
+        }
+
+        function renderIp2whoisDomainList(items) {
+            const listEl = document.getElementById('ip2whoisDomainList');
+
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                    <input type="checkbox" id="selectAllIp2whois" onchange="toggleAllIp2whois(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                    <div>Name</div>
+                    <div>Client</div>
+                    <div>Last synced</div>
+                    <div style="text-align:center;">Status</div>
+                </div>
+            `;
+
+            items.forEach(item => {
+                const statusColor = item.has_data ? '#10b981' : '#94a3b8';
+                const statusText = item.has_data ? 'Cached' : 'Not synced';
+                const syncedAt = item.synced_at ? new Date(item.synced_at).toLocaleString() : '—';
+
+                html += `
+                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
+                        <input type="checkbox" class="ip2whois-checkbox" data-item-id="${item.id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:#f8fafc;">${item.name}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${item.client || 'No client'}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${syncedAt}</div>
+                        <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        }
+
+        function toggleAllIp2whois(checkbox) {
+            document.querySelectorAll('.ip2whois-checkbox').forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        async function syncIp2whoisDomains() {
+            const selected = [];
+            document.querySelectorAll('.ip2whois-checkbox:checked').forEach(cb => {
+                selected.push({ id: cb.dataset.itemId });
+            });
+
+            if (selected.length === 0) {
+                alert('Please select at least one domain to sync');
+                return;
+            }
+
+            showGlobalSpinner('Syncing WHOIS data…');
+
+            try {
+                const response = await fetch('/admin/sync/ip2whois/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ items: selected })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`Synced ${data.synced_count} domain(s)`);
+                    loadIp2whoisDomains();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
+            } finally {
+                hideGlobalSpinner();
+            }
+        }
+
         async function loadItGlueConfigs() {
             const listEl = document.getElementById('itglueConfigList');
             listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading configuration items...</div>';
@@ -1115,6 +1331,8 @@
                 return;
             }
 
+            showItGlueSyncProgress();
+
             try {
                 const response = await fetch('/admin/sync/itglue/configurations/sync', {
                     method: 'POST',
@@ -1136,6 +1354,62 @@
                 }
             } catch (error) {
                 alert('Sync failed: ' + error.message);
+            } finally {
+                hideItGlueSyncProgress();
+            }
+        }
+
+        function showItGlueSyncProgress() {
+            showGlobalSpinner('Syncing to IT Glue…');
+        }
+
+        function hideItGlueSyncProgress() {
+            hideGlobalSpinner();
+        }
+
+        function showGlobalSpinner(message = 'Working…') {
+            let overlay = document.getElementById('globalSpinnerOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'globalSpinnerOverlay';
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.background = 'rgba(0,0,0,0.65)';
+                overlay.style.zIndex = '10000';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'center';
+                overlay.style.justifyContent = 'center';
+                overlay.innerHTML = `
+                    <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:24px;min-width:320px;text-align:center;color:#e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+                        <div id="globalSpinnerMessage" style="font-size:18px;font-weight:700;margin-bottom:12px;"></div>
+                        <div style="display:flex;align-items:center;justify-content:center;margin:12px 0;">
+                            <div style="width:42px;height:42px;border:4px solid rgba(245,158,11,0.35);border-top-color:#f59e0b;border-radius:50%;animation:global-spin 1s linear infinite;"></div>
+                        </div>
+                        <div style="margin-top:6px;font-size:13px;color:#cbd5e1;">Please keep this tab open while we process.</div>
+                    </div>
+                    <style>
+                        @keyframes global-spin {
+                            from { transform: rotate(0deg); }
+                            to { transform: rotate(360deg); }
+                        }
+                    </style>
+                `;
+                document.body.appendChild(overlay);
+            }
+            const msgEl = document.getElementById('globalSpinnerMessage');
+            if (msgEl) {
+                msgEl.textContent = message;
+            }
+            overlay.style.display = 'flex';
+        }
+
+        function hideGlobalSpinner() {
+            const overlay = document.getElementById('globalSpinnerOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
             }
         }
     </script>
