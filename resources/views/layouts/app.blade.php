@@ -25,7 +25,7 @@
             margin: 0;
             background: var(--bg);
             color: var(--text);
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: "Figtree", "Segoe UI", sans-serif;
         }
 
         .sidebar {
@@ -777,7 +777,7 @@
             </div>
         </div>
 
-        <div style="padding:16px;">
+        <div style="padding:20px;">
             @if (session('status'))
                 <div style="padding:12px;border:1px solid #10b981;background:#d1fae5;border-radius:4px;">
                     {{ session('status') }}

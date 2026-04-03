@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-    <div style="max-width: 900px; margin: 0 auto;">
+    <div class="dd-settings-page">
 
         {{-- Title --}}
-        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:#f8fafc;">
+        <h1 style="font-size:28px;font-weight:700;margin-bottom:8px;">
             Settings
         </h1>
-        <p style="font-size:14px;color:#94a3b8;margin-bottom:24px;">
+        <p style="font-size:14px;margin-bottom:24px;">
             Configure your DomainDash installation and integrations
         </p>
 
@@ -553,7 +553,7 @@
             </div>
 
             {{-- Action buttons --}}
-            <div style="padding:20px;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;">
+            <div class="dd-settings-panel" style="padding:20px;">
                 <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
                     <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
                         💾 Save All Settings
@@ -569,7 +569,7 @@
         </form>
 
         {{-- SMTP test card --}}
-        <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-top:16px;overflow:hidden;">
+        <div class="dd-settings-panel" style="margin-top:16px;overflow:hidden;">
             <div style="padding:16px 20px;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <div style="width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#0891b2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;">
@@ -910,6 +910,7 @@
                 alert('Please select at least one client to sync');
                 return;
             }
+            showGlobalSpinner('Syncing selected Halo clients…');
 
             try {
                 const response = await fetch('/admin/sync/halo/clients/sync', {
@@ -932,6 +933,8 @@
                 }
             } catch (error) {
                 alert('Sync failed: ' + error.message);
+            } finally {
+                hideGlobalSpinner();
             }
         }
 
@@ -1000,6 +1003,7 @@
                 alert('Please select at least one domain to sync');
                 return;
             }
+            showGlobalSpinner('Syncing selected domains to HaloPSA…');
 
             try {
                 const response = await fetch('/admin/sync/halo/domains/sync', {
@@ -1028,6 +1032,8 @@
                 }
             } catch (error) {
                 alert('Sync failed: ' + error.message);
+            } finally {
+                hideGlobalSpinner();
             }
         }
 
@@ -1144,6 +1150,7 @@
                 alert('Please map at least one client');
                 return;
             }
+            showGlobalSpinner('Saving IT Glue organization mappings…');
 
             try {
                 const response = await fetch('/admin/sync/itglue/clients/sync', {
@@ -1166,6 +1173,8 @@
                 }
             } catch (error) {
                 alert('Save failed: ' + error.message);
+            } finally {
+                hideGlobalSpinner();
             }
         }
 
@@ -1368,48 +1377,14 @@
         }
 
         function showGlobalSpinner(message = 'Working…') {
-            let overlay = document.getElementById('globalSpinnerOverlay');
-            if (!overlay) {
-                overlay = document.createElement('div');
-                overlay.id = 'globalSpinnerOverlay';
-                overlay.style.position = 'fixed';
-                overlay.style.top = '0';
-                overlay.style.left = '0';
-                overlay.style.width = '100%';
-                overlay.style.height = '100%';
-                overlay.style.background = 'rgba(0,0,0,0.65)';
-                overlay.style.zIndex = '10000';
-                overlay.style.display = 'flex';
-                overlay.style.alignItems = 'center';
-                overlay.style.justifyContent = 'center';
-                overlay.innerHTML = `
-                    <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:24px;min-width:320px;text-align:center;color:#e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-                        <div id="globalSpinnerMessage" style="font-size:18px;font-weight:700;margin-bottom:12px;"></div>
-                        <div style="display:flex;align-items:center;justify-content:center;margin:12px 0;">
-                            <div style="width:42px;height:42px;border:4px solid rgba(245,158,11,0.35);border-top-color:#f59e0b;border-radius:50%;animation:global-spin 1s linear infinite;"></div>
-                        </div>
-                        <div style="margin-top:6px;font-size:13px;color:#cbd5e1;">Please keep this tab open while we process.</div>
-                    </div>
-                    <style>
-                        @keyframes global-spin {
-                            from { transform: rotate(0deg); }
-                            to { transform: rotate(360deg); }
-                        }
-                    </style>
-                `;
-                document.body.appendChild(overlay);
+            if (typeof window.showGlobalLoader === 'function') {
+                window.showGlobalLoader(message);
             }
-            const msgEl = document.getElementById('globalSpinnerMessage');
-            if (msgEl) {
-                msgEl.textContent = message;
-            }
-            overlay.style.display = 'flex';
         }
 
         function hideGlobalSpinner() {
-            const overlay = document.getElementById('globalSpinnerOverlay');
-            if (overlay) {
-                overlay.style.display = 'none';
+            if (typeof window.hideGlobalLoader === 'function') {
+                window.hideGlobalLoader();
             }
         }
     </script>
