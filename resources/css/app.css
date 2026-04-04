@@ -450,9 +450,9 @@ html.dark {
 
 .dd-account-actions {
     display: flex;
-    gap: 0.7rem;
-    margin-top: 1.75rem;
-    padding-top: 0.8rem;
+    gap: 0.9rem;
+    margin-top: 2.2rem;
+    padding-top: 1.1rem;
     border-top: 1px solid color-mix(in srgb, var(--dd-border) 65%, transparent);
     justify-content: flex-end;
 }
@@ -461,11 +461,14 @@ html.dark {
     border: 1px solid var(--dd-border);
     background: color-mix(in srgb, var(--dd-surface-soft) 86%, transparent);
     color: var(--dd-text);
-    border-radius: 12px;
-    padding: 0.66rem 1rem;
+    border-radius: 9999px;
+    padding: 0.66rem 1.1rem;
     text-decoration: none;
     cursor: pointer;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .dd-account-actions .btn-accent,

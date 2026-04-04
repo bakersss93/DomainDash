@@ -75,7 +75,7 @@
 
                     <div class="dd-account-actions">
                         <button type="submit" class="btn-accent">Save user</button>
-                        <button type="button" class="dd-account-secondary" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
+                        <button type="button" class="dd-account-secondary" style="min-width:130px;" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
                 </form>
 

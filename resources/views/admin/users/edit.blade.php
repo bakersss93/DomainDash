@@ -76,7 +76,7 @@
 
                     <div class="dd-account-actions">
                         <button type="submit" class="btn-accent">Save changes</button>
-                        <button type="button" class="dd-account-secondary" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
+                        <button type="button" class="dd-account-secondary" style="min-width:130px;" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
                 </form>
 
@@ -195,6 +195,11 @@
 
             if (openPasswordControls) {
                 openPasswordControls.addEventListener('click', showPasswordModal);
+            }
+
+            const queryParams = new URLSearchParams(window.location.search);
+            if (queryParams.get('password') === '1') {
+                showPasswordModal();
             }
 
             if (closePasswordControls) {
