@@ -88,7 +88,7 @@
                         <li>Send a reset link.</li>
                         <li>Reset MFA if needed.</li>
                     </ul>
-                    <button type="button" class="dd-account-password-btn" id="openPasswordControls">Open Password Controls</button>
+                    <button type="button" class="dd-account-password-btn" id="openPasswordControls">Reset Password</button>
                 </aside>
             </div>
         </section>
@@ -142,7 +142,6 @@
             const modalBackdrop = document.getElementById('passwordModalBackdrop');
             const openPasswordControls = document.getElementById('openPasswordControls');
             const closePasswordControls = document.getElementById('closePasswordControls');
-            const shouldOpenModal = new URLSearchParams(window.location.search).get('password') === '1';
 
             if (!picker || !toggle || !panel) return;
 
@@ -216,9 +215,6 @@
                 }
             });
 
-            if (shouldOpenModal) {
-                showPasswordModal();
-            }
         })();
     </script>
 
