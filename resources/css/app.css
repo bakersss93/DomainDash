@@ -238,3 +238,73 @@ html.dark {
     text-align: left;
     color: var(--dd-text);
 }
+
+.dd-user-shell {
+    max-width: 880px;
+    margin: 0 auto;
+}
+
+.dd-user-card {
+    max-width: 760px;
+    background: linear-gradient(150deg, var(--dd-surface), color-mix(in srgb, var(--dd-surface-soft) 80%, var(--dd-accent) 6%));
+    border: 1px solid var(--dd-border);
+    border-radius: 18px;
+    padding: 1.35rem;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-user-subtitle {
+    margin: 0 0 1rem;
+    font-size: 0.93rem;
+    color: var(--dd-text-soft);
+}
+
+.dd-user-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.dd-user-field {
+    margin-bottom: 0.9rem;
+}
+
+.dd-user-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--dd-text);
+}
+
+.dd-user-field input,
+.dd-user-field select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+    padding: 0.65rem 0.78rem;
+}
+
+.dd-user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+}
+
+.dd-user-cancel {
+    padding: 0.52rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .dd-user-grid {
+        grid-template-columns: 1fr;
+    }
+}

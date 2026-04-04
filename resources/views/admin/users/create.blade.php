@@ -1,151 +1,100 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="dd-page">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">New User</h1>
+    <div class="dd-user-shell">
+        <h1 class="dd-page-title" style="font-size:1.6rem;">Create User</h1>
+        <p class="dd-user-subtitle">Add a user profile, assign role access, and link client organisations.</p>
 
-    <form method="POST"
-          action="{{ route('admin.users.store') }}"
-          style="max-width:640px;"
-          class="dd-card">
-        @csrf
+        <form method="POST" action="{{ route('admin.users.store') }}" class="dd-user-card">
+            @csrf
 
-        <div style="margin-bottom:12px;">
-            <label for="first_name" style="display:block;font-size:14px;margin-bottom:4px;">
-                First Name
-            </label>
-            <input id="first_name" name="first_name" type="text" required
-                   value="{{ old('first_name') }}">
-            @error('first_name')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div style="margin-bottom:12px;">
-            <label for="last_name" style="display:block;font-size:14px;margin-bottom:4px;">
-                Surname
-            </label>
-            <input id="last_name" name="last_name" type="text" required
-                   value="{{ old('last_name') }}">
-            @error('last_name')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div style="margin-bottom:12px;">
-            <label for="email" style="display:block;font-size:14px;margin-bottom:4px;">
-                Email Address (username)
-            </label>
-            <input id="email" name="email" type="email" required
-                   value="{{ old('email') }}">
-            @error('email')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
-
-        {{-- Permission group as fancy pill dropdown --}}
-        <div style="margin-bottom:12px;">
-            <label for="role" style="display:block;font-size:14px;margin-bottom:4px;">
-                Permission group
-            </label>
-
-            <div class="fancy-select-wrapper">
-                <select id="role" name="role" class="fancy-select" required>
-                    <option value="">Select role</option>
-                    <option value="Administrator" {{ old('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
-                    <option value="Technician"   {{ old('role') === 'Technician'   ? 'selected' : '' }}>Technician</option>
-                    <option value="Customer"     {{ old('role') === 'Customer'     ? 'selected' : '' }}>Customer</option>
-                </select>
-            </div>
-
-            @error('role')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
-
-        {{-- Client Organisations searchable multi-select --}}
-        <div style="margin-bottom:16px;">
-            <span style="display:block;font-size:14px;margin-bottom:4px;">
-                Client Organisation(s)
-            </span>
-
-            <div class="client-picker" id="clientPicker">
-                <div class="client-picker-toggle" id="clientPickerToggle">
-                    <span class="client-picker-label" id="clientPickerLabel">
-                        {{ count(old('client_ids', [])) ? count(old('client_ids')) . ' selected' : 'Select client organisation(s)' }}
-                    </span>
-                    <span class="client-picker-arrow">▾</span>
+            <div class="dd-user-grid">
+                <div class="dd-user-field">
+                    <label for="first_name">First Name</label>
+                    <input id="first_name" name="first_name" type="text" required value="{{ old('first_name') }}">
+                    @error('first_name')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                 </div>
 
-                <div class="client-picker-panel" id="clientPickerPanel">
-                    <input type="text"
-                           class="client-picker-search"
-                           id="clientPickerSearch"
-                           placeholder="Type to filter clients…">
+                <div class="dd-user-field">
+                    <label for="last_name">Surname</label>
+                    <input id="last_name" name="last_name" type="text" required value="{{ old('last_name') }}">
+                    @error('last_name')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                </div>
+            </div>
 
-                    <div class="client-picker-list" id="clientPickerList">
-                        @forelse($clients as $client)
-                            @php
-                                $label = $client->business_name ?? $client->name ?? ('Client #'.$client->id);
-                            @endphp
-                            <label class="client-picker-item" data-label="{{ Str::lower($label) }}">
-                                <input type="checkbox"
-                                       name="client_ids[]"
-                                       value="{{ $client->id }}"
-                                       {{ in_array($client->id, old('client_ids', [])) ? 'checked' : '' }}>
-                                {{ $label }}
-                            </label>
-                        @empty
-                            <div style="font-size:13px;color:#6b7280;">No clients created yet.</div>
-                        @endforelse
+            <div class="dd-user-field">
+                <label for="email">Email Address (username)</label>
+                <input id="email" name="email" type="email" required value="{{ old('email') }}">
+                @error('email')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="dd-user-grid">
+                <div class="dd-user-field">
+                    <label for="role">Permission Group</label>
+                    <div class="fancy-select-wrapper" style="width:100%;">
+                        <select id="role" name="role" class="fancy-select" required style="width:100%;">
+                            <option value="">Select role</option>
+                            <option value="Administrator" {{ old('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
+                            <option value="Technician" {{ old('role') === 'Technician' ? 'selected' : '' }}>Technician</option>
+                            <option value="Customer" {{ old('role') === 'Customer' ? 'selected' : '' }}>Customer</option>
+                        </select>
+                    </div>
+                    @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="dd-user-field">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" placeholder="Leave blank to auto-generate">
+                    @error('password')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                </div>
+            </div>
+
+            <div class="dd-user-field">
+                <label for="password_confirmation">Confirm Password</label>
+                <input id="password_confirmation" name="password_confirmation" type="password">
+            </div>
+
+            <div class="dd-user-field">
+                <label>Client Organisation(s)</label>
+                <div class="client-picker" id="clientPicker">
+                    <div class="client-picker-toggle" id="clientPickerToggle" style="width:100%;min-width:0;">
+                        <span class="client-picker-label" id="clientPickerLabel">{{ count(old('client_ids', [])) ? count(old('client_ids')) . ' selected' : 'Select client organisation(s)' }}</span>
+                        <span class="client-picker-arrow">▾</span>
+                    </div>
+
+                    <div class="client-picker-panel" id="clientPickerPanel" style="min-width:100%;max-width:none;">
+                        <input type="text" class="client-picker-search" id="clientPickerSearch" placeholder="Type to filter clients...">
+                        <div class="client-picker-list" id="clientPickerList">
+                            @forelse($clients as $client)
+                                @php $label = $client->business_name ?? $client->name ?? ('Client #'.$client->id); @endphp
+                                <label class="client-picker-item" data-label="{{ Str::lower($label) }}">
+                                    <input type="checkbox" name="client_ids[]" value="{{ $client->id }}" {{ in_array($client->id, old('client_ids', [])) ? 'checked' : '' }}>
+                                    {{ $label }}
+                                </label>
+                            @empty
+                                <div style="font-size:13px;color:#6b7280;">No clients created yet.</div>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
+                @error('client_ids')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
             </div>
 
-            @error('client_ids')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
+            <div class="dd-user-actions">
+                <button type="submit" class="btn-accent">Save user</button>
+                <a href="{{ route('admin.users') }}" class="dd-user-cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
 
-        {{-- Optional: set an initial password (otherwise auto-generate) --}}
-        <div style="margin-bottom:12px;">
-            <label for="password" style="display:block;font-size:14px;margin-bottom:4px;">
-                Password (leave blank to auto-generate)
-            </label>
-            <input id="password" name="password" type="password">
-            @error('password')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <div style="margin-bottom:16px;">
-            <label for="password_confirmation" style="display:block;font-size:14px;margin-bottom:4px;">
-                Confirm Password
-            </label>
-            <input id="password_confirmation" name="password_confirmation" type="password">
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center;">
-            <button type="submit" class="btn-accent">
-                Save user
-            </button>
-
-            <a href="{{ route('admin.users') }}"
-               style="padding:6px 14px;border-radius:999px;border:1px solid var(--dd-border);font-size:14px;text-decoration:none;background:var(--dd-surface-soft);color:var(--dd-text);">
-                Cancel
-            </a>
-        </div>
-    </form>
-
-    {{-- Lightweight JS for the client picker --}}
     <script>
         (function () {
-            const picker      = document.getElementById('clientPicker');
-            const toggle      = document.getElementById('clientPickerToggle');
-            const panel       = document.getElementById('clientPickerPanel');
+            const picker = document.getElementById('clientPicker');
+            const toggle = document.getElementById('clientPickerToggle');
+            const panel = document.getElementById('clientPickerPanel');
             const searchInput = document.getElementById('clientPickerSearch');
-            const labelEl     = document.getElementById('clientPickerLabel');
-            const items       = Array.from(document.querySelectorAll('#clientPickerList .client-picker-item'));
+            const labelEl = document.getElementById('clientPickerLabel');
+            const items = Array.from(document.querySelectorAll('#clientPickerList .client-picker-item'));
 
             if (!picker || !toggle || !panel) return;
 
@@ -155,19 +104,9 @@
                     labelEl.textContent = 'Select client organisation(s)';
                     return;
                 }
-                if (checked.length <= 2) {
-                    labelEl.textContent = checked.map(i => i.textContent.trim()).join(', ');
-                } else {
-                    labelEl.textContent = checked.length + ' selected';
-                }
-            }
-
-            function openPanel() {
-                panel.classList.add('open');
-            }
-
-            function closePanel() {
-                panel.classList.remove('open');
+                labelEl.textContent = checked.length <= 2
+                    ? checked.map(i => i.textContent.trim()).join(', ')
+                    : checked.length + ' selected';
             }
 
             toggle.addEventListener('click', function (e) {
@@ -177,13 +116,12 @@
 
             document.addEventListener('click', function (e) {
                 if (!picker.contains(e.target)) {
-                    closePanel();
+                    panel.classList.remove('open');
                 }
             });
 
             items.forEach(function (item) {
-                const checkbox = item.querySelector('input[type="checkbox"]');
-                checkbox.addEventListener('change', updateLabel);
+                item.querySelector('input[type="checkbox"]').addEventListener('change', updateLabel);
             });
 
             searchInput.addEventListener('keyup', function () {
@@ -194,9 +132,7 @@
                 });
             });
 
-            // initialise label based on old() selections
             updateLabel();
         })();
     </script>
-    </div>
 @endsection
