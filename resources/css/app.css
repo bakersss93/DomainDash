@@ -173,17 +173,17 @@ html.dark {
 }
 
 .dd-users-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
     gap: 1rem;
     margin-bottom: 1rem;
-    flex-wrap: nowrap;
 }
 
 .dd-users-create-wrap {
-    margin-left: auto;
+    margin-left: 0;
     flex-shrink: 0;
+    justify-self: end;
 }
 
 .dd-users-create-btn {
@@ -200,6 +200,7 @@ html.dark {
     gap: 0.65rem;
     margin-bottom: 0;
     min-width: 0;
+    justify-self: start;
 }
 
 .dd-users-filter label {
@@ -492,6 +493,7 @@ html.dark {
 
 @media (max-width: 900px) {
     .dd-users-controls {
+        display: flex;
         align-items: flex-start;
         flex-direction: column;
         gap: 0.75rem;
