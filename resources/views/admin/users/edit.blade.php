@@ -142,4 +142,71 @@
             updateLabel();
         })();
     </script>
+
+    <style>
+        .dd-account-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-right: 8px;
+        }
+
+        .dd-account-card {
+            border: 1px solid #263247 !important;
+            border-radius: 20px !important;
+            background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%) !important;
+            box-shadow: 0 30px 50px rgba(2, 6, 23, 0.55) !important;
+            padding: 26px !important;
+        }
+
+        .dd-account-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) 340px !important;
+            gap: 20px !important;
+            align-items: start;
+        }
+
+        .dd-account-row {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+        }
+
+        .dd-account-input,
+        .dd-account-field select {
+            width: 100% !important;
+            border: 1px solid #334155 !important;
+            border-radius: 12px !important;
+            background: #1e293b !important;
+            color: #f8fafc !important;
+            padding: 11px 12px !important;
+        }
+
+        .dd-account-header h1,
+        .dd-account-section-title,
+        .dd-account-subtitle,
+        .dd-account-field label,
+        .dd-account-aside h3 {
+            color: #f8fafc !important;
+        }
+
+        .dd-account-header p,
+        .dd-account-aside p,
+        .dd-account-aside li {
+            color: #a8b4c8 !important;
+        }
+
+        .dd-account-aside {
+            border: 1px solid #334155 !important;
+            background: #111827 !important;
+            border-radius: 14px !important;
+            padding: 16px !important;
+        }
+
+        @media (max-width: 1024px) {
+            .dd-account-grid,
+            .dd-account-row {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
 @endsection
