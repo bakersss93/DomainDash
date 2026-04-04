@@ -16,8 +16,7 @@
     {{-- Role filter --}}
     <form method="GET"
           action="{{ route('admin.users') }}"
-          class="dd-toolbar"
-          style="justify-content:flex-start;">
+          class="dd-users-filter">
 
         <label for="role" style="font-size:14px;color:var(--dd-text-soft);">Filter</label>
 
@@ -25,8 +24,7 @@
             <select name="role"
                     id="role"
                     class="role-filter-select"
-                    onchange="this.form.submit()"
-                    style="min-width:180px;">
+                    onchange="this.form.submit()">
                 <option value="">All roles</option>
                 <option value="Administrator" {{ request('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
                 <option value="Technician"   {{ request('role') === 'Technician'   ? 'selected' : '' }}>Technician</option>

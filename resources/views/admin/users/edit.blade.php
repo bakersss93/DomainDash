@@ -76,7 +76,7 @@
 
                     <div class="dd-account-actions">
                         <button type="submit" class="btn-accent">Save changes</button>
-                        <a href="{{ route('admin.users') }}" class="dd-account-secondary">Cancel</a>
+                        <button type="button" class="dd-account-secondary" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
                 </form>
 
