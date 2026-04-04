@@ -434,18 +434,18 @@
         html.dark main table tbody tr:hover {
             background: #1f2937;
         }
-                /* Form field defaults */
+        /* Form field defaults */
         input[type="text"],
         input[type="email"],
         input[type="password"],
         input[type="number"],
         select,
         textarea {
-            color: #111827;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 4px;
-            padding: 8px;
+            color: var(--text);
+            background: color-mix(in srgb, var(--bg) 88%, #ffffff 12%);
+            border: 1px solid #d4dbe7;
+            border-radius: 10px;
+            padding: 9px 10px;
         }
 
         html.dark input[type="text"],
@@ -454,9 +454,9 @@
         html.dark input[type="number"],
         html.dark select,
         html.dark textarea {
-            color: #111827;        /* dark text */
-            background: #f9fafb;   /* light background box */
-            border-color: #e5e7eb;
+            color: #e2e8f0;
+            background: #0b1220;
+            border-color: #334155;
         }
                 /* Fancy select (uses same pill look as filters) */
         .fancy-select-wrapper {
