@@ -6,8 +6,8 @@
             <h1 class="dd-page-title">Users</h1>
         </div>
 
-        <div class="dd-users-controls" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:nowrap;">
-            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter" style="display:flex;align-items:center;gap:.65rem;margin:0;">
+        <div class="dd-users-controls" style="display:flex;justify-content:space-between;align-items:center;gap:1.4rem;flex-wrap:nowrap;margin:0 0 1.2rem 0;padding-top:.35rem;">
+            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter" style="display:flex;align-items:center;gap:.85rem;margin:0;">
                 <label for="role">Filter by role</label>
                 <div class="role-filter-wrapper">
                     <select name="role"
@@ -21,7 +21,7 @@
                     </select>
                 </div>
             </form>
-            <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn" style="margin-left:auto;">+ New user</a>
+            <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn" style="margin-left:auto;padding:.66rem 1.2rem;">+ New user</a>
         </div>
 
         <div class="dd-card">
@@ -54,7 +54,7 @@
                                 ?: '—' }}
                         </td>
                         <td>
-                            <div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;">
+                            <div style="display:flex;justify-content:flex-end;gap:12px;align-items:center;">
                                 {{-- Password screen (key icon) --}}
                                 <a href="{{ route('admin.users.edit', $user) }}"
                                    title="Password / reset options"
