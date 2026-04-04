@@ -6,8 +6,8 @@
             <h1 class="dd-page-title">Users</h1>
         </div>
 
-        <div class="dd-users-controls">
-            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter">
+        <div class="dd-users-controls" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:nowrap;">
+            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter" style="display:flex;align-items:center;gap:.65rem;margin:0;">
                 <label for="role">Filter by role</label>
                 <div class="role-filter-wrapper">
                     <select name="role"
@@ -21,9 +21,7 @@
                     </select>
                 </div>
             </form>
-            <div class="dd-users-create-wrap">
-                <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn">+ New user</a>
-            </div>
+            <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn" style="margin-left:auto;">+ New user</a>
         </div>
 
         <div class="dd-card">
