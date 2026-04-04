@@ -1,13 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
+    <div class="dd-page">
     {{-- Header row: title + New User button --}}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h1 style="font-size:18px;font-weight:600;">Users</h1>
+    <div class="dd-toolbar">
+        <h1 class="dd-page-title" style="font-size:1.45rem;margin-bottom:0;">Users</h1>
 
         <a href="{{ route('admin.users.create') }}"
            class="btn-accent"
-           style="padding:6px 14px;font-size:14px;text-decoration:none;">
+           style="padding:8px 14px;font-size:14px;text-decoration:none;border-radius:999px;">
             + New user
         </a>
     </div>
@@ -15,28 +16,17 @@
     {{-- Role filter --}}
     <form method="GET"
           action="{{ route('admin.users') }}"
-          style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+          class="dd-toolbar"
+          style="justify-content:flex-start;">
 
-        <label for="role" style="font-size:14px;">Filter</label>
+        <label for="role" style="font-size:14px;color:var(--dd-text-soft);">Filter</label>
 
         <div class="role-filter-wrapper">
             <select name="role"
                     id="role"
                     class="role-filter-select"
                     onchange="this.form.submit()"
-                    style="
-                        border-radius:9999px;
-                        background:#f3f4f6;
-                        border:1px solid #e5e7eb;
-                        padding:6px 32px 6px 12px;
-                        font-size:14px;
-                        outline:none;
-                        appearance:none;
-                        -webkit-appearance:none;
-                        -moz-appearance:none;
-                        background-clip:padding-box;
-                        color:#111827;
-                    ">
+                    style="min-width:180px;">
                 <option value="">All roles</option>
                 <option value="Administrator" {{ request('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
                 <option value="Technician"   {{ request('role') === 'Technician'   ? 'selected' : '' }}>Technician</option>
@@ -45,7 +35,8 @@
         </div>
     </form>
 
-    <table>
+    <div class="dd-card">
+    <table class="dd-table-clean">
         <thead>
         <tr>
             <th>First</th>
@@ -78,9 +69,7 @@
                         {{-- Password screen (key icon) --}}
                         <a href="{{ route('admin.users.password.edit', $user) }}"
                            title="Password / reset options"
-                           style="display:inline-flex;align-items:center;justify-content:center;
-                                  width:32px;height:32px;border-radius:4px;
-                                  border:1px solid #e5e7eb;text-decoration:none;">
+                           style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);text-decoration:none;background:var(--dd-surface-soft);">
                             🔑
                         </a>
 
@@ -91,9 +80,7 @@
                             @csrf
                             <button type="submit"
                                     title="Reset MFA"
-                                    style="display:inline-flex;align-items:center;justify-content:center;
-                                           width:32px;height:32px;border-radius:4px;
-                                           border:1px solid #e5e7eb;background:#fee2e2;">
+                                    style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-danger) 15%, transparent);">
                                 🛡️
                             </button>
                         </form>
@@ -101,9 +88,7 @@
                         {{-- Edit user (cog icon) --}}
                         <a href="{{ route('admin.users.edit', $user) }}"
                            title="Edit user"
-                           style="display:inline-flex;align-items:center;justify-content:center;
-                                  width:32px;height:32px;border-radius:4px;
-                                  border:1px solid #e5e7eb;text-decoration:none;">
+                           style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);text-decoration:none;background:var(--dd-surface-soft);">
                             ⚙️
                         </a>
 
@@ -113,9 +98,7 @@
                             @csrf
                             <button type="submit"
                                     title="Impersonate user"
-                                    style="display:inline-flex;align-items:center;justify-content:center;
-                                           width:32px;height:32px;border-radius:4px;
-                                           border:1px solid #e5e7eb;background:#e0f2fe;">
+                                    style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-accent) 15%, transparent);">
                                 👤
                             </button>
                         </form>
@@ -127,4 +110,6 @@
     </table>
 
     {{ $users->links() }}
+    </div>
+    </div>
 @endsection

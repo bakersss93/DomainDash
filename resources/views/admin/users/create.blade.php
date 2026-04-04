@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">New User</h1>
+    <div class="dd-page">
+    <h1 class="dd-page-title" style="font-size:1.45rem;">New User</h1>
 
     <form method="POST"
           action="{{ route('admin.users.store') }}"
-          style="max-width:640px;">
+          style="max-width:640px;"
+          class="dd-card">
         @csrf
 
         <div style="margin-bottom:12px;">
@@ -123,13 +125,13 @@
             <input id="password_confirmation" name="password_confirmation" type="password">
         </div>
 
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
             <button type="submit" class="btn-accent">
                 Save user
             </button>
 
             <a href="{{ route('admin.users') }}"
-               style="padding:6px 14px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;text-decoration:none;">
+               style="padding:6px 14px;border-radius:999px;border:1px solid var(--dd-border);font-size:14px;text-decoration:none;background:var(--dd-surface-soft);color:var(--dd-text);">
                 Cancel
             </a>
         </div>
@@ -196,4 +198,5 @@
             updateLabel();
         })();
     </script>
+    </div>
 @endsection

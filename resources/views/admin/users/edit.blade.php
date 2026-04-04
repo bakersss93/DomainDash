@@ -1,11 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">Edit User</h1>
+    <div class="dd-page">
+    <h1 class="dd-page-title" style="font-size:1.45rem;">Edit User</h1>
 
     <form method="POST"
           action="{{ route('admin.users.update', $user) }}"
-          style="max-width:640px;">
+          style="max-width:640px;"
+          class="dd-card">
         @csrf
         @method('PUT')
 
@@ -103,13 +105,13 @@
             @enderror
         </div>
 
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
             <button type="submit" class="btn-accent">
                 Save changes
             </button>
 
             <a href="{{ route('admin.users') }}"
-               style="padding:6px 14px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;text-decoration:none;">
+               style="padding:6px 14px;border-radius:999px;border:1px solid var(--dd-border);font-size:14px;text-decoration:none;background:var(--dd-surface-soft);color:var(--dd-text);">
                 Cancel
             </a>
         </div>
@@ -167,4 +169,5 @@
             updateLabel();
         })();
     </script>
+    </div>
 @endsection

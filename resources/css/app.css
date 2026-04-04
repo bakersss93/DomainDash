@@ -203,3 +203,38 @@ html.dark {
     text-align: left;
     color: var(--dd-text);
 }
+
+.dd-services-toolbar,
+.dd-services-filter {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dd-services-toolbar {
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.dd-services-table-wrapper {
+    overflow-x: auto;
+}
+
+.dd-services-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.dd-services-table thead tr {
+    background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+}
+
+.dd-services-table th,
+.dd-services-table td {
+    padding: 0.65rem 0.72rem;
+    border-bottom: 1px solid var(--dd-border);
+    text-align: left;
+    color: var(--dd-text);
+}
