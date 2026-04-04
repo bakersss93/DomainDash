@@ -3,7 +3,7 @@
 @section('content')
     <div class="dd-page">
         <div class="dd-users-header">
-            <h1 class="dd-page-title" style="font-size:1.45rem;margin-bottom:0;">Users</h1>
+            <h1 class="dd-page-title">Users</h1>
         </div>
 
         <div class="dd-users-controls">

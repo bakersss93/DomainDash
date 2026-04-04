@@ -174,14 +174,16 @@ html.dark {
 
 .dd-users-controls {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
+    flex-wrap: nowrap;
 }
 
 .dd-users-create-wrap {
     margin-left: auto;
+    flex-shrink: 0;
 }
 
 .dd-users-create-btn {
@@ -194,23 +196,24 @@ html.dark {
 
 .dd-users-filter {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0.65rem;
     margin-bottom: 0;
+    min-width: 0;
 }
 
 .dd-users-filter label {
-    font-size: 0.8rem;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: var(--dd-text-soft);
-    font-weight: 700;
+    font-size: 1rem;
+    color: var(--dd-text);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 .role-filter-wrapper {
     position: relative;
     min-width: 220px;
+    flex: 0 0 auto;
 }
 
 .role-filter-select {
@@ -491,6 +494,7 @@ html.dark {
     .dd-users-controls {
         align-items: flex-start;
         flex-direction: column;
+        gap: 0.75rem;
     }
 
     .role-filter-wrapper {
@@ -499,6 +503,19 @@ html.dark {
 
     .dd-users-create-wrap {
         margin-left: 0;
+        width: 100%;
+    }
+
+    .dd-users-create-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .dd-users-filter {
+        width: 100%;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.4rem;
     }
 
     .dd-account-grid,
