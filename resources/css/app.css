@@ -169,11 +169,19 @@ html.dark {
 }
 
 .dd-users-header {
+    margin-bottom: 0.6rem;
+}
+
+.dd-users-controls {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.dd-users-create-wrap {
+    margin-left: auto;
 }
 
 .dd-users-create-btn {
@@ -185,11 +193,11 @@ html.dark {
 }
 
 .dd-users-filter {
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0.4rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
 }
 
 .dd-users-filter label {
@@ -480,13 +488,17 @@ html.dark {
 }
 
 @media (max-width: 900px) {
-    .dd-users-header {
+    .dd-users-controls {
         align-items: flex-start;
         flex-direction: column;
     }
 
     .role-filter-wrapper {
         min-width: 100%;
+    }
+
+    .dd-users-create-wrap {
+        margin-left: 0;
     }
 
     .dd-account-grid,

@@ -4,23 +4,27 @@
     <div class="dd-page">
         <div class="dd-users-header">
             <h1 class="dd-page-title" style="font-size:1.45rem;margin-bottom:0;">Users</h1>
-            <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn">+ New user</a>
         </div>
 
-        <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter">
-            <label for="role">Filter by role</label>
-            <div class="role-filter-wrapper">
-                <select name="role"
-                        id="role"
-                        class="role-filter-select"
-                        onchange="this.form.submit()">
-                    <option value="">All roles</option>
-                    <option value="Administrator" {{ request('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
-                    <option value="Technician" {{ request('role') === 'Technician' ? 'selected' : '' }}>Technician</option>
-                    <option value="Customer" {{ request('role') === 'Customer' ? 'selected' : '' }}>Customer</option>
-                </select>
+        <div class="dd-users-controls">
+            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter">
+                <label for="role">Filter by role</label>
+                <div class="role-filter-wrapper">
+                    <select name="role"
+                            id="role"
+                            class="role-filter-select"
+                            onchange="this.form.submit()">
+                        <option value="">All roles</option>
+                        <option value="Administrator" {{ request('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
+                        <option value="Technician" {{ request('role') === 'Technician' ? 'selected' : '' }}>Technician</option>
+                        <option value="Customer" {{ request('role') === 'Customer' ? 'selected' : '' }}>Customer</option>
+                    </select>
+                </div>
+            </form>
+            <div class="dd-users-create-wrap">
+                <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn">+ New user</a>
             </div>
-        </form>
+        </div>
 
         <div class="dd-card">
             <table class="dd-table-clean">
