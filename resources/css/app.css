@@ -168,11 +168,36 @@ html.dark {
     margin-bottom: 1rem;
 }
 
+.dd-users-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.dd-users-create-btn {
+    padding: 0.56rem 1rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
 .dd-users-filter {
     display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
     margin-bottom: 1rem;
+}
+
+.dd-users-filter label {
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--dd-text-soft);
+    font-weight: 700;
 }
 
 .role-filter-wrapper {
@@ -414,9 +439,10 @@ html.dark {
 .dd-account-actions {
     display: flex;
     gap: 0.7rem;
-    margin-top: 1.45rem;
-    padding-top: 0.3rem;
+    margin-top: 1.75rem;
+    padding-top: 0.8rem;
     border-top: 1px solid color-mix(in srgb, var(--dd-border) 65%, transparent);
+    justify-content: flex-end;
 }
 
 .dd-account-secondary {
@@ -428,6 +454,12 @@ html.dark {
     text-decoration: none;
     cursor: pointer;
     font-weight: 600;
+}
+
+.dd-account-actions .btn-accent,
+.dd-account-actions .dd-account-secondary {
+    min-width: 130px;
+    min-height: 42px;
 }
 
 .dd-account-aside {
@@ -448,8 +480,21 @@ html.dark {
 }
 
 @media (max-width: 900px) {
+    .dd-users-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .role-filter-wrapper {
+        min-width: 100%;
+    }
+
     .dd-account-grid,
     .dd-account-row {
         grid-template-columns: 1fr;
+    }
+
+    .dd-account-actions {
+        justify-content: flex-start;
     }
 }
