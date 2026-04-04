@@ -73,9 +73,9 @@
                         @error('client_ids')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
-                    <div class="dd-account-actions">
+                    <div class="dd-account-actions" style="display:flex;justify-content:flex-start;gap:12px;margin-top:1.6rem;padding-top:1rem;border-top:1px solid #334155;">
                         <button type="submit" class="btn-accent">Save user</button>
-                        <button type="button" class="dd-account-secondary" style="min-width:130px;" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
+                        <button type="button" class="dd-account-secondary" style="min-width:130px;border:1px solid #4b637f;background:#1d2d45;color:#f8fafc;border-radius:9999px;padding:10px 16px;" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
                 </form>
 
