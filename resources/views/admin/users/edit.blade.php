@@ -334,6 +334,10 @@
             padding: 18px;
         }
 
+        .dd-account-modal-backdrop[hidden] {
+            display: none !important;
+        }
+
         .dd-account-modal {
             width: min(900px, 100%);
             border: 1px solid #334155;
