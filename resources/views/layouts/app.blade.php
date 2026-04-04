@@ -170,10 +170,11 @@
             background: var(--accent);
             color: #fff;
             border: none;
-            padding: 6px 14px;
-            border-radius: 4px;
+            padding: 8px 16px;
+            border-radius: 9999px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
             line-height: 1.2;
         }
         .btn-accent:hover {
