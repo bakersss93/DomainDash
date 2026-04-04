@@ -138,3 +138,68 @@ html.dark {
         transform: rotate(360deg);
     }
 }
+
+.dd-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dd-page-title {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 0 0 1rem;
+    color: var(--dd-text);
+}
+
+.dd-card {
+    background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
+    border: 1px solid var(--dd-border);
+    border-radius: 16px;
+    box-shadow: var(--dd-shadow);
+    padding: 1.1rem 1.2rem;
+}
+
+.dd-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.dd-input {
+    width: 100%;
+    padding: 0.68rem 0.88rem;
+    border-radius: 12px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+}
+
+.dd-input::placeholder {
+    color: var(--dd-text-soft);
+}
+
+.dd-input-inline {
+    width: auto;
+    min-width: 240px;
+}
+
+.dd-table-clean {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.dd-table-clean thead tr {
+    background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+}
+
+.dd-table-clean th,
+.dd-table-clean td {
+    padding: 0.65rem 0.72rem;
+    border-bottom: 1px solid var(--dd-border);
+    text-align: left;
+    color: var(--dd-text);
+}

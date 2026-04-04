@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<div style="max-width: 1200px;">
-    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase New Domain</h1>
+<div class="dd-page dd-domain-purchase-page">
+    <h1 class="dd-page-title">Purchase New Domain</h1>
 
     <div id="app-purchase-domain">
         <!-- Step 1: Search for domain -->
-        <div id="step-search" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+        <div id="step-search" class="dd-card" style="margin-bottom: 24px;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Search for a domain</h2>
 
             <div style="display: flex; gap: 12px; margin-bottom: 16px;">
@@ -39,7 +39,7 @@
         </div>
 
         <!-- Step 2: .au Registrant Validation (only for .au domains) -->
-        <div id="step-au-validation" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; display: none;">
+        <div id="step-au-validation" class="dd-card" style="margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">.au Automated Registrant Retrieval</h2>
 
             <p style="margin-bottom: 16px; color: #6b7280; font-size: 14px;">
@@ -87,7 +87,7 @@
         </div>
 
         <!-- Step 3: Client Information -->
-        <div id="step-client" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; display: none;">
+        <div id="step-client" class="dd-card" style="margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">New Contact Information</h2>
 
             <div style="margin-bottom: 16px;">
@@ -360,4 +360,19 @@ function completePurchase() {
     });
 }
 </script>
+<style>
+    .dd-domain-purchase-page input[type="text"],
+    .dd-domain-purchase-page input[type="email"] {
+        background: var(--dd-surface-soft) !important;
+        border: 1px solid var(--dd-border) !important;
+        color: var(--dd-text) !important;
+        border-radius: 12px !important;
+    }
+
+    .dd-domain-purchase-page p,
+    .dd-domain-purchase-page li,
+    .dd-domain-purchase-page label {
+        color: var(--dd-text-soft);
+    }
+</style>
 @endsection

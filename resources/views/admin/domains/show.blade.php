@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">
+    <div class="dd-page"><h1 class="dd-page-title" style="font-size:1.45rem;">
         Domain overview – {{ $domain->name }}
     </h1>
 
@@ -13,7 +13,7 @@
 
     <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.5fr);gap:16px;margin-bottom:20px;">
         {{-- Left: domain information --}}
-        <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
+        <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;">
             <div style="font-weight:600;margin-bottom:8px;">Domain information</div>
             <table style="width:100%;font-size:14px;border-collapse:collapse;">
                 <tbody>
@@ -54,7 +54,7 @@
 
         {{-- Right: Nameservers + transactions placeholder --}}
         <div style="display:flex;flex-direction:column;gap:16px;">
-            <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
+            <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;">
             <div style="font-weight:600;margin-bottom:8px;">Nameserver information</div>
             <div style="font-size:14px;opacity:.8;margin-bottom:4px;">Nameservers</div>
             <div style="font-size:14px;">
@@ -94,7 +94,7 @@
             </div>
         </div>
 
-            <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;">
+            <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;">
                 <div style="font-weight:600;margin-bottom:8px;">Transactions</div>
                 <div style="font-size:14px;opacity:.8;">
                     Full transaction history integration will be added here. For now this is a placeholder.
@@ -104,10 +104,10 @@
     </div>
 
     {{-- WHOIS details --}}
-    <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+    <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
             <div style="font-weight:600;">WHOIS information</div>
-            <div style="font-size:12px;color:#94a3b8;">
+            <div style="font-size:12px;color:var(--dd-text-soft);">
                 {{ $whoisOverview['synced_at'] ? 'Last synced: '.$whoisOverview['synced_at'] : 'No WHOIS sync recorded yet' }}
             </div>
         </div>
@@ -176,15 +176,15 @@
 
             <div style="margin-top:12px;">
                 <div style="opacity:.75;font-size:13px;margin-bottom:4px;">WHOIS text</div>
-                <div style="background:#0f172a;border:1px solid #1f2937;border-radius:8px;padding:10px 12px;font-size:13px;white-space:pre-wrap;overflow:auto;">{!! nl2br(e($whoisText)) !!}</div>
+                <div style="background:var(--dd-surface-soft);border:1px solid var(--dd-border);border-radius:8px;padding:10px 12px;font-size:13px;white-space:pre-wrap;overflow:auto;">{!! nl2br(e($whoisText)) !!}</div>
             </div>
         @else
-            <div style="font-size:14px;color:#94a3b8;">No WHOIS data available yet. Run an IP2WHOIS sync to populate these details.</div>
+            <div style="font-size:14px;color:var(--dd-text-soft);">No WHOIS data available yet. Run an IP2WHOIS sync to populate these details.</div>
         @endif
     </div>
 
     {{-- Client assignment box --}}
-    <div style="background:#020617;border:1px solid #1f2937;border-radius:8px;padding:14px 16px;max-width:720px;">
+    <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;max-width:720px;">
         <div style="font-weight:600;margin-bottom:8px;">Client / categories</div>
 
         <form method="POST" action="{{ url('/admin/domains/'.$domain->id.'/assign') }}">
@@ -230,13 +230,13 @@
 
     {{-- Auth code popup --}}
     <div id="dd-auth-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);align-items:center;justify-content:center;z-index:70;">
-        <div style="background:#020617;border-radius:12px;padding:16px 18px;border:1px solid #1f2937;width:420px;max-width:95%;box-shadow:0 20px 40px rgba(0,0,0,.6);">
+        <div style="background:var(--dd-surface);border-radius:12px;padding:16px 18px;border:1px solid var(--dd-border);width:420px;max-width:95%;box-shadow:0 20px 40px rgba(0,0,0,.6);">
             <div style="font-weight:600;margin-bottom:8px;">Auth code for {{ $domain->name }}</div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                 <input id="dd-auth-value"
                        type="text"
                        readonly
-                       style="flex:1;padding:6px 10px;border-radius:9999px;border:1px solid #4b5563;background:#020617;color:#f9fafb;">
+                       style="flex:1;padding:6px 10px;border-radius:9999px;border:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">
                 <button type="button" id="dd-auth-copy" class="btn-accent" style="white-space:nowrap;">
                     Copy
                 </button>

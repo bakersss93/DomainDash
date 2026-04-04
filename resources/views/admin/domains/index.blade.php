@@ -1,7 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">Domains</h1>
+    <div class="dd-page">
+    <h1 class="dd-page-title" style="font-size:1.45rem;">Domains</h1>
 
     @php
         $currentSort = request('sort', $sort ?? 'name');
@@ -38,16 +39,17 @@
     @endphp
 
     {{-- Search + bulk sync row --}}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;">
+    <div class="dd-toolbar">
         <form method="GET"
               action="{{ route('admin.domains') }}"
-              style="display:flex;align-items:center;gap:8px;flex:1;">
+              style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;">
             <input
                 type="text"
                 name="q"
                 value="{{ $search }}"
                 placeholder="Search domains…"
-                style="flex:1;padding:6px 10px;border-radius:9999px;border:1px solid #4b5563;background:#020617;color:#f9fafb;"
+                class="dd-input dd-input-inline"
+                style="flex:1;"
             >
             <button type="submit" class="btn-accent">Search</button>
         </form>
@@ -60,6 +62,7 @@
         </form>
     </div>
 
+    <div class="dd-card">
     <table>
         <thead>
         <tr>
@@ -223,6 +226,7 @@
     </table>
 
     {{ $domains->links() }}
+    </div>
 
     {{-- Assign client modal --}}
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
@@ -656,4 +660,5 @@
             display: none;
         }
     </style>
+    </div>
 @endsection

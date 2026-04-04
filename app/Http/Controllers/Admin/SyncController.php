@@ -159,7 +159,7 @@ class SyncController extends Controller
                     'client' => $domain->client ? $domain->client->business_name : null,
                     'client_id' => $domain->client_id,
                     'expiry' => $domain->expiry_date,
-                    'nameservers' => $domain->nameservers,
+                    'nameservers' => $domain->name_servers ?? $domain->nameservers,
                     'exists_in_halo' => $existsInHalo,
                 ];
             }

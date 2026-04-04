@@ -271,9 +271,8 @@
                    style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
                           font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
 
-            <div id="halo-import-loading"
-                 style="font-size:14px;color:#9ca3af;margin:8px 0;">
-                Loading clients from HaloPSA…
+            <div id="halo-import-loading" class="dd-loading-text">
+                Loading clients from HaloPSA...
             </div>
 
             <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
@@ -293,16 +292,8 @@
                 </table>
             </div>
 
-        <div id="halo-import-loading" class="dd-loading-text">
-            Loading clients from HaloPSA…
-        </div>
-
             <div id="halo-import-no-results" style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
                 No clients match your search.
-            </div>
-
-            <div id="halo-import-error" style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
-                Failed to load clients from HaloPSA. Please check API settings.
             </div>
 
         <div id="halo-import-empty" class="dd-hidden dd-status-muted dd-modal-message">
