@@ -67,7 +67,7 @@
                 <td>
                     <div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;">
                         {{-- Password screen (key icon) --}}
-                        <a href="{{ route('admin.users.password.edit', $user) }}"
+                        <a href="{{ route('admin.users.edit', $user) }}?password=1"
                            title="Password / reset options"
                            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);text-decoration:none;background:var(--dd-surface-soft);">
                             🔑
