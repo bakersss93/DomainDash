@@ -292,9 +292,8 @@ class SynergyWholesaleClient
     {
         $params = array_merge($this->creds(), [
             'domainName' => $domainName,
-            // Synergy supports a command field in checkDomainRequest.
-            // "register" checks normal registration availability.
-            'command' => 'register',
+            // Synergy docs: command defaults to "create" for availability/pricing checks.
+            'command' => 'create',
         ]);
 
         $res = $this->soap->__soapCall('checkDomain', [$params]);
