@@ -36,6 +36,9 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class,'index'])->name('admin.dashboard');
         Route::get('/permissions', [\App\Http\Controllers\Admin\PermissionsController::class,'index'])->name('admin.permissions');
         Route::post('/permissions', [\App\Http\Controllers\Admin\PermissionsController::class,'update'])->name('admin.permissions.update');
+        Route::post('/permissions/roles', [\App\Http\Controllers\Admin\PermissionsController::class,'storeRole'])->name('admin.permissions.roles.store');
+        Route::put('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'updateRolePermissions'])->name('admin.permissions.roles.update');
+        Route::delete('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'destroyRole'])->name('admin.permissions.roles.destroy');
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');

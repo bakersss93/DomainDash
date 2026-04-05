@@ -753,6 +753,11 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.permissions') }}" class="nav-link {{ request()->routeIs('admin.permissions*') ? 'active' : '' }}">
+                                    Roles & Permissions
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.apikeys') }}" class="nav-link {{ request()->routeIs('admin.apikeys') ? 'active' : '' }}">
                                     API Keys
                                 </a>
