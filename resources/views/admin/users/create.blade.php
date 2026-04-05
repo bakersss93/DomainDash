@@ -80,20 +80,42 @@
                 </form>
 
                 <aside class="dd-account-aside">
-                    <h3>Password Setup</h3>
-                    <p>Leave password blank to auto-generate a secure credential for the user account.</p>
-                    <div class="dd-account-field" style="margin-top:0.75rem;">
-                        <label for="password">Password (optional)</label>
-                        <input class="dd-account-input" id="password" name="password" type="password" form="user-create-form">
-                    </div>
-                    <div class="dd-account-field">
-                        <label for="password_confirmation">Confirm Password</label>
-                        <input class="dd-account-input" id="password_confirmation" name="password_confirmation" type="password" form="user-create-form">
-                    </div>
-                    <p style="margin-top:0.6rem;">If provided, ensure the password is at least 8 characters long and unique.</p>
+                    <h3>Password & Security</h3>
+                    <p>Choose how to provision the account credentials.</p>
+                    <ul>
+                        <li>Set a password manually before creating the user.</li>
+                        <li>Leave password blank to auto-generate credentials.</li>
+                        <li>Share access details securely after creation.</li>
+                    </ul>
+                    <button type="button" class="dd-account-password-btn" id="openPasswordSetup">Set Password</button>
                 </aside>
             </div>
         </section>
+    </div>
+
+    <div class="dd-account-modal-backdrop" id="passwordSetupModalBackdrop" hidden>
+        <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="passwordSetupModalTitle">
+            <div class="dd-account-modal-header">
+                <h2 id="passwordSetupModalTitle">Password Setup</h2>
+                <button type="button" class="dd-account-modal-close" id="closePasswordSetup" aria-label="Close password setup">×</button>
+            </div>
+            <p class="dd-account-modal-intro">Set an optional password now, or close this modal to keep auto-generated credentials.</p>
+
+            <div class="dd-account-modal-grid">
+                <div class="dd-account-modal-form">
+                    <h3>Set Password</h3>
+                    <div class="dd-account-field">
+                        <label for="password">Password (optional)</label>
+                        <input class="dd-account-input" id="password" name="password" type="password" form="user-create-form" value="{{ old('password') }}">
+                    </div>
+                    <div class="dd-account-field">
+                        <label for="password_confirmation">Confirm Password</label>
+                        <input class="dd-account-input" id="password_confirmation" name="password_confirmation" type="password" form="user-create-form" value="{{ old('password_confirmation') }}">
+                    </div>
+                    @error('password')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -104,6 +126,10 @@
             const searchInput = document.getElementById('clientPickerSearch');
             const labelEl = document.getElementById('clientPickerLabel');
             const items = Array.from(document.querySelectorAll('#clientPickerList .client-picker-item'));
+            const modalBackdrop = document.getElementById('passwordSetupModalBackdrop');
+            const openPasswordSetup = document.getElementById('openPasswordSetup');
+            const closePasswordSetup = document.getElementById('closePasswordSetup');
+            const hasPasswordErrors = {{ $errors->has('password') || $errors->has('password_confirmation') ? 'true' : 'false' }};
 
             if (!picker || !toggle || !panel) return;
 
@@ -142,6 +168,44 @@
             });
 
             updateLabel();
+
+            function hidePasswordSetupModal() {
+                if (!modalBackdrop) return;
+                modalBackdrop.setAttribute('hidden', 'hidden');
+                document.body.classList.remove('dd-account-modal-open');
+            }
+
+            function showPasswordSetupModal() {
+                if (!modalBackdrop) return;
+                modalBackdrop.removeAttribute('hidden');
+                document.body.classList.add('dd-account-modal-open');
+            }
+
+            if (openPasswordSetup) {
+                openPasswordSetup.addEventListener('click', showPasswordSetupModal);
+            }
+
+            if (closePasswordSetup) {
+                closePasswordSetup.addEventListener('click', hidePasswordSetupModal);
+            }
+
+            if (modalBackdrop) {
+                modalBackdrop.addEventListener('click', function (event) {
+                    if (event.target === modalBackdrop) {
+                        hidePasswordSetupModal();
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    hidePasswordSetupModal();
+                }
+            });
+
+            if (hasPasswordErrors) {
+                showPasswordSetupModal();
+            }
         })();
     </script>
 @endsection
