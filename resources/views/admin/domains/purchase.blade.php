@@ -108,13 +108,44 @@
                         <select id="existing-client-id" class="fancy-select">
                             <option value="">Select a client</option>
                             @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
-                                <option value="{{ $client->id }}">{{ $client->business_name }}</option>
+                                @php
+                                    $contactName = $client->primary_contact_name ?? '';
+                                    [$contactFirst, $contactLast] = array_pad(explode(' ', trim($contactName), 2), 2, '');
+                                @endphp
+                                <option value="{{ $client->id }}"
+                                        data-business-name="{{ $client->business_name }}"
+                                        data-first-name="{{ $contactFirst }}"
+                                        data-last-name="{{ $contactLast }}"
+                                        data-email="{{ $client->email }}"
+                                        data-phone="{{ $client->phone }}"
+                                        data-address="{{ $client->address }}"
+                                        data-city="{{ $client->city }}"
+                                        data-state="{{ $client->state }}"
+                                        data-postcode="{{ $client->postcode }}"
+                                        data-country="{{ $client->country ?? 'AU' }}">
+                                    {{ $client->business_name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
                     <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                         Contact details will be taken from the client's stored information.
                     </p>
+                </div>
+
+                <div id="existing-client-summary" class="dd-existing-client-summary" style="display:none;">
+                    <div class="dd-existing-client-summary-header">
+                        <h3>Domain Registration Contact</h3>
+                        <button type="button" class="dd-account-password-btn" onclick="openExistingClientModal()">Edit details</button>
+                    </div>
+                    <dl class="dd-existing-client-grid">
+                        <div><dt>Business</dt><dd id="summary-business-name"></dd></div>
+                        <div><dt>Contact</dt><dd id="summary-contact-name"></dd></div>
+                        <div><dt>Email</dt><dd id="summary-email"></dd></div>
+                        <div><dt>Phone</dt><dd id="summary-phone"></dd></div>
+                        <div><dt>Address</dt><dd id="summary-address"></dd></div>
+                        <div><dt>Location</dt><dd id="summary-location"></dd></div>
+                    </dl>
                 </div>
             </div>
 
@@ -188,10 +219,41 @@
     </div>
 </div>
 
+<div id="existing-client-modal" class="dd-account-modal-backdrop" hidden>
+    <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="existingClientModalTitle">
+        <div class="dd-account-modal-header">
+            <h2 id="existingClientModalTitle">Edit Registration Details</h2>
+            <button type="button" class="dd-account-modal-close" onclick="closeExistingClientModal()" aria-label="Close existing client editor">×</button>
+        </div>
+        <p class="dd-account-modal-intro">These details apply to this domain registration only and do not overwrite the base client record.</p>
+        <div class="dd-account-modal-grid">
+            <div class="dd-account-modal-form">
+                <div class="dd-existing-client-form-grid">
+                    <div><label>Business Name</label><input type="text" id="edit-business-name"></div>
+                    <div><label>Email</label><input type="email" id="edit-email"></div>
+                    <div><label>First Name</label><input type="text" id="edit-first-name"></div>
+                    <div><label>Last Name</label><input type="text" id="edit-last-name"></div>
+                    <div><label>Phone</label><input type="text" id="edit-phone"></div>
+                    <div><label>Country</label><input type="text" id="edit-country"></div>
+                    <div style="grid-column:1 / -1;"><label>Address</label><input type="text" id="edit-address"></div>
+                    <div><label>City</label><input type="text" id="edit-city"></div>
+                    <div><label>State</label><input type="text" id="edit-state"></div>
+                    <div><label>Postcode</label><input type="text" id="edit-postcode"></div>
+                </div>
+                <div class="dd-account-actions" style="justify-content:flex-start;margin-top:1rem;">
+                    <button type="button" class="btn-accent" onclick="saveExistingClientModal()">Save details</button>
+                    <button type="button" class="dd-account-secondary" onclick="closeExistingClientModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let searchedDomain = '';
 let isAuDomain = false;
 let auRegistrantData = null;
+let existingClientOverrides = null;
 
 function searchDomain() {
     const domainName = document.getElementById('domain-name').value.trim();
@@ -292,6 +354,96 @@ function toggleClientFields() {
     const clientType = document.getElementById('client-type').value;
     document.getElementById('existing-client-fields').style.display = clientType === 'existing' ? 'block' : 'none';
     document.getElementById('new-client-fields').style.display = clientType === 'new' ? 'block' : 'none';
+    document.getElementById('existing-client-summary').style.display = clientType === 'existing' ? 'block' : 'none';
+    if (clientType === 'existing') {
+        populateExistingClientSummary();
+    }
+}
+
+function getSelectedClientData() {
+    const select = document.getElementById('existing-client-id');
+    const option = select?.options?.[select.selectedIndex];
+    if (!option || !option.value) {
+        return null;
+    }
+    return {
+        business_name: option.dataset.businessName || '',
+        first_name: option.dataset.firstName || '',
+        last_name: option.dataset.lastName || '',
+        email: option.dataset.email || '',
+        phone: option.dataset.phone || '',
+        address: option.dataset.address || '',
+        city: option.dataset.city || '',
+        state: option.dataset.state || '',
+        postcode: option.dataset.postcode || '',
+        country: option.dataset.country || 'AU',
+    };
+}
+
+function getExistingClientRegistrationData() {
+    return existingClientOverrides || getSelectedClientData();
+}
+
+function populateExistingClientSummary() {
+    const summary = document.getElementById('existing-client-summary');
+    const data = getExistingClientRegistrationData();
+    if (!summary) return;
+    if (!data) {
+        summary.style.display = 'none';
+        return;
+    }
+
+    summary.style.display = 'block';
+    document.getElementById('summary-business-name').textContent = data.business_name || '—';
+    document.getElementById('summary-contact-name').textContent = [data.first_name, data.last_name].filter(Boolean).join(' ') || '—';
+    document.getElementById('summary-email').textContent = data.email || '—';
+    document.getElementById('summary-phone').textContent = data.phone || '—';
+    document.getElementById('summary-address').textContent = data.address || '—';
+    document.getElementById('summary-location').textContent = [data.city, data.state, data.postcode, data.country].filter(Boolean).join(', ') || '—';
+}
+
+function openExistingClientModal() {
+    const data = getExistingClientRegistrationData();
+    if (!data) {
+        alert('Please select a client first.');
+        return;
+    }
+
+    document.getElementById('edit-business-name').value = data.business_name || '';
+    document.getElementById('edit-first-name').value = data.first_name || '';
+    document.getElementById('edit-last-name').value = data.last_name || '';
+    document.getElementById('edit-email').value = data.email || '';
+    document.getElementById('edit-phone').value = data.phone || '';
+    document.getElementById('edit-address').value = data.address || '';
+    document.getElementById('edit-city').value = data.city || '';
+    document.getElementById('edit-state').value = data.state || '';
+    document.getElementById('edit-postcode').value = data.postcode || '';
+    document.getElementById('edit-country').value = data.country || 'AU';
+
+    document.getElementById('existing-client-modal').removeAttribute('hidden');
+    document.body.classList.add('dd-account-modal-open');
+}
+
+function closeExistingClientModal() {
+    document.getElementById('existing-client-modal').setAttribute('hidden', 'hidden');
+    document.body.classList.remove('dd-account-modal-open');
+}
+
+function saveExistingClientModal() {
+    existingClientOverrides = {
+        business_name: document.getElementById('edit-business-name').value.trim(),
+        first_name: document.getElementById('edit-first-name').value.trim(),
+        last_name: document.getElementById('edit-last-name').value.trim(),
+        email: document.getElementById('edit-email').value.trim(),
+        phone: document.getElementById('edit-phone').value.trim(),
+        address: document.getElementById('edit-address').value.trim(),
+        city: document.getElementById('edit-city').value.trim(),
+        state: document.getElementById('edit-state').value.trim(),
+        postcode: document.getElementById('edit-postcode').value.trim(),
+        country: document.getElementById('edit-country').value.trim() || 'AU',
+    };
+    populateExistingClientSummary();
+    closeExistingClientModal();
 }
 
 function completePurchase() {
@@ -309,6 +461,11 @@ function completePurchase() {
         if (!formData.client_id) {
             alert('Please select a client.');
             return;
+        }
+
+        const existingData = getExistingClientRegistrationData();
+        if (existingData) {
+            formData.existing_client_overrides = existingData;
         }
     } else {
         formData.business_name = document.getElementById('business-name').value;
@@ -359,6 +516,25 @@ function completePurchase() {
         alert('Error purchasing domain.');
     });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const existingClientSelect = document.getElementById('existing-client-id');
+    if (existingClientSelect) {
+        existingClientSelect.addEventListener('change', function () {
+            existingClientOverrides = null;
+            populateExistingClientSummary();
+        });
+    }
+
+    const existingClientModal = document.getElementById('existing-client-modal');
+    if (existingClientModal) {
+        existingClientModal.addEventListener('click', function (event) {
+            if (event.target === existingClientModal) {
+                closeExistingClientModal();
+            }
+        });
+    }
+});
 </script>
 <style>
     .dd-domain-purchase-page .dd-page-title {
@@ -370,8 +546,8 @@ function completePurchase() {
     }
 
     .dd-domain-purchase-page .dd-card {
-        border: 1px solid #263247;
-        background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%);
+        border: 1px solid var(--dd-border);
+        background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
     }
 
     .dd-domain-purchase-page h2 {
@@ -379,16 +555,16 @@ function completePurchase() {
         line-height: 1.2;
         font-weight: 650;
         margin-bottom: 1.1rem !important;
-        color: #f8fafc !important;
+        color: var(--dd-text) !important;
     }
 
     .dd-domain-purchase-page input[type="text"],
     .dd-domain-purchase-page input[type="email"],
     .dd-domain-purchase-page .fancy-select {
         min-height: 48px;
-        background: #1e293b !important;
-        border: 1px solid #334155 !important;
-        color: #f8fafc !important;
+        background: var(--dd-surface-soft) !important;
+        border: 1px solid var(--dd-border) !important;
+        color: var(--dd-text) !important;
         border-radius: 12px !important;
     }
 
@@ -400,21 +576,21 @@ function completePurchase() {
     .dd-domain-purchase-page input:-webkit-autofill,
     .dd-domain-purchase-page input:-webkit-autofill:hover,
     .dd-domain-purchase-page input:-webkit-autofill:focus {
-        -webkit-text-fill-color: #f8fafc !important;
-        caret-color: #f8fafc;
-        -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
-        box-shadow: 0 0 0 1000px #1e293b inset !important;
+        -webkit-text-fill-color: var(--dd-text) !important;
+        caret-color: var(--dd-text);
+        -webkit-box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
+        box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
         transition: background-color 9999s ease-in-out 0s;
     }
 
     .dd-domain-purchase-page .fancy-select-wrapper::after {
-        color: #93a9c8 !important;
+        color: var(--dd-text-soft) !important;
     }
 
     .dd-domain-purchase-page p,
     .dd-domain-purchase-page li,
     .dd-domain-purchase-page label {
-        color: #cbd5e1 !important;
+        color: var(--dd-text-soft) !important;
     }
 
     .dd-domain-purchase-page .btn-accent {
@@ -435,21 +611,101 @@ function completePurchase() {
     }
 
     .dd-domain-purchase-page .dd-purchase-notice-success {
-        background: #0f2f26;
+        background: #ecfdf5;
         border-color: #10b981;
     }
 
     .dd-domain-purchase-page .dd-purchase-notice-success p {
-        color: #6ee7b7 !important;
+        color: #065f46 !important;
     }
 
     .dd-domain-purchase-page .dd-purchase-notice-error {
-        background: #3a161c;
+        background: #fef2f2;
         border-color: #ef4444;
     }
 
     .dd-domain-purchase-page .dd-purchase-notice-error p {
+        color: #991b1b !important;
+    }
+
+    .dd-existing-client-summary {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--dd-border);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--dd-surface-soft) 86%, transparent);
+    }
+
+    .dd-existing-client-summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .dd-existing-client-summary-header h3 {
+        margin: 0;
+        color: var(--dd-text);
+        font-size: 1rem;
+    }
+
+    .dd-existing-client-grid {
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 16px;
+    }
+
+    .dd-existing-client-grid dt {
+        font-size: 12px;
+        color: var(--dd-text-soft);
+    }
+
+    .dd-existing-client-grid dd {
+        margin: 2px 0 0;
+        color: var(--dd-text);
+        font-weight: 600;
+    }
+
+    .dd-existing-client-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .dd-existing-client-form-grid label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--dd-text-soft);
+        font-size: 13px;
+    }
+
+    .dd-existing-client-form-grid input {
+        width: 100%;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-success {
+        background: #0f2f26;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-success p {
+        color: #6ee7b7 !important;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-error {
+        background: #3a161c;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-error p {
         color: #fecaca !important;
+    }
+
+    @media (max-width: 900px) {
+        .dd-existing-client-grid,
+        .dd-existing-client-form-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 @endsection
