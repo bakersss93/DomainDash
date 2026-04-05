@@ -586,6 +586,11 @@ document.addEventListener('DOMContentLoaded', function () {
         align-items: stretch;
     }
 
+    .dd-domain-purchase-page .dd-search-extension-wrap {
+        display: block;
+        width: 100%;
+    }
+
     .dd-domain-purchase-page input[type="text"],
     .dd-domain-purchase-page input[type="email"],
     .dd-domain-purchase-page .fancy-select {
@@ -603,16 +608,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     .dd-domain-purchase-page .dd-search-input,
     .dd-domain-purchase-page .dd-search-extension {
-        border: 1px solid color-mix(in srgb, var(--dd-border) 45%, var(--dd-text-soft) 55%) !important;
-        background: color-mix(in srgb, var(--dd-surface) 94%, #ffffff 6%) !important;
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-border) 82%, transparent), 0 10px 24px rgba(15, 23, 42, 0.08);
+        width: 100%;
+        min-height: 56px;
+        border-radius: 14px !important;
+        border: 2px solid color-mix(in srgb, var(--dd-border) 30%, var(--dd-text) 70%) !important;
+        background: color-mix(in srgb, var(--dd-surface) 88%, #ffffff 12%) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 24px rgba(15, 23, 42, 0.08);
+        padding: 0 14px !important;
     }
 
     .dd-domain-purchase-page .dd-search-input:focus,
     .dd-domain-purchase-page .dd-search-extension:focus {
         outline: none;
-        border-color: color-mix(in srgb, var(--dd-accent) 72%, var(--dd-border) 28%) !important;
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent), 0 10px 24px rgba(15, 23, 42, 0.1);
+        border-color: color-mix(in srgb, var(--dd-accent) 80%, var(--dd-border) 20%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 26%, transparent), 0 10px 24px rgba(15, 23, 42, 0.12);
     }
 
     .dd-domain-purchase-page input::placeholder {
@@ -622,8 +631,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     html.dark .dd-domain-purchase-page .dd-search-input,
     html.dark .dd-domain-purchase-page .dd-search-extension {
-        background: color-mix(in srgb, var(--dd-surface-soft) 94%, #0b1220 6%) !important;
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-border) 88%, transparent), 0 14px 26px rgba(2, 6, 23, 0.45);
+        border-color: color-mix(in srgb, #7f92b3 35%, var(--dd-border) 65%) !important;
+        background: linear-gradient(180deg, #152341 0%, #101d37 100%) !important;
+        box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.18), 0 14px 26px rgba(2, 6, 23, 0.45);
     }
 
     .dd-domain-purchase-page input:-webkit-autofill,
