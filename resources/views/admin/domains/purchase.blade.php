@@ -265,6 +265,10 @@ function searchDomain() {
     }
 
     const resultDiv = document.getElementById('search-result');
+    auRegistrantData = null;
+    document.getElementById('au-registrant-info').style.display = 'none';
+    document.getElementById('step-au-validation').style.display = 'none';
+    document.getElementById('step-client').style.display = 'none';
     resultDiv.innerHTML = '<p>Checking availability...</p>';
     resultDiv.style.display = 'block';
 
@@ -290,7 +294,10 @@ function searchDomain() {
 
             if (isAuDomain) {
                 document.getElementById('step-au-validation').style.display = 'block';
+                document.getElementById('step-client').style.display = 'none';
+                toggleAuFields();
             } else {
+                document.getElementById('step-au-validation').style.display = 'none';
                 document.getElementById('step-client').style.display = 'block';
             }
         } else {
@@ -347,7 +354,14 @@ function validateAu() {
 
 function toggleAuFields() {
     const method = document.getElementById('au-method').value;
-    document.getElementById('au-business-fields').style.display = method === 'Business' ? 'block' : 'none';
+    const auBusinessFields = document.getElementById('au-business-fields');
+    const stepClient = document.getElementById('step-client');
+    const registrantInfo = document.getElementById('au-registrant-info');
+    const shouldUseBusinessPath = method === 'Business';
+
+    auBusinessFields.style.display = shouldUseBusinessPath ? 'block' : 'none';
+    registrantInfo.style.display = shouldUseBusinessPath && auRegistrantData ? 'block' : 'none';
+    stepClient.style.display = shouldUseBusinessPath ? (auRegistrantData ? 'block' : 'none') : 'block';
 }
 
 function toggleClientFields() {
@@ -542,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function () {
         line-height: 1.15;
         font-weight: 700;
         margin-bottom: 1.5rem;
-        color: #f8fafc;
+        color: var(--dd-text);
     }
 
     .dd-domain-purchase-page .dd-card {
@@ -558,6 +572,20 @@ document.addEventListener('DOMContentLoaded', function () {
         color: var(--dd-text) !important;
     }
 
+    .dd-domain-purchase-page #step-search h2,
+    .dd-domain-purchase-page #step-au-validation h2,
+    .dd-domain-purchase-page #step-client h2 {
+        font-size: 2rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .dd-domain-purchase-page #step-search > div:first-of-type {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(190px, 220px) auto;
+        gap: 12px;
+        align-items: stretch;
+    }
+
     .dd-domain-purchase-page input[type="text"],
     .dd-domain-purchase-page input[type="email"],
     .dd-domain-purchase-page .fancy-select {
@@ -568,8 +596,13 @@ document.addEventListener('DOMContentLoaded', function () {
         border-radius: 12px !important;
     }
 
+    .dd-domain-purchase-page #domain-name {
+        color: var(--dd-text) !important;
+        font-weight: 500;
+    }
+
     .dd-domain-purchase-page input::placeholder {
-        color: #94a3b8 !important;
+        color: color-mix(in srgb, var(--dd-text-soft) 92%, transparent) !important;
         opacity: 1;
     }
 
@@ -702,6 +735,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     @media (max-width: 900px) {
+        .dd-domain-purchase-page #step-search > div:first-of-type {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
         .dd-existing-client-grid,
         .dd-existing-client-form-grid {
             grid-template-columns: 1fr;
