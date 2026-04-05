@@ -39,7 +39,7 @@
     @endphp
 
     {{-- Search + bulk sync row --}}
-    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;">
+    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
         <form method="GET"
               action="{{ route('admin.domains') }}"
               style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
