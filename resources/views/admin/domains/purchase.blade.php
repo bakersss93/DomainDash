@@ -221,8 +221,8 @@ function searchDomain() {
             isAuDomain = data.requiresAuValidation;
 
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #d1fae5; border: 1px solid #10b981; border-radius: 6px;">
-                    <p style="color: #065f46; font-weight: 600;">${data.message}</p>
+                <div class="dd-purchase-notice dd-purchase-notice-success">
+                    <p>${data.message}</p>
                 </div>
             `;
 
@@ -233,8 +233,8 @@ function searchDomain() {
             }
         } else {
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                    <p style="color: #991b1b; font-weight: 600;">${data.message || 'Domain is not available.'}</p>
+                <div class="dd-purchase-notice dd-purchase-notice-error">
+                    <p>${data.message || 'Domain is not available.'}</p>
                 </div>
             `;
             document.getElementById('step-au-validation').style.display = 'none';
@@ -243,8 +243,8 @@ function searchDomain() {
     })
     .catch(err => {
         resultDiv.innerHTML = `
-            <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                <p style="color: #991b1b;">Error checking domain availability.</p>
+            <div class="dd-purchase-notice dd-purchase-notice-error">
+                <p>Error checking domain availability.</p>
             </div>
         `;
     });
@@ -410,6 +410,36 @@ function completePurchase() {
     .dd-domain-purchase-page .btn-accent {
         min-height: 48px;
         border-radius: 14px;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice {
+        padding: 16px;
+        border-radius: 10px;
+        border-width: 1px;
+        border-style: solid;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice p {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-success {
+        background: #0f2f26;
+        border-color: #10b981;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-success p {
+        color: #6ee7b7 !important;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-error {
+        background: #3a161c;
+        border-color: #ef4444;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-error p {
+        color: #fecaca !important;
     }
 </style>
 @endsection
