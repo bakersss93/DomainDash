@@ -9,12 +9,12 @@
         <div id="step-search" class="dd-card" style="margin-bottom: 24px;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Search for a domain</h2>
 
-            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <input type="text" id="domain-name" placeholder="Enter a Domain Name"
+            <div class="dd-search-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name"
                        style="flex: 1; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
 
-                <div class="fancy-select-wrapper" style="min-width: 200px;">
-                    <select id="extension" class="fancy-select">
+                <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
+                    <select id="extension" class="fancy-select dd-search-extension">
                         <option value="">Select an Extension</option>
                         <option value="com">com</option>
                         <option value="net">net</option>
@@ -579,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function () {
         margin-bottom: 1.25rem !important;
     }
 
-    .dd-domain-purchase-page #step-search > div:first-of-type {
+    .dd-domain-purchase-page .dd-search-row {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) minmax(190px, 220px) auto;
         gap: 12px;
@@ -601,9 +601,29 @@ document.addEventListener('DOMContentLoaded', function () {
         font-weight: 500;
     }
 
+    .dd-domain-purchase-page .dd-search-input,
+    .dd-domain-purchase-page .dd-search-extension {
+        border: 1px solid color-mix(in srgb, var(--dd-border) 45%, var(--dd-text-soft) 55%) !important;
+        background: color-mix(in srgb, var(--dd-surface) 94%, #ffffff 6%) !important;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-border) 82%, transparent), 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .dd-domain-purchase-page .dd-search-input:focus,
+    .dd-domain-purchase-page .dd-search-extension:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--dd-accent) 72%, var(--dd-border) 28%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent), 0 10px 24px rgba(15, 23, 42, 0.1);
+    }
+
     .dd-domain-purchase-page input::placeholder {
         color: color-mix(in srgb, var(--dd-text-soft) 92%, transparent) !important;
         opacity: 1;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-search-input,
+    html.dark .dd-domain-purchase-page .dd-search-extension {
+        background: color-mix(in srgb, var(--dd-surface-soft) 94%, #0b1220 6%) !important;
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--dd-border) 88%, transparent), 0 14px 26px rgba(2, 6, 23, 0.45);
     }
 
     .dd-domain-purchase-page input:-webkit-autofill,
@@ -735,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     @media (max-width: 900px) {
-        .dd-domain-purchase-page #step-search > div:first-of-type {
+        .dd-domain-purchase-page .dd-search-row {
             grid-template-columns: minmax(0, 1fr);
         }
 
