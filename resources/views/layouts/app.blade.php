@@ -165,6 +165,59 @@
             margin-left:4px;
         }
 
+        .dd-flash-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            border: 1px solid transparent;
+            font-weight: 500;
+        }
+
+        .dd-flash-banner.is-status {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #14532d;
+        }
+
+        .dd-flash-banner.is-impersonating {
+            background: #fef3c7;
+            border-color: #fcd34d;
+            color: #78350f;
+        }
+
+        .dd-flash-action {
+            border: 1px solid currentColor;
+            background: rgba(255, 255, 255, 0.55);
+            color: inherit;
+            border-radius: 9999px;
+            padding: 7px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        html.dark .dd-flash-banner.is-status {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.55);
+            color: #d1fae5;
+        }
+
+        html.dark .dd-flash-banner.is-impersonating {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.5);
+            color: #fde68a;
+        }
+
+        html.dark .dd-flash-action {
+            background: rgba(15, 23, 42, 0.65);
+            color: inherit;
+        }
+
         /* Accent button + spinner */
         .btn-accent {
             background: var(--accent);
@@ -779,9 +832,18 @@
         </div>
 
         <div style="padding:20px;">
-            @if (session('status'))
-                <div style="padding:12px;border:1px solid #10b981;background:#d1fae5;border-radius:4px;">
-                    {{ session('status') }}
+            @php $isImpersonating = session()->has('impersonate_as'); @endphp
+            @if (session('status') || $isImpersonating)
+                <div class="dd-flash-banner {{ $isImpersonating ? 'is-impersonating' : 'is-status' }}">
+                    <span>
+                        {{ session('status') ?? ('You are currently impersonating '.(auth()->user()->email ?? 'this user').'.') }}
+                    </span>
+                    @if ($isImpersonating)
+                        <form method="POST" action="{{ route('admin.users.stop-impersonate') }}">
+                            @csrf
+                            <button type="submit" class="dd-flash-action">Stop impersonating</button>
+                        </form>
+                    @endif
                 </div>
             @endif
 
