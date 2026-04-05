@@ -7,6 +7,14 @@ use App\Models\Domain;
 
 class DomainPolicy
 {
+    public function viewAny(User $user): bool
+    {
+        if ($user->hasRole('Administrator')) return true;
+        if ($user->hasRole('Technician')) return true;
+
+        return $user->clients()->exists();
+    }
+
     public function view(User $user, Domain $domain): bool
     {
         if ($user->hasRole('Administrator')) return true;
