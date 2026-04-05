@@ -39,22 +39,22 @@
     @endphp
 
     {{-- Search + bulk sync row --}}
-    <div class="dd-toolbar">
+    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;">
         <form method="GET"
               action="{{ route('admin.domains') }}"
-              style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;">
+              style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
             <input
                 type="text"
                 name="q"
                 value="{{ $search }}"
                 placeholder="Search domains…"
                 class="dd-input dd-input-inline"
-                style="flex:1;"
+                style="flex:1;min-width:260px;"
             >
             <button type="submit" class="btn-accent">Search</button>
         </form>
 
-        <form method="POST" action="{{ route('admin.domains.bulkSync') }}">
+        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;">
             @csrf
             <button type="submit" class="btn-accent" style="white-space:nowrap;">
                 Bulk domain sync
