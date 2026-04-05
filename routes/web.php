@@ -38,6 +38,7 @@ Route::middleware(['auth','verified'])->group(function () {
                 ->name('admin.domains');
             Route::get('/domains/{domain}', [AdminDomainController::class,'show'])
                 ->middleware('permission:domains.view')
+                ->whereNumber('domain')
                 ->name('admin.domains.show');
             Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])
                 ->middleware('permission:sync.run')
@@ -47,15 +48,18 @@ Route::middleware(['auth','verified'])->group(function () {
                 ->name('admin.domains.availability');
             Route::post('/domains/{domain}/renew', [AdminDomainController::class,'renew'])
                 ->middleware('permission:domains.renew')
+                ->whereNumber('domain')
                 ->name('admin.domains.renew');
             Route::post('/domains/transfer', [AdminDomainController::class,'transfer'])
                 ->middleware('permission:domains.transfer')
                 ->name('admin.domains.transfer');
             Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])
                 ->middleware('permission:domains.manage')
+                ->whereNumber('domain')
                 ->name('admin.domains.assignClient');
             Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])
                 ->middleware('permission:domains.transfer')
+                ->whereNumber('domain')
                 ->name('admin.domains.auth-code');
         });
 
