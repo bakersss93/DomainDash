@@ -31,6 +31,34 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/tickets/create', [TicketController::class,'create'])->name('tickets.create');
         Route::post('/tickets', [TicketController::class,'store'])->name('tickets.store');
 
+        // Domain admin area (permission-driven for Administrator/Technician roles)
+        Route::prefix('admin')->group(function () {
+            Route::get('/domains', [AdminDomainController::class,'index'])
+                ->middleware('permission:domains.view')
+                ->name('admin.domains');
+            Route::get('/domains/{domain}', [AdminDomainController::class,'show'])
+                ->middleware('permission:domains.view')
+                ->name('admin.domains.show');
+            Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])
+                ->middleware('permission:sync.run')
+                ->name('admin.domains.bulkSync');
+            Route::post('/domains/availability', [AdminDomainController::class,'searchAvailability'])
+                ->middleware('permission:domains.register')
+                ->name('admin.domains.availability');
+            Route::post('/domains/{domain}/renew', [AdminDomainController::class,'renew'])
+                ->middleware('permission:domains.renew')
+                ->name('admin.domains.renew');
+            Route::post('/domains/transfer', [AdminDomainController::class,'transfer'])
+                ->middleware('permission:domains.transfer')
+                ->name('admin.domains.transfer');
+            Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])
+                ->middleware('permission:domains.manage')
+                ->name('admin.domains.assignClient');
+            Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])
+                ->middleware('permission:domains.transfer')
+                ->name('admin.domains.auth-code');
+        });
+
         // Admin area
         Route::prefix('admin')->middleware(['role:Administrator'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\DashboardController::class,'index'])->name('admin.dashboard');
@@ -85,9 +113,8 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/clients/{client}/halo/link-domains', [ClientsController::class, 'linkDomainsFromHalo'])->name('admin.clients.halo.linkDomains');
 
         // ============================================================================
-        // DOMAINS ROUTES
+        // DOMAIN PURCHASE / TRANSFER (admin only)
         // ============================================================================
-        Route::get('/domains', [AdminDomainController::class,'index'])->name('admin.domains');
         Route::get('/domains/purchase', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'index'])->name('admin.domains.purchase');
         Route::post('/domains/purchase/search', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'search'])->name('admin.domains.purchase.search');
         Route::post('/domains/purchase/validate-au', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'validateAu'])->name('admin.domains.purchase.validateAu');
@@ -95,14 +122,7 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/domains/transfer/create', [\App\Http\Controllers\Admin\DomainTransferController::class,'create'])->name('admin.domains.transfer.create');
         Route::post('/domains/transfer/validate', [\App\Http\Controllers\Admin\DomainTransferController::class,'validateTransfer'])->name('admin.domains.transfer.validate');
         Route::post('/domains/transfer/complete', [\App\Http\Controllers\Admin\DomainTransferController::class,'complete'])->name('admin.domains.transfer.complete');
-        Route::get('/domains/{domain}', [AdminDomainController::class,'show'])->name('admin.domains.show');
-        Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])->name('admin.domains.bulkSync');
-        Route::post('/domains/availability', [AdminDomainController::class,'searchAvailability'])->name('admin.domains.availability');
-        Route::post('/domains/{domain}/renew', [AdminDomainController::class,'renew'])->name('admin.domains.renew');
-        Route::post('/domains/transfer', [AdminDomainController::class,'transfer'])->name('admin.domains.transfer');
-        Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])->name('admin.domains.assignClient');
-        Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])->name('admin.domains.auth-code');
-            
+
         // ============================================================================
         // USERS ROUTES
         // ============================================================================
