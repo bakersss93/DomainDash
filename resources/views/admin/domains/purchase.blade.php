@@ -361,18 +361,43 @@ function completePurchase() {
 }
 </script>
 <style>
+    .dd-domain-purchase-page .dd-card {
+        border: 1px solid #263247;
+        background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%);
+    }
+
+    .dd-domain-purchase-page h2 {
+        color: #f8fafc !important;
+    }
+
     .dd-domain-purchase-page input[type="text"],
-    .dd-domain-purchase-page input[type="email"] {
-        background: var(--dd-surface-soft) !important;
-        border: 1px solid var(--dd-border) !important;
-        color: var(--dd-text) !important;
+    .dd-domain-purchase-page input[type="email"],
+    .dd-domain-purchase-page .fancy-select {
+        min-height: 48px;
+        background: #1e293b !important;
+        border: 1px solid #334155 !important;
+        color: #f8fafc !important;
         border-radius: 12px !important;
+    }
+
+    .dd-domain-purchase-page input::placeholder {
+        color: #94a3b8 !important;
+        opacity: 1;
+    }
+
+    .dd-domain-purchase-page .fancy-select-wrapper::after {
+        color: #93a9c8 !important;
     }
 
     .dd-domain-purchase-page p,
     .dd-domain-purchase-page li,
     .dd-domain-purchase-page label {
-        color: var(--dd-text-soft);
+        color: #cbd5e1 !important;
+    }
+
+    .dd-domain-purchase-page .btn-accent {
+        min-height: 48px;
+        border-radius: 14px;
     }
 </style>
 @endsection
