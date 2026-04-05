@@ -16,6 +16,7 @@ Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','ver
 Route::middleware(['auth','verified'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
+        Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
         Route::get('/dashboard', function () {return view('dashboard');})->name('dashboard');
 
@@ -112,7 +113,6 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/users/{user}/password-link', [UsersController::class, 'sendPasswordLink'])->name('admin.users.password.link');
         Route::post('/users/{user}/mfa-reset', [UsersController::class, 'resetMfa'])->name('admin.users.mfa.reset');
         Route::post('/users/{user}/impersonate', [UsersController::class, 'impersonate'])->name('admin.users.impersonate');
-        Route::post('/users/stop-impersonate', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
         // ============================================================================
         // API KEYS ROUTES
