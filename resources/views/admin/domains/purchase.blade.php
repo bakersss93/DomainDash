@@ -361,12 +361,24 @@ function completePurchase() {
 }
 </script>
 <style>
+    .dd-domain-purchase-page .dd-page-title {
+        font-size: 2.2rem;
+        line-height: 1.15;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: #f8fafc;
+    }
+
     .dd-domain-purchase-page .dd-card {
         border: 1px solid #263247;
         background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%);
     }
 
     .dd-domain-purchase-page h2 {
+        font-size: 1.75rem !important;
+        line-height: 1.2;
+        font-weight: 650;
+        margin-bottom: 1.1rem !important;
         color: #f8fafc !important;
     }
 
