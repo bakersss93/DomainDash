@@ -75,7 +75,7 @@
 
                     <div class="dd-account-actions" style="display:flex;justify-content:flex-start;gap:12px;margin-top:1.6rem;padding-top:1rem;border-top:1px solid #334155;">
                         <button type="submit" class="btn-accent">Save user</button>
-                        <button type="button" class="dd-account-secondary" style="min-width:130px;border:1px solid #4b637f;background:#1d2d45;color:#f8fafc;border-radius:9999px;padding:10px 16px;" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
+                        <button type="button" class="dd-account-secondary" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
                 </form>
 
@@ -310,13 +310,31 @@
             border: 1px solid #4b637f !important;
             background: #1d2d45 !important;
             color: #f8fafc !important;
-            border-radius: 10px !important;
-            padding: 9px 12px !important;
+            border-radius: 14px !important;
+            padding: 0 20px !important;
             text-decoration: none !important;
             margin-top: 0.3rem !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
+            min-height: 52px !important;
+            min-width: 160px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.01em;
+        }
+
+        .dd-account-actions .btn-accent,
+        .dd-account-actions .dd-account-secondary,
+        .dd-account-modal .btn-accent {
+            min-height: 52px !important;
+            min-width: 160px !important;
+            border-radius: 14px !important;
+            padding: 0 20px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.01em;
         }
 
         .dd-account-modal-open {
