@@ -45,15 +45,16 @@ class DomainPurchaseController extends Controller
 
         try {
             $result = $this->synergy->checkDomain($fullDomain);
+            $isAvailable = (bool) ($result['available'] ?? false);
 
             return response()->json([
                 'success' => true,
-                'available' => $result['status'] === 'available',
+                'available' => $isAvailable,
                 'domain' => $fullDomain,
-                'message' => $result['status'] === 'available'
+                'message' => $isAvailable
                     ? "Available! The domain {$fullDomain} is available for registration."
-                    : "Sorry, the domain {$fullDomain} is not available.",
-                'requiresAuValidation' => str_ends_with($extension, '.au'),
+                    : ($result['errorMessage'] ?? "Sorry, the domain {$fullDomain} is not available."),
+                'requiresAuValidation' => str_ends_with('.' . ltrim($extension, '.'), '.au'),
             ]);
         } catch (\Exception $e) {
             return response()->json([

@@ -292,10 +292,38 @@ class SynergyWholesaleClient
     {
         $params = array_merge($this->creds(), [
             'domainName' => $domainName,
+            // Synergy supports a command field in checkDomainRequest.
+            // "register" checks normal registration availability.
+            'command' => 'register',
         ]);
 
         $res = $this->soap->__soapCall('checkDomain', [$params]);
-        return (array) $res;
+        $payload = (array) $res;
+
+        $availableRaw = $payload['available'] ?? null;
+        $available = null;
+
+        if (is_bool($availableRaw)) {
+            $available = $availableRaw;
+        } elseif (is_numeric($availableRaw)) {
+            $available = ((int) $availableRaw) === 1;
+        } elseif (is_string($availableRaw)) {
+            $normalized = strtolower(trim($availableRaw));
+            if (in_array($normalized, ['1', 'true', 'yes'], true)) {
+                $available = true;
+            } elseif (in_array($normalized, ['0', 'false', 'no'], true)) {
+                $available = false;
+            }
+        }
+
+        if ($available === null) {
+            $status = strtolower(trim((string) ($payload['status'] ?? '')));
+            $available = in_array($status, ['available', 'ok', 'success'], true)
+                && empty($payload['errorMessage']);
+        }
+
+        $payload['available'] = $available;
+        return $payload;
     }
 
     /**
