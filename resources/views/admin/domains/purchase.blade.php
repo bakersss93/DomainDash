@@ -397,6 +397,16 @@ function completePurchase() {
         opacity: 1;
     }
 
+    .dd-domain-purchase-page input:-webkit-autofill,
+    .dd-domain-purchase-page input:-webkit-autofill:hover,
+    .dd-domain-purchase-page input:-webkit-autofill:focus {
+        -webkit-text-fill-color: #f8fafc !important;
+        caret-color: #f8fafc;
+        -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+        box-shadow: 0 0 0 1000px #1e293b inset !important;
+        transition: background-color 9999s ease-in-out 0s;
+    }
+
     .dd-domain-purchase-page .fancy-select-wrapper::after {
         color: #93a9c8 !important;
     }
