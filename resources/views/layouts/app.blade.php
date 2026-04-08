@@ -688,6 +688,13 @@
                                 Purchase New Domain
                             </a>
                         </li>
+                        @role('Administrator')
+                        <li class="nav-item">
+                            <a href="{{ route('admin.domains.pricing') }}" class="nav-link {{ request()->routeIs('admin.domains.pricing*') ? 'active' : '' }}">
+                                Domain Pricing
+                            </a>
+                        </li>
+                        @endrole
                     </ul>
                 </li>
 

@@ -15,17 +15,11 @@
                 <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
                     <select id="extension" class="fancy-select dd-search-extension">
                         <option value="">Select an Extension</option>
-                        <option value="com">com</option>
-                        <option value="net">net</option>
-                        <option value="org">org</option>
-                        <option value="com.au">com.au</option>
-                        <option value="net.au">net.au</option>
-                        <option value="org.au">org.au</option>
-                        <option value="au">au</option>
-                        <option value="io">io</option>
-                        <option value="co">co</option>
-                        <option value="biz">biz</option>
-                        <option value="info">info</option>
+                        @forelse(($extensions ?? collect()) as $extension)
+                            <option value="{{ $extension }}">{{ $extension }}</option>
+                        @empty
+                            <option value="com">com</option>
+                        @endforelse
                     </select>
                 </div>
 
