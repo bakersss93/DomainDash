@@ -611,17 +611,17 @@ document.addEventListener('DOMContentLoaded', function () {
         width: 100%;
         min-height: 56px;
         border-radius: 14px !important;
-        border: 1px solid color-mix(in srgb, var(--dd-border) 72%, var(--dd-text-soft) 28%) !important;
-        background: color-mix(in srgb, var(--dd-surface-soft) 88%, var(--dd-surface) 12%) !important;
-        box-shadow: none;
+        border: 1px solid #b6c3d6 !important;
+        background: #ffffff !important;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
         padding: 0 14px !important;
     }
 
     .dd-domain-purchase-page .dd-search-input:focus,
     .dd-domain-purchase-page .dd-search-extension:focus {
         outline: none;
-        border-color: color-mix(in srgb, var(--dd-accent) 55%, var(--dd-border) 45%) !important;
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--dd-accent) 20%, transparent);
+        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
     }
 
     .dd-domain-purchase-page input::placeholder {
