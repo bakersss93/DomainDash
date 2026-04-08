@@ -10,8 +10,7 @@
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Search for a domain</h2>
 
             <div class="dd-search-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name"
-                       style="flex: 1; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name" style="flex: 1; padding: 12px; border: 1px solid #e7e7e7; border-radius: 6px; font-size: 14px; color: #e7e7e7;">
 
                 <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
                     <select id="extension" class="fancy-select dd-search-extension">
@@ -48,7 +47,7 @@
 
             <ul style="margin-bottom: 24px; color: #6b7280; font-size: 14px; margin-left: 20px;">
                 <li>If you wish to register as a business you will need to supply us with an ABN/ACN or RBN, and we'll obtain the required details automatically for you.</li>
-                <li>If you wish to register as an individual you will be required to provide us with Evidence of Identity (EOI) documents. e.g. Australian Driver's License, Passport and or Medicare Card.</li>
+                <li>If you wish to register as an individual you will be required to provide us with an ABN.</li>
             </ul>
 
             <div style="margin-bottom: 16px;">
@@ -358,10 +357,15 @@ function toggleAuFields() {
     const stepClient = document.getElementById('step-client');
     const registrantInfo = document.getElementById('au-registrant-info');
     const shouldUseBusinessPath = method === 'Business';
+    const shouldUseIndividualPath = method === 'Individual';
 
     auBusinessFields.style.display = shouldUseBusinessPath ? 'block' : 'none';
     registrantInfo.style.display = shouldUseBusinessPath && auRegistrantData ? 'block' : 'none';
     stepClient.style.display = shouldUseBusinessPath ? (auRegistrantData ? 'block' : 'none') : 'block';
+
+    auBusinessFields.style.display = shouldUseIndividualPath ? 'block' : 'none';
+    registrantInfo.style.display = shouldUseIndividualPath && auRegistrantData ? 'block' : 'none';
+    stepClient.style.display = shouldUseIndividualPath ? (auRegistrantData ? 'block' : 'none') : 'block';
 }
 
 function toggleClientFields() {
