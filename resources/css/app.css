@@ -5,3 +5,660 @@
 [x-cloak] {
     display: none;
 }
+
+:root {
+    --dd-surface: #ffffff;
+    --dd-surface-soft: #f8fafc;
+    --dd-border: #dbe3ee;
+    --dd-text: #111827;
+    --dd-text-soft: #566177;
+    --dd-accent: #0ea5e9;
+    --dd-accent-strong: #0284c7;
+    --dd-success: #059669;
+    --dd-danger: #dc2626;
+    --dd-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+}
+
+html.dark {
+    --dd-surface: #0f172a;
+    --dd-surface-soft: #111d35;
+    --dd-border: #263247;
+    --dd-text: #e2e8f0;
+    --dd-text-soft: #94a3b8;
+    --dd-accent: #22d3ee;
+    --dd-accent-strong: #06b6d4;
+    --dd-success: #10b981;
+    --dd-danger: #f87171;
+    --dd-shadow: 0 22px 50px rgba(2, 6, 23, 0.6);
+}
+
+.dd-settings-page {
+    max-width: 1080px;
+    margin: 0 auto;
+}
+
+.dd-settings-page .settings-section,
+.dd-settings-page .dd-settings-panel {
+    background: linear-gradient(145deg, var(--dd-surface), var(--dd-surface-soft)) !important;
+    border: 1px solid var(--dd-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-settings-page .settings-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--dd-border) !important;
+}
+
+.dd-settings-page .settings-header h3,
+.dd-settings-page h1,
+.dd-settings-page h2,
+.dd-settings-page h3 {
+    color: var(--dd-text) !important;
+}
+
+.dd-settings-page .settings-header p,
+.dd-settings-page p,
+.dd-settings-page small,
+.dd-settings-page label {
+    color: var(--dd-text-soft) !important;
+}
+
+.dd-settings-page .settings-content {
+    background: transparent !important;
+}
+
+.dd-settings-page input,
+.dd-settings-page select,
+.dd-settings-page textarea {
+    background: var(--dd-surface-soft) !important;
+    border-color: var(--dd-border) !important;
+    color: var(--dd-text) !important;
+    border-radius: 10px !important;
+}
+
+.dd-settings-page .sync-option-btn {
+    border-radius: 12px !important;
+}
+
+#dd-global-loader {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+#dd-global-loader.is-visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.dd-global-loader__panel {
+    width: min(92vw, 420px);
+    background: linear-gradient(160deg, var(--dd-surface), var(--dd-surface-soft));
+    border: 1px solid var(--dd-border);
+    border-radius: 18px;
+    box-shadow: var(--dd-shadow);
+    padding: 24px;
+    text-align: center;
+}
+
+.dd-global-loader__spinner {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 999px;
+    border: 5px solid color-mix(in srgb, var(--dd-accent) 25%, transparent);
+    border-top-color: var(--dd-accent-strong);
+    animation: dd-spin 0.95s linear infinite;
+}
+
+.dd-global-loader__message {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dd-text);
+    margin: 0 0 8px;
+}
+
+.dd-global-loader__hint {
+    margin: 0;
+    color: var(--dd-text-soft);
+    font-size: 0.9rem;
+}
+
+@keyframes dd-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.dd-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dd-page-title {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 0 0 1rem;
+    color: var(--dd-text);
+}
+
+.dd-card {
+    background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
+    border: 1px solid var(--dd-border);
+    border-radius: 16px;
+    box-shadow: var(--dd-shadow);
+    padding: 1.1rem 1.2rem;
+}
+
+.dd-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.dd-users-header {
+    margin-bottom: 0.6rem;
+}
+
+.dd-users-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.dd-users-create-wrap {
+    margin-left: 0;
+    flex-shrink: 0;
+    justify-self: end;
+}
+
+.dd-users-create-btn {
+    padding: 0.56rem 1rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.dd-users-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0;
+    min-width: 0;
+    justify-self: start;
+}
+
+.dd-users-filter label {
+    font-size: 1rem;
+    color: var(--dd-text);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.role-filter-wrapper {
+    position: relative;
+    min-width: 220px;
+    flex: 0 0 auto;
+}
+
+.role-filter-select {
+    width: 100%;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+    padding: 0 2.1rem 0 0.9rem;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--dd-text-soft) 50%),
+        linear-gradient(135deg, var(--dd-text-soft) 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+
+.dd-input {
+    width: 100%;
+    padding: 0.68rem 0.88rem;
+    border-radius: 12px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+}
+
+.dd-input::placeholder {
+    color: var(--dd-text-soft);
+}
+
+.dd-input-inline {
+    width: auto;
+    min-width: 240px;
+}
+
+.dd-table-clean {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.dd-table-clean thead tr {
+    background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+}
+
+.dd-table-clean th,
+.dd-table-clean td {
+    padding: 0.65rem 0.72rem;
+    border-bottom: 1px solid var(--dd-border);
+    text-align: left;
+    color: var(--dd-text);
+}
+
+.dd-services-toolbar,
+.dd-services-filter {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dd-services-toolbar {
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.dd-services-table-wrapper {
+    overflow-x: auto;
+}
+
+.dd-services-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.dd-services-table thead tr {
+    background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+}
+
+.dd-services-table th,
+.dd-services-table td {
+    padding: 0.65rem 0.72rem;
+    border-bottom: 1px solid var(--dd-border);
+    text-align: left;
+    color: var(--dd-text);
+}
+
+.dd-user-shell {
+    max-width: 880px;
+    margin: 0 auto;
+}
+
+.dd-user-card {
+    max-width: 760px;
+    background: linear-gradient(150deg, var(--dd-surface), color-mix(in srgb, var(--dd-surface-soft) 80%, var(--dd-accent) 6%));
+    border: 1px solid var(--dd-border);
+    border-radius: 18px;
+    padding: 1.35rem;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-user-subtitle {
+    margin: 0 0 1rem;
+    font-size: 0.93rem;
+    color: var(--dd-text-soft);
+}
+
+.dd-user-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.dd-user-field {
+    margin-bottom: 0.9rem;
+}
+
+.dd-user-field label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--dd-text);
+}
+
+.dd-user-field input,
+.dd-user-field select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+    padding: 0.65rem 0.78rem;
+}
+
+.dd-user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+}
+
+.dd-user-cancel {
+    padding: 0.52rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid var(--dd-border);
+    background: var(--dd-surface-soft);
+    color: var(--dd-text);
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .dd-user-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.dd-account-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-right: 8px;
+}
+
+.dd-account-card {
+    border: 1px solid #263247 !important;
+    border-radius: 20px !important;
+    background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%) !important;
+    box-shadow: 0 30px 50px rgba(2, 6, 23, 0.55) !important;
+    padding: 26px !important;
+}
+
+.dd-account-header {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.1rem;
+    border-bottom: 1px solid var(--dd-border);
+}
+
+.dd-account-header h1 {
+    margin: 0 0 0.4rem;
+    font-size: 2rem;
+    color: var(--dd-text);
+}
+
+.dd-account-header p {
+    margin: 0;
+    color: var(--dd-text-soft);
+}
+
+.dd-account-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 340px !important;
+    gap: 20px !important;
+    align-items: start;
+}
+
+.dd-account-section-title {
+    margin: 0 0 0.8rem;
+    font-size: 1.35rem;
+    color: var(--dd-text);
+}
+
+.dd-account-subtitle {
+    margin: 1rem 0 0.65rem;
+    font-size: 1rem;
+    color: var(--dd-text);
+}
+
+.dd-account-row {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+}
+
+.dd-account-field {
+    margin-bottom: 0.9rem;
+}
+
+.dd-account-field label {
+    display: block;
+    margin-bottom: 0.38rem;
+    color: var(--dd-text);
+    font-weight: 600;
+}
+
+.dd-account-input {
+    width: 100% !important;
+    border: 1px solid #334155 !important;
+    border-radius: 12px !important;
+    background: #1e293b !important;
+    color: #f8fafc !important;
+    padding: 11px 12px !important;
+}
+
+.dd-account-actions {
+    display: flex;
+    gap: 0.9rem;
+    margin-top: 2.2rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid color-mix(in srgb, var(--dd-border) 65%, transparent);
+    justify-content: flex-end;
+}
+
+.dd-account-secondary {
+    border: 1px solid #4b637f !important;
+    background: #1d2d45 !important;
+    color: #f8fafc !important;
+    border-radius: 9999px !important;
+    padding: 10px 16px !important;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dd-account-actions .btn-accent,
+.dd-account-actions .dd-account-secondary {
+    min-width: 130px;
+    min-height: 42px;
+}
+
+.dd-account-aside {
+    border: 1px solid #334155 !important;
+    border-radius: 14px !important;
+    background: #111827 !important;
+    padding: 16px !important;
+}
+
+.dd-account-aside h3 {
+    margin: 0 0 0.6rem;
+    color: var(--dd-text);
+}
+
+.dd-account-aside p,
+.dd-account-aside li {
+    color: #a8b4c8 !important;
+}
+
+.dd-account-field select,
+.client-picker-toggle {
+    appearance: none !important;
+    background-image: linear-gradient(45deg, transparent 50%, #93a9c8 50%), linear-gradient(135deg, #93a9c8 50%, transparent 50%) !important;
+    background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px) !important;
+    background-size: 6px 6px, 6px 6px !important;
+    background-repeat: no-repeat !important;
+    padding-right: 34px !important;
+}
+
+.client-picker-toggle {
+    border: 1px solid #334155 !important;
+    border-radius: 12px !important;
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    min-height: 46px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.client-picker-arrow {
+    display: none !important;
+}
+
+.dd-account-header h1,
+.dd-account-section-title,
+.dd-account-subtitle,
+.dd-account-field label,
+.dd-account-aside h3 {
+    color: #f8fafc !important;
+}
+
+.dd-account-header p,
+.dd-account-aside p,
+.dd-account-aside li {
+    color: #a8b4c8 !important;
+}
+
+.dd-account-aside p {
+    margin-bottom: 0.55rem !important;
+}
+
+.dd-account-aside ul {
+    margin: 0 !important;
+    padding-left: 1rem !important;
+}
+
+.dd-account-password-btn {
+    border: 1px solid #4b637f !important;
+    background: #1d2d45 !important;
+    color: #f8fafc !important;
+    border-radius: 10px !important;
+    padding: 9px 12px !important;
+    text-decoration: none !important;
+    margin-top: 0.3rem !important;
+}
+
+.dd-account-modal-open {
+    overflow: hidden;
+}
+
+.dd-account-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.75);
+    display: grid;
+    place-items: center;
+    z-index: 80;
+    padding: 18px;
+}
+
+.dd-account-modal-backdrop[hidden] {
+    display: none !important;
+}
+
+.dd-account-modal {
+    width: min(900px, 100%);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    background: #0f172a;
+    box-shadow: 0 24px 44px rgba(2, 6, 23, 0.6);
+    padding: 20px;
+}
+
+.dd-account-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+}
+
+.dd-account-modal-header h2,
+.dd-account-modal h3 {
+    margin: 0;
+    color: #f8fafc;
+}
+
+.dd-account-modal-intro,
+.dd-account-modal p {
+    color: #a8b4c8;
+}
+
+.dd-account-modal-close {
+    border: 1px solid #334155;
+    background: #1e293b;
+    color: #f8fafc;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.dd-account-modal-grid {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.dd-account-modal-form {
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 14px;
+    background: #111827;
+}
+
+@media (max-width: 900px) {
+    .dd-users-controls {
+        display: flex;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .role-filter-wrapper {
+        min-width: 100%;
+    }
+
+    .dd-users-create-wrap {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .dd-users-create-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .dd-users-filter {
+        width: 100%;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .dd-account-grid,
+    .dd-account-row,
+    .dd-account-modal-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .dd-account-actions {
+        justify-content: flex-start;
+    }
+}

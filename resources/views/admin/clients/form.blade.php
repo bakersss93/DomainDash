@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <div style="max-width: 820px; margin: 0 auto;">
+    <div class="dd-page" style="max-width: 920px;">
 
         {{-- Title --}}
         <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">
@@ -10,7 +10,7 @@
 
         {{-- Debug info (remove after testing) --}}
         @if($client->exists && config('app.debug'))
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px;font-family:monospace;">
+            <div style="background:var(--dd-surface-soft);border:1px solid var(--dd-border);border-radius:6px;padding:12px;margin-bottom:16px;font-size:12px;font-family:monospace;">
                 <strong>Debug Info:</strong><br>
                 HaloPSA Ref: {{ $client->halopsa_reference ?? 'NULL' }}<br>
                 ITGlue Org ID: {{ $client->itglue_org_id ?? 'NULL' }}<br>
@@ -19,7 +19,7 @@
         @endif
 
         {{-- Form card --}}
-        <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+        <div class="dd-card" style="margin-bottom:24px;">
 
             <form method="POST"
                   action="{{ $client->exists ? route('admin.clients.update', $client) : route('admin.clients.store') }}"
@@ -190,12 +190,12 @@
 
         {{-- Integration Actions (only show for existing clients) --}}
         @if($client->exists)
-            <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+            <div class="dd-card" style="margin-bottom:24px;">
                 <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Integration Actions</h2>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                     {{-- ITGlue Sync --}}
-                    <div style="border:1px solid #1f2937;border-radius:6px;padding:14px;">
+                    <div style="border:1px solid var(--dd-border);border-radius:6px;padding:14px;">
                         <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#60a5fa;">
                             📘 ITGlue Sync
                         </h3>
@@ -218,7 +218,7 @@
                     </div>
 
                     {{-- HaloPSA DNS Sync --}}
-                    <div style="border:1px solid #1f2937;border-radius:6px;padding:14px;">
+                    <div style="border:1px solid var(--dd-border);border-radius:6px;padding:14px;">
                         <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#34d399;">
                             🔧 HaloPSA DNS Sync
                         </h3>
@@ -254,7 +254,7 @@
 
         {{-- Assigned users list --}}
         @isset($assignedUsers)
-            <div style="background:rgba(15,23,42,0.4);border-radius:8px;padding:16px 20px;">
+            <div class="dd-card">
                 <h2 style="font-size:16px;font-weight:600;margin-bottom:8px;">Assigned Users</h2>
 
                 @if($assignedUsers->isEmpty())
@@ -274,9 +274,9 @@
 
     {{-- ITGlue organisation picker modal --}}
     <div id="itglue-modal-backdrop"
-         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);
+         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+        <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
                     width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);">
             <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
                 Select ITGlue Organisation
@@ -290,15 +290,15 @@
             <input type="text"
                    id="itglue-search"
                    placeholder="Search organisations..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
-                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--dd-border);
+                          font-size:14px;margin-bottom:12px;background:var(--dd-surface-soft);color:var(--dd-text);">
 
             <div id="itglue-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
                 Loading organisations from ITGlue…
             </div>
 
-            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--dd-border);">
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
                     <tr style="background:#020617;">
@@ -345,9 +345,9 @@
 
     {{-- HaloPSA client picker modal --}}
     <div id="halopsa-modal-backdrop"
-         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);
+         style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+        <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
                     width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);">
             <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
                 Select HaloPSA Client
@@ -361,15 +361,15 @@
             <input type="text"
                    id="halopsa-search"
                    placeholder="Search clients..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
-                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--dd-border);
+                          font-size:14px;margin-bottom:12px;background:var(--dd-surface-soft);color:var(--dd-text);">
 
             <div id="halopsa-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
                 Loading clients from HaloPSA…
             </div>
 
-            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--dd-border);">
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
                     <tr style="background:#020617;">
@@ -418,7 +418,7 @@
     <div id="delete-modal-backdrop"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.9);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+        <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
                     width:100%;max-width:500px;box-shadow:0 20px 40px rgba(0,0,0,0.45);
                     border:2px solid #ef4444;">
             <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;color:#ef4444;">
@@ -443,8 +443,8 @@
             <input type="email"
                    id="delete-email-confirm"
                    placeholder="your.email@example.com"
-                   style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid #1f2937;
-                          font-size:14px;margin-bottom:16px;background:#0f172a;color:#e5e7eb;">
+                   style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid var(--dd-border);
+                          font-size:14px;margin-bottom:16px;background:var(--dd-surface-soft);color:var(--dd-text);">
 
             <div id="delete-error" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px;"></div>
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -11,9 +12,47 @@ class PermissionsController extends Controller
 {
     public function index()
     {
-        $roles = Role::whereIn('name',['Technician','Customer'])->get();
+        $roles = Role::orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
         return view('admin.permissions.index', compact('roles','permissions'));
+    }
+
+    public function storeRole(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:50', Rule::unique('roles', 'name')],
+        ]);
+
+        Role::create(['name' => trim($data['name'])]);
+
+        return back()->with('status', 'Role created.');
+    }
+
+    public function updateRolePermissions(Request $request, Role $role)
+    {
+        $data = $request->validate([
+            'permissions' => ['array'],
+            'permissions.*' => ['string', Rule::exists('permissions', 'name')],
+        ]);
+
+        $role->syncPermissions($data['permissions'] ?? []);
+
+        return back()->with('status', 'Permissions updated for '.$role->name.'.');
+    }
+
+    public function destroyRole(Role $role)
+    {
+        if ($role->name === 'Administrator') {
+            return back()->with('status', 'Administrator role cannot be deleted.');
+        }
+
+        if ($role->users()->exists()) {
+            return back()->with('status', 'Cannot delete role with assigned users.');
+        }
+
+        $role->delete();
+
+        return back()->with('status', 'Role deleted.');
     }
 
     public function update(Request $request)

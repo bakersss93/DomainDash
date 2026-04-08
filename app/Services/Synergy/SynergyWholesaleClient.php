@@ -292,28 +292,68 @@ class SynergyWholesaleClient
     {
         $params = array_merge($this->creds(), [
             'domainName' => $domainName,
+            // Synergy docs: command defaults to "create" for availability/pricing checks.
+            'command' => 'create',
         ]);
 
         $res = $this->soap->__soapCall('checkDomain', [$params]);
+        $payload = (array) $res;
+
+        $availableRaw = $payload['available'] ?? null;
+        $available = null;
+
+        if (is_bool($availableRaw)) {
+            $available = $availableRaw;
+        } elseif (is_numeric($availableRaw)) {
+            $available = ((int) $availableRaw) === 1;
+        } elseif (is_string($availableRaw)) {
+            $normalized = strtolower(trim($availableRaw));
+            if (in_array($normalized, ['1', 'true', 'yes'], true)) {
+                $available = true;
+            } elseif (in_array($normalized, ['0', 'false', 'no'], true)) {
+                $available = false;
+            }
+        }
+
+        if ($available === null) {
+            $status = strtolower(trim((string) ($payload['status'] ?? '')));
+            $available = in_array($status, ['available', 'ok', 'success'], true)
+                && empty($payload['errorMessage']);
+        }
+
+        $payload['available'] = $available;
+        return $payload;
+    }
+
+    /**
+     * Generate .au eligibility fields from a business identifier.
+     *
+     * API docs operation: generateAuEligibility
+     *
+     * @param string $registrationIdentifier ABN/ACN/RBN value
+     * @param string|null $type Optional type hint (ABN, ACN, RBN)
+     * @return array Eligibility response payload
+     */
+    public function generateAuEligibility(string $registrationIdentifier, ?string $type = null): array
+    {
+        $params = array_merge($this->creds(), [
+            'registrationIdentifier' => $registrationIdentifier,
+        ]);
+
+        if (!empty($type)) {
+            $params['type'] = $type;
+        }
+
+        $res = $this->soap->__soapCall('generateAuEligibility', [$params]);
         return (array) $res;
     }
 
     /**
-     * Get .au registrant information from ABN/ACN.
-     *
-     * @param string $idType Type of ID (ABN, ACN, etc.)
-     * @param string $idValue The actual ID value
-     * @return array Registrant information
+     * Backwards-compatible alias for older callers.
      */
     public function auRegistrantInfo(string $idType, string $idValue): array
     {
-        $params = array_merge($this->creds(), [
-            'idType' => $idType,
-            'idNumber' => $idValue,
-        ]);
-
-        $res = $this->soap->__soapCall('auRegistrantInfo', [$params]);
-        return (array) $res;
+        return $this->generateAuEligibility($idValue, $idType);
     }
 
     /**

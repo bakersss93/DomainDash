@@ -45,15 +45,16 @@ class DomainPurchaseController extends Controller
 
         try {
             $result = $this->synergy->checkDomain($fullDomain);
+            $isAvailable = (bool) ($result['available'] ?? false);
 
             return response()->json([
                 'success' => true,
-                'available' => $result['status'] === 'available',
+                'available' => $isAvailable,
                 'domain' => $fullDomain,
-                'message' => $result['status'] === 'available'
+                'message' => $isAvailable
                     ? "Available! The domain {$fullDomain} is available for registration."
-                    : "Sorry, the domain {$fullDomain} is not available.",
-                'requiresAuValidation' => str_ends_with($extension, '.au'),
+                    : ($result['errorMessage'] ?? "Sorry, the domain {$fullDomain} is not available."),
+                'requiresAuValidation' => str_ends_with('.' . ltrim($extension, '.'), '.au'),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -74,25 +75,32 @@ class DomainPurchaseController extends Controller
         ]);
 
         try {
-            $result = $this->synergy->auRegistrantInfo(
-                $request->id_type,
-                $request->id_number
+            $result = $this->synergy->generateAuEligibility(
+                $request->id_number,
+                $request->id_type
             );
 
-            if (isset($result['status']) && $result['status'] === 'OK') {
+            $status = strtolower((string) ($result['status'] ?? ''));
+            $eligibility = (array) ($result['eligibility'] ?? []);
+            $registrantName = $eligibility['registrantName'] ?? $eligibility['eligibilityName'] ?? null;
+            $eligibilityType = $eligibility['eligibilityType'] ?? null;
+            $eligibilityId = $eligibility['eligibilityID'] ?? $request->id_number;
+            $eligibilityIdType = $eligibility['eligibilityIDType'] ?? $eligibility['registrantIDType'] ?? $request->id_type;
+
+            if (in_array($status, ['ok', 'success'], true) && !empty($eligibility)) {
                 return response()->json([
                     'success' => true,
                     'registrant' => [
-                        'name' => $result['registrantName'] ?? '',
-                        'id_type' => $request->id_type,
-                        'id_number' => $request->id_number,
-                        'eligibility_type' => $result['eligibilityType'] ?? 'Company',
+                        'name' => $registrantName ?? '',
+                        'id_type' => $eligibilityIdType,
+                        'id_number' => $eligibilityId,
+                        'eligibility_type' => $eligibilityType ?? 'Company',
                     ],
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid ' . $request->id_type . '. Please check the number and try again.',
+                    'message' => $result['errorMessage'] ?? ('Invalid ' . $request->id_type . '. Please check the number and try again.'),
                 ], 422);
             }
         } catch (\Exception $e) {

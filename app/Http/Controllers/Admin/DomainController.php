@@ -13,6 +13,8 @@ class DomainController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Domain::class);
+
         $sort   = $request->get('sort', 'name');
         $dir    = $request->get('dir',  'asc');
         $search = $request->get('q');
@@ -26,6 +28,11 @@ class DomainController extends Controller
         }
 
         $q = Domain::query()->with('client');
+
+        if (auth()->user()->hasRole('Customer')) {
+            $clientIds = auth()->user()->clients()->pluck('clients.id');
+            $q->whereIn('client_id', $clientIds);
+        }
 
         if ($search) {
             $q->where('name', 'like', '%'.$search.'%');
@@ -42,6 +49,8 @@ class DomainController extends Controller
 
     public function show(Domain $domain)
     {
+        $this->authorize('view', $domain);
+
         $domain->load('client');
 
         $dnsMap = [

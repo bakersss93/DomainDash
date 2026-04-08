@@ -1,20 +1,19 @@
 @extends('layouts.app')
 
 @section('content')
-<div style="max-width: 1200px;">
-    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase New Domain</h1>
+<div class="dd-page dd-domain-purchase-page">
+    <h1 class="dd-page-title">Purchase New Domain</h1>
 
     <div id="app-purchase-domain">
         <!-- Step 1: Search for domain -->
-        <div id="step-search" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+        <div id="step-search" class="dd-card" style="margin-bottom: 24px;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Search for a domain</h2>
 
-            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <input type="text" id="domain-name" placeholder="Enter a Domain Name"
-                       style="flex: 1; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+            <div class="dd-search-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name" style="flex: 1; padding: 12px; border: 1px solid #e7e7e7; border-radius: 6px; font-size: 14px; color: #e7e7e7;">
 
-                <div class="fancy-select-wrapper" style="min-width: 200px;">
-                    <select id="extension" class="fancy-select">
+                <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
+                    <select id="extension" class="fancy-select dd-search-extension">
                         <option value="">Select an Extension</option>
                         <option value="com">com</option>
                         <option value="net">net</option>
@@ -39,7 +38,7 @@
         </div>
 
         <!-- Step 2: .au Registrant Validation (only for .au domains) -->
-        <div id="step-au-validation" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; display: none;">
+        <div id="step-au-validation" class="dd-card" style="margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">.au Automated Registrant Retrieval</h2>
 
             <p style="margin-bottom: 16px; color: #6b7280; font-size: 14px;">
@@ -48,7 +47,7 @@
 
             <ul style="margin-bottom: 24px; color: #6b7280; font-size: 14px; margin-left: 20px;">
                 <li>If you wish to register as a business you will need to supply us with an ABN/ACN or RBN, and we'll obtain the required details automatically for you.</li>
-                <li>If you wish to register as an individual you will be required to provide us with Evidence of Identity (EOI) documents. e.g. Australian Driver's License, Passport and or Medicare Card.</li>
+                <li>If you wish to register as an individual you will be required to provide us with an ABN.</li>
             </ul>
 
             <div style="margin-bottom: 16px;">
@@ -87,7 +86,7 @@
         </div>
 
         <!-- Step 3: Client Information -->
-        <div id="step-client" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; display: none;">
+        <div id="step-client" class="dd-card" style="margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">New Contact Information</h2>
 
             <div style="margin-bottom: 16px;">
@@ -108,13 +107,44 @@
                         <select id="existing-client-id" class="fancy-select">
                             <option value="">Select a client</option>
                             @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
-                                <option value="{{ $client->id }}">{{ $client->business_name }}</option>
+                                @php
+                                    $contactName = $client->primary_contact_name ?? '';
+                                    [$contactFirst, $contactLast] = array_pad(explode(' ', trim($contactName), 2), 2, '');
+                                @endphp
+                                <option value="{{ $client->id }}"
+                                        data-business-name="{{ $client->business_name }}"
+                                        data-first-name="{{ $contactFirst }}"
+                                        data-last-name="{{ $contactLast }}"
+                                        data-email="{{ $client->email }}"
+                                        data-phone="{{ $client->phone }}"
+                                        data-address="{{ $client->address }}"
+                                        data-city="{{ $client->city }}"
+                                        data-state="{{ $client->state }}"
+                                        data-postcode="{{ $client->postcode }}"
+                                        data-country="{{ $client->country ?? 'AU' }}">
+                                    {{ $client->business_name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
                     <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                         Contact details will be taken from the client's stored information.
                     </p>
+                </div>
+
+                <div id="existing-client-summary" class="dd-existing-client-summary" style="display:none;">
+                    <div class="dd-existing-client-summary-header">
+                        <h3>Domain Registration Contact</h3>
+                        <button type="button" class="dd-account-password-btn" onclick="openExistingClientModal()">Edit details</button>
+                    </div>
+                    <dl class="dd-existing-client-grid">
+                        <div><dt>Business</dt><dd id="summary-business-name"></dd></div>
+                        <div><dt>Contact</dt><dd id="summary-contact-name"></dd></div>
+                        <div><dt>Email</dt><dd id="summary-email"></dd></div>
+                        <div><dt>Phone</dt><dd id="summary-phone"></dd></div>
+                        <div><dt>Address</dt><dd id="summary-address"></dd></div>
+                        <div><dt>Location</dt><dd id="summary-location"></dd></div>
+                    </dl>
                 </div>
             </div>
 
@@ -188,10 +218,41 @@
     </div>
 </div>
 
+<div id="existing-client-modal" class="dd-account-modal-backdrop" hidden>
+    <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="existingClientModalTitle">
+        <div class="dd-account-modal-header">
+            <h2 id="existingClientModalTitle">Edit Registration Details</h2>
+            <button type="button" class="dd-account-modal-close" onclick="closeExistingClientModal()" aria-label="Close existing client editor">×</button>
+        </div>
+        <p class="dd-account-modal-intro">These details apply to this domain registration only and do not overwrite the base client record.</p>
+        <div class="dd-account-modal-grid">
+            <div class="dd-account-modal-form">
+                <div class="dd-existing-client-form-grid">
+                    <div><label>Business Name</label><input type="text" id="edit-business-name"></div>
+                    <div><label>Email</label><input type="email" id="edit-email"></div>
+                    <div><label>First Name</label><input type="text" id="edit-first-name"></div>
+                    <div><label>Last Name</label><input type="text" id="edit-last-name"></div>
+                    <div><label>Phone</label><input type="text" id="edit-phone"></div>
+                    <div><label>Country</label><input type="text" id="edit-country"></div>
+                    <div style="grid-column:1 / -1;"><label>Address</label><input type="text" id="edit-address"></div>
+                    <div><label>City</label><input type="text" id="edit-city"></div>
+                    <div><label>State</label><input type="text" id="edit-state"></div>
+                    <div><label>Postcode</label><input type="text" id="edit-postcode"></div>
+                </div>
+                <div class="dd-account-actions" style="justify-content:flex-start;margin-top:1rem;">
+                    <button type="button" class="btn-accent" onclick="saveExistingClientModal()">Save details</button>
+                    <button type="button" class="dd-account-secondary" onclick="closeExistingClientModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let searchedDomain = '';
 let isAuDomain = false;
 let auRegistrantData = null;
+let existingClientOverrides = null;
 
 function searchDomain() {
     const domainName = document.getElementById('domain-name').value.trim();
@@ -203,6 +264,10 @@ function searchDomain() {
     }
 
     const resultDiv = document.getElementById('search-result');
+    auRegistrantData = null;
+    document.getElementById('au-registrant-info').style.display = 'none';
+    document.getElementById('step-au-validation').style.display = 'none';
+    document.getElementById('step-client').style.display = 'none';
     resultDiv.innerHTML = '<p>Checking availability...</p>';
     resultDiv.style.display = 'block';
 
@@ -221,20 +286,23 @@ function searchDomain() {
             isAuDomain = data.requiresAuValidation;
 
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #d1fae5; border: 1px solid #10b981; border-radius: 6px;">
-                    <p style="color: #065f46; font-weight: 600;">${data.message}</p>
+                <div class="dd-purchase-notice dd-purchase-notice-success">
+                    <p>${data.message}</p>
                 </div>
             `;
 
             if (isAuDomain) {
                 document.getElementById('step-au-validation').style.display = 'block';
+                document.getElementById('step-client').style.display = 'none';
+                toggleAuFields();
             } else {
+                document.getElementById('step-au-validation').style.display = 'none';
                 document.getElementById('step-client').style.display = 'block';
             }
         } else {
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                    <p style="color: #991b1b; font-weight: 600;">${data.message || 'Domain is not available.'}</p>
+                <div class="dd-purchase-notice dd-purchase-notice-error">
+                    <p>${data.message || 'Domain is not available.'}</p>
                 </div>
             `;
             document.getElementById('step-au-validation').style.display = 'none';
@@ -243,8 +311,8 @@ function searchDomain() {
     })
     .catch(err => {
         resultDiv.innerHTML = `
-            <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                <p style="color: #991b1b;">Error checking domain availability.</p>
+            <div class="dd-purchase-notice dd-purchase-notice-error">
+                <p>Error checking domain availability.</p>
             </div>
         `;
     });
@@ -285,13 +353,115 @@ function validateAu() {
 
 function toggleAuFields() {
     const method = document.getElementById('au-method').value;
-    document.getElementById('au-business-fields').style.display = method === 'Business' ? 'block' : 'none';
+    const auBusinessFields = document.getElementById('au-business-fields');
+    const stepClient = document.getElementById('step-client');
+    const registrantInfo = document.getElementById('au-registrant-info');
+    const shouldUseBusinessPath = method === 'Business';
+    const shouldUseIndividualPath = method === 'Individual';
+
+    auBusinessFields.style.display = shouldUseBusinessPath ? 'block' : 'none';
+    registrantInfo.style.display = shouldUseBusinessPath && auRegistrantData ? 'block' : 'none';
+    stepClient.style.display = shouldUseBusinessPath ? (auRegistrantData ? 'block' : 'none') : 'block';
+
+    auBusinessFields.style.display = shouldUseIndividualPath ? 'block' : 'none';
+    registrantInfo.style.display = shouldUseIndividualPath && auRegistrantData ? 'block' : 'none';
+    stepClient.style.display = shouldUseIndividualPath ? (auRegistrantData ? 'block' : 'none') : 'block';
 }
 
 function toggleClientFields() {
     const clientType = document.getElementById('client-type').value;
     document.getElementById('existing-client-fields').style.display = clientType === 'existing' ? 'block' : 'none';
     document.getElementById('new-client-fields').style.display = clientType === 'new' ? 'block' : 'none';
+    document.getElementById('existing-client-summary').style.display = clientType === 'existing' ? 'block' : 'none';
+    if (clientType === 'existing') {
+        populateExistingClientSummary();
+    }
+}
+
+function getSelectedClientData() {
+    const select = document.getElementById('existing-client-id');
+    const option = select?.options?.[select.selectedIndex];
+    if (!option || !option.value) {
+        return null;
+    }
+    return {
+        business_name: option.dataset.businessName || '',
+        first_name: option.dataset.firstName || '',
+        last_name: option.dataset.lastName || '',
+        email: option.dataset.email || '',
+        phone: option.dataset.phone || '',
+        address: option.dataset.address || '',
+        city: option.dataset.city || '',
+        state: option.dataset.state || '',
+        postcode: option.dataset.postcode || '',
+        country: option.dataset.country || 'AU',
+    };
+}
+
+function getExistingClientRegistrationData() {
+    return existingClientOverrides || getSelectedClientData();
+}
+
+function populateExistingClientSummary() {
+    const summary = document.getElementById('existing-client-summary');
+    const data = getExistingClientRegistrationData();
+    if (!summary) return;
+    if (!data) {
+        summary.style.display = 'none';
+        return;
+    }
+
+    summary.style.display = 'block';
+    document.getElementById('summary-business-name').textContent = data.business_name || '—';
+    document.getElementById('summary-contact-name').textContent = [data.first_name, data.last_name].filter(Boolean).join(' ') || '—';
+    document.getElementById('summary-email').textContent = data.email || '—';
+    document.getElementById('summary-phone').textContent = data.phone || '—';
+    document.getElementById('summary-address').textContent = data.address || '—';
+    document.getElementById('summary-location').textContent = [data.city, data.state, data.postcode, data.country].filter(Boolean).join(', ') || '—';
+}
+
+function openExistingClientModal() {
+    const data = getExistingClientRegistrationData();
+    if (!data) {
+        alert('Please select a client first.');
+        return;
+    }
+
+    document.getElementById('edit-business-name').value = data.business_name || '';
+    document.getElementById('edit-first-name').value = data.first_name || '';
+    document.getElementById('edit-last-name').value = data.last_name || '';
+    document.getElementById('edit-email').value = data.email || '';
+    document.getElementById('edit-phone').value = data.phone || '';
+    document.getElementById('edit-address').value = data.address || '';
+    document.getElementById('edit-city').value = data.city || '';
+    document.getElementById('edit-state').value = data.state || '';
+    document.getElementById('edit-postcode').value = data.postcode || '';
+    document.getElementById('edit-country').value = data.country || 'AU';
+
+    document.getElementById('existing-client-modal').removeAttribute('hidden');
+    document.body.classList.add('dd-account-modal-open');
+}
+
+function closeExistingClientModal() {
+    document.getElementById('existing-client-modal').setAttribute('hidden', 'hidden');
+    document.body.classList.remove('dd-account-modal-open');
+}
+
+function saveExistingClientModal() {
+    existingClientOverrides = {
+        business_name: document.getElementById('edit-business-name').value.trim(),
+        first_name: document.getElementById('edit-first-name').value.trim(),
+        last_name: document.getElementById('edit-last-name').value.trim(),
+        email: document.getElementById('edit-email').value.trim(),
+        phone: document.getElementById('edit-phone').value.trim(),
+        address: document.getElementById('edit-address').value.trim(),
+        city: document.getElementById('edit-city').value.trim(),
+        state: document.getElementById('edit-state').value.trim(),
+        postcode: document.getElementById('edit-postcode').value.trim(),
+        country: document.getElementById('edit-country').value.trim() || 'AU',
+    };
+    populateExistingClientSummary();
+    closeExistingClientModal();
 }
 
 function completePurchase() {
@@ -309,6 +479,11 @@ function completePurchase() {
         if (!formData.client_id) {
             alert('Please select a client.');
             return;
+        }
+
+        const existingData = getExistingClientRegistrationData();
+        if (existingData) {
+            formData.existing_client_overrides = existingData;
         }
     } else {
         formData.business_name = document.getElementById('business-name').value;
@@ -359,5 +534,305 @@ function completePurchase() {
         alert('Error purchasing domain.');
     });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const existingClientSelect = document.getElementById('existing-client-id');
+    if (existingClientSelect) {
+        existingClientSelect.addEventListener('change', function () {
+            existingClientOverrides = null;
+            populateExistingClientSummary();
+        });
+    }
+
+    const existingClientModal = document.getElementById('existing-client-modal');
+    if (existingClientModal) {
+        existingClientModal.addEventListener('click', function (event) {
+            if (event.target === existingClientModal) {
+                closeExistingClientModal();
+            }
+        });
+    }
+});
 </script>
+<style>
+    .dd-domain-purchase-page .dd-page-title {
+        font-size: 2.2rem;
+        line-height: 1.15;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--dd-text);
+    }
+
+    .dd-domain-purchase-page .dd-card {
+        border: 1px solid var(--dd-border);
+        background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
+    }
+
+    .dd-domain-purchase-page h2 {
+        font-size: 1.75rem !important;
+        line-height: 1.2;
+        font-weight: 650;
+        margin-bottom: 1.1rem !important;
+        color: var(--dd-text) !important;
+    }
+
+    .dd-domain-purchase-page #step-search h2,
+    .dd-domain-purchase-page #step-au-validation h2,
+    .dd-domain-purchase-page #step-client h2 {
+        font-size: 2rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+
+    .dd-domain-purchase-page .dd-search-row {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(190px, 220px) auto;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .dd-domain-purchase-page .dd-search-extension-wrap {
+        display: block;
+        width: 100%;
+    }
+
+    .dd-domain-purchase-page input[type="text"],
+    .dd-domain-purchase-page input[type="email"],
+    .dd-domain-purchase-page .fancy-select {
+        min-height: 48px;
+        background: var(--dd-surface-soft) !important;
+        border: 1px solid var(--dd-border) !important;
+        color: var(--dd-text) !important;
+        border-radius: 12px !important;
+    }
+
+    .dd-domain-purchase-page #domain-name {
+        color: var(--dd-text) !important;
+        font-weight: 500;
+    }
+
+    .dd-domain-purchase-page .dd-search-input,
+    .dd-domain-purchase-page .dd-search-extension {
+        width: 100%;
+        min-height: 56px;
+        border-radius: 14px !important;
+        border: 1px solid #b6c3d6 !important;
+        background: #ffffff !important;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
+        padding: 0 14px !important;
+    }
+
+    .dd-domain-purchase-page .dd-search-input:focus,
+    .dd-domain-purchase-page .dd-search-extension:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
+    }
+
+    .dd-domain-purchase-page input::placeholder {
+        color: color-mix(in srgb, var(--dd-text-soft) 92%, transparent) !important;
+        opacity: 1;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-search-input,
+    html.dark .dd-domain-purchase-page .dd-search-extension {
+        border-color: color-mix(in srgb, #324664 62%, var(--dd-border) 38%) !important;
+        background: #1c2c47 !important;
+        color: #e2e8f0 !important;
+    }
+
+    .dd-domain-purchase-page .dd-search-extension option {
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .dd-domain-purchase-page #step-au-validation input[type="text"],
+    .dd-domain-purchase-page #step-au-validation input[type="email"],
+    .dd-domain-purchase-page #step-au-validation .fancy-select,
+    .dd-domain-purchase-page #step-client input[type="text"],
+    .dd-domain-purchase-page #step-client input[type="email"],
+    .dd-domain-purchase-page #step-client .fancy-select {
+        border: 1px solid #b6c3d6 !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
+    }
+
+    .dd-domain-purchase-page #step-au-validation .fancy-select option,
+    .dd-domain-purchase-page #step-client .fancy-select option {
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .dd-domain-purchase-page #step-au-validation input[type="text"]:focus,
+    .dd-domain-purchase-page #step-au-validation input[type="email"]:focus,
+    .dd-domain-purchase-page #step-au-validation .fancy-select:focus,
+    .dd-domain-purchase-page #step-client input[type="text"]:focus,
+    .dd-domain-purchase-page #step-client input[type="email"]:focus,
+    .dd-domain-purchase-page #step-client .fancy-select:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
+    }
+
+    html.dark .dd-domain-purchase-page .dd-search-extension option {
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    html.dark .dd-domain-purchase-page #step-au-validation input[type="text"],
+    html.dark .dd-domain-purchase-page #step-au-validation input[type="email"],
+    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select,
+    html.dark .dd-domain-purchase-page #step-client input[type="text"],
+    html.dark .dd-domain-purchase-page #step-client input[type="email"],
+    html.dark .dd-domain-purchase-page #step-client .fancy-select {
+        border-color: color-mix(in srgb, #324664 62%, var(--dd-border) 38%) !important;
+        background: #1c2c47 !important;
+        color: #e2e8f0 !important;
+    }
+
+    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select option,
+    html.dark .dd-domain-purchase-page #step-client .fancy-select option {
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    .dd-domain-purchase-page input:-webkit-autofill,
+    .dd-domain-purchase-page input:-webkit-autofill:hover,
+    .dd-domain-purchase-page input:-webkit-autofill:focus {
+        -webkit-text-fill-color: var(--dd-text) !important;
+        caret-color: var(--dd-text);
+        -webkit-box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
+        box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
+        transition: background-color 9999s ease-in-out 0s;
+    }
+
+    .dd-domain-purchase-page .fancy-select-wrapper::after {
+        color: var(--dd-text-soft) !important;
+    }
+
+    .dd-domain-purchase-page p,
+    .dd-domain-purchase-page li,
+    .dd-domain-purchase-page label {
+        color: var(--dd-text-soft) !important;
+    }
+
+    .dd-domain-purchase-page .btn-accent {
+        min-height: 48px;
+        border-radius: 14px;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice {
+        padding: 16px;
+        border-radius: 10px;
+        border-width: 1px;
+        border-style: solid;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice p {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-success {
+        background: #ecfdf5;
+        border-color: #10b981;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-success p {
+        color: #065f46 !important;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-error {
+        background: #fef2f2;
+        border-color: #ef4444;
+    }
+
+    .dd-domain-purchase-page .dd-purchase-notice-error p {
+        color: #991b1b !important;
+    }
+
+    .dd-existing-client-summary {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--dd-border);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--dd-surface-soft) 86%, transparent);
+    }
+
+    .dd-existing-client-summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .dd-existing-client-summary-header h3 {
+        margin: 0;
+        color: var(--dd-text);
+        font-size: 1rem;
+    }
+
+    .dd-existing-client-grid {
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 16px;
+    }
+
+    .dd-existing-client-grid dt {
+        font-size: 12px;
+        color: var(--dd-text-soft);
+    }
+
+    .dd-existing-client-grid dd {
+        margin: 2px 0 0;
+        color: var(--dd-text);
+        font-weight: 600;
+    }
+
+    .dd-existing-client-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .dd-existing-client-form-grid label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--dd-text-soft);
+        font-size: 13px;
+    }
+
+    .dd-existing-client-form-grid input {
+        width: 100%;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-success {
+        background: #0f2f26;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-success p {
+        color: #6ee7b7 !important;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-error {
+        background: #3a161c;
+    }
+
+    html.dark .dd-domain-purchase-page .dd-purchase-notice-error p {
+        color: #fecaca !important;
+    }
+
+    @media (max-width: 900px) {
+        .dd-domain-purchase-page .dd-search-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .dd-existing-client-grid,
+        .dd-existing-client-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 @endsection
