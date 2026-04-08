@@ -45,7 +45,7 @@
             </div>
             <div class="dd-pricing-filters">
                 <label class="dd-pricing-filter"><input type="checkbox" id="filter-on-sale"> On sale</label>
-                <label class="dd-pricing-filter"><input type="checkbox" id="filter-sale-ended"> End of sale</label>
+                <label class="dd-pricing-filter"><input type="checkbox" id="filter-sale-ended"> Show EoL Domains</label>
             </div>
         </div>
 
@@ -177,13 +177,10 @@
             const onSale = row.dataset.onSale === '1';
             const saleEnded = row.dataset.saleEnded === '1';
 
-            let saleFilterPass = true;
-            if (filterOnSale || filterSaleEnded) {
-                saleFilterPass = (filterOnSale && onSale) || (filterSaleEnded && saleEnded);
-            }
-
+            const saleWindowPass = filterSaleEnded ? true : !saleEnded;
+            const saleTypePass = filterOnSale ? onSale : true;
             const searchPass = search === '' || tld.includes(search);
-            const show = saleFilterPass && searchPass;
+            const show = saleWindowPass && saleTypePass && searchPass;
 
             row.style.display = show ? '' : 'none';
             if (show) {
@@ -235,7 +232,7 @@
     display: flex;
     gap: 1rem;
     align-items: flex-end;
-    justify-content: space-between;
+    justify-content: flex-start;
     flex-wrap: wrap;
     margin-bottom: 1rem;
 }
@@ -266,6 +263,25 @@
     align-items: center;
     gap: 0.35rem;
     font-size: 0.9rem;
+}
+
+.dd-domain-pricing-page .dd-pricing-filter input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--dd-border);
+    border-radius: 6px;
+    background: var(--dd-surface, #ffffff);
+    position: relative;
+    cursor: pointer;
+}
+
+.dd-domain-pricing-page .dd-pricing-filter input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 3px;
+    background: var(--dd-accent);
 }
 
 .dd-domain-pricing-page .dd-sort-btn {
