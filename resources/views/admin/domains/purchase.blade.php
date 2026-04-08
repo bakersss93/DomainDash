@@ -641,7 +641,53 @@ document.addEventListener('DOMContentLoaded', function () {
         color: #111827;
     }
 
+    .dd-domain-purchase-page #step-au-validation input[type="text"],
+    .dd-domain-purchase-page #step-au-validation input[type="email"],
+    .dd-domain-purchase-page #step-au-validation .fancy-select,
+    .dd-domain-purchase-page #step-client input[type="text"],
+    .dd-domain-purchase-page #step-client input[type="email"],
+    .dd-domain-purchase-page #step-client .fancy-select {
+        border: 1px solid #b6c3d6 !important;
+        background: #ffffff !important;
+        color: #111827 !important;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
+    }
+
+    .dd-domain-purchase-page #step-au-validation .fancy-select option,
+    .dd-domain-purchase-page #step-client .fancy-select option {
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .dd-domain-purchase-page #step-au-validation input[type="text"]:focus,
+    .dd-domain-purchase-page #step-au-validation input[type="email"]:focus,
+    .dd-domain-purchase-page #step-au-validation .fancy-select:focus,
+    .dd-domain-purchase-page #step-client input[type="text"]:focus,
+    .dd-domain-purchase-page #step-client input[type="email"]:focus,
+    .dd-domain-purchase-page #step-client .fancy-select:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
+    }
+
     html.dark .dd-domain-purchase-page .dd-search-extension option {
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    html.dark .dd-domain-purchase-page #step-au-validation input[type="text"],
+    html.dark .dd-domain-purchase-page #step-au-validation input[type="email"],
+    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select,
+    html.dark .dd-domain-purchase-page #step-client input[type="text"],
+    html.dark .dd-domain-purchase-page #step-client input[type="email"],
+    html.dark .dd-domain-purchase-page #step-client .fancy-select {
+        border-color: color-mix(in srgb, #324664 62%, var(--dd-border) 38%) !important;
+        background: #1c2c47 !important;
+        color: #e2e8f0 !important;
+    }
+
+    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select option,
+    html.dark .dd-domain-purchase-page #step-client .fancy-select option {
         background: #0f172a;
         color: #e2e8f0;
     }
