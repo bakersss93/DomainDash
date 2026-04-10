@@ -12,8 +12,15 @@ class PermissionsController extends Controller
 {
     public function index()
     {
+        // Ensure recently added permission keys are present in existing environments
+        // where seeders may not have been re-run.
+        foreach (['domain-pricing.view', 'domain-pricing.manage'] as $permissionName) {
+            Permission::findOrCreate($permissionName);
+        }
+
         $roles = Role::orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
+
         return view('admin.permissions.index', compact('roles','permissions'));
     }
 

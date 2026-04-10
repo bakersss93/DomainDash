@@ -9,6 +9,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\ClientsController;
+use App\Http\Controllers\Admin\DomainPricingController;
 
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
@@ -61,6 +62,19 @@ Route::middleware(['auth','verified'])->group(function () {
                 ->middleware('permission:domains.transfer')
                 ->whereNumber('domain')
                 ->name('admin.domains.auth-code');
+
+            Route::get('/domains/pricing', [DomainPricingController::class, 'index'])
+                ->middleware('permission:domain-pricing.view')
+                ->name('admin.domains.pricing');
+            Route::post('/domains/pricing/import', [DomainPricingController::class, 'import'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.import');
+            Route::post('/domains/pricing/bulk-markup', [DomainPricingController::class, 'bulkMarkup'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.bulk-markup');
+            Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.sell-price');
         });
 
         // Admin area

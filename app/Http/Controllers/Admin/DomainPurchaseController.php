@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Synergy\SynergyWholesaleClient;
 use App\Models\Client;
 use App\Models\Domain;
+use App\Models\DomainPricing;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,9 @@ class DomainPurchaseController extends Controller
      */
     public function index()
     {
-        return view('admin.domains.purchase');
+        $extensions = DomainPricing::query()->orderBy('tld')->pluck('tld');
+
+        return view('admin.domains.purchase', compact('extensions'));
     }
 
     /**
