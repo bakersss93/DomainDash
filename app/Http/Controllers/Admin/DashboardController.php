@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Services\Synergy\SynergyWholesaleClient;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(SynergyWholesaleClient $synergy)
     {
         [$diskTotal, $diskFree, $diskUsed] = $this->diskMetrics();
         [$memTotalKB, $memUsedKB] = $this->memoryMetrics();
@@ -19,6 +20,9 @@ class DashboardController extends Controller
             'clients' => DB::table('clients')->count(),
             'users' => DB::table('users')->count(),
         ];
+
+        $balanceResponse = $synergy->balanceQuery();
+        [$availableBalance, $balanceCurrency, $balanceStatus] = $this->balanceMetrics($balanceResponse);
 
         $domainsWithoutClient = Domain::query()
             ->whereNull('client_id')
@@ -52,10 +56,31 @@ class DashboardController extends Controller
             'memUsedKB',
             'cpuUsage',
             'counts',
+            'availableBalance',
+            'balanceCurrency',
+            'balanceStatus',
             'domainsWithoutClient',
             'domainsNotSyncedHalo',
             'domainsNotSyncedItglue'
         ));
+    }
+
+    private function balanceMetrics(array $balanceResponse): array
+    {
+        $balanceValue = $balanceResponse['balance']
+            ?? $balanceResponse['availableBalance']
+            ?? $balanceResponse['accountBalance']
+            ?? null;
+
+        $currency = strtoupper((string) ($balanceResponse['currency']
+            ?? $balanceResponse['currencyCode']
+            ?? 'AUD'));
+
+        $status = $balanceResponse['status']
+            ?? $balanceResponse['errorMessage']
+            ?? 'Unknown';
+
+        return [$balanceValue, $currency, (string) $status];
     }
 
     private function diskMetrics(): array

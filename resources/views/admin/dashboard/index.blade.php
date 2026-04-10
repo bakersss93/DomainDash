@@ -12,46 +12,85 @@
         $diskUsedPercent = $diskTotal > 0 ? ($diskUsed / $diskTotal) * 100 : 0;
         $memoryUsedPercent = $memTotalKB > 0 ? ($memUsedKB / $memTotalKB) * 100 : 0;
 
+        $hasBalance = is_numeric($availableBalance);
+        $balanceValue = $hasBalance
+            ? $balanceCurrency.' '.number_format((float) $availableBalance, 2)
+            : 'Unavailable';
+
         $statusCards = [
+            [
+                'label' => 'Available Balance',
+                'value' => $balanceValue,
+                'sub' => 'Synergy status: '.$balanceStatus,
+                'meter' => $hasBalance ? 100 : 0,
+                'tone' => 'balance',
+            ],
             [
                 'label' => 'CPU Usage',
                 'value' => $cpuValue.'%',
                 'sub' => '1 minute load adjusted by core count',
                 'meter' => $cpuUsage,
+                'tone' => 'default',
             ],
             [
                 'label' => 'RAM Usage',
                 'value' => number_format($memoryUsedGb, 2).' / '.number_format($memoryTotalGb, 2).' GB',
                 'sub' => number_format($memoryUsedPercent, 1).'% used',
                 'meter' => $memoryUsedPercent,
+                'tone' => 'default',
             ],
             [
                 'label' => 'Free Disk Space',
                 'value' => number_format($diskFreeGb, 2).' GB',
                 'sub' => number_format($diskUsedGb, 2).' / '.number_format($diskTotalGb, 2).' GB used',
                 'meter' => $diskUsedPercent,
+                'tone' => 'default',
             ],
             [
                 'label' => 'Domains',
                 'value' => number_format($counts['domains']),
                 'sub' => number_format($domainsWithoutClient->count()).' need client links',
                 'meter' => min(100, $counts['domains'] > 0 ? ($domainsWithoutClient->count() / $counts['domains']) * 100 : 0),
+                'tone' => 'default',
             ],
             [
                 'label' => 'Clients',
                 'value' => number_format($counts['clients']),
                 'sub' => number_format($counts['users']).' users in platform',
                 'meter' => min(100, $counts['clients'] > 0 ? ($counts['users'] / $counts['clients']) * 100 : 0),
+                'tone' => 'default',
             ],
         ];
     @endphp
 
     <style>
         .status-shell {
-            background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-            border: 1px solid #dbe3ef;
+            --status-bg: color-mix(in srgb, var(--bg) 94%, #cbd5e1 6%);
+            --status-card: color-mix(in srgb, var(--bg) 89%, #ffffff 11%);
+            --status-border: color-mix(in srgb, var(--text) 12%, transparent);
+            --status-title: color-mix(in srgb, var(--text) 90%, #000000 10%);
+            --status-soft: color-mix(in srgb, var(--text) 70%, transparent);
+            --status-meter: color-mix(in srgb, var(--text) 15%, transparent);
+            --status-row-hover: color-mix(in srgb, var(--accent) 12%, transparent);
+            --status-link: color-mix(in srgb, var(--accent) 85%, #0f172a 15%);
+            --status-header: color-mix(in srgb, var(--bg) 84%, #e2e8f0 16%);
+            background: radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 42%), var(--status-bg);
+            border: 1px solid var(--status-border);
             border-radius: 16px;
             padding: 20px;
+            color: var(--status-title);
+            animation: status-fade-in 260ms ease-out;
+        }
+
+        html.dark .status-shell {
+            --status-bg: color-mix(in srgb, var(--bg) 90%, #0f172a 10%);
+            --status-card: color-mix(in srgb, var(--bg) 82%, #0f172a 18%);
+            --status-border: color-mix(in srgb, #cbd5e1 18%, transparent);
+            --status-soft: color-mix(in srgb, #e2e8f0 70%, transparent);
+            --status-meter: color-mix(in srgb, #cbd5e1 20%, transparent);
+            --status-header: color-mix(in srgb, var(--bg) 72%, #1e293b 28%);
+            --status-row-hover: color-mix(in srgb, var(--accent) 16%, transparent);
+            --status-link: color-mix(in srgb, var(--accent) 78%, #ffffff 22%);
         }
 
         .status-title {
@@ -65,12 +104,12 @@
         .status-title h1 {
             margin: 0;
             font-size: 1.8rem;
-            color: #0f172a;
+            color: var(--status-title);
         }
 
         .status-title p {
             margin: 6px 0 0;
-            color: #475569;
+            color: var(--status-soft);
             font-size: 0.95rem;
         }
 
@@ -82,14 +121,23 @@
         }
 
         .status-card {
-            border: 1px solid #d8e1ed;
-            background: #ffffff;
+            border: 1px solid var(--status-border);
+            background: var(--status-card);
             border-radius: 12px;
             padding: 14px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        html.dark .status-card {
+            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+        }
+
+        .status-card.is-balance {
+            background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 16%, var(--status-card) 84%), var(--status-card));
         }
 
         .status-card-label {
-            color: #64748b;
+            color: var(--status-soft);
             font-size: 0.78rem;
             text-transform: uppercase;
             letter-spacing: 0.04em;
@@ -99,11 +147,11 @@
             margin: 6px 0;
             font-size: 1.4rem;
             font-weight: 700;
-            color: #0f172a;
+            color: var(--status-title);
         }
 
         .status-card-sub {
-            color: #334155;
+            color: var(--status-soft);
             font-size: 0.84rem;
             margin-bottom: 8px;
         }
@@ -112,13 +160,13 @@
             width: 100%;
             height: 8px;
             border-radius: 999px;
-            background: #e2e8f0;
+            background: var(--status-meter);
             overflow: hidden;
         }
 
         .status-meter-fill {
             height: 100%;
-            background: linear-gradient(90deg, #0284c7 0%, #16a34a 100%);
+            background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 65%, #0284c7 35%), #16a34a);
         }
 
         .status-grid {
@@ -128,28 +176,29 @@
         }
 
         .status-panel {
-            background: #ffffff;
-            border: 1px solid #d8e1ed;
+            background: var(--status-card);
+            border: 1px solid var(--status-border);
             border-radius: 12px;
             overflow: hidden;
+            animation: status-slide 220ms ease-out;
         }
 
         .status-panel-head {
             padding: 12px 14px;
-            border-bottom: 1px solid #e2e8f0;
-            background: #f8fafc;
+            border-bottom: 1px solid var(--status-border);
+            background: var(--status-header);
         }
 
         .status-panel-head h2 {
             margin: 0;
             font-size: 1rem;
-            color: #0f172a;
+            color: var(--status-title);
         }
 
         .status-panel-head p {
             margin: 4px 0 0;
             font-size: 0.82rem;
-            color: #64748b;
+            color: var(--status-soft);
         }
 
         .status-table-wrap {
@@ -166,7 +215,7 @@
         .status-table th,
         .status-table td {
             padding: 10px 12px;
-            border-bottom: 1px solid #edf2f7;
+            border-bottom: 1px solid var(--status-border);
             text-align: left;
         }
 
@@ -174,19 +223,19 @@
             position: sticky;
             top: 0;
             z-index: 1;
-            background: #f8fafc;
-            color: #334155;
+            background: var(--status-header);
+            color: var(--status-soft);
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
 
         .status-table tbody tr:hover {
-            background: #f8fafc;
+            background: var(--status-row-hover);
         }
 
         .status-domain-link {
-            color: #0369a1;
+            color: var(--status-link);
             text-decoration: none;
             font-weight: 600;
         }
@@ -199,9 +248,33 @@
             display: inline-block;
             padding: 2px 8px;
             border-radius: 999px;
-            background: #e2e8f0;
-            color: #334155;
+            background: color-mix(in srgb, var(--status-header) 78%, var(--accent) 22%);
+            color: var(--status-title);
             font-size: 0.72rem;
+        }
+
+        @keyframes status-fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes status-slide {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @media (max-width: 768px) {
@@ -225,7 +298,7 @@
 
         <div class="status-cards">
             @foreach($statusCards as $card)
-                <div class="status-card">
+                <div class="status-card {{ $card['tone'] === 'balance' ? 'is-balance' : '' }}">
                     <div class="status-card-label">{{ $card['label'] }}</div>
                     <div class="status-card-value">{{ $card['value'] }}</div>
                     <div class="status-card-sub">{{ $card['sub'] }}</div>
@@ -256,7 +329,7 @@
                             <tr>
                                 <td><a class="status-domain-link" href="{{ route('admin.domains.show', $domain) }}">{{ $domain->name }}</a></td>
                                 <td><span class="status-pill">{{ $domain->status ?? 'Unknown' }}</span></td>
-                                <td>{{ $domain->expiry_date ? \Illuminate\Support\Carbon::parse($domain->expiry_date)->toDateString() : '—' }}</td>
+                                <td>{{ $domain->expiry_date ? \Illuminate\Support\Carbon::parse($domain->expiry_date)->toDateString() : '-' }}</td>
                             </tr>
                         @empty
                             <tr>
