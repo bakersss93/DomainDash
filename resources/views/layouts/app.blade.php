@@ -688,13 +688,6 @@
                                 Purchase New Domain
                             </a>
                         </li>
-                        @role('Administrator')
-                        <li class="nav-item">
-                            <a href="{{ route('admin.domains.pricing') }}" class="nav-link {{ request()->routeIs('admin.domains.pricing*') ? 'active' : '' }}">
-                                Domain Pricing
-                            </a>
-                        </li>
-                        @endrole
                     </ul>
                 </li>
 
@@ -742,7 +735,7 @@
 
                 <!-- Admin Section (hidden for non-admin users) -->
                 @role('Administrator')
-                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.apikeys') ? 'expanded' : '' }}">
+                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.domains.pricing*') ? 'expanded' : '' }}">
                         <div class="nav-link nav-toggle" onclick="toggleNav(this)">
                             <span class="icon">⚙️</span>
                             <span class="text">Admin</span>
@@ -774,6 +767,13 @@
                                     Settings
                                 </a>
                             </li>
+                            @can('domain-pricing.view')
+                            <li class="nav-item"> 
+                                <a href="{{ route('admin.domains.pricing') }}" class="nav-link {{ request()->routeIs('admin.domains.pricing*') ? 'active' : '' }}"> 
+                                    Domain Pricing
+                                </a>
+                            </li>
+                            @endcan
                         </ul>
                     </li>
                 @endrole

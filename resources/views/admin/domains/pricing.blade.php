@@ -20,21 +20,29 @@
 
     <div class="dd-card" style="margin-bottom: 1rem;">
         <h2 style="margin-bottom: 0.8rem;">Import CSV</h2>
+        @can('domain-pricing.manage')
         <form method="POST" action="{{ route('admin.domains.pricing.import') }}" enctype="multipart/form-data" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
             @csrf
             <input type="file" name="pricing_csv" accept=".csv,text/csv" required>
             <button type="submit" class="btn-accent">Import Pricing</button>
         </form>
+        @else
+        <p style="margin:0; color:#6b7280;">You have view access only. Import is disabled.</p>
+        @endcan
         <p style="margin-top:0.75rem; color:#6b7280;">Imports from Synergy CSV and upserts by TLD. Sale prices are used until sale end date.</p>
     </div>
 
     <div class="dd-card" style="margin-bottom: 1rem;">
         <h2 style="margin-bottom: 0.8rem;">Bulk Sell Price Markup</h2>
+        @can('domain-pricing.manage')
         <form method="POST" action="{{ route('admin.domains.pricing.bulk-markup') }}" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
             @csrf
             <input type="number" step="0.01" min="0" name="markup_percent" placeholder="Markup %" required style="max-width:170px;">
             <button type="submit" class="btn-accent">Apply Markup</button>
         </form>
+        @else
+        <p style="margin:0; color:#6b7280;">You have view access only. Bulk markup is disabled.</p>
+        @endcan
     </div>
 
     <div class="dd-card">
@@ -95,12 +103,16 @@
                             @endif
                         </td>
                         <td>
+                            @can('domain-pricing.manage')
                             <form method="POST" action="{{ route('admin.domains.pricing.sell-price', $pricing) }}" style="display:flex; align-items:center; gap:0.5rem;">
                                 @csrf
                                 @method('PUT')
                                 <input type="number" name="sell_price" step="0.01" min="0" value="{{ $pricing->sell_price }}" style="max-width:130px;" required>
                                 <button type="submit" class="dd-account-password-btn">Save</button>
                             </form>
+                            @else
+                            <span>{{ $pricing->sell_price !== null ? '$' . number_format((float) $pricing->sell_price, 2) : 'N/A' }}</span>
+                            @endcan
                         </td>
                     </tr>
                 @empty
@@ -274,14 +286,24 @@
     background: var(--dd-surface, #ffffff);
     position: relative;
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.dd-domain-pricing-page .dd-pricing-filter input[type="checkbox"]:checked {
+    background: #16a34a;
+    border-color: #16a34a;
 }
 
 .dd-domain-pricing-page .dd-pricing-filter input[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
-    inset: 3px;
-    border-radius: 3px;
-    background: var(--dd-accent);
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 .dd-domain-pricing-page .dd-sort-btn {

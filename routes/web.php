@@ -62,6 +62,19 @@ Route::middleware(['auth','verified'])->group(function () {
                 ->middleware('permission:domains.transfer')
                 ->whereNumber('domain')
                 ->name('admin.domains.auth-code');
+
+            Route::get('/domains/pricing', [DomainPricingController::class, 'index'])
+                ->middleware('permission:domain-pricing.view')
+                ->name('admin.domains.pricing');
+            Route::post('/domains/pricing/import', [DomainPricingController::class, 'import'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.import');
+            Route::post('/domains/pricing/bulk-markup', [DomainPricingController::class, 'bulkMarkup'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.bulk-markup');
+            Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.sell-price');
         });
 
         // Admin area
@@ -124,10 +137,6 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/domains/purchase/search', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'search'])->name('admin.domains.purchase.search');
         Route::post('/domains/purchase/validate-au', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'validateAu'])->name('admin.domains.purchase.validateAu');
         Route::post('/domains/purchase/complete', [\App\Http\Controllers\Admin\DomainPurchaseController::class,'complete'])->name('admin.domains.purchase.complete');
-        Route::get('/domains/pricing', [DomainPricingController::class, 'index'])->name('admin.domains.pricing');
-        Route::post('/domains/pricing/import', [DomainPricingController::class, 'import'])->name('admin.domains.pricing.import');
-        Route::post('/domains/pricing/bulk-markup', [DomainPricingController::class, 'bulkMarkup'])->name('admin.domains.pricing.bulk-markup');
-        Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])->name('admin.domains.pricing.sell-price');
         Route::get('/domains/transfer/create', [\App\Http\Controllers\Admin\DomainTransferController::class,'create'])->name('admin.domains.transfer.create');
         Route::post('/domains/transfer/validate', [\App\Http\Controllers\Admin\DomainTransferController::class,'validateTransfer'])->name('admin.domains.transfer.validate');
         Route::post('/domains/transfer/complete', [\App\Http\Controllers\Admin\DomainTransferController::class,'complete'])->name('admin.domains.transfer.complete');
