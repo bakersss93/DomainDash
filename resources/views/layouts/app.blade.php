@@ -246,11 +246,11 @@
             background: var(--accent);
             color: #fff;
             border: none;
-            padding: 8px 16px;
-            border-radius: 9999px;
+            padding: 9px 16px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             line-height: 1.2;
         }
         .btn-accent:hover {
@@ -342,7 +342,7 @@
             background:var(--surface-muted);
         }
         .role-filter-select {
-            border-radius: 9999px;
+            border-radius: 12px;
             background: var(--surface-muted);
             border: 1px solid var(--border-subtle);
             padding: 6px 32px 6px 12px;
@@ -367,7 +367,7 @@
             list-style: none;
             cursor: pointer;
             padding: 6px 12px;
-            border-radius: 9999px;
+            border-radius: 12px;
             background: var(--surface-muted);
             font-size: 14px;
             display: inline-flex;
@@ -471,7 +471,7 @@
             color: var(--text);
             background: color-mix(in srgb, var(--bg) 88%, #ffffff 12%);
             border: 1px solid var(--border-subtle);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 9px 10px;
         }
 
@@ -482,7 +482,7 @@
         }
 
         .fancy-select {
-            border-radius: 9999px;
+            border-radius: 12px;
             background: var(--surface-muted);
             border: 1px solid var(--border-subtle);
             padding: 6px 32px 6px 12px;
@@ -513,7 +513,7 @@
         }
 
         .client-picker-toggle {
-            border-radius: 9999px;
+            border-radius: 12px;
             background: var(--surface-muted);
             border: 1px solid var(--border-subtle);
             padding: 6px 12px;
