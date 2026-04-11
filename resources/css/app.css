@@ -246,6 +246,22 @@ body {
     border-radius: 12px !important;
 }
 
+.dd-settings-page .dd-sync-scheduler-row {
+    border: 1px solid var(--dd-border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--dd-surface-soft) 84%, var(--dd-surface) 16%);
+}
+
+.dd-settings-page .dd-sync-scheduler-toggle {
+    color: var(--dd-text) !important;
+}
+
+.dd-settings-page .dd-sync-scheduler-row input[type='checkbox'].dd-checkbox {
+    border-radius: 6px !important;
+    border: 1px solid var(--dd-border) !important;
+    background: var(--dd-surface-soft) !important;
+}
+
 #dd-global-loader {
     position: fixed;
     inset: 0;

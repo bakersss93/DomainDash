@@ -579,11 +579,12 @@
                         'sync_halo_assets' => 'Sync Client Domain Assets to/from HaloPSA',
                         'sync_itglue' => 'Sync IT Glue Domain Assets',
                     ] as $key => $label)
-                        <div style="display:grid;grid-template-columns:180px 160px 120px;gap:12px;align-items:end;margin-bottom:12px;padding:12px;border:1px solid rgba(148,163,184,0.1);border-radius:8px;background:rgba(15,23,42,0.35);">
+                        <div class="dd-sync-scheduler-row" style="display:grid;grid-template-columns:180px 160px 120px;gap:12px;align-items:end;margin-bottom:12px;padding:12px;">
                             <div>
                                 <input type="hidden" name="sync_schedule[{{ $key }}][enabled]" value="0">
-                                <label style="display:flex;align-items:center;gap:8px;color:#e2e8f0;font-size:14px;font-weight:500;cursor:pointer;">
+                                <label class="dd-sync-scheduler-toggle" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;cursor:pointer;">
                                     <input type="checkbox"
+                                           class="dd-checkbox"
                                            name="sync_schedule[{{ $key }}][enabled]"
                                            value="1"
                                            {{ !empty($syncSchedule[$key]['enabled']) ? 'checked' : '' }}
@@ -592,16 +593,16 @@
                                 </label>
                             </div>
                             <div>
-                                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:4px;">Frequency</label>
+                                <label style="display:block;font-size:12px;margin-bottom:4px;">Frequency</label>
                                 <select name="sync_schedule[{{ $key }}][frequency]"
-                                        style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;background:#0b1120;color:#f8fafc;">
+                                        style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;">
                                     @foreach($syncFrequencies as $value => $text)
                                         <option value="{{ $value }}" {{ ($syncSchedule[$key]['frequency'] ?? 'daily') === $value ? 'selected' : '' }}>{{ $text }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div>
-                                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:4px;">Run time</label>
+                                <label style="display:block;font-size:12px;margin-bottom:4px;">Run time</label>
                                 <input type="time"
                                        name="sync_schedule[{{ $key }}][time]"
                                        value="{{ $syncSchedule[$key]['time'] ?? '02:00' }}"
