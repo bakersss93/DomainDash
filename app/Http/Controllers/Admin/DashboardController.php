@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Domain;
 use App\Services\Synergy\SynergyWholesaleClient;
 use Illuminate\Support\Facades\DB;
 
@@ -10,28 +11,111 @@ class DashboardController extends Controller
 {
     public function index(SynergyWholesaleClient $synergy)
     {
-        // system metrics
-        $diskTotal = @disk_total_space('/') ?: 0;
-        $diskFree = @disk_free_space('/') ?: 0;
-        $diskUsed = $diskTotal - $diskFree;
-        $meminfo = @file_get_contents('/proc/meminfo') ?: '';
-        preg_match('/MemTotal:\s+(\d+)/',$meminfo,$m1); preg_match('/MemAvailable:\s+(\d+)/',$meminfo,$m2);
-        $memTotalKB = (int)($m1[1] ?? 0); $memAvailKB = (int)($m2[1] ?? 0);
-        $memUsedKB = max(0, $memTotalKB - $memAvailKB);
-
-        // database size (MySQL)
-        $dbName = DB::getDatabaseName();
-        $dbSize = DB::selectOne("SELECT ROUND(SUM(data_length+index_length)/1024/1024,2) size_mb FROM information_schema.tables WHERE table_schema = ?", [$dbName])->size_mb ?? 0;
+        [$diskTotal, $diskFree, $diskUsed] = $this->diskMetrics();
+        [$memTotalKB, $memUsedKB] = $this->memoryMetrics();
+        $cpuUsage = $this->cpuUsage();
 
         $counts = [
             'domains' => DB::table('domains')->count(),
             'clients' => DB::table('clients')->count(),
-            'users'   => DB::table('users')->count(),
+            'users' => DB::table('users')->count(),
         ];
 
-        $balance = null;
-        try { $balance = $synergy->balanceQuery(); } catch (\Throwable $e) { $balance = ['status'=>'error','errorMessage'=>$e->getMessage()]; }
+        $balanceResponse = $synergy->balanceQuery();
+        [$availableBalance, $balanceCurrency, $balanceStatus] = $this->balanceMetrics($balanceResponse);
 
-        return view('admin.dashboard.index', compact('diskTotal','diskUsed','memTotalKB','memUsedKB','dbSize','counts','balance'));
+        $domainsWithoutClient = Domain::query()
+            ->whereNull('client_id')
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'status', 'expiry_date']);
+
+        $domainsNotSyncedHalo = Domain::query()
+            ->where(function ($query) {
+                $query->whereNull('halo_asset_id')
+                    ->orWhere('halo_asset_id', '');
+            })
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'client_id', 'status']);
+
+        $domainsNotSyncedItglue = Domain::query()
+            ->where(function ($query) {
+                $query->whereNull('itglue_id')
+                    ->orWhere('itglue_id', '');
+            })
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'client_id', 'status']);
+
+        return view('admin.dashboard.index', compact(
+            'diskTotal',
+            'diskFree',
+            'diskUsed',
+            'memTotalKB',
+            'memUsedKB',
+            'cpuUsage',
+            'counts',
+            'availableBalance',
+            'balanceCurrency',
+            'balanceStatus',
+            'domainsWithoutClient',
+            'domainsNotSyncedHalo',
+            'domainsNotSyncedItglue'
+        ));
+    }
+
+    private function balanceMetrics(array $balanceResponse): array
+    {
+        $balanceValue = $balanceResponse['balance']
+            ?? $balanceResponse['availableBalance']
+            ?? $balanceResponse['accountBalance']
+            ?? null;
+
+        $currency = strtoupper((string) ($balanceResponse['currency']
+            ?? $balanceResponse['currencyCode']
+            ?? 'AUD'));
+
+        $status = $balanceResponse['status']
+            ?? $balanceResponse['errorMessage']
+            ?? 'Unknown';
+
+        return [$balanceValue, $currency, (string) $status];
+    }
+
+    private function diskMetrics(): array
+    {
+        $diskTotal = disk_total_space('/') ?: 0;
+        $diskFree = disk_free_space('/') ?: 0;
+        $diskUsed = max(0, $diskTotal - $diskFree);
+
+        return [$diskTotal, $diskFree, $diskUsed];
+    }
+
+    private function memoryMetrics(): array
+    {
+        $meminfo = file_get_contents('/proc/meminfo') ?: '';
+        preg_match('/MemTotal:\s+(\d+)/', $meminfo, $memTotalMatch);
+        preg_match('/MemAvailable:\s+(\d+)/', $meminfo, $memAvailableMatch);
+
+        $memTotalKB = (int) ($memTotalMatch[1] ?? 0);
+        $memAvailKB = (int) ($memAvailableMatch[1] ?? 0);
+
+        return [$memTotalKB, max(0, $memTotalKB - $memAvailKB)];
+    }
+
+    private function cpuUsage(): float
+    {
+        $loads = sys_getloadavg();
+        $oneMinuteLoad = is_array($loads) ? (float) ($loads[0] ?? 0) : 0.0;
+
+        $cpuCores = (int) trim((string) shell_exec('nproc 2>/dev/null'));
+        if ($cpuCores <= 0) {
+            $cpuCores = 1;
+        }
+
+        $percent = ($oneMinuteLoad / $cpuCores) * 100;
+
+        return round(max(0, min(100, $percent)), 1);
     }
 }
