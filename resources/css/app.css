@@ -148,6 +148,53 @@ body {
         background: var(--dd-surface-soft);
         accent-color: var(--dd-accent-strong);
     }
+
+    /* Compatibility aliases so existing Blade classes inherit the shared system. */
+    .btn-accent,
+    .btn-secondary,
+    .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        min-height: 2.5rem;
+        padding: 0.58rem 1rem;
+        border-radius: 12px !important;
+        border: 1px solid transparent;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.2;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.16s ease;
+    }
+
+    .btn-accent {
+        background: linear-gradient(145deg, var(--dd-accent), var(--dd-accent-strong));
+        color: var(--dd-accent-contrast);
+    }
+
+    .btn-secondary {
+        background: var(--dd-surface-soft);
+        border-color: var(--dd-border);
+        color: var(--dd-text);
+    }
+
+    .btn-danger {
+        background: color-mix(in srgb, var(--dd-danger) 90%, #000000 10%);
+        color: #fff5f5;
+    }
+
+    .dd-pill-btn {
+        border-radius: 12px !important;
+    }
+
+    .dd-search-input {
+        border-radius: 12px !important;
+        border: 1px solid var(--dd-border) !important;
+        background: var(--dd-surface-soft) !important;
+        color: var(--dd-text) !important;
+    }
 }
 
 .dd-settings-page {

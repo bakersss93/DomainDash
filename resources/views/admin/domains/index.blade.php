@@ -536,7 +536,7 @@
             display:flex;
             align-items:center;
             padding:10px 14px;
-            border-radius:9999px;
+            border-radius:12px;
             background:#020617;
             border:1px solid #1f2937;
             text-decoration:none;
@@ -609,7 +609,7 @@
             display: flex;
             align-items: center;
             background: #0f172a;
-            border-radius: 9999px;
+            border-radius: 12px;
             border: 1px solid #1f2937;
             padding: 0 36px 0 14px;
             min-height: 44px;

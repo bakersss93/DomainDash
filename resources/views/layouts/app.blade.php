@@ -243,18 +243,22 @@
 
         /* Accent button + spinner */
         .btn-accent {
-            background: var(--accent);
-            color: #fff;
-            border: none;
+            background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #0f172a 28%));
+            color: var(--accent-contrast);
+            border: 1px solid transparent;
             padding: 9px 16px;
             border-radius: 12px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 700;
             line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
         }
         .btn-accent:hover {
-            filter: brightness(0.95);
+            filter: brightness(1.05);
         }
         .btn-accent[disabled] {
             opacity: .6;

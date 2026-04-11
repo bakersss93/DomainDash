@@ -360,7 +360,7 @@
     }
 
     .dd-pill-btn {
-        border-radius: var(--dd-pill-radius) !important;
+        border-radius: 12px !important;
         padding: 8px 16px !important;
     }
 
