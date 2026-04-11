@@ -45,7 +45,7 @@
             --sidebar-border: rgba(148, 163, 184, 0.2);
             --nav-hover: rgba(148, 163, 184, 0.14);
             --nav-active: #06b6d4;
-            --accent-contrast: #04222c;
+            --accent-contrast: #ecfeff;
             --success-bg: rgba(16, 185, 129, 0.2);
             --success-border: rgba(16, 185, 129, 0.55);
             --success-text: #d1fae5;
