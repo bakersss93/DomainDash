@@ -9,27 +9,48 @@
 :root {
     --dd-surface: #ffffff;
     --dd-surface-soft: #f8fafc;
+    --dd-surface-muted: #eef2f7;
     --dd-border: #dbe3ee;
     --dd-text: #111827;
     --dd-text-soft: #566177;
     --dd-accent: #0ea5e9;
     --dd-accent-strong: #0284c7;
+    --dd-accent-contrast: #f8fcff;
     --dd-success: #059669;
     --dd-danger: #dc2626;
+    --dd-warning: #d97706;
+    --dd-sidebar: #1f2937;
+    --dd-sidebar-soft: #273449;
+    --dd-sidebar-border: rgba(255, 255, 255, 0.12);
+    --dd-nav-hover: rgba(255, 255, 255, 0.12);
+    --dd-nav-active: #0ea5e9;
     --dd-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
 }
 
 html.dark {
     --dd-surface: #0f172a;
     --dd-surface-soft: #111d35;
+    --dd-surface-muted: #1c2942;
     --dd-border: #263247;
     --dd-text: #e2e8f0;
     --dd-text-soft: #94a3b8;
     --dd-accent: #22d3ee;
     --dd-accent-strong: #06b6d4;
+    --dd-accent-contrast: #04222c;
     --dd-success: #10b981;
     --dd-danger: #f87171;
+    --dd-warning: #f59e0b;
+    --dd-sidebar: #0b1220;
+    --dd-sidebar-soft: #111c31;
+    --dd-sidebar-border: rgba(148, 163, 184, 0.2);
+    --dd-nav-hover: rgba(148, 163, 184, 0.14);
+    --dd-nav-active: #06b6d4;
     --dd-shadow: 0 22px 50px rgba(2, 6, 23, 0.6);
+}
+
+body {
+    background: var(--dd-surface);
+    color: var(--dd-text);
 }
 
 .dd-settings-page {

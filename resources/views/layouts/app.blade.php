@@ -13,12 +13,46 @@
             --accent:  {{ data_get(\App\Models\Setting::get('branding'), 'accent', '#06b6d4') }};
             --bg:      {{ data_get(\App\Models\Setting::get('branding'), 'bg', '#ffffff') }};
             --text:    {{ data_get(\App\Models\Setting::get('branding'), 'text', '#111827') }};
+            --surface-muted: color-mix(in srgb, var(--bg) 84%, #dbe3ee 16%);
+            --surface-elevated: color-mix(in srgb, var(--bg) 92%, #ffffff 8%);
+            --border-subtle: color-mix(in srgb, var(--text) 12%, #dbe3ee 88%);
+            --text-muted: color-mix(in srgb, var(--text) 62%, #94a3b8 38%);
+            --sidebar-bg: color-mix(in srgb, var(--primary) 90%, #111827 10%);
+            --sidebar-bg-soft: color-mix(in srgb, var(--primary) 78%, #1e293b 22%);
+            --sidebar-border: rgba(255, 255, 255, 0.14);
+            --nav-hover: rgba(255, 255, 255, 0.12);
+            --nav-active: var(--accent);
+            --accent-contrast: color-mix(in srgb, var(--accent) 6%, #ffffff 94%);
+            --success-bg: #dcfce7;
+            --success-border: #86efac;
+            --success-text: #14532d;
+            --warning-bg: #fef3c7;
+            --warning-border: #fcd34d;
+            --warning-text: #78350f;
+            --danger-text: #dc2626;
         }
 
         /* Dark mode: invert background & text colours */
         html.dark {
             --bg: #111827;
             --text: #f9fafb;
+            --surface-muted: #1f2937;
+            --surface-elevated: #0f172a;
+            --border-subtle: #334155;
+            --text-muted: #94a3b8;
+            --sidebar-bg: #0b1220;
+            --sidebar-bg-soft: #111c31;
+            --sidebar-border: rgba(148, 163, 184, 0.2);
+            --nav-hover: rgba(148, 163, 184, 0.14);
+            --nav-active: #06b6d4;
+            --accent-contrast: #04222c;
+            --success-bg: rgba(16, 185, 129, 0.2);
+            --success-border: rgba(16, 185, 129, 0.55);
+            --success-text: #d1fae5;
+            --warning-bg: rgba(245, 158, 11, 0.2);
+            --warning-border: rgba(245, 158, 11, 0.5);
+            --warning-text: #fde68a;
+            --danger-text: #f87171;
         }
 
         body {
@@ -30,10 +64,11 @@
 
         .sidebar {
             width: 260px;
-            background: #3f4553;
+            background: var(--sidebar-bg);
             color: #fff;
             min-height: 100vh;
             overflow-y: auto;
+            border-right: 1px solid var(--sidebar-border);
         }
 
         .sidebar nav {
@@ -64,12 +99,12 @@
         }
 
         .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--nav-hover);
         }
 
         .nav-link.active {
-            background: rgba(139, 195, 74, 0.3);
-            background: #8bc34a;
+            background: var(--nav-active);
+            color: var(--accent-contrast);
         }
 
         .nav-link .icon {
@@ -114,7 +149,7 @@
             height: 56px;
             background: var(--bg);
             color: var(--text);
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-subtle);
             display:flex;
             align-items:center;
             padding:0 16px;
@@ -146,7 +181,7 @@
             width: 380px;
             background: var(--bg);
             color: var(--text);
-            border:1px solid #e5e7eb;
+            border:1px solid var(--border-subtle);
             box-shadow:0 10px 20px rgba(0,0,0,.08);
             display:none;
             z-index:40;
@@ -154,11 +189,11 @@
 
         .notif.open .panel { display:block; }
 
-        .danger { color:#dc2626; }
+        .danger { color: var(--danger-text); }
 
         .badge-red {
             color: #fff;
-            background:#dc2626;
+            background: var(--danger-text);
             border-radius: 9999px;
             padding: 0 8px;
             font-size: 12px;
@@ -178,15 +213,15 @@
         }
 
         .dd-flash-banner.is-status {
-            background: #dcfce7;
-            border-color: #86efac;
-            color: #14532d;
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--success-text);
         }
 
         .dd-flash-banner.is-impersonating {
-            background: #fef3c7;
-            border-color: #fcd34d;
-            color: #78350f;
+            background: var(--warning-bg);
+            border-color: var(--warning-border);
+            color: var(--warning-text);
         }
 
         .dd-flash-action {
@@ -199,18 +234,6 @@
             font-weight: 700;
             cursor: pointer;
             white-space: nowrap;
-        }
-
-        html.dark .dd-flash-banner.is-status {
-            background: rgba(16, 185, 129, 0.2);
-            border-color: rgba(16, 185, 129, 0.55);
-            color: #d1fae5;
-        }
-
-        html.dark .dd-flash-banner.is-impersonating {
-            background: rgba(245, 158, 11, 0.2);
-            border-color: rgba(245, 158, 11, 0.5);
-            color: #fde68a;
         }
 
         html.dark .dd-flash-action {
@@ -264,11 +287,11 @@
             gap:8px;
             padding:6px 10px;
             border-radius:9999px;
-            background:#f3f4f6;
+            background:var(--surface-muted);
         }
         html.dark .user-menu summary {
-            background:#1f2937;
-            color:#f9fafb;
+            background:var(--surface-muted);
+            color:var(--text);
         }
         .user-menu summary::-webkit-details-marker {
             display:none;
@@ -294,7 +317,7 @@
             top:calc(100% + 4px);
             background:var(--bg);
             color:var(--text);
-            border:1px solid #e5e7eb;
+            border:1px solid var(--border-subtle);
             border-radius:6px;
             box-shadow:0 10px 20px rgba(0,0,0,.08);
             min-width:200px;
@@ -316,16 +339,12 @@
         }
         .user-menu-menu a:hover,
         .user-menu-menu .user-menu-button:hover {
-            background:#f3f4f6;
-        }
-        html.dark .user-menu-menu a:hover,
-        html.dark .user-menu-menu .user-menu-button:hover {
-            background:#1f2937;
+            background:var(--surface-muted);
         }
         .role-filter-select {
             border-radius: 9999px;
-            background: #f3f4f6;
-            border: 1px solid #e5e7eb;
+            background: var(--surface-muted);
+            border: 1px solid var(--border-subtle);
             padding: 6px 32px 6px 12px;
             font-size: 14px;
             outline: none;
@@ -349,7 +368,7 @@
             cursor: pointer;
             padding: 6px 12px;
             border-radius: 9999px;
-            background: #f3f4f6;
+            background: var(--surface-muted);
             font-size: 14px;
             display: inline-flex;
             align-items: center;
@@ -363,16 +382,7 @@
         .role-filter summary::after {
             content: "▾";
             font-size: 12px;
-            color: #6b7280;
-        }
-
-        html.dark .role-filter summary {
-            background: #1f2937;
-            color: #f9fafb;
-        }
-
-        html.dark .role-filter summary::after {
-            color: #9ca3af;
+            color: var(--text-muted);
         }
 
         .role-filter-menu {
@@ -381,7 +391,7 @@
             left: 0;
             background: var(--bg);
             color: var(--text);
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--border-subtle);
             border-radius: 6px;
             box-shadow: 0 10px 20px rgba(0,0,0,.08);
             min-width: 140px;
@@ -398,15 +408,7 @@
         }
 
         .role-filter-menu a:hover {
-            background: #f3f4f6;
-        }
-
-        html.dark .role-filter-menu {
-            border-color: #374151;
-        }
-
-        html.dark .role-filter-menu a:hover {
-            background: #1f2937;
+            background: var(--surface-muted);
         }
 
         .role-filter-wrapper {
@@ -421,18 +423,8 @@
             top: 50%;
             transform: translateY(-50%);
             font-size: 12px;
-            color: #6b7280;
+            color: var(--text-muted);
             pointer-events: none;
-        }
-
-        html.dark .role-filter-select {
-            background: #1f2937;
-            border-color: #374151;
-            color: #f9fafb;
-        }
-
-        html.dark .role-filter-wrapper::after {
-            color: #9ca3af;
         }
 
         /* Soft, defined table styling */
@@ -441,53 +433,34 @@
             border-collapse: separate;
             border-spacing: 0;
             font-size: 14px;
-            background: #ffffff;
-            color: #111827;
+            background: var(--surface-elevated);
+            color: var(--text);
             border-radius: 6px;
             overflow: hidden;
             box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
             margin-bottom: 16px;
         }
         main table thead th {
-            background: #f9fafb;
+            background: var(--surface-muted);
             font-weight: 600;
             padding: 8px 12px;
             text-align: left;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-subtle);
         }
         main table tbody td {
             padding: 8px 12px;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--border-subtle);
         }
         main table tbody tr:last-child td {
             border-bottom: none;
         }
         main table tbody tr:nth-child(even) {
-            background: #f9fafb;
+            background: color-mix(in srgb, var(--surface-muted) 70%, var(--surface-elevated) 30%);
         }
         main table tbody tr:hover {
-            background: #e5e7eb;
+            background: var(--surface-muted);
         }
 
-        /* Dark-mode adaptation for tables */
-        html.dark main table {
-            background: #111827;
-            color: #f9fafb;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-        }
-        html.dark main table thead th {
-            background: #1f2937;
-            border-bottom-color: #374151;
-        }
-        html.dark main table tbody td {
-            border-bottom-color: #374151;
-        }
-        html.dark main table tbody tr:nth-child(even) {
-            background: #111827;
-        }
-        html.dark main table tbody tr:hover {
-            background: #1f2937;
-        }
         /* Form field defaults */
         input[type="text"],
         input[type="email"],
@@ -497,21 +470,11 @@
         textarea {
             color: var(--text);
             background: color-mix(in srgb, var(--bg) 88%, #ffffff 12%);
-            border: 1px solid #d4dbe7;
+            border: 1px solid var(--border-subtle);
             border-radius: 10px;
             padding: 9px 10px;
         }
 
-        html.dark input[type="text"],
-        html.dark input[type="email"],
-        html.dark input[type="password"],
-        html.dark input[type="number"],
-        html.dark select,
-        html.dark textarea {
-            color: #e2e8f0;
-            background: #0b1220;
-            border-color: #334155;
-        }
                 /* Fancy select (uses same pill look as filters) */
         .fancy-select-wrapper {
             position: relative;
@@ -520,8 +483,8 @@
 
         .fancy-select {
             border-radius: 9999px;
-            background: #f3f4f6;
-            border: 1px solid #e5e7eb;
+            background: var(--surface-muted);
+            border: 1px solid var(--border-subtle);
             padding: 6px 32px 6px 12px;
             font-size: 14px;
             outline: none;
@@ -529,7 +492,7 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             background-clip: padding-box;
-            color: #111827;
+            color: var(--text);
         }
 
         .fancy-select-wrapper::after {
@@ -539,18 +502,8 @@
             top: 50%;
             transform: translateY(-50%);
             font-size: 12px;
-            color: #6b7280;
+            color: var(--text-muted);
             pointer-events: none;
-        }
-
-        html.dark .fancy-select {
-            background: #1f2937;
-            border-color: #374151;
-            color: #f9fafb;
-        }
-
-        html.dark .fancy-select-wrapper::after {
-            color: #9ca3af;
         }
 
         /* Client picker – searchable multi-select dropdown */
@@ -561,8 +514,8 @@
 
         .client-picker-toggle {
             border-radius: 9999px;
-            background: #f3f4f6;
-            border: 1px solid #e5e7eb;
+            background: var(--surface-muted);
+            border: 1px solid var(--border-subtle);
             padding: 6px 12px;
             font-size: 14px;
             display: inline-flex;
@@ -581,17 +534,7 @@
 
         .client-picker-arrow {
             font-size: 12px;
-            color: #6b7280;
-        }
-
-        html.dark .client-picker-toggle {
-            background: #1f2937;
-            border-color: #374151;
-            color: #f9fafb;
-        }
-
-        html.dark .client-picker-arrow {
-            color: #9ca3af;
+            color: var(--text-muted);
         }
 
         .client-picker-panel {
@@ -599,7 +542,7 @@
             margin-top: 4px;
             background: var(--bg);
             color: var(--text);
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--border-subtle);
             border-radius: 6px;
             box-shadow: 0 10px 20px rgba(0,0,0,.08);
             min-width: 280px;
@@ -617,7 +560,7 @@
             width: 100%;
             padding: 6px 8px;
             border-radius: 4px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid var(--border-subtle);
             margin-bottom: 8px;
             font-size: 14px;
         }
@@ -640,16 +583,12 @@
             margin: 0;
         }
 
-        html.dark .client-picker-panel {
-            border-color: #374151;
-        }
-
     </style>
 </head>
 <body>
 <div style="display:flex;">
     <aside class="sidebar">
-        <div style="padding:16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.1);">
+        <div style="padding:16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--sidebar-border);">
             <img class="logo"
                  src="{{ \Storage::url(data_get(\App\Models\Setting::get('branding'), 'logo', '')) }}"
                  alt="Logo">
@@ -837,10 +776,10 @@
                         <div style="padding:8px 12px;"><strong>Notifications</strong></div>
                         <div style="max-height:300px;overflow:auto;">
                             @foreach(session('notifications',[]) as $n)
-                                <div style="padding:8px 12px;border-top:1px solid #f3f4f6;">{!! $n !!}</div>
+                                <div style="padding:8px 12px;border-top:1px solid var(--border-subtle);">{!! $n !!}</div>
                             @endforeach
                             @if(empty(session('notifications')))
-                                <div style="padding:8px 12px;color:#6b7280;">No new notifications.</div>
+                                <div style="padding:8px 12px;color:var(--text-muted);">No new notifications.</div>
                             @endif
                         </div>
                     </div>
