@@ -314,7 +314,7 @@
         --dd-card-radius: 18px;
         --dd-card-padding: 18px 20px;
 
-        --dd-pill-radius: 9999px;
+        --dd-pill-radius: 12px;
         --dd-pill-padding: 8px 14px;
 
         --dd-card-bg: #ffffff;
