@@ -139,7 +139,7 @@
                                 {{-- Open cPanel --}}
                                 <form method="POST"
                                       action="{{ route('admin.services.hosting.login', $service) }}"
-                                      class="dd-service-option"
+                                      class="dd-service-option-form"
                                       target="_blank">
                                     @csrf
                                     <button type="submit" class="dd-service-option-btn">
@@ -171,9 +171,9 @@
                                 {{-- Suspend / Unsuspend --}}
                                 <form method="POST"
                                       action="{{ route('admin.services.hosting.suspend', $service) }}"
-                                      class="dd-service-option dd-service-option-danger">
+                                      class="dd-service-option-form">
                                     @csrf
-                                    <button type="submit" class="dd-service-option-btn">
+                                    <button type="submit" class="dd-service-option-btn dd-service-option-danger">
                                         <div class="dd-service-option-icon">
                                             @if(property_exists($service, 'is_suspended') && $service->is_suspended)
                                                 ▶️
@@ -314,7 +314,7 @@
         --dd-card-radius: 18px;
         --dd-card-padding: 18px 20px;
 
-        --dd-pill-radius: 9999px;
+        --dd-pill-radius: 12px;
         --dd-pill-padding: 8px 14px;
 
         --dd-card-bg: #ffffff;
@@ -503,6 +503,8 @@
         font-size: 14px;
         cursor: pointer;
         width: 100%;
+        min-height: 54px;
+        box-sizing: border-box;
         color: var(--dd-text-color);
         transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
     }
@@ -517,6 +519,11 @@
     .dd-service-option-btn {
         background: transparent;
         color: inherit;
+        height: 100%;
+    }
+
+    .dd-service-option-form {
+        margin: 0;
     }
 
     .dd-service-option-icon {
@@ -533,11 +540,13 @@
         text-align: left;
     }
 
-    .dd-service-option-danger {
+    .dd-service-option-danger,
+    .dd-service-option-btn.dd-service-option-danger {
         border-color: #ef4444;
     }
 
-    .dd-service-option-danger:hover {
+    .dd-service-option-danger:hover,
+    .dd-service-option-btn.dd-service-option-danger:hover {
         background: rgba(239, 68, 68, 0.1);
         border-color: #dc2626;
     }

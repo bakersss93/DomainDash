@@ -801,7 +801,7 @@
     .dd-search-input {
         flex: 1;
         padding: 10px 16px !important;
-        border-radius: 9999px !important;
+        border-radius: 12px !important;
         border: 1px solid #1e293b !important;
         background: #0f172a !important;
         color: #e5e7eb !important;
@@ -822,7 +822,7 @@
     .dd-search-btn {
         white-space: nowrap;
         padding: 8px 16px !important;
-        border-radius: 9999px !important;
+        border-radius: 12px !important;
     }
 
     /* Table styling */
@@ -1061,7 +1061,7 @@
 
     /* Pill button styling */
     .dd-pill-btn {
-        border-radius: var(--dd-pill-radius) !important;
+        border-radius: 12px !important;
         padding: 8px 16px !important;
     }
 

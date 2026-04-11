@@ -170,7 +170,7 @@
                             {{-- Renew --}}
                             <form method="POST"
                                   action="{{ route('admin.domains.renew', $domain) }}"
-                                  class="dd-domain-option"
+                                  class="dd-domain-option-form"
                                   onsubmit="return confirm('Renew this domain now?');">
                                 @csrf
                                 <button type="submit" class="dd-domain-option-btn">
@@ -536,13 +536,15 @@
             display:flex;
             align-items:center;
             padding:10px 14px;
-            border-radius:9999px;
+            border-radius:12px;
             background:#020617;
             border:1px solid #1f2937;
             text-decoration:none;
             font-size:14px;
             cursor:pointer;
             width:100%;
+            min-height:52px;
+            box-sizing:border-box;
             transition:background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
         }
 
@@ -556,6 +558,11 @@
         .dd-domain-option-btn {
             background:transparent;
             color:inherit;
+            height:100%;
+        }
+
+        .dd-domain-option-form {
+            margin: 0;
         }
 
         .dd-domain-option-icon {
@@ -609,7 +616,7 @@
             display: flex;
             align-items: center;
             background: #0f172a;
-            border-radius: 9999px;
+            border-radius: 12px;
             border: 1px solid #1f2937;
             padding: 0 36px 0 14px;
             min-height: 44px;
