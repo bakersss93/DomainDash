@@ -48,6 +48,16 @@
                     </div>
 
                     <div class="dd-account-field">
+                        <label for="mfa_preference">MFA Policy</label>
+                        <select class="dd-account-input" id="mfa_preference" name="mfa_preference" required>
+                            <option value="enabled" {{ old('mfa_preference', 'enabled') === 'enabled' ? 'selected' : '' }}>Enabled (user can configure)</option>
+                            <option value="enforced" {{ old('mfa_preference') === 'enforced' ? 'selected' : '' }}>Enforced (required)</option>
+                            <option value="disabled" {{ old('mfa_preference') === 'disabled' ? 'selected' : '' }}>Disabled</option>
+                        </select>
+                        @error('mfa_preference')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="dd-account-field">
                         <label>Client Organisation(s)</label>
                         <div class="client-picker" id="clientPicker">
                             <div class="client-picker-toggle" id="clientPickerToggle" style="width:100%;min-width:0;">

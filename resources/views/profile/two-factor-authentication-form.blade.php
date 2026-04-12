@@ -8,6 +8,12 @@
     </x-slot>
 
     <x-slot name="content">
+        @php
+            $mfaPreference = $this->user->mfa_preference ?? 'enabled';
+            $mfaDisabledByPolicy = $mfaPreference === 'disabled';
+            $mfaRequiredByPolicy = $mfaPreference === 'enforced';
+        @endphp
+
         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
             @if ($this->enabled)
                 @if ($showingConfirmation)
@@ -24,6 +30,15 @@
             <p>
                 {{ __('When two factor authentication is enabled, you will be prompted for a secure, random token during authentication. You may retrieve this token from your phone\'s Google Authenticator application.') }}
             </p>
+            @if ($mfaRequiredByPolicy)
+                <p class="mt-2 font-semibold text-amber-600 dark:text-amber-400">
+                    {{ __('Your account policy requires MFA. You must keep MFA configured to continue using the platform.') }}
+                </p>
+            @elseif ($mfaDisabledByPolicy)
+                <p class="mt-2 font-semibold text-red-600 dark:text-red-400">
+                    {{ __('MFA is disabled for your account by administrator policy.') }}
+                </p>
+            @endif
         </div>
 
         @if ($this->enabled)
@@ -78,11 +93,17 @@
 
         <div class="mt-5">
             @if (! $this->enabled)
-                <x-confirms-password wire:then="enableTwoFactorAuthentication">
-                    <x-button type="button" wire:loading.attr="disabled">
-                        {{ __('Enable') }}
-                    </x-button>
-                </x-confirms-password>
+                @if ($mfaDisabledByPolicy)
+                    <x-secondary-button type="button" disabled>
+                        {{ __('Disabled by policy') }}
+                    </x-secondary-button>
+                @else
+                    <x-confirms-password wire:then="enableTwoFactorAuthentication">
+                        <x-button type="button" wire:loading.attr="disabled">
+                            {{ __('Enable') }}
+                        </x-button>
+                    </x-confirms-password>
+                @endif
             @else
                 @if ($showingRecoveryCodes)
                     <x-confirms-password wire:then="regenerateRecoveryCodes">
@@ -104,7 +125,11 @@
                     </x-confirms-password>
                 @endif
 
-                @if ($showingConfirmation)
+                @if ($mfaRequiredByPolicy)
+                    <x-secondary-button wire:loading.attr="disabled" disabled>
+                        {{ __('Required by policy') }}
+                    </x-secondary-button>
+                @elseif ($showingConfirmation)
                     <x-confirms-password wire:then="disableTwoFactorAuthentication">
                         <x-secondary-button wire:loading.attr="disabled">
                             {{ __('Cancel') }}
