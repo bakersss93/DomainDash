@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EmailTemplate;
 use App\Models\NotificationTrigger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class EmailNotificationTemplatesController extends Controller
@@ -72,6 +73,17 @@ class EmailNotificationTemplatesController extends Controller
     private const EVENT_OPTIONS = [
         'domain_expiring' => 'Upcoming domain expiry',
         'ssl_expiring' => 'Upcoming SSL expiry',
+        'disk_space_warning_hosting' => 'Disk space warning (hosting)',
+        'disk_space_warning_server' => 'Disk space warning (DomainDash server)',
+        'domain_renewed' => 'Domain renewed',
+        'domain_purchase_success' => 'Domain purchase success',
+        'domain_purchase_failed' => 'Domain purchase failed',
+        'hosting_purchase_success' => 'Hosting purchase success',
+        'hosting_purchase_failed' => 'Hosting purchase failed',
+        'ssl_purchase_success' => 'SSL purchase success',
+        'ssl_purchase_failed' => 'SSL purchase failed',
+        'ssl_certificate_issued' => 'SSL certificate issued',
+        'user_added' => 'User added',
         'password_reset' => 'Password reset request',
         'sync_failed' => 'External sync failed',
         'backup_failed' => 'Backup failed',
@@ -90,6 +102,45 @@ class EmailNotificationTemplatesController extends Controller
             'eventOptions' => self::EVENT_OPTIONS,
             'audienceOptions' => self::AUDIENCE_OPTIONS,
         ]);
+    }
+
+    public function storeTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'trigger_event' => ['nullable', Rule::in(array_keys(self::EVENT_OPTIONS))],
+            'title' => ['required', 'string', 'max:120'],
+            'subject' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
+            'audience' => ['required', Rule::in(self::AUDIENCE_OPTIONS)],
+            'admin_recipient_email' => ['nullable', 'email', 'max:255', 'required_if:audience,admin'],
+        ]);
+
+        $name = trim($data['name']);
+        $baseSlug = Str::slug($name) ?: 'custom-template';
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (EmailTemplate::query()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        EmailTemplate::query()->create([
+            'name' => $name,
+            'slug' => $slug,
+            'trigger_event' => $data['trigger_event'] ?? null,
+            'audience' => $data['audience'],
+            'title' => trim($data['title']),
+            'subject' => trim($data['subject']),
+            'body' => trim($data['body']),
+            'admin_recipient_email' => $data['audience'] === 'admin'
+                ? trim((string) ($data['admin_recipient_email'] ?? ''))
+                : null,
+            'is_system' => false,
+        ]);
+
+        return back()->with('status', 'Template added.');
     }
 
     public function updateTemplate(Request $request, EmailTemplate $template)

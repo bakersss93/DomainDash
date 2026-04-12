@@ -73,8 +73,9 @@
         </section>
 
         <section style="background:linear-gradient(180deg,color-mix(in srgb,var(--surface-elevated) 90%,#0f172a 10%),var(--surface-elevated));border:1px solid var(--border-subtle);border-radius:16px;overflow:hidden;">
-            <div style="padding:14px 16px;border-bottom:1px solid var(--border-subtle);">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                 <h2 style="margin:0;font-size:18px;">Template Library</h2>
+                <button type="button" id="open-template-create-modal" class="btn-accent" style="padding:8px 14px;">Add Template</button>
             </div>
             <table style="margin-bottom:0;">
                 <thead>
@@ -99,7 +100,6 @@
                         <td style="text-align:right;">
                             <button type="button"
                                     class="open-template-modal"
-                                    data-id="{{ $template->id }}"
                                     data-name="{{ $template->name }}"
                                     data-title="{{ $template->title }}"
                                     data-subject="{{ $template->subject }}"
@@ -117,6 +117,59 @@
             </table>
         </section>
     </div>
+
+    <dialog id="template-create-modal" style="border:none;border-radius:14px;padding:0;max-width:920px;width:min(96vw,920px);">
+        <form method="POST" action="{{ route('admin.notifications.templates.store') }}" id="template-create-form" style="padding:18px;background:var(--bg);color:var(--text);border:1px solid var(--border-subtle);border-radius:14px;">
+            @csrf
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;">
+                <h2 style="margin:0;font-size:20px;">Add Notification Template</h2>
+                <button type="button" id="close-template-create" style="border:none;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:var(--text-muted);">&times;</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px;">
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Template name</label>
+                    <input type="text" name="name" required style="width:100%;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Default event (optional)</label>
+                    <select name="trigger_event" style="width:100%;">
+                        <option value="">None selected</option>
+                        @foreach($eventOptions as $eventKey => $eventLabel)
+                            <option value="{{ $eventKey }}">{{ $eventLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Email title</label>
+                    <input type="text" name="title" required style="width:100%;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Audience</label>
+                    <select name="audience" id="create-template-audience" style="width:100%;">
+                        @foreach($audienceOptions as $audience)
+                            <option value="{{ $audience }}">{{ ucfirst($audience) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div id="create-template-recipient-wrapper" style="margin-bottom:12px;display:none;">
+                <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Admin recipient email address</label>
+                <input type="email" name="admin_recipient_email" id="create-template-recipient" style="width:100%;">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Email subject</label>
+                <input type="text" name="subject" required style="width:100%;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;">Email body</label>
+                <textarea rows="10" name="body" required style="width:100%;font-family:'Fira Code','Courier New',monospace;"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" id="cancel-template-create" style="border:1px solid var(--border-subtle);background:var(--surface-muted);border-radius:12px;padding:9px 14px;font-weight:700;cursor:pointer;">Cancel</button>
+                <button type="submit" class="btn-accent" style="padding:9px 16px;">Add Template</button>
+            </div>
+        </form>
+    </dialog>
 
     <dialog id="template-editor-modal" style="border:none;border-radius:14px;padding:0;max-width:900px;width:min(96vw,900px);">
         <form method="POST" id="template-editor-form" style="padding:18px;background:var(--bg);color:var(--text);border:1px solid var(--border-subtle);border-radius:14px;">
@@ -248,6 +301,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const variableModal = document.getElementById('variable-library-modal');
+            const templateCreateModal = document.getElementById('template-create-modal');
             const templateModal = document.getElementById('template-editor-modal');
             const triggerModal = document.getElementById('trigger-editor-modal');
 
@@ -256,12 +310,18 @@
             document.getElementById('open-trigger-modal').addEventListener('click', function () { triggerModal.showModal(); });
             document.getElementById('close-trigger-editor').addEventListener('click', function () { triggerModal.close(); });
             document.getElementById('cancel-trigger-editor').addEventListener('click', function () { triggerModal.close(); });
+            document.getElementById('open-template-create-modal').addEventListener('click', function () { templateCreateModal.showModal(); });
+            document.getElementById('close-template-create').addEventListener('click', function () { templateCreateModal.close(); });
+            document.getElementById('cancel-template-create').addEventListener('click', function () { templateCreateModal.close(); });
             document.getElementById('close-template-editor').addEventListener('click', function () { templateModal.close(); });
             document.getElementById('cancel-template-editor').addEventListener('click', function () { templateModal.close(); });
 
             const modalAudience = document.getElementById('modal-audience');
             const modalTemplateRecipientWrapper = document.getElementById('modal-template-recipient-wrapper');
             const modalTemplateRecipient = document.getElementById('modal-template-recipient');
+            const createTemplateAudience = document.getElementById('create-template-audience');
+            const createTemplateRecipientWrapper = document.getElementById('create-template-recipient-wrapper');
+            const createTemplateRecipient = document.getElementById('create-template-recipient');
 
             const updateTemplateRecipientVisibility = function () {
                 if (modalAudience.value === 'admin') {
@@ -272,7 +332,18 @@
                 }
             };
 
+            const updateCreateTemplateRecipientVisibility = function () {
+                if (createTemplateAudience.value === 'admin') {
+                    createTemplateRecipientWrapper.style.display = 'block';
+                } else {
+                    createTemplateRecipientWrapper.style.display = 'none';
+                    createTemplateRecipient.value = '';
+                }
+            };
+
             modalAudience.addEventListener('change', updateTemplateRecipientVisibility);
+            createTemplateAudience.addEventListener('change', updateCreateTemplateRecipientVisibility);
+            updateCreateTemplateRecipientVisibility();
 
             document.querySelectorAll('.open-template-modal').forEach(function (button) {
                 button.addEventListener('click', function () {
@@ -320,7 +391,7 @@
             toggleHaloBlock();
             toggleHaloFields();
 
-            [variableModal, templateModal, triggerModal].forEach(function (dialog) {
+            [variableModal, templateCreateModal, templateModal, triggerModal].forEach(function (dialog) {
                 dialog.addEventListener('click', function (event) {
                     if (event.target === dialog) {
                         dialog.close();
