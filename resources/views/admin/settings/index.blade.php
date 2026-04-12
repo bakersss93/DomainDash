@@ -552,6 +552,74 @@
                 </div>
             </div>
 
+            {{-- SYNC SCHEDULER SECTION --}}
+            @php
+                $syncSchedule = $settings['sync_schedule'] ?? [];
+                $syncFrequencies = ['hourly' => 'Hourly', 'daily' => 'Daily', 'weekly' => 'Weekly'];
+            @endphp
+            <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div class="settings-header" onclick="toggleSection('sync-scheduler')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);transition:background 0.2s;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+                            ⏱️
+                        </div>
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin:0;color:#f8fafc;">Sync Scheduler</h3>
+                            <p style="font-size:13px;color:#94a3b8;margin:0;">Configure recurring integration sync jobs</p>
+                        </div>
+                    </div>
+                    <svg id="sync-scheduler-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+                <div id="sync-scheduler-content" class="settings-content" style="padding:20px 24px;display:none;">
+                    @foreach([
+                        'sync_domains' => 'Sync Domains to HaloPSA',
+                        'sync_hosting_services' => 'Sync Hosting Services',
+                        'sync_halo_assets' => 'Sync Client Domain Assets to/from HaloPSA',
+                        'sync_itglue' => 'Sync IT Glue Domain Assets',
+                    ] as $key => $label)
+                        <div class="dd-sync-scheduler-row" style="display:grid;grid-template-columns:180px 160px 120px;gap:12px;align-items:end;margin-bottom:12px;padding:12px;">
+                            <div>
+                                <input type="hidden" name="sync_schedule[{{ $key }}][enabled]" value="0">
+                                <label class="dd-sync-scheduler-toggle" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;cursor:pointer;">
+                                    <input type="checkbox"
+                                           class="dd-checkbox dd-sync-scheduler-check"
+                                           name="sync_schedule[{{ $key }}][enabled]"
+                                           value="1"
+                                           {{ !empty($syncSchedule[$key]['enabled']) ? 'checked' : '' }}>
+                                    {{ $label }}
+                                </label>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;margin-bottom:4px;">Frequency</label>
+                                <select name="sync_schedule[{{ $key }}][frequency]" class="dd-field"
+                                        style="width:100%;font-size:13px;">
+                                    @foreach($syncFrequencies as $value => $text)
+                                        <option value="{{ $value }}" {{ ($syncSchedule[$key]['frequency'] ?? 'daily') === $value ? 'selected' : '' }}>{{ $text }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;margin-bottom:4px;">Run time</label>
+                                <input type="text" class="dd-field dd-sync-scheduler-time"
+                                       name="sync_schedule[{{ $key }}][time]"
+                                       value="{{ $syncSchedule[$key]['time'] ?? '02:00' }}"
+                                       inputmode="numeric"
+                                       maxlength="5"
+                                       pattern="^([01]\d|2[0-3]):[0-5]\d$"
+                                       title="Use 24-hour format HH:MM"
+                                       placeholder="HH:MM"
+                                       style="width:100%;font-size:13px;">
+                            </div>
+                        </div>
+                    @endforeach
+                    <small style="display:block;margin-top:8px;font-size:12px;color:#9ca3af;">
+                        Hourly sync uses the minutes from "Run time"; weekly sync runs every Monday at the selected time.
+                    </small>
+                </div>
+            </div>
+
             {{-- Action buttons --}}
             <div class="dd-settings-panel" style="padding:20px;">
                 <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
