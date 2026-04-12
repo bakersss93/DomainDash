@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\ClientsController;
 use App\Http\Controllers\Admin\DomainPricingController;
 use App\Http\Controllers\Admin\EmailNotificationTemplatesController;
+use App\Http\Controllers\UserNotificationController;
 
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
@@ -19,6 +20,8 @@ Route::middleware(['auth','verified'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
+
+        Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');
 
         Route::get('/dashboard', function () {return view('dashboard');})->name('dashboard');
 
