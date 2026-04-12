@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\ClientsController;
 use App\Http\Controllers\Admin\DomainPricingController;
+use App\Http\Controllers\Admin\EmailNotificationTemplatesController;
+use App\Http\Controllers\UserNotificationController;
 
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
@@ -18,6 +20,8 @@ Route::middleware(['auth','verified'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
+
+        Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');
 
         Route::get('/dashboard', function () {return view('dashboard');})->name('dashboard');
 
@@ -89,6 +93,10 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
+        Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'storeTemplate'])->name('admin.notifications.templates.store');
+        Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');
+        Route::post('/notifications/triggers', [EmailNotificationTemplatesController::class, 'storeTrigger'])->name('admin.notifications.triggers.store');
 
         // ============================================================================
         // SYNC ROUTES

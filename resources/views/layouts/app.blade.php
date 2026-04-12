@@ -169,25 +169,42 @@
 
         .logo { max-height: 48px; }
 
-        .notif {
-            position: relative;
+        .notif-trigger {
             cursor: pointer;
+            border: none;
+            background: transparent;
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 16px;
         }
 
-        .notif .panel {
-            position: absolute;
-            right:0;
-            top: 36px;
-            width: 380px;
+        .notif-modal {
+            border: none;
+            border-radius: 14px;
+            padding: 0;
+            width: min(92vw, 520px);
+            max-height: 78vh;
+        }
+
+        .notif-modal-panel {
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
             background: var(--bg);
             color: var(--text);
-            border:1px solid var(--border-subtle);
-            box-shadow:0 10px 20px rgba(0,0,0,.08);
-            display:none;
-            z-index:40;
+            overflow: hidden;
         }
 
-        .notif.open .panel { display:block; }
+        .notif-list {
+            max-height: 52vh;
+            overflow: auto;
+        }
+
+        .notif-item {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border-subtle);
+        }
 
         .danger { color: var(--danger-text); }
 
@@ -590,6 +607,15 @@
     </style>
 </head>
 <body>
+@php
+    $unreadNotifications = \App\Models\UserNotification::query()
+        ->where('user_id', auth()->id())
+        ->whereNull('read_at')
+        ->latest()
+        ->limit(20)
+        ->get();
+    $unreadNotificationsCount = $unreadNotifications->count();
+@endphp
 <div style="display:flex;">
     <aside class="sidebar">
         <div style="padding:16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--sidebar-border);">
@@ -678,7 +704,7 @@
 
                 <!-- Admin Section (hidden for non-admin users) -->
                 @role('Administrator')
-                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') ? 'expanded' : '' }}">
+                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.notifications.templates*') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') ? 'expanded' : '' }}">
                         <div class="nav-link nav-toggle" onclick="toggleNav(this)">
                             <span class="icon">⚙️</span>
                             <span class="text">Admin</span>
@@ -711,6 +737,11 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.notifications.templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.templates*') ? 'active' : '' }}">
+                                    Email Templates
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                                     System Status
                                 </a>
@@ -734,6 +765,24 @@
             const section = element.closest('.nav-section');
             section.classList.toggle('expanded');
         }
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const openButton = document.getElementById('open-notifications-modal');
+            const closeButton = document.getElementById('close-notifications-modal');
+            const notifModal = document.getElementById('notifications-modal');
+
+            if (openButton && closeButton && notifModal) {
+                openButton.addEventListener('click', function () { notifModal.showModal(); });
+                closeButton.addEventListener('click', function () { notifModal.close(); });
+                notifModal.addEventListener('click', function (event) {
+                    if (event.target === notifModal) {
+                        notifModal.close();
+                    }
+                });
+            }
+        });
     </script>
 
     <main style="flex:1;">
@@ -773,21 +822,40 @@
                     </details>
                 </div>
 
-                <div class="notif" x-data="{open:false}" @click="open=!open" :class="{'open': open}">
+                <button type="button" class="notif-trigger" id="open-notifications-modal" aria-label="Open notifications">
                     <span>🔔</span>
-                    <span class="badge-red">{{ session('notifications_count', 0) }}</span>
-                    <div class="panel">
-                        <div style="padding:8px 12px;"><strong>Notifications</strong></div>
-                        <div style="max-height:300px;overflow:auto;">
-                            @foreach(session('notifications',[]) as $n)
-                                <div style="padding:8px 12px;border-top:1px solid var(--border-subtle);">{!! $n !!}</div>
-                            @endforeach
-                            @if(empty(session('notifications')))
-                                <div style="padding:8px 12px;color:var(--text-muted);">No new notifications.</div>
-                            @endif
+                    <span class="badge-red">{{ $unreadNotificationsCount }}</span>
+                </button>
+
+                <dialog id="notifications-modal" class="notif-modal">
+                    <div class="notif-modal-panel">
+                        <div style="padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                            <strong>Notifications</strong>
+                            <button type="button" id="close-notifications-modal" style="border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--text-muted);">&times;</button>
+                        </div>
+                        <div class="notif-list">
+                            @forelse($unreadNotifications as $notification)
+                                <div class="notif-item">
+                                    <div style="font-size:14px;font-weight:700;margin-bottom:4px;">{{ $notification->title }}</div>
+                                    <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">{{ $notification->message }}</div>
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                        @if($notification->link_url)
+                                            <a href="{{ $notification->link_url }}" style="font-size:12px;color:var(--accent);text-decoration:none;">Open</a>
+                                        @else
+                                            <span></span>
+                                        @endif
+                                        <form method="POST" action="{{ route('notifications.read', $notification) }}">
+                                            @csrf
+                                            <button type="submit" style="border:1px solid var(--border-subtle);background:var(--surface-muted);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer;">Mark as read</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            @empty
+                                <div style="padding:12px 14px;color:var(--text-muted);">No unread notifications.</div>
+                            @endforelse
                         </div>
                     </div>
-                </div>
+                </dialog>
             </div>
         </div>
 
