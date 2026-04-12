@@ -584,7 +584,7 @@
                                 <input type="hidden" name="sync_schedule[{{ $key }}][enabled]" value="0">
                                 <label class="dd-sync-scheduler-toggle" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;cursor:pointer;">
                                     <input type="checkbox"
-                                           class="dd-checkbox"
+                                           class="dd-checkbox dd-sync-scheduler-check"
                                            name="sync_schedule[{{ $key }}][enabled]"
                                            value="1"
                                            {{ !empty($syncSchedule[$key]['enabled']) ? 'checked' : '' }}
@@ -603,7 +603,7 @@
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;margin-bottom:4px;">Run time</label>
-                                <input type="time" class="dd-field"
+                                <input type="time" class="dd-field dd-sync-scheduler-time"
                                        name="sync_schedule[{{ $key }}][time]"
                                        value="{{ $syncSchedule[$key]['time'] ?? '02:00' }}"
                                        style="width:100%;font-size:13px;">

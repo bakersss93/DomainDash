@@ -256,11 +256,11 @@ body {
     color: var(--dd-text) !important;
 }
 
-.dd-settings-page .dd-sync-scheduler-row input[type='checkbox'].dd-checkbox {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+.dd-settings-page .dd-sync-scheduler-check {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
     border-radius: 6px !important;
     border: 1px solid var(--dd-border) !important;
     background: var(--dd-surface-soft) !important;
@@ -269,14 +269,16 @@ body {
     align-items: center;
     justify-content: center;
     margin: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dd-surface) 50%, transparent);
 }
 
-.dd-settings-page .dd-sync-scheduler-row input[type='checkbox'].dd-checkbox:checked {
+.dd-settings-page .dd-sync-scheduler-check:checked {
     background: var(--dd-accent-strong) !important;
     border-color: var(--dd-accent-strong) !important;
+    box-shadow: none;
 }
 
-.dd-settings-page .dd-sync-scheduler-row input[type='checkbox'].dd-checkbox:checked::after {
+.dd-settings-page .dd-sync-scheduler-check:checked::after {
     content: '';
     width: 7px;
     height: 4px;
@@ -285,19 +287,32 @@ body {
     transform: rotate(-45deg) translateY(-1px);
 }
 
-html.dark .dd-settings-page input[type='time'] {
+.dd-settings-page .dd-sync-scheduler-time {
+    border-radius: 10px !important;
+}
+
+html.dark .dd-settings-page .dd-sync-scheduler-time {
     color-scheme: dark;
+    background: var(--dd-surface-soft) !important;
+    color: var(--dd-text) !important;
+    border-color: var(--dd-border) !important;
 }
 
-html.dark .dd-settings-page input[type='time']::-webkit-calendar-picker-indicator {
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-calendar-picker-indicator {
     filter: invert(1) brightness(1.2);
+    opacity: 0.85;
 }
 
-html.dark .dd-settings-page input[type='time']::-webkit-datetime-edit {
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit,
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-fields-wrapper,
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-hour-field,
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-minute-field,
+html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-ampm-field {
     color: var(--dd-text);
+    background: transparent;
 }
 
-html:not(.dark) .dd-settings-page input[type='time'] {
+html:not(.dark) .dd-settings-page .dd-sync-scheduler-time {
     color-scheme: light;
 }
 
