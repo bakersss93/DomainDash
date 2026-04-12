@@ -620,6 +620,62 @@
                 </div>
             </div>
 
+
+            {{-- MFA SECTION --}}
+            @php
+                $mfaSettings = $settings['mfa'] ?? [];
+            @endphp
+            <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div class="settings-header" onclick="toggleSection('mfa')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);transition:background 0.2s;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#2563eb);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;">
+                            🔐
+                        </div>
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin:0;color:#f8fafc;">Multi-Factor Authentication</h3>
+                            <p style="font-size:13px;color:#94a3b8;margin:0;">Configure default MFA behavior and challenge persistence</p>
+                        </div>
+                    </div>
+                    <svg id="mfa-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+                <div id="mfa-content" class="settings-content" style="padding:20px 24px;display:none;">
+                    <div style="margin-bottom:12px;">
+                        <label for="mfa_persistence_days" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">MFA persistence window (days)</label>
+                        <input id="mfa_persistence_days" type="number" min="1" max="365" name="mfa[persistence_days]" value="{{ $mfaSettings['persistence_days'] ?? 30 }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">How long to trust a remembered browser before re-prompting for MFA.</small>
+                    </div>
+
+                    <div style="margin-bottom:12px;">
+                        <label for="mfa_default_method" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary MFA method</label>
+                        <select id="mfa_default_method" name="mfa[default_method]" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#0b1120;color:#f8fafc;">
+                            <option value="authenticator_app" {{ ($mfaSettings['default_method'] ?? 'authenticator_app') === 'authenticator_app' ? 'selected' : '' }}>Authenticator app (TOTP)</option>
+                            <option value="email_otp" {{ ($mfaSettings['default_method'] ?? '') === 'email_otp' ? 'selected' : '' }}>Email one-time passcode</option>
+                        </select>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;">
+                        <label style="display:flex;align-items:center;gap:8px;color:#e2e8f0;font-size:14px;">
+                            <input type="hidden" name="mfa[allow_recovery_codes]" value="0">
+                            <input type="checkbox" name="mfa[allow_recovery_codes]" value="1" {{ !empty($mfaSettings['allow_recovery_codes']) ? 'checked' : '' }}>
+                            Allow recovery codes
+                        </label>
+
+                        <label style="display:flex;align-items:center;gap:8px;color:#e2e8f0;font-size:14px;">
+                            <input type="hidden" name="mfa[remember_browser]" value="0">
+                            <input type="checkbox" name="mfa[remember_browser]" value="1" {{ !empty($mfaSettings['remember_browser']) ? 'checked' : '' }}>
+                            Allow remembered devices
+                        </label>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <label for="mfa_issuer" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">MFA issuer label</label>
+                        <input id="mfa_issuer" type="text" name="mfa[issuer]" value="{{ $mfaSettings['issuer'] ?? config('app.name') }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                    </div>
+                </div>
+            </div>
+
             {{-- Action buttons --}}
             <div class="dd-settings-panel" style="padding:20px;">
                 <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">

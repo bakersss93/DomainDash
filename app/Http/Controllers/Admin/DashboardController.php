@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Services\Synergy\SynergyWholesaleClient;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -20,6 +21,16 @@ class DashboardController extends Controller
             'clients' => DB::table('clients')->count(),
             'users' => DB::table('users')->count(),
         ];
+
+
+        $usersWithMfa = User::query()->whereNotNull('two_factor_confirmed_at')->count();
+        $usersWithoutMfa = max(0, $counts['users'] - $usersWithMfa);
+
+        $usersWithoutMfaConfigured = User::query()
+            ->whereNull('two_factor_confirmed_at')
+            ->orderBy('name')
+            ->limit(100)
+            ->get(['id', 'name', 'email', 'mfa_preference']);
 
         $balanceResponse = $synergy->balanceQuery();
         [$availableBalance, $balanceCurrency, $balanceStatus] = $this->balanceMetrics($balanceResponse);
@@ -61,7 +72,10 @@ class DashboardController extends Controller
             'balanceStatus',
             'domainsWithoutClient',
             'domainsNotSyncedHalo',
-            'domainsNotSyncedItglue'
+            'domainsNotSyncedItglue',
+            'usersWithMfa',
+            'usersWithoutMfa',
+            'usersWithoutMfaConfigured'
         ));
     }
 

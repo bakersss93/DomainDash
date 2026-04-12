@@ -16,7 +16,7 @@ use App\Http\Controllers\UserNotificationController;
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
 
-Route::middleware(['auth','verified'])->group(function () {
+Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
