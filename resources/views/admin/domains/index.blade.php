@@ -510,8 +510,8 @@
             padding: 16px 18px 18px;
             margin-top: 0;
             border-radius: 8px;
-            border: 1px solid #1f2937;
-            background: #0f172a;
+            border: 1px solid var(--border-subtle);
+            background: var(--surface-elevated);
         }
 
         .dd-domain-panel-header {
@@ -520,8 +520,8 @@
             align-items:center;
             padding:8px 12px;
             border-radius:6px;
-            background:#020617;
-            border:1px solid #1f2937;
+            background:var(--surface-muted);
+            border:1px solid var(--border-subtle);
             margin-bottom:14px;
         }
 
@@ -537,8 +537,8 @@
             align-items:center;
             padding:10px 14px;
             border-radius:12px;
-            background:#020617;
-            border:1px solid #1f2937;
+            background:var(--bg);
+            border:1px solid var(--border-subtle);
             text-decoration:none;
             font-size:14px;
             cursor:pointer;
@@ -550,7 +550,7 @@
 
         .dd-domain-option:hover,
         .dd-domain-option-btn:hover {
-            background:#0f172a;
+            background:var(--surface-muted);
             border-color:var(--accent);
             transform:translateY(-1px);
         }
@@ -601,10 +601,10 @@
         }
         .dd-modal-dialog {
             position: relative;
-            background:#020617;
+            background:var(--surface-elevated);
             border-radius:12px;
             padding:16px 18px 18px;
-            border:1px solid #1f2937;
+            border:1px solid var(--border-subtle);
             width:420px;
             max-width:95%;
             box-shadow:0 20px 40px rgba(0,0,0,.6);
@@ -615,9 +615,9 @@
             position: relative;
             display: flex;
             align-items: center;
-            background: #0f172a;
+            background: var(--bg);
             border-radius: 12px;
-            border: 1px solid #1f2937;
+            border: 1px solid var(--border-subtle);
             padding: 0 36px 0 14px;
             min-height: 44px;
             cursor: text;
@@ -627,7 +627,7 @@
             background: transparent;
             border: none;
             outline: none;
-            color: #e5e7eb;
+            color: var(--text);
             font-size: 14px;
         }
         .dd-combobox-arrow {
@@ -642,9 +642,9 @@
             left: 0;
             right: 0;
             top: calc(100% + 4px);
-            background: #020617;
+            background: var(--surface-elevated);
             border-radius: 8px;
-            border: 1px solid #1f2937;
+            border: 1px solid var(--border-subtle);
             box-shadow: 0 15px 35px rgba(0,0,0,.65);
             max-height: 260px;
             overflow-y: auto;
@@ -661,6 +661,51 @@
         }
         .dd-combobox-list-item:hover,
         .dd-combobox-list-item.is-highlighted {
+            background: var(--surface-muted);
+        }
+
+        html.dark tr[data-domain-panel].open > td > .dd-domain-panel-inner {
+            border-color: #1f2937;
+            background: #0f172a;
+        }
+
+        html.dark .dd-domain-panel-header {
+            background: #020617;
+            border-color: #1f2937;
+        }
+
+        html.dark .dd-domain-option,
+        html.dark .dd-domain-option-btn {
+            background: #020617;
+            border-color: #1f2937;
+        }
+
+        html.dark .dd-domain-option:hover,
+        html.dark .dd-domain-option-btn:hover {
+            background: #0f172a;
+        }
+
+        html.dark .dd-modal-dialog {
+            background: #020617;
+            border-color: #1f2937;
+        }
+
+        html.dark .dd-combobox {
+            background: #0f172a;
+            border-color: #1f2937;
+        }
+
+        html.dark .dd-combobox-input {
+            color: #e5e7eb;
+        }
+
+        html.dark .dd-combobox-list {
+            background: #020617;
+            border-color: #1f2937;
+        }
+
+        html.dark .dd-combobox-list-item:hover,
+        html.dark .dd-combobox-list-item.is-highlighted {
             background: #111827;
         }
         .dd-combobox select.dd-hidden-select {
