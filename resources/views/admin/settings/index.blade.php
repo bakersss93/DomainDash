@@ -579,9 +579,8 @@
                         'sync_halo_assets' => 'Sync Client Domain Assets to/from HaloPSA',
                         'sync_itglue' => 'Sync IT Glue Domain Assets',
                     ] as $key => $label)
-                        <div class="dd-sync-scheduler-row" style="margin-bottom:12px;padding:12px;">
-                            <div class="dd-sync-scheduler-grid">
-                            <div class="dd-sync-scheduler-task">
+                        <div class="dd-sync-scheduler-row" style="display:grid;grid-template-columns:180px 160px 120px;gap:12px;align-items:end;margin-bottom:12px;padding:12px;">
+                            <div>
                                 <input type="hidden" name="sync_schedule[{{ $key }}][enabled]" value="0">
                                 <label class="dd-sync-scheduler-toggle" style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;cursor:pointer;">
                                     <input type="checkbox"
@@ -593,7 +592,7 @@
                                     {{ $label }}
                                 </label>
                             </div>
-                            <div class="dd-sync-scheduler-field">
+                            <div>
                                 <label style="display:block;font-size:12px;margin-bottom:4px;">Frequency</label>
                                 <select name="sync_schedule[{{ $key }}][frequency]" class="dd-field"
                                         style="width:100%;font-size:13px;">
@@ -602,13 +601,12 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="dd-sync-scheduler-field">
+                            <div>
                                 <label style="display:block;font-size:12px;margin-bottom:4px;">Run time</label>
                                 <input type="time" class="dd-field"
                                        name="sync_schedule[{{ $key }}][time]"
                                        value="{{ $syncSchedule[$key]['time'] ?? '02:00' }}"
                                        style="width:100%;font-size:13px;">
-                            </div>
                             </div>
                         </div>
                     @endforeach

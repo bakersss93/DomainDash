@@ -252,19 +252,6 @@ body {
     background: color-mix(in srgb, var(--dd-surface-soft) 84%, var(--dd-surface) 16%);
 }
 
-.dd-settings-page .dd-sync-scheduler-grid {
-    display: grid;
-    grid-template-columns: minmax(220px, 2fr) minmax(140px, 1fr) minmax(140px, 1fr);
-    gap: 14px;
-    align-items: end;
-}
-
-.dd-settings-page .dd-sync-scheduler-task {
-    min-height: 42px;
-    display: flex;
-    align-items: center;
-}
-
 .dd-settings-page .dd-sync-scheduler-toggle {
     color: var(--dd-text) !important;
 }
@@ -298,15 +285,20 @@ body {
     transform: rotate(-45deg) translateY(-1px);
 }
 
-@media (max-width: 900px) {
-    .dd-settings-page .dd-sync-scheduler-grid {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
+html.dark .dd-settings-page input[type='time'] {
+    color-scheme: dark;
+}
 
-    .dd-settings-page .dd-sync-scheduler-task {
-        min-height: 0;
-    }
+html.dark .dd-settings-page input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.2);
+}
+
+html.dark .dd-settings-page input[type='time']::-webkit-datetime-edit {
+    color: var(--dd-text);
+}
+
+html:not(.dark) .dd-settings-page input[type='time'] {
+    color-scheme: light;
 }
 
 #dd-global-loader {
