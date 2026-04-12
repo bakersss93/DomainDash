@@ -91,7 +91,8 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
-        Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'update'])->name('admin.notifications.templates.update');
+        Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');
+        Route::post('/notifications/triggers', [EmailNotificationTemplatesController::class, 'storeTrigger'])->name('admin.notifications.triggers.store');
 
         // ============================================================================
         // SYNC ROUTES
