@@ -289,31 +289,10 @@ body {
 
 .dd-settings-page .dd-sync-scheduler-time {
     border-radius: 10px !important;
-}
-
-html.dark .dd-settings-page .dd-sync-scheduler-time {
-    color-scheme: dark;
     background: var(--dd-surface-soft) !important;
     color: var(--dd-text) !important;
     border-color: var(--dd-border) !important;
-}
-
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.2);
-    opacity: 0.85;
-}
-
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit,
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-fields-wrapper,
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-hour-field,
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-minute-field,
-html.dark .dd-settings-page .dd-sync-scheduler-time::-webkit-datetime-edit-ampm-field {
-    color: var(--dd-text);
-    background: transparent;
-}
-
-html:not(.dark) .dd-settings-page .dd-sync-scheduler-time {
-    color-scheme: light;
+    letter-spacing: 0.02em;
 }
 
 #dd-global-loader {
