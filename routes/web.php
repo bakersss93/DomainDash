@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\ClientsController;
 use App\Http\Controllers\Admin\DomainPricingController;
+use App\Http\Controllers\Admin\EmailNotificationTemplatesController;
 
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
@@ -89,6 +90,8 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
+        Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'update'])->name('admin.notifications.templates.update');
 
         // ============================================================================
         // SYNC ROUTES
