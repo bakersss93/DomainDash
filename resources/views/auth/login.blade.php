@@ -43,9 +43,9 @@
                         </a>
                     @endif
 
-                    <x-button>
+                    <button type="submit" class="btn-accent dd-login-submit">
                         {{ __('Log in') }}
-                    </x-button>
+                    </button>
                 </div>
             </form>
         </div>
@@ -63,7 +63,8 @@
             color: #6b7280;
         }
 
-        .dd-login-surface .dd-btn {
+        .dd-login-surface .dd-btn,
+        .dd-login-submit {
             border-radius: 12px;
         }
 
