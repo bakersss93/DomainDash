@@ -52,6 +52,7 @@ class UsersController extends Controller
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
             'password'     => 'nullable|string|min:8|confirmed',
+            'mfa_preference' => 'required|in:disabled,enabled,enforced',
         ]);
 
         $password = $data['password'] ?: Str::random(12);
@@ -60,6 +61,7 @@ class UsersController extends Controller
             'name'     => trim($data['first_name'].' '.$data['last_name']),
             'email'    => $data['email'],
             'password' => Hash::make($password),
+            'mfa_preference' => $data['mfa_preference'],
         ]);
 
         // assign role (Spatie)
@@ -112,11 +114,13 @@ class UsersController extends Controller
             'role'         => 'required|in:Administrator,Technician,Customer',
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
+            'mfa_preference' => 'required|in:disabled,enabled,enforced',
         ]);
 
         $user->update([
             'name'  => trim($data['first_name'].' '.$data['last_name']),
             'email' => $data['email'],
+            'mfa_preference' => $data['mfa_preference'],
         ]);
 
         $user->syncRoles([$data['role']]);
@@ -175,6 +179,8 @@ class UsersController extends Controller
         $user->forceFill([
             'two_factor_secret'         => null,
             'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at'   => null,
+            'mfa_prompted_at'           => null,
         ])->save();
 
         return back()->with('status', 'MFA reset for '.$user->email.'. They will need to re-enrol.');

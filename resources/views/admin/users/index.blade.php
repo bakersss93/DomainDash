@@ -33,6 +33,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Client Organisation</th>
+                    <th>MFA</th>
                     <th style="width:260px;">Actions</th>
                 </tr>
                 </thead>
@@ -52,6 +53,9 @@
                             {{ $user->clients->pluck('business_name')->implode(', ')
                                 ?: $user->clients->pluck('name')->implode(', ')
                                 ?: '—' }}
+                        </td>
+                        <td>
+                            {{ ucfirst($user->mfa_preference ?? 'enabled') }} / {{ $user->two_factor_confirmed_at ? 'Configured' : 'Not configured' }}
                         </td>
                         <td>
                             <div style="display:flex;justify-content:flex-end;gap:12px;align-items:center;">

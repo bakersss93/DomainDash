@@ -16,9 +16,18 @@ use App\Http\Controllers\UserNotificationController;
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
 
-Route::middleware(['auth','verified'])->group(function () {
+Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
+        Route::get('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'accountDetails'])->name('me.account.details');
+        Route::post('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'updateAccount'])->name('me.account.update');
+        Route::post('/me/account/password', [\App\Http\Controllers\UserSettingsController::class, 'changePassword'])->name('me.account.password');
+        Route::post('/me/account/mfa-reenroll', [\App\Http\Controllers\UserSettingsController::class, 'reEnrollMfa'])->name('me.account.mfa-reenroll');
+        Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
+        Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
+        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');
+        Route::post('/me/mfa/dismiss', [\App\Http\Controllers\UserSettingsController::class, 'dismissMfaPrompt'])->name('me.mfa.dismiss');
+
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
         Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');

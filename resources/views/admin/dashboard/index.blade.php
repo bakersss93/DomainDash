@@ -60,6 +60,13 @@
                 'meter' => min(100, $counts['clients'] > 0 ? ($counts['users'] / $counts['clients']) * 100 : 0),
                 'tone' => 'default',
             ],
+            [
+                'label' => 'Users (MFA)',
+                'value' => number_format($usersWithMfa).' / '.number_format($counts['users']),
+                'sub' => number_format($usersWithoutMfa).' without MFA configured',
+                'meter' => $counts['users'] > 0 ? ($usersWithMfa / $counts['users']) * 100 : 0,
+                'tone' => 'default',
+            ],
         ];
     @endphp
 
@@ -130,6 +137,16 @@
 
         html.dark .status-card {
             box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+        }
+
+        .status-card.is-action {
+            cursor: pointer;
+            transition: transform 120ms ease, border-color 120ms ease;
+        }
+
+        .status-card.is-action:hover {
+            transform: translateY(-2px);
+            border-color: color-mix(in srgb, var(--accent) 55%, var(--status-border));
         }
 
         .status-card.is-balance {
@@ -253,6 +270,42 @@
             font-size: 0.72rem;
         }
 
+        .status-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.65);
+            z-index: 60;
+        }
+
+        .status-modal-content {
+            width: min(760px, 92vw);
+            max-height: 82vh;
+            overflow: auto;
+            background: var(--status-card);
+            border: 1px solid var(--status-border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .status-modal-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .status-modal-close {
+            border: 1px solid var(--status-border);
+            background: transparent;
+            color: var(--status-title);
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+
+
         @keyframes status-fade-in {
             from {
                 opacity: 0;
@@ -298,7 +351,8 @@
 
         <div class="status-cards">
             @foreach($statusCards as $card)
-                <div class="status-card {{ $card['tone'] === 'balance' ? 'is-balance' : '' }}">
+                <div class="status-card {{ $card['tone'] === 'balance' ? 'is-balance' : '' }} {{ $card['label'] === 'Users (MFA)' ? 'is-action' : '' }}"
+                     @if($card['label'] === 'Users (MFA)') onclick="openMfaUsersModal()" @endif>
                     <div class="status-card-label">{{ $card['label'] }}</div>
                     <div class="status-card-value">{{ $card['value'] }}</div>
                     <div class="status-card-sub">{{ $card['sub'] }}</div>
@@ -403,5 +457,62 @@
                 </div>
             </section>
         </div>
+
+
+        <div id="mfaUsersModal" class="status-modal" onclick="closeMfaUsersModal(event)">
+            <div class="status-modal-content">
+                <div class="status-modal-head">
+                    <div>
+                        <h2 style="margin:0;font-size:1.1rem;">Users Missing MFA Setup</h2>
+                        <p style="margin:4px 0 0;color:var(--status-soft);font-size:0.9rem;">Users without confirmed MFA enrollment.</p>
+                    </div>
+                    <button type="button" class="status-modal-close" onclick="closeMfaUsersModal()">Close</button>
+                </div>
+
+                <table class="status-table">
+                    <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>MFA Policy</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @forelse($usersWithoutMfaConfigured as $user)
+                        <tr>
+                            <td>{{ $user->name }}</td>
+                            <td>{{ $user->email }}</td>
+                            <td><span class="status-pill">{{ ucfirst($user->mfa_preference ?? 'enabled') }}</span></td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="3">All users have MFA configured.</td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
+
+    <script>
+        function openMfaUsersModal() {
+            const modal = document.getElementById('mfaUsersModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeMfaUsersModal(event) {
+            const modal = document.getElementById('mfaUsersModal');
+            if (!modal) {
+                return;
+            }
+
+            if (!event || event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
 @endsection
+

@@ -27,6 +27,13 @@ class SettingsController extends Controller
             ]),
             'backup'   => Setting::get('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
+            'mfa' => Setting::get('mfa', [
+                'persistence_days' => 30,
+                'default_method' => 'authenticator_app',
+                'allow_recovery_codes' => true,
+                'remember_browser' => true,
+                'issuer' => config('app.name', 'DomainDash'),
+            ]),
         ];
         return view('admin.settings.index', compact('settings'));
     }
@@ -47,6 +54,12 @@ class SettingsController extends Controller
             'sync_schedule.*.time' => 'nullable|date_format:H:i',
             'backup'        => 'array',
             'notifications' => 'array',
+            'mfa'           => 'array',
+            'mfa.persistence_days' => 'nullable|integer|min:1|max:365',
+            'mfa.default_method' => 'nullable|in:authenticator_app,email_otp',
+            'mfa.allow_recovery_codes' => 'nullable|boolean',
+            'mfa.remember_browser' => 'nullable|boolean',
+            'mfa.issuer' => 'nullable|string|max:120',
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
         ]);
 

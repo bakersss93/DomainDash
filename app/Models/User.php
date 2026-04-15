@@ -33,6 +33,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'mfa_preference',
     ];
 
     /**
@@ -67,12 +68,21 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'dark_mode'         => 'boolean',
+            'mfa_preference'    => 'string',
+            'mfa_prompted_at'    => 'datetime',
         ];
     }
 
     /**
      * Client organisations this user is assigned to (many-to-many).
      */
+
+    public function hasConfiguredMfa(): bool
+    {
+        return ! empty($this->two_factor_secret)
+            && ! empty($this->two_factor_confirmed_at);
+    }
+
     public function clients()
     {
         // Uses the default pivot table name "client_user" with client_id & user_id
