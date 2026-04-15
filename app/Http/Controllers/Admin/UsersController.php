@@ -179,6 +179,8 @@ class UsersController extends Controller
         $user->forceFill([
             'two_factor_secret'         => null,
             'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at'   => null,
+            'mfa_prompted_at'           => null,
         ])->save();
 
         return back()->with('status', 'MFA reset for '.$user->email.'. They will need to re-enrol.');

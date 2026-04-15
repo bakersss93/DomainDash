@@ -19,6 +19,10 @@ Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','ver
 Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
+        Route::get('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'accountDetails'])->name('me.account.details');
+        Route::post('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'updateAccount'])->name('me.account.update');
+        Route::post('/me/account/password', [\App\Http\Controllers\UserSettingsController::class, 'changePassword'])->name('me.account.password');
+        Route::post('/me/account/mfa-reenroll', [\App\Http\Controllers\UserSettingsController::class, 'reEnrollMfa'])->name('me.account.mfa-reenroll');
         Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
         Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
         Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');

@@ -708,6 +708,83 @@
             color: var(--success-text);
         }
 
+
+        .account-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.72);
+            z-index: 85;
+            padding: 20px;
+        }
+
+        .account-modal-backdrop.is-open {
+            display: flex;
+        }
+
+        .account-modal {
+            width: min(640px, 95vw);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.52);
+            padding: 18px;
+        }
+
+        .account-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .account-modal-grid {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .account-modal-grid label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .account-modal-grid input {
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .account-modal-actions {
+            margin-top: 14px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .account-action-list {
+            margin-top: 14px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .account-status {
+            margin-top: 8px;
+            font-size: 0.84rem;
+            font-weight: 600;
+        }
+
+        .account-status.is-error {
+            color: var(--danger-text);
+        }
+
+        .account-status.is-ok {
+            color: var(--success-text);
+        }
+
     </style>
 </head>
 <body>
@@ -909,6 +986,10 @@
                         <div class="user-menu-menu">
                             <a href="{{ route('tickets.create') }}">Log support ticket</a>
 
+                            <button type="button" class="user-menu-button" id="open-account-settings">
+                                Account Settings
+                            </button>
+
                             <form method="POST" action="{{ route('me.toggle-dark') }}">
                                 @csrf
                                 <button type="submit" class="user-menu-button">
@@ -985,6 +1066,73 @@
     </main>
 </div>
 
+<div id="accountSettingsModal" class="account-modal-backdrop">
+    <div class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountSettingsTitle">
+        <div class="account-modal-header">
+            <h2 id="accountSettingsTitle" style="margin:0;font-size:1.2rem;">Account Settings</h2>
+            <button type="button" class="mfa-link-btn" id="closeAccountSettings">Close</button>
+        </div>
+
+        <div class="account-modal-grid">
+            <div>
+                <label for="accountName">Name</label>
+                <input type="text" id="accountName">
+            </div>
+            <div>
+                <label for="accountEmail">Email</label>
+                <input type="email" id="accountEmail">
+            </div>
+            <div>
+                <label for="accountMfaCode">MFA code (required for password change / MFA re-enroll when MFA is configured)</label>
+                <input type="text" id="accountMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter MFA code if required">
+            </div>
+        </div>
+
+        <div id="accountStatus" class="account-status" aria-live="polite"></div>
+
+        <div class="account-action-list">
+            <button type="button" class="btn-accent" id="openPasswordModal">Change Password</button>
+            <button type="button" class="btn-accent" id="accountReenrollMfa">Re-enroll MFA</button>
+        </div>
+
+        <div class="account-modal-actions">
+            <button type="button" class="btn-accent" style="background:var(--surface-muted);color:var(--text);" id="cancelAccountSave">Cancel</button>
+            <button type="button" class="btn-accent" id="saveAccountSettings">Save Profile</button>
+        </div>
+    </div>
+</div>
+
+<div id="changePasswordModal" class="account-modal-backdrop">
+    <div class="account-modal" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+        <div class="account-modal-header">
+            <h2 id="changePasswordTitle" style="margin:0;font-size:1.2rem;">Change Password</h2>
+            <button type="button" class="mfa-link-btn" id="closePasswordModal">Close</button>
+        </div>
+
+        <div class="account-modal-grid">
+            <div>
+                <label for="accountCurrentPassword">Current password</label>
+                <input type="password" id="accountCurrentPassword">
+            </div>
+            <div>
+                <label for="accountNewPassword">New password</label>
+                <input type="password" id="accountNewPassword">
+            </div>
+            <div>
+                <label for="accountNewPasswordConfirm">Confirm new password</label>
+                <input type="password" id="accountNewPasswordConfirm">
+            </div>
+        </div>
+
+        <div id="passwordStatus" class="account-status" aria-live="polite"></div>
+
+        <div class="account-modal-actions">
+            <button type="button" class="btn-accent" style="background:var(--surface-muted);color:var(--text);" id="cancelPasswordChange">Cancel</button>
+            <button type="button" class="btn-accent" id="submitPasswordChange">Update Password</button>
+        </div>
+    </div>
+</div>
+
 @php
     $mfaSetupSession = session('mfa.setup', []);
     $showMfaModal = (bool) ($mfaSetupSession['show'] ?? false);
@@ -1041,6 +1189,178 @@
         </section>
     </div>
 </div>
+
+<script>
+    (function () {
+        const openBtn = document.getElementById('open-account-settings');
+        const closeBtn = document.getElementById('closeAccountSettings');
+        const cancelBtn = document.getElementById('cancelAccountSave');
+        const saveBtn = document.getElementById('saveAccountSettings');
+        const modal = document.getElementById('accountSettingsModal');
+        const nameInput = document.getElementById('accountName');
+        const emailInput = document.getElementById('accountEmail');
+        const mfaCodeInput = document.getElementById('accountMfaCode');
+        const status = document.getElementById('accountStatus');
+        const openPasswordBtn = document.getElementById('openPasswordModal');
+        const reenrollBtn = document.getElementById('accountReenrollMfa');
+        const passwordModal = document.getElementById('changePasswordModal');
+        const closePasswordBtn = document.getElementById('closePasswordModal');
+        const cancelPasswordBtn = document.getElementById('cancelPasswordChange');
+        const submitPasswordBtn = document.getElementById('submitPasswordChange');
+        const currentPasswordInput = document.getElementById('accountCurrentPassword');
+        const newPasswordInput = document.getElementById('accountNewPassword');
+        const newPasswordConfirmInput = document.getElementById('accountNewPasswordConfirm');
+        const passwordStatus = document.getElementById('passwordStatus');
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        if (!openBtn || !modal) {
+            return;
+        }
+
+        let mfaConfigured = false;
+
+        function setStatus(el, message, tone = '') {
+            if (!el) {
+                return;
+            }
+            el.textContent = message;
+            el.className = 'account-status' + (tone ? ' ' + tone : '');
+        }
+
+        async function request(url, payload = null) {
+            const options = {
+                method: payload ? 'POST' : 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (payload) {
+                options.body = JSON.stringify(payload);
+            }
+
+            const response = await fetch(url, options);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Request failed');
+            }
+
+            return data;
+        }
+
+        function closeModal(target) {
+            if (target) {
+                target.classList.remove('is-open');
+            }
+        }
+
+        function openModal(target) {
+            if (target) {
+                target.classList.add('is-open');
+            }
+        }
+
+        async function loadAccount() {
+            setStatus(status, 'Loading account details...');
+            const data = await request('{{ route('me.account.details') }}');
+            nameInput.value = data.name || '';
+            emailInput.value = data.email || '';
+            mfaConfigured = !!data.mfa_configured;
+            setStatus(status, '', '');
+        }
+
+        openBtn.addEventListener('click', async function () {
+            try {
+                await loadAccount();
+                openModal(modal);
+            } catch (error) {
+                setStatus(status, error.message, 'is-error');
+                openModal(modal);
+            }
+        });
+
+        [closeBtn, cancelBtn].forEach((btn) => {
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    closeModal(modal);
+                });
+            }
+        });
+
+        saveBtn.addEventListener('click', async function () {
+            try {
+                await request('{{ route('me.account.update') }}', {
+                    name: nameInput.value,
+                    email: emailInput.value
+                });
+                setStatus(status, 'Account updated successfully.', 'is-ok');
+            } catch (error) {
+                setStatus(status, error.message, 'is-error');
+            }
+        });
+
+        if (openPasswordBtn) {
+            openPasswordBtn.addEventListener('click', function () {
+                setStatus(passwordStatus, '', '');
+                openModal(passwordModal);
+            });
+        }
+
+        [closePasswordBtn, cancelPasswordBtn].forEach((btn) => {
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    closeModal(passwordModal);
+                });
+            }
+        });
+
+        if (submitPasswordBtn) {
+            submitPasswordBtn.addEventListener('click', async function () {
+                try {
+                    await request('{{ route('me.account.password') }}', {
+                        current_password: currentPasswordInput.value,
+                        password: newPasswordInput.value,
+                        password_confirmation: newPasswordConfirmInput.value,
+                        mfa_code: mfaCodeInput.value
+                    });
+                    setStatus(passwordStatus, 'Password updated successfully.', 'is-ok');
+                    currentPasswordInput.value = '';
+                    newPasswordInput.value = '';
+                    newPasswordConfirmInput.value = '';
+                } catch (error) {
+                    setStatus(passwordStatus, error.message, 'is-error');
+                }
+            });
+        }
+
+        if (reenrollBtn) {
+            reenrollBtn.addEventListener('click', async function () {
+                try {
+                    await request('{{ route('me.account.mfa-reenroll') }}', {
+                        mfa_code: mfaCodeInput.value
+                    });
+                    window.location.reload();
+                } catch (error) {
+                    setStatus(status, error.message, 'is-error');
+                }
+            });
+        }
+
+        [modal, passwordModal].forEach((dlg) => {
+            if (!dlg) {
+                return;
+            }
+            dlg.addEventListener('click', function (event) {
+                if (event.target === dlg) {
+                    closeModal(dlg);
+                }
+            });
+        });
+    })();
+</script>
 
 <script>
     (function () {
