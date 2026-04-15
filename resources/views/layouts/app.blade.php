@@ -1082,10 +1082,6 @@
                 <label for="accountEmail">Email</label>
                 <input type="email" id="accountEmail">
             </div>
-            <div>
-                <label for="accountMfaCode">MFA code (required for password change / MFA re-enroll when MFA is configured)</label>
-                <input type="text" id="accountMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter MFA code if required">
-            </div>
         </div>
 
         <div id="accountStatus" class="account-status" aria-live="polite"></div>
@@ -1093,6 +1089,13 @@
         <div class="account-action-list">
             <button type="button" class="btn-accent" id="openPasswordModal">Change Password</button>
             <button type="button" class="btn-accent" id="accountReenrollMfa">Re-enroll MFA</button>
+        </div>
+
+        <div class="account-modal-grid" id="reenrollMfaCodeWrap" style="display:none;">
+            <div>
+                <label for="reenrollMfaCode">MFA code required for re-enroll</label>
+                <input type="text" id="reenrollMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter current MFA code">
+            </div>
         </div>
 
         <div class="account-modal-actions">
@@ -1121,6 +1124,10 @@
             <div>
                 <label for="accountNewPasswordConfirm">Confirm new password</label>
                 <input type="password" id="accountNewPasswordConfirm">
+            </div>
+            <div id="passwordMfaCodeWrap" style="display:none;">
+                <label for="passwordMfaCode">MFA code required for password change</label>
+                <input type="text" id="passwordMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter MFA code">
             </div>
         </div>
 
@@ -1199,7 +1206,6 @@
         const modal = document.getElementById('accountSettingsModal');
         const nameInput = document.getElementById('accountName');
         const emailInput = document.getElementById('accountEmail');
-        const mfaCodeInput = document.getElementById('accountMfaCode');
         const status = document.getElementById('accountStatus');
         const openPasswordBtn = document.getElementById('openPasswordModal');
         const reenrollBtn = document.getElementById('accountReenrollMfa');
@@ -1211,6 +1217,10 @@
         const newPasswordInput = document.getElementById('accountNewPassword');
         const newPasswordConfirmInput = document.getElementById('accountNewPasswordConfirm');
         const passwordStatus = document.getElementById('passwordStatus');
+        const passwordMfaCodeWrap = document.getElementById('passwordMfaCodeWrap');
+        const passwordMfaCodeInput = document.getElementById('passwordMfaCode');
+        const reenrollMfaCodeWrap = document.getElementById('reenrollMfaCodeWrap');
+        const reenrollMfaCodeInput = document.getElementById('reenrollMfaCode');
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         if (!openBtn || !modal) {
@@ -1269,6 +1279,18 @@
             nameInput.value = data.name || '';
             emailInput.value = data.email || '';
             mfaConfigured = !!data.mfa_configured;
+            if (passwordMfaCodeWrap) {
+                passwordMfaCodeWrap.style.display = 'none';
+            }
+            if (reenrollMfaCodeWrap) {
+                reenrollMfaCodeWrap.style.display = 'none';
+            }
+            if (passwordMfaCodeInput) {
+                passwordMfaCodeInput.value = '';
+            }
+            if (reenrollMfaCodeInput) {
+                reenrollMfaCodeInput.value = '';
+            }
             setStatus(status, '', '');
         }
 
@@ -1305,6 +1327,12 @@
         if (openPasswordBtn) {
             openPasswordBtn.addEventListener('click', function () {
                 setStatus(passwordStatus, '', '');
+                if (passwordMfaCodeWrap) {
+                    passwordMfaCodeWrap.style.display = mfaConfigured ? 'block' : 'none';
+                }
+                if (passwordMfaCodeInput) {
+                    passwordMfaCodeInput.value = '';
+                }
                 openModal(passwordModal);
             });
         }
@@ -1324,7 +1352,7 @@
                         current_password: currentPasswordInput.value,
                         password: newPasswordInput.value,
                         password_confirmation: newPasswordConfirmInput.value,
-                        mfa_code: mfaCodeInput.value
+                        mfa_code: mfaConfigured ? (passwordMfaCodeInput?.value || '') : ''
                     });
                     setStatus(passwordStatus, 'Password updated successfully.', 'is-ok');
                     currentPasswordInput.value = '';
@@ -1338,9 +1366,16 @@
 
         if (reenrollBtn) {
             reenrollBtn.addEventListener('click', async function () {
+                if (mfaConfigured && reenrollMfaCodeWrap && reenrollMfaCodeInput && !reenrollMfaCodeInput.value.trim()) {
+                    reenrollMfaCodeWrap.style.display = 'block';
+                    setStatus(status, 'Enter your current MFA code, then click Re-enroll MFA again.', 'is-error');
+                    reenrollMfaCodeInput.focus();
+                    return;
+                }
+
                 try {
                     await request('{{ route('me.account.mfa-reenroll') }}', {
-                        mfa_code: mfaCodeInput.value
+                        mfa_code: mfaConfigured ? (reenrollMfaCodeInput?.value || '') : ''
                     });
                     window.location.reload();
                 } catch (error) {
