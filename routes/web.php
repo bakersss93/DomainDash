@@ -19,6 +19,11 @@ Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','ver
 Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/me/toggle-dark', [\App\Http\Controllers\UserSettingsController::class, 'toggleDark'])->middleware(['auth'])->name('me.toggle-dark');
+        Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
+        Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
+        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');
+        Route::post('/me/mfa/dismiss', [\App\Http\Controllers\UserSettingsController::class, 'dismissMfaPrompt'])->name('me.mfa.dismiss');
+
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
         Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');

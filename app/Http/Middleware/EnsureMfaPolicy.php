@@ -22,6 +22,7 @@ class EnsureMfaPolicy
             'two-factor.*',
             'logout',
             'admin.users.stop-impersonate',
+            'me.mfa.*',
         ];
 
         foreach ($allowedRouteNames as $routeName) {
@@ -34,10 +35,33 @@ class EnsureMfaPolicy
             return $next($request);
         }
 
-        if ($user->mfa_preference === 'enforced' && ! $user->hasConfiguredMfa()) {
-            return redirect()
-                ->route('profile.show')
-                ->with('error', 'Two-factor authentication is required for your account. Please set up MFA before continuing.');
+        if ($user->hasConfiguredMfa() || $user->mfa_preference === 'disabled') {
+            $request->session()->forget('mfa.setup');
+
+            return $next($request);
+        }
+
+        if ($user->mfa_preference === 'enforced') {
+            $request->session()->put('mfa.setup', [
+                'show' => true,
+                'required' => true,
+            ]);
+
+            return $next($request);
+        }
+
+        $nextPromptAt = optional($user->mfa_prompted_at)->addDays(7);
+        $shouldPrompt = ! $nextPromptAt || now()->greaterThanOrEqualTo($nextPromptAt);
+
+        if ($shouldPrompt) {
+            $request->session()->put('mfa.setup', [
+                'show' => true,
+                'required' => false,
+            ]);
+
+            $user->forceFill(['mfa_prompted_at' => now()])->save();
+        } else {
+            $request->session()->forget('mfa.setup');
         }
 
         return $next($request);

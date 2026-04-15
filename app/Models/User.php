@@ -69,6 +69,7 @@ class User extends Authenticatable
             'password'          => 'hashed',
             'dark_mode'         => 'boolean',
             'mfa_preference'    => 'string',
+            'mfa_prompted_at'    => 'datetime',
         ];
     }
 

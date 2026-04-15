@@ -604,6 +604,86 @@
             margin: 0;
         }
 
+
+        .mfa-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 80;
+            padding: 20px;
+        }
+
+        .mfa-modal-backdrop.is-visible {
+            display: flex;
+        }
+
+        .mfa-modal {
+            width: min(720px, 94vw);
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg);
+            box-shadow: 0 28px 56px rgba(2, 6, 23, 0.5);
+            padding: 20px;
+        }
+
+        .mfa-modal h2 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        .mfa-modal p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            margin-top: 6px;
+        }
+
+        .mfa-modal-qr {
+            margin-top: 14px;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 14px;
+            min-height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mfa-modal-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .mfa-modal-grid input {
+            width: 100%;
+        }
+
+        .mfa-modal-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mfa-status {
+            margin-top: 10px;
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .mfa-status.is-error {
+            color: var(--danger-text);
+        }
+
+        .mfa-status.is-ok {
+            color: var(--success-text);
+        }
+
     </style>
 </head>
 <body>
@@ -880,5 +960,154 @@
         </div>
     </main>
 </div>
+
+@php
+    $mfaSetupSession = session('mfa.setup', []);
+    $showMfaModal = (bool) ($mfaSetupSession['show'] ?? false);
+    $forceMfaModal = (bool) ($mfaSetupSession['required'] ?? false);
+@endphp
+
+<div id="mfaSetupModal" class="mfa-modal-backdrop {{ $showMfaModal ? 'is-visible' : '' }}" data-required="{{ $forceMfaModal ? '1' : '0' }}">
+    <div class="mfa-modal" role="dialog" aria-modal="true" aria-labelledby="mfaSetupTitle">
+        <h2 id="mfaSetupTitle">Secure your account with MFA</h2>
+        <p>Scan the QR code with your authenticator app, then enter a valid 6-digit code to complete setup.</p>
+
+        <div class="mfa-modal-qr" id="mfaQrContainer">
+            <span id="mfaLoadingText">Generating QR code...</span>
+        </div>
+
+        <div class="mfa-modal-grid">
+            <div>
+                <label for="mfaSetupKey" style="display:block;font-size:0.84rem;margin-bottom:4px;">Setup Key</label>
+                <input id="mfaSetupKey" type="text" readonly>
+            </div>
+            <div>
+                <label for="mfaCodeInput" style="display:block;font-size:0.84rem;margin-bottom:4px;">Authenticator code</label>
+                <input id="mfaCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Enter 6-digit code">
+            </div>
+        </div>
+
+        <div id="mfaStatus" class="mfa-status" aria-live="polite"></div>
+
+        <div class="mfa-modal-actions">
+            @if (! $forceMfaModal)
+                <button type="button" class="btn-accent" style="background:var(--surface-muted);color:var(--text);" id="dismissMfaSetup">Remind me later</button>
+            @endif
+            <button type="button" class="btn-accent" id="confirmMfaSetup">Verify and save MFA</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modal = document.getElementById('mfaSetupModal');
+        if (!modal || !modal.classList.contains('is-visible')) {
+            return;
+        }
+
+        const qrContainer = document.getElementById('mfaQrContainer');
+        const setupKeyInput = document.getElementById('mfaSetupKey');
+        const codeInput = document.getElementById('mfaCodeInput');
+        const status = document.getElementById('mfaStatus');
+        const dismissBtn = document.getElementById('dismissMfaSetup');
+        const confirmBtn = document.getElementById('confirmMfaSetup');
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        function setStatus(message, tone = '') {
+            status.textContent = message;
+            status.className = 'mfa-status' + (tone ? ' ' + tone : '');
+        }
+
+        async function request(url, payload = null) {
+            const options = {
+                method: payload ? 'POST' : 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (payload) {
+                options.body = JSON.stringify(payload);
+            }
+
+            const response = await fetch(url, options);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Request failed');
+            }
+
+            return data;
+        }
+
+        function renderSetup(data) {
+            if (data.configured) {
+                setStatus('MFA is already configured.', 'is-ok');
+                setTimeout(() => window.location.reload(), 500);
+                return;
+            }
+
+            if (!data.ready) {
+                setStatus('Preparing MFA setup...', '');
+                return;
+            }
+
+            setupKeyInput.value = data.setup_key || '';
+            qrContainer.innerHTML = data.qr_svg || '<span>Unable to render QR code.</span>';
+            setStatus('Scan the QR code and enter your authenticator code.', '');
+        }
+
+        async function loadSetup() {
+            setStatus('Loading MFA setup...', '');
+            try {
+                const statusData = await request('{{ route('me.mfa.status') }}');
+                if (statusData.ready) {
+                    renderSetup(statusData);
+                    return;
+                }
+                const startData = await request('{{ route('me.mfa.start') }}', {});
+                renderSetup(startData);
+            } catch (error) {
+                setStatus(error.message, 'is-error');
+                qrContainer.innerHTML = '<span>Could not generate MFA setup.</span>';
+            }
+        }
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', async function () {
+                try {
+                    await request('{{ route('me.mfa.dismiss') }}', {});
+                    modal.classList.remove('is-visible');
+                } catch (error) {
+                    setStatus(error.message, 'is-error');
+                }
+            });
+        }
+
+        confirmBtn.addEventListener('click', async function () {
+            const code = codeInput.value.trim();
+            if (!code) {
+                setStatus('Enter a valid authenticator code.', 'is-error');
+                return;
+            }
+
+            confirmBtn.disabled = true;
+            try {
+                await request('{{ route('me.mfa.confirm') }}', { code });
+                setStatus('MFA configured successfully. Reloading...', 'is-ok');
+                setTimeout(() => window.location.reload(), 600);
+            } catch (error) {
+                setStatus(error.message, 'is-error');
+            } finally {
+                confirmBtn.disabled = false;
+            }
+        });
+
+        loadSetup();
+    })();
+</script>
+
 </body>
 </html>
