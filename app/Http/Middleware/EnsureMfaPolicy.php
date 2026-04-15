@@ -58,8 +58,6 @@ class EnsureMfaPolicy
                 'show' => true,
                 'required' => false,
             ]);
-
-            $user->forceFill(['mfa_prompted_at' => now()])->save();
         } else {
             $request->session()->forget('mfa.setup');
         }

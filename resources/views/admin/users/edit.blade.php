@@ -241,10 +241,14 @@
         }
 
         .dd-account-card {
-            border: 1px solid #263247 !important;
+            border: 1px solid var(--border-subtle) !important;
             border-radius: 20px !important;
-            background: linear-gradient(180deg, #0f172a 0%, #0b1328 100%) !important;
-            box-shadow: 0 30px 50px rgba(2, 6, 23, 0.55) !important;
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--bg) 70%, var(--primary) 30%) 0%,
+                color-mix(in srgb, var(--bg) 86%, var(--primary) 14%) 100%
+            ) !important;
+            box-shadow: 0 30px 50px color-mix(in srgb, var(--text) 24%, transparent) !important;
             padding: 26px !important;
         }
 
@@ -261,8 +265,8 @@
 
         .dd-account-aside {
             align-self: start;
-            border: 1px solid #334155 !important;
-            background: #111827 !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
             border-radius: 14px !important;
             padding: 16px !important;
         }
@@ -276,17 +280,17 @@
         .dd-account-input,
         .dd-account-field select {
             width: 100% !important;
-            border: 1px solid #334155 !important;
+            border: 1px solid var(--border-subtle) !important;
             border-radius: 12px !important;
-            background: #1e293b !important;
-            color: #f8fafc !important;
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            color: var(--text) !important;
             padding: 11px 12px !important;
         }
 
         .dd-account-field select,
         .client-picker-toggle {
             appearance: none !important;
-            background-image: linear-gradient(45deg, transparent 50%, #93a9c8 50%), linear-gradient(135deg, #93a9c8 50%, transparent 50%) !important;
+            background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) !important;
             background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px) !important;
             background-size: 6px 6px, 6px 6px !important;
             background-repeat: no-repeat !important;
@@ -294,10 +298,10 @@
         }
 
         .client-picker-toggle {
-            border: 1px solid #334155 !important;
+            border: 1px solid var(--border-subtle) !important;
             border-radius: 12px !important;
-            background-color: #1e293b !important;
-            color: #f8fafc !important;
+            background-color: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            color: var(--text) !important;
             min-height: 46px !important;
             display: flex !important;
             align-items: center !important;
@@ -312,13 +316,13 @@
         .dd-account-subtitle,
         .dd-account-field label,
         .dd-account-aside h3 {
-            color: #f8fafc !important;
+            color: var(--text) !important;
         }
 
         .dd-account-header p,
         .dd-account-aside p,
         .dd-account-aside li {
-            color: #a8b4c8 !important;
+            color: var(--text-muted) !important;
         }
 
         .dd-account-aside p {
@@ -331,9 +335,9 @@
         }
 
         .dd-account-password-btn {
-            border: 1px solid #4b637f !important;
-            background: #1d2d45 !important;
-            color: #f8fafc !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 78%, var(--accent) 22%) !important;
+            color: var(--text) !important;
             border-radius: 14px !important;
             padding: 0 20px !important;
             text-decoration: none !important;
@@ -381,10 +385,10 @@
 
         .dd-account-modal {
             width: min(900px, 100%);
-            border: 1px solid #334155;
+            border: 1px solid var(--border-subtle);
             border-radius: 16px;
-            background: #0f172a;
-            box-shadow: 0 24px 44px rgba(2, 6, 23, 0.6);
+            background: color-mix(in srgb, var(--bg) 78%, var(--primary) 22%);
+            box-shadow: 0 24px 44px color-mix(in srgb, var(--text) 28%, transparent);
             padding: 20px;
         }
 
@@ -398,18 +402,18 @@
         .dd-account-modal-header h2,
         .dd-account-modal h3 {
             margin: 0;
-            color: #f8fafc;
+            color: var(--text);
         }
 
         .dd-account-modal-intro,
         .dd-account-modal p {
-            color: #a8b4c8;
+            color: var(--text-muted);
         }
 
         .dd-account-modal-close {
-            border: 1px solid #334155;
-            background: #1e293b;
-            color: #f8fafc;
+            border: 1px solid var(--border-subtle);
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%);
+            color: var(--text);
             border-radius: 8px;
             width: 36px;
             height: 36px;
@@ -425,10 +429,10 @@
         }
 
         .dd-account-modal-form {
-            border: 1px solid #334155;
+            border: 1px solid var(--border-subtle);
             border-radius: 12px;
             padding: 14px;
-            background: #111827;
+            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%);
         }
 
         @media (max-width: 1024px) {
