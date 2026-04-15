@@ -4,7 +4,7 @@
             <x-authentication-card-logo />
         </x-slot>
 
-        <div x-data="{ recovery: false }">
+        <div x-data="{ recovery: false }" class="dd-twofactor-surface">
             <div class="mb-4 text-sm text-gray-600 dark:text-gray-400" x-show="! recovery">
                 {{ __('Please confirm access to your account by entering the authentication code provided by your authenticator application.') }}
             </div>
@@ -55,4 +55,17 @@
             </form>
         </div>
     </x-authentication-card>
+
+    <style>
+        .dd-twofactor-surface .dd-field {
+            background: #ffffff;
+            color: #111827;
+            border-color: #cbd5e1;
+            border-radius: 12px;
+        }
+
+        .dd-twofactor-surface .dd-field::placeholder {
+            color: #6b7280;
+        }
+    </style>
 </x-guest-layout>
