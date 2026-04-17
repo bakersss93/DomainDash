@@ -6,6 +6,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
+use App\Services\EmailTemplateMailer;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Jetstream\HasTeams;
@@ -71,6 +74,44 @@ class User extends Authenticatable
             'mfa_preference'    => 'string',
             'mfa_prompted_at'    => 'datetime',
         ];
+    }
+
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $broker = config('auth.defaults.passwords', 'users');
+        $expiresInMinutes = (int) config("auth.passwords.{$broker}.expire", 60);
+        $resetUrl = url(route('password.reset', [
+            'token' => $token,
+            'email' => $this->getEmailForPasswordReset(),
+        ], false));
+
+        $sent = app(EmailTemplateMailer::class)->sendForEvent(
+            'password_reset',
+            [
+                'client' => [
+                    'name' => $this->name ?: $this->email,
+                    'email' => $this->email,
+                ],
+                'company' => [
+                    'name' => config('app.name', 'DomainDash'),
+                ],
+                'auth' => [
+                    'reset_link' => $resetUrl,
+                    'reset_expires_at' => now()->addMinutes($expiresInMinutes)->toDateTimeString(),
+                ],
+            ],
+            $this->email
+        );
+
+        if (! $sent) {
+            Log::info('Falling back to default Laravel reset password notification.', [
+                'user_id' => $this->id,
+                'email' => $this->email,
+            ]);
+
+            $this->notify(new ResetPassword($token));
+        }
     }
 
     /**
