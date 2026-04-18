@@ -48,6 +48,17 @@
                         @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
+
+                    <div class="dd-account-field dd-account-toggle-field">
+                        <input type="hidden" name="is_active" value="0">
+                        <label class="dd-account-checkbox-row">
+                            <input class="dd-account-checkbox" type="checkbox" name="is_active" value="1" {{ old('is_active', (int) $user->is_active) ? 'checked' : '' }}>
+                            <span>Enable user account</span>
+                        </label>
+                        <small class="dd-account-help-text">If disabled, this user cannot log in and will be told to contact the system administrator.</small>
+                        @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    </div>
+
                     <div class="dd-account-field">
                         <label for="mfa_preference">MFA Policy</label>
                         <select class="dd-account-input" id="mfa_preference" name="mfa_preference" required>
@@ -99,6 +110,15 @@
                         <li>Reset MFA if needed.</li>
                     </ul>
                     <button type="button" class="dd-account-password-btn" id="openPasswordControls">Reset Password</button>
+
+                    <hr style="margin:14px 0;border-color:var(--border-subtle);">
+                    <h3 style="margin-top:0;">Danger Zone</h3>
+                    <p style="font-size:13px;color:var(--text-muted);">Delete this user account permanently.</p>
+                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete this user account permanently?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="dd-account-secondary" style="border-color:var(--danger-text);color:var(--danger-text);">Delete User</button>
+                    </form>
                 </aside>
             </div>
         </section>
@@ -309,6 +329,58 @@
 
         .client-picker-arrow {
             display: none !important;
+        }
+
+
+        .dd-account-toggle-field {
+            margin-bottom: 16px !important;
+            padding: 12px 14px !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: 12px !important;
+            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
+        }
+
+        .dd-account-checkbox-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+        }
+
+        .dd-account-checkbox {
+            appearance: none !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 6px !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            display: inline-grid !important;
+            place-content: center !important;
+            flex-shrink: 0 !important;
+        }
+
+        .dd-account-checkbox:checked {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+        }
+
+        .dd-account-checkbox:checked::before {
+            content: "";
+            width: 5px;
+            height: 9px;
+            border: solid #ffffff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
+        .dd-account-help-text {
+            color: var(--text-muted) !important;
+            display: block !important;
+            margin-top: 8px !important;
+            line-height: 1.35 !important;
         }
 
         .dd-account-header h1,

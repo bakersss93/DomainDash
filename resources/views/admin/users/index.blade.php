@@ -33,6 +33,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Client Organisation</th>
+                    <th>Status</th>
                     <th>MFA</th>
                     <th style="width:260px;">Actions</th>
                 </tr>
@@ -53,6 +54,9 @@
                             {{ $user->clients->pluck('business_name')->implode(', ')
                                 ?: $user->clients->pluck('name')->implode(', ')
                                 ?: '—' }}
+                        </td>
+                        <td>
+                            <span class="{{ $user->is_active ? 'dd-status-success' : 'dd-status-muted' }}">{{ $user->is_active ? 'Enabled' : 'Disabled' }}</span>
                         </td>
                         <td>
                             {{ ucfirst($user->mfa_preference ?? 'enabled') }} / {{ $user->two_factor_confirmed_at ? 'Configured' : 'Not configured' }}
@@ -93,6 +97,19 @@
                                             title="Impersonate user"
                                             style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-accent) 15%, transparent);">
                                         👤
+                                    </button>
+                                </form>
+
+                                {{-- Delete user (trash icon) --}}
+                                <form method="POST"
+                                      action="{{ route('admin.users.destroy', $user) }}"
+                                      onsubmit="return confirm('Delete this user account permanently?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            title="Delete user"
+                                            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-danger) 18%, transparent);">
+                                        🗑️
                                     </button>
                                 </form>
                             </div>

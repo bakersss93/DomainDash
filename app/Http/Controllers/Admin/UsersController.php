@@ -53,6 +53,7 @@ class UsersController extends Controller
             'client_ids.*' => 'integer|exists:clients,id',
             'password'     => 'nullable|string|min:8|confirmed',
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $password = $data['password'] ?: Str::random(12);
@@ -62,6 +63,7 @@ class UsersController extends Controller
             'email'    => $data['email'],
             'password' => Hash::make($password),
             'mfa_preference' => $data['mfa_preference'],
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         // assign role (Spatie)
@@ -115,12 +117,14 @@ class UsersController extends Controller
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $user->update([
             'name'  => trim($data['first_name'].' '.$data['last_name']),
             'email' => $data['email'],
             'mfa_preference' => $data['mfa_preference'],
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         $user->syncRoles([$data['role']]);
@@ -184,6 +188,27 @@ class UsersController extends Controller
         ])->save();
 
         return back()->with('status', 'MFA reset for '.$user->email.'. They will need to re-enrol.');
+    }
+
+
+
+    /**
+     * Delete a user account.
+     */
+    public function destroy(Request $request, User $user)
+    {
+        if ($request->user() && $request->user()->is($user)) {
+            return back()->withErrors(['user' => 'You cannot delete your own account while logged in.']);
+        }
+
+        $email = $user->email;
+        $user->clients()->detach();
+        $user->syncRoles([]);
+        $user->delete();
+
+        return redirect()
+            ->route('admin.users')
+            ->with('status', 'User deleted: ' . $email);
     }
 
     /**
