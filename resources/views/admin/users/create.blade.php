@@ -47,6 +47,17 @@
                         @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
+
+                    <div class="dd-account-field" style="margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
+                            <span>Enable user account</span>
+                        </label>
+                        <small style="color:var(--text-muted);display:block;margin-top:6px;">Disabled users cannot log in.</small>
+                        @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    </div>
+
                     <div class="dd-account-field">
                         <label for="mfa_preference">MFA Policy</label>
                         <select class="dd-account-input" id="mfa_preference" name="mfa_preference" required>

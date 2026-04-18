@@ -3,15 +3,18 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
+use App\Models\User;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -34,6 +37,22 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = User::query()->where('email', $request->string('email')->toString())->first();
+
+            if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
+                return null;
+            }
+
+            if (! $user->is_active) {
+                throw ValidationException::withMessages([
+                    Fortify::username() => 'This user is disabled. Please contact the system administrator.',
+                ]);
+            }
+
+            return $user;
+        });
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());

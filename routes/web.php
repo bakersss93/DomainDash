@@ -166,6 +166,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/users', [UsersController::class, 'store'])->name('admin.users.store');
         Route::get('/users/{user}/edit', [UsersController::class, 'edit'])->name('admin.users.edit');
         Route::put('/users/{user}', [UsersController::class, 'update'])->name('admin.users.update');
+        Route::delete('/users/{user}', [UsersController::class, 'destroy'])->name('admin.users.destroy');
         Route::get('/users/{user}/password', [UsersController::class, 'editPassword'])->name('admin.users.password.edit');
         Route::put('/users/{user}/password', [UsersController::class, 'updatePassword'])->name('admin.users.password.update');
         Route::post('/users/{user}/password-link', [UsersController::class, 'sendPasswordLink'])->name('admin.users.password.link');

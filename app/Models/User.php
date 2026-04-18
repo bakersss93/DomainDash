@@ -37,6 +37,7 @@ class User extends Authenticatable
         'email',
         'password',
         'mfa_preference',
+        'is_active',
     ];
 
     /**
@@ -73,6 +74,7 @@ class User extends Authenticatable
             'dark_mode'         => 'boolean',
             'mfa_preference'    => 'string',
             'mfa_prompted_at'    => 'datetime',
+            'is_active'          => 'boolean',
         ];
     }
 

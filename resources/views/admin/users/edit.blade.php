@@ -48,6 +48,17 @@
                         @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
+
+                    <div class="dd-account-field" style="margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                            <input type="hidden" name="is_active" value="0">
+                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', (int) $user->is_active) ? 'checked' : '' }}>
+                            <span>Enable user account</span>
+                        </label>
+                        <small style="color:var(--text-muted);display:block;margin-top:6px;">If disabled, this user cannot log in and will be told to contact the system administrator.</small>
+                        @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    </div>
+
                     <div class="dd-account-field">
                         <label for="mfa_preference">MFA Policy</label>
                         <select class="dd-account-input" id="mfa_preference" name="mfa_preference" required>
@@ -99,6 +110,15 @@
                         <li>Reset MFA if needed.</li>
                     </ul>
                     <button type="button" class="dd-account-password-btn" id="openPasswordControls">Reset Password</button>
+
+                    <hr style="margin:14px 0;border-color:var(--border-subtle);">
+                    <h3 style="margin-top:0;">Danger Zone</h3>
+                    <p style="font-size:13px;color:var(--text-muted);">Delete this user account permanently.</p>
+                    <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete this user account permanently?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="dd-account-secondary" style="border-color:var(--danger-text);color:var(--danger-text);">Delete User</button>
+                    </form>
                 </aside>
             </div>
         </section>
