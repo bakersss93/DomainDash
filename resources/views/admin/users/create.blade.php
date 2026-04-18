@@ -48,13 +48,13 @@
                     </div>
 
 
-                    <div class="dd-account-field" style="margin-bottom:12px;">
-                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-                            <input type="hidden" name="is_active" value="0">
-                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
+                    <div class="dd-account-field dd-account-toggle-field">
+                        <input type="hidden" name="is_active" value="0">
+                        <label class="dd-account-checkbox-row">
+                            <input class="dd-account-checkbox" type="checkbox" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
                             <span>Enable user account</span>
                         </label>
-                        <small style="color:var(--text-muted);display:block;margin-top:6px;">Disabled users cannot log in.</small>
+                        <small class="dd-account-help-text">Disabled users cannot log in.</small>
                         @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
@@ -302,6 +302,58 @@
 
         .client-picker-arrow {
             display: none !important;
+        }
+
+
+        .dd-account-toggle-field {
+            margin-bottom: 16px !important;
+            padding: 12px 14px !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: 12px !important;
+            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
+        }
+
+        .dd-account-checkbox-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+        }
+
+        .dd-account-checkbox {
+            appearance: none !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 6px !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            display: inline-grid !important;
+            place-content: center !important;
+            flex-shrink: 0 !important;
+        }
+
+        .dd-account-checkbox:checked {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+        }
+
+        .dd-account-checkbox:checked::before {
+            content: "";
+            width: 5px;
+            height: 9px;
+            border: solid #ffffff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
+        .dd-account-help-text {
+            color: var(--text-muted) !important;
+            display: block !important;
+            margin-top: 8px !important;
+            line-height: 1.35 !important;
         }
 
         .dd-account-header h1,
