@@ -22,12 +22,70 @@ class RunSyncTaskCommand extends Command
         $task = $this->argument('task');
 
         return match ($task) {
-            'sync-domains' => $this->runHaloDomainSync(),
+            'sync-domains' => $this->runSynergyDomainSync(),
             'sync-hosting-services' => $this->runHostingServiceSync(),
             'sync-halo-assets' => $this->runHaloAssetSync(),
             'sync-itglue' => $this->runItGlueSync(),
             default => self::INVALID,
         };
+    }
+
+    private function runSynergyDomainSync(): int
+    {
+        $synergy = app(SynergyWholesaleClient::class);
+
+        $page = 1;
+        $limit = 500;
+        $imported = 0;
+
+        do {
+            $response = $synergy->listDomains($page, $limit);
+
+            if (($response['status'] ?? null) !== 'OK') {
+                $error = $response['errorMessage'] ?? 'Unknown error from Synergy listDomains';
+                $this->error('Synergy domain sync failed: ' . $error);
+                Log::error('Scheduled Synergy domain sync failed', ['error' => $error, 'response' => $response]);
+
+                return self::FAILURE;
+            }
+
+            $list = $response['domainList'] ?? [];
+
+            foreach ($list as $entry) {
+                if (($entry->status ?? '') === 'ERR_DOMAIN_NOT_FOUND') {
+                    continue;
+                }
+
+                $name = $entry->domainName ?? null;
+                if (! $name) {
+                    continue;
+                }
+
+                Domain::updateOrCreate(
+                    ['name' => $name],
+                    [
+                        'status' => $entry->domainStatus ?? $entry->domain_status ?? null,
+                        'expiry_date' => isset($entry->domain_expiry) ? substr($entry->domain_expiry, 0, 10) : null,
+                        'name_servers' => $entry->nameServers ?? [],
+                        'dns_config' => $entry->dnsConfig ?? null,
+                        'auto_renew' => isset($entry->autoRenew)
+                            ? in_array(strtolower((string) $entry->autoRenew), ['on', 'true', '1'], true)
+                            : null,
+                        'transfer_status' => $entry->transfer_status ?? null,
+                    ]
+                );
+
+                $imported++;
+            }
+
+            $received = count($list);
+            $page++;
+            $hasMore = $received >= $limit;
+        } while ($hasMore && $page < 1000);
+
+        $this->info("Synergy domain sync complete. Imported/updated {$imported} domain records.");
+
+        return self::SUCCESS;
     }
 
     private function runHaloDomainSync(): int
