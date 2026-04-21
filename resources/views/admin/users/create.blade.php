@@ -9,7 +9,7 @@
             </header>
 
             <div class="dd-account-grid">
-                <form id="user-create-form" method="POST" action="{{ route('admin.users.store') }}">
+                <form id="user-create-form" method="POST" action="{{ route('admin.users.store') }}" class="dd-account-main-form">
                     @csrf
 
                     <h2 class="dd-account-section-title">Personal Information</h2>
@@ -47,6 +47,17 @@
                         @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
                     </div>
 
+
+                    <div class="dd-account-field dd-account-toggle-field">
+                        <input type="hidden" name="is_active" value="0">
+                        <label class="dd-account-checkbox-row">
+                            <input class="dd-account-checkbox" type="checkbox" name="is_active" value="1" {{ old('is_active', 1) ? 'checked' : '' }}>
+                            <span>Enable user account</span>
+                        </label>
+                        <small class="dd-account-help-text">Disabled users cannot log in.</small>
+                        @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    </div>
+
                     <div class="dd-account-field">
                         <label for="mfa_preference">MFA Policy</label>
                         <select class="dd-account-input" id="mfa_preference" name="mfa_preference" required>
@@ -71,7 +82,7 @@
                                     @forelse($clients as $client)
                                         @php $label = $client->business_name ?? $client->name ?? ('Client #'.$client->id); @endphp
                                         <label class="client-picker-item" data-label="{{ Str::lower($label) }}">
-                                            <input type="checkbox" name="client_ids[]" value="{{ $client->id }}" {{ in_array($client->id, old('client_ids', [])) ? 'checked' : '' }}>
+                                            <input class="client-picker-checkbox" type="checkbox" name="client_ids[]" value="{{ $client->id }}" {{ in_array($client->id, old('client_ids', [])) ? 'checked' : '' }}>
                                             {{ $label }}
                                         </label>
                                     @empty
@@ -259,6 +270,24 @@
             gap: 14px !important;
         }
 
+        .dd-account-main-form {
+            display: grid !important;
+            gap: 14px !important;
+        }
+
+        .dd-account-section-title {
+            margin: 0 0 4px 0 !important;
+        }
+
+        .dd-account-subtitle {
+            margin: 6px 0 2px !important;
+        }
+
+        .dd-account-field {
+            display: grid !important;
+            gap: 6px !important;
+        }
+
         .dd-account-input,
         .dd-account-field select {
             width: 100% !important;
@@ -291,6 +320,105 @@
 
         .client-picker-arrow {
             display: none !important;
+        }
+
+        .client-picker-list {
+            display: grid !important;
+            gap: 8px !important;
+            max-height: 220px !important;
+            overflow-y: auto !important;
+            padding-right: 2px !important;
+        }
+
+        .client-picker-item {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 8px 10px !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: 10px !important;
+            background: color-mix(in srgb, var(--bg) 86%, var(--primary) 14%) !important;
+            line-height: 1.3 !important;
+        }
+
+        .client-picker-checkbox {
+            appearance: none !important;
+            width: 16px !important;
+            height: 16px !important;
+            border-radius: 5px !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            display: inline-grid !important;
+            place-content: center !important;
+            flex-shrink: 0 !important;
+            margin: 0 !important;
+        }
+
+        .client-picker-checkbox:checked {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+        }
+
+        .client-picker-checkbox:checked::before {
+            content: "";
+            width: 4px;
+            height: 8px;
+            border: solid #ffffff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
+
+        .dd-account-toggle-field {
+            margin-bottom: 16px !important;
+            padding: 12px 14px !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: 12px !important;
+            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
+        }
+
+        .dd-account-checkbox-row {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+        }
+
+        .dd-account-checkbox {
+            appearance: none !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 6px !important;
+            border: 1px solid var(--border-subtle) !important;
+            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
+            display: inline-grid !important;
+            place-content: center !important;
+            flex-shrink: 0 !important;
+        }
+
+        .dd-account-checkbox:checked {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+        }
+
+        .dd-account-checkbox:checked::before {
+            content: "";
+            width: 5px;
+            height: 9px;
+            border: solid #ffffff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
+        .dd-account-help-text {
+            color: var(--text-muted) !important;
+            display: block !important;
+            margin-top: 8px !important;
+            line-height: 1.35 !important;
         }
 
         .dd-account-header h1,
