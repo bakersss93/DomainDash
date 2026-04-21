@@ -6,14 +6,14 @@
 
     <div class="dd-card" style="margin-bottom: 1rem;">
         <h2 style="margin-bottom: 0.75rem;">Retention & Storage</h2>
-        <form method="POST" action="{{ route('admin.audit.retention') }}" style="display:flex;gap:0.75rem;align-items:flex-end;flex-wrap:wrap;">
+        <form method="POST" action="{{ route('admin.audit.retention') }}" class="dd-audit-retention-form">
             @csrf
-            <div>
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Retention days</label>
                 <input type="number" name="retention_days" min="1" max="3650" value="{{ $retentionDays }}" required>
             </div>
-            <label style="display:flex;align-items:center;gap:0.4rem;">
-                <input type="checkbox" name="prune_now" value="1">
+            <label class="dd-audit-checkbox-label">
+                <input type="checkbox" class="dd-audit-checkbox" name="prune_now" value="1">
                 Prune now
             </label>
             <button type="submit" class="btn-accent">Save retention</button>
@@ -26,8 +26,8 @@
 
     <div class="dd-card" style="margin-bottom: 1rem;">
         <h2 style="margin-bottom: 0.75rem;">Filters</h2>
-        <form method="GET" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0.75rem;align-items:end;">
-            <div>
+        <form method="GET" class="dd-audit-filter-grid">
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Event</label>
                 <select name="action">
                     <option value="">All events</option>
@@ -36,7 +36,7 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">User</label>
                 <select name="user_id">
                     <option value="">All users</option>
@@ -47,7 +47,7 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Client</label>
                 <select name="client_id">
                     <option value="">All clients</option>
@@ -56,19 +56,24 @@
                     @endforeach
                 </select>
             </div>
-            <div>
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Service</label>
                 <input type="text" name="service" value="{{ $filters['service'] }}" placeholder="synergy, halo, dns, ssl...">
             </div>
-            <div>
+            <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Function</label>
-                <input type="text" name="function" value="{{ $filters['function'] }}" placeholder="purchase, sync, update...">
+                <select name="function">
+                    <option value="">All functions</option>
+                    @foreach($functionOptions as $functionOption)
+                        <option value="{{ $functionOption }}" {{ $filters['function'] === $functionOption ? 'selected' : '' }}>{{ $functionOption }}</option>
+                    @endforeach
+                </select>
             </div>
-            <label style="display:flex;align-items:center;gap:0.4rem;">
-                <input type="checkbox" name="failed_only" value="1" {{ $filters['failed_only'] ? 'checked' : '' }}>
+            <label class="dd-audit-checkbox-label dd-audit-field">
+                <input type="checkbox" class="dd-audit-checkbox" name="failed_only" value="1" {{ $filters['failed_only'] ? 'checked' : '' }}>
                 Failed only
             </label>
-            <div style="display:flex;gap:0.5rem;">
+            <div class="dd-audit-actions">
                 <button type="submit" class="btn-accent">Apply</button>
                 <a href="{{ route('admin.audit.index') }}" class="btn-accent" style="text-decoration:none;background:#64748b;">Reset</a>
             </div>
@@ -140,4 +145,76 @@
         </div>
     </div>
 </div>
+
+<style>
+.dd-audit-retention-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.dd-audit-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.9rem;
+    align-items: end;
+}
+
+.dd-audit-field {
+    min-width: 0;
+}
+
+.dd-audit-field select,
+.dd-audit-field input[type="text"],
+.dd-audit-field input[type="number"] {
+    width: 100%;
+}
+
+.dd-audit-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dd-audit-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    padding-bottom: 0.2rem;
+}
+
+.dd-audit-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid var(--dd-border, #334155);
+    background: var(--dd-surface-soft, #1f2937);
+    position: relative;
+    cursor: pointer;
+    margin: 0;
+}
+
+.dd-audit-checkbox:checked {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+
+.dd-audit-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 3px;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+</style>
 @endsection

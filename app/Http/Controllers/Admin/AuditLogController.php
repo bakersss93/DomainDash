@@ -44,9 +44,8 @@ class AuditLogController extends Controller
 
         if ($filters['function'] !== '') {
             $query->where(function ($builder) use ($filters) {
-                $builder->where('auditable_type', 'like', '%'.$filters['function'].'%')
-                    ->orWhere('description', 'like', '%'.$filters['function'].'%')
-                    ->orWhere('context', 'like', '%'.$filters['function'].'%');
+                $builder->where('context->function', $filters['function'])
+                    ->orWhere('description', 'like', '%'.$filters['function'].'%');
             });
         }
 
@@ -66,6 +65,15 @@ class AuditLogController extends Controller
 
         $logs = $query->paginate(50)->withQueryString();
         $actionOptions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
+        $functionOptions = AuditLog::query()
+            ->whereNotNull('context')
+            ->get(['context'])
+            ->pluck('context')
+            ->map(fn ($context) => $context['function'] ?? null)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
         $users = User::query()->orderBy('name')->get(['id', 'name', 'email']);
         $clients = Client::query()->orderBy('business_name')->get(['id', 'business_name']);
 
@@ -81,6 +89,7 @@ class AuditLogController extends Controller
             'logs',
             'filters',
             'actionOptions',
+            'functionOptions',
             'users',
             'clients',
             'retentionDays',
