@@ -556,6 +556,7 @@
             @php
                 $syncSchedule = $settings['sync_schedule'] ?? [];
                 $syncFrequencies = ['hourly' => 'Hourly', 'daily' => 'Daily', 'weekly' => 'Weekly'];
+                $serverTimezone = date_default_timezone_get();
             @endphp
             <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('sync-scheduler')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);transition:background 0.2s;">
@@ -573,6 +574,17 @@
                     </svg>
                 </div>
                 <div id="sync-scheduler-content" class="settings-content" style="padding:20px 24px;display:none;">
+                    <div style="margin-bottom:16px;">
+                        <small style="display:block;font-size:12px;color:#9ca3af;">
+                            Scheduler uses the server timezone: <strong>{{ $serverTimezone }}</strong>.
+                        </small>
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            If your server timezone is Australia/Adelaide, UTC+9:30 and daylight savings are handled automatically.
+                        </small>
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            Ensure cron runs <code>php artisan schedule:run</code> every minute to trigger these sync tasks.
+                        </small>
+                    </div>
                     @foreach([
                         'sync_domains' => 'Sync Domains from Synergy',
                         'sync_hosting_services' => 'Sync Hosting Services',

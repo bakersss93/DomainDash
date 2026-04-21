@@ -2,11 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Services\Synergy\SynergyWholesaleClient;
 use App\Models\Domain;
+use App\Services\Synergy\SynergyWholesaleClient;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
 
-class SyncSynergyDomainsJob extends Job
+class SyncSynergyDomainsJob implements ShouldQueue
 {
+    use Queueable;
+
     public function handle(SynergyWholesaleClient $synergy): void
     {
         $names = Domain::pluck('name')->all();
