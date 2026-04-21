@@ -26,7 +26,6 @@ class SettingsController extends Controller
                 'sync_hosting_services' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:00'],
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
-                'timezone' => config('app.timezone', 'UTC'),
             ]),
             'backup'   => Setting::get('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
@@ -58,7 +57,6 @@ class SettingsController extends Controller
             'sync_schedule.*.enabled' => 'nullable|boolean',
             'sync_schedule.*.frequency' => 'nullable|in:hourly,daily,weekly',
             'sync_schedule.*.time' => 'nullable|date_format:H:i',
-            'sync_schedule.timezone' => 'nullable|timezone',
             'backup'        => 'array',
             'notifications' => 'array',
             'mfa'           => 'array',
@@ -120,10 +118,6 @@ class SettingsController extends Controller
         }
 
         // Save all other settings (and branding if present and not overwritten above)
-        if (isset($data['sync_schedule']) && is_array($data['sync_schedule'])) {
-            $data['sync_schedule']['timezone'] = $data['sync_schedule']['timezone'] ?? config('app.timezone', 'UTC');
-        }
-
         foreach ($data as $key => $value) {
             if ($key === 'branding') {
                 $current = Setting::get('branding', []);

@@ -1,6 +1,8 @@
 <?php
 
+use App\Console\ScheduleRegistrar;
 use Illuminate\Foundation\Application;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
@@ -22,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\ApplyImpersonation::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule) {
+        ScheduleRegistrar::register($schedule);
     })
         
     ->withExceptions(function (Exceptions $exceptions) {

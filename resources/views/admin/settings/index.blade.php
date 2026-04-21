@@ -556,20 +556,7 @@
             @php
                 $syncSchedule = $settings['sync_schedule'] ?? [];
                 $syncFrequencies = ['hourly' => 'Hourly', 'daily' => 'Daily', 'weekly' => 'Weekly'];
-                $allTimezones = timezone_identifiers_list();
-                $australianTimezones = array_values(array_filter(
-                    $allTimezones,
-                    static fn (string $timezone): bool => str_starts_with($timezone, 'Australia/')
-                ));
-                $syncTimezones = array_values(array_unique(array_merge([
-                    'UTC',
-                    'America/New_York',
-                    'America/Chicago',
-                    'America/Denver',
-                    'America/Los_Angeles',
-                    'Europe/London',
-                ], $australianTimezones)));
-                $selectedSyncTimezone = $syncSchedule['timezone'] ?? config('app.timezone', 'UTC');
+                $serverTimezone = date_default_timezone_get();
             @endphp
             <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('sync-scheduler')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:rgba(15,23,42,0.4);border-bottom:1px solid rgba(148,163,184,0.1);transition:background 0.2s;">
@@ -587,15 +574,15 @@
                     </svg>
                 </div>
                 <div id="sync-scheduler-content" class="settings-content" style="padding:20px 24px;display:none;">
-                    <div style="margin-bottom:16px;max-width:320px;">
-                        <label style="display:block;font-size:12px;margin-bottom:4px;">Scheduler timezone</label>
-                        <select name="sync_schedule[timezone]" class="dd-field" style="width:100%;font-size:13px;">
-                            @foreach($syncTimezones as $timezone)
-                                <option value="{{ $timezone }}" {{ $selectedSyncTimezone === $timezone ? 'selected' : '' }}>{{ $timezone }}</option>
-                            @endforeach
-                        </select>
-                        <small style="display:block;margin-top:6px;font-size:12px;color:#9ca3af;">
-                            Sync run times below are interpreted in this timezone (for UTC+9:30 with DST, use Australia/Adelaide).
+                    <div style="margin-bottom:16px;">
+                        <small style="display:block;font-size:12px;color:#9ca3af;">
+                            Scheduler uses the server timezone: <strong>{{ $serverTimezone }}</strong>.
+                        </small>
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            If your server timezone is Australia/Adelaide, UTC+9:30 and daylight savings are handled automatically.
+                        </small>
+                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                            Ensure cron runs <code>php artisan schedule:run</code> every minute to trigger these sync tasks.
                         </small>
                     </div>
                     @foreach([
