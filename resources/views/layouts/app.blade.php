@@ -145,6 +145,15 @@
             font-size: 13px;
         }
 
+        .nav-submenu.nested {
+            padding-left: 18px;
+        }
+
+        .nav-submenu .nav-section > .nav-toggle {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
         .topbar {
             height: 56px;
             background: var(--bg);
@@ -841,44 +850,51 @@
                     </ul>
                 </li>
 
-                <!-- Hosting Services (with submenu) -->
-                <li class="nav-item nav-section {{ request()->routeIs('admin.services.hosting*') ? 'expanded' : '' }}">
+                <!-- Services (with nested submenus for future expansion) -->
+                <li class="nav-item nav-section {{ request()->routeIs('admin.services.*') ? 'expanded' : '' }}">
                     <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                        <span class="icon">🖥️</span>
-                        <span class="text">Hosting Services</span>
+                        <span class="icon">🧰</span>
+                        <span class="text">Services</span>
                         <span class="arrow">▶</span>
                     </div>
                     <ul class="nav-submenu">
-                        <li class="nav-item">
-                            <a href="{{ route('admin.services.hosting') }}" class="nav-link {{ request()->routeIs('admin.services.hosting') && !request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
-                                Manage Hosting
-                            </a>
+                        <li class="nav-item nav-section {{ request()->routeIs('admin.services.ssl*') || request()->routeIs('admin.services.ssls') ? 'expanded' : '' }}">
+                            <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                                <span class="icon">🔒</span>
+                                <span class="text">SSLs</span>
+                                <span class="arrow">▶</span>
+                            </div>
+                            <ul class="nav-submenu nested">
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.services.ssls') }}" class="nav-link {{ request()->routeIs('admin.services.ssls') && !request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
+                                        Manage SSLs
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.services.ssl.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
+                                        Purchase SSL
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.services.hosting.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
-                                Purchase Hosting
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                <!-- SSLs (with submenu) -->
-                <li class="nav-item nav-section {{ request()->routeIs('admin.services.ssl*') ? 'expanded' : '' }}">
-                    <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                        <span class="icon">🔒</span>
-                        <span class="text">SSLs</span>
-                        <span class="arrow">▶</span>
-                    </div>
-                    <ul class="nav-submenu">
-                        <li class="nav-item">
-                            <a href="{{ route('admin.services.ssls') }}" class="nav-link {{ request()->routeIs('admin.services.ssls') && !request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
-                                Manage SSLs
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.services.ssl.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.ssl.purchase') ? 'active' : '' }}">
-                                Purchase SSL
-                            </a>
+                        <li class="nav-item nav-section {{ request()->routeIs('admin.services.hosting*') ? 'expanded' : '' }}">
+                            <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                                <span class="icon">🖥️</span>
+                                <span class="text">Hosting Services</span>
+                                <span class="arrow">▶</span>
+                            </div>
+                            <ul class="nav-submenu nested">
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.services.hosting') }}" class="nav-link {{ request()->routeIs('admin.services.hosting') && !request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
+                                        Manage Hosting
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('admin.services.hosting.purchase') }}" class="nav-link {{ request()->routeIs('admin.services.hosting.purchase') ? 'active' : '' }}">
+                                        Purchase Hosting
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     </ul>
                 </li>

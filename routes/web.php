@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\DomainController as AdminDomainController;
 use App\Http\Controllers\Admin\ApiKeysController;
@@ -32,7 +33,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');
 
-        Route::get('/dashboard', function () {return view('dashboard');})->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         // DNS (customer-visible for assigned domains)
         Route::get('/domains/{domain}/dns', [DnsController::class, 'index'])->name('dns.index');
