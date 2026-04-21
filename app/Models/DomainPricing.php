@@ -33,12 +33,14 @@ class DomainPricing extends Model
         'sale_transfer_price',
         'sale_end_date',
         'sell_price',
+        'is_common',
     ];
 
     protected $casts = [
         'id_protection' => 'boolean',
         'dnssec' => 'boolean',
         'sale_end_date' => 'date',
+        'is_common' => 'boolean',
     ];
 
     public function getEffectiveRegistrationPriceAttribute(): ?float

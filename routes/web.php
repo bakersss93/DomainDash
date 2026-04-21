@@ -88,6 +88,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])
                 ->middleware('permission:domain-pricing.manage')
                 ->name('admin.domains.pricing.sell-price');
+            Route::put('/domains/pricing/{domainPricing}/common-domain', [DomainPricingController::class, 'updateCommonDomain'])
+                ->middleware('permission:domain-pricing.manage')
+                ->name('admin.domains.pricing.common-domain');
         });
 
         // Admin area

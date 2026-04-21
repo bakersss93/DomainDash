@@ -15,7 +15,19 @@
                 <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
                     <select id="extension" class="fancy-select dd-search-extension">
                         <option value="">Select an Extension</option>
-                        @forelse(($extensions ?? collect()) as $extension)
+                        @php
+                            $commonExtensions = $commonExtensions ?? collect();
+                            $otherExtensions = $otherExtensions ?? collect();
+                        @endphp
+                        @if($commonExtensions->isNotEmpty())
+                            @foreach($commonExtensions as $extension)
+                                <option value="{{ $extension }}">{{ $extension }}</option>
+                            @endforeach
+                        @endif
+                        @if($commonExtensions->isNotEmpty() && $otherExtensions->isNotEmpty())
+                            <option value="" disabled>-------------</option>
+                        @endif
+                        @forelse($otherExtensions as $extension)
                             <option value="{{ $extension }}">{{ $extension }}</option>
                         @empty
                             <option value="com">com</option>

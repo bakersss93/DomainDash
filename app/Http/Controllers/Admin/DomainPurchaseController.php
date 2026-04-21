@@ -27,9 +27,19 @@ class DomainPurchaseController extends Controller
      */
     public function index()
     {
-        $extensions = DomainPricing::query()->orderBy('tld')->pluck('tld');
+        $commonExtensions = DomainPricing::query()
+            ->where('is_common', true)
+            ->orderBy('tld')
+            ->pluck('tld');
 
-        return view('admin.domains.purchase', compact('extensions'));
+        $otherExtensions = DomainPricing::query()
+            ->where(function ($query) {
+                $query->where('is_common', false)->orWhereNull('is_common');
+            })
+            ->orderBy('tld')
+            ->pluck('tld');
+
+        return view('admin.domains.purchase', compact('commonExtensions', 'otherExtensions'));
     }
 
     /**

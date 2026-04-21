@@ -101,6 +101,19 @@ class DomainPricingController extends Controller
         return back()->with('status', "Updated sell price for .{$domainPricing->tld}.");
     }
 
+    public function updateCommonDomain(Request $request, DomainPricing $domainPricing): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_common' => 'nullable|boolean',
+        ]);
+
+        $domainPricing->update([
+            'is_common' => (bool) ($validated['is_common'] ?? false),
+        ]);
+
+        return back()->with('status', "Updated common domain flag for .{$domainPricing->tld}.");
+    }
+
     public function bulkMarkup(Request $request): RedirectResponse
     {
         $validated = $request->validate([
