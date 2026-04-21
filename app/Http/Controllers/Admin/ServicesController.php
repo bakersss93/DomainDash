@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Schema;
 use App\Models\HostingService;
 use App\Models\HostingPackage;
 use App\Models\Client;
+use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
 
 class ServicesController extends Controller
@@ -137,6 +138,12 @@ class ServicesController extends Controller
 
             if (($res['status'] ?? null) !== 'OK') {
                 $message = $res['errorMessage'] ?? 'Unknown error';
+                AuditLogger::logSystem('sync.failed', 'Hosting service sync from Synergy failed.', [
+                    'service' => 'synergy',
+                    'function' => 'hosting-sync',
+                ], [
+                    'new_values' => ['error' => $message],
+                ]);
                 return redirect()
                     ->route('admin.services.hosting')
                     ->with('status', 'Synergy listHosting failed: ' . $message);
@@ -215,6 +222,13 @@ class ServicesController extends Controller
 
             $page++;
         } while (!empty($res['items']) && count($res['items']) === $limit);
+
+        AuditLogger::logSystem('sync.completed', "Hosting service sync from Synergy completed ({$totalImported} records).", [
+            'service' => 'synergy',
+            'function' => 'hosting-sync',
+        ], [
+            'new_values' => ['imported' => $totalImported],
+        ]);
 
         return redirect()
             ->route('admin.services.hosting')

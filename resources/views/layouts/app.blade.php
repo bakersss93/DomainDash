@@ -901,7 +901,7 @@
 
                 <!-- Admin Section (hidden for non-admin users) -->
                 @role('Administrator')
-                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.notifications.templates*') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') ? 'expanded' : '' }}">
+                    <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.notifications.templates*') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') || request()->routeIs('admin.audit.*') ? 'expanded' : '' }}">
                         <div class="nav-link nav-toggle" onclick="toggleNav(this)">
                             <span class="icon">⚙️</span>
                             <span class="text">Admin</span>
@@ -941,6 +941,11 @@
                             <li class="nav-item">
                                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                                     System Status
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.audit.index') }}" class="nav-link {{ request()->routeIs('admin.audit.*') ? 'active' : '' }}">
+                                    Audit & Logging
                                 </a>
                             </li>
                             @can('domain-pricing.view')

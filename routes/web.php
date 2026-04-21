@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\ClientsController;
 use App\Http\Controllers\Admin\DomainPricingController;
 use App\Http\Controllers\Admin\EmailNotificationTemplatesController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\UserNotificationController;
 
 
@@ -106,6 +107,8 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
+        Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
         Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'storeTemplate'])->name('admin.notifications.templates.store');
         Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');

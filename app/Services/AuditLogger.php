@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
@@ -33,6 +34,7 @@ class AuditLogger
             'description' => $options['description'] ?? null,
             'old_values' => $options['old_values'] ?? null,
             'new_values' => $options['new_values'] ?? null,
+            'context' => $options['context'] ?? null,
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
@@ -81,5 +83,20 @@ class AuditLogger
         return self::log($action, $model, array_merge([
             'description' => $description,
         ], $additionalData));
+    }
+
+    public static function logSystem(string $action, string $description, array $context = [], array $additionalData = []): AuditLog
+    {
+        return self::log($action, 'System', array_merge([
+            'description' => $description,
+            'context' => $context,
+        ], $additionalData));
+    }
+
+    public static function pruneOlderThanDays(int $days): int
+    {
+        $cutoff = Carbon::now()->subDays(max(1, $days));
+
+        return AuditLog::query()->where('created_at', '<', $cutoff)->delete();
     }
 }

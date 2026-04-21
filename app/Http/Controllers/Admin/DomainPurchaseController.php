@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Domain;
 use App\Models\DomainPricing;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -244,6 +245,20 @@ class DomainPurchaseController extends Controller
 
                 DB::commit();
 
+                AuditLogger::logAction('domain.purchase', $domain, "Domain {$request->domain} purchased.", [
+                    'context' => [
+                        'service' => 'domains',
+                        'function' => 'purchase',
+                        'client_id' => $client->id,
+                    ],
+                    'new_values' => [
+                        'domain' => $request->domain,
+                        'years' => (int) $request->years,
+                        'client_id' => $client->id,
+                        'registry_id' => $result['domainID'] ?? null,
+                    ],
+                ]);
+
                 return response()->json([
                     'success' => true,
                     'message' => "Domain {$request->domain} registered successfully!",
@@ -251,6 +266,13 @@ class DomainPurchaseController extends Controller
                 ]);
             } else {
                 DB::rollBack();
+                AuditLogger::logSystem('purchase.failed', "Domain purchase failed for {$request->domain}.", [
+                    'service' => 'domains',
+                    'function' => 'purchase',
+                    'client_id' => $request->client_id,
+                ], [
+                    'new_values' => ['error' => $result['errorMessage'] ?? 'Unknown error'],
+                ]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Domain registration failed: ' . ($result['errorMessage'] ?? 'Unknown error'),
@@ -258,6 +280,13 @@ class DomainPurchaseController extends Controller
             }
         } catch (\Exception $e) {
             DB::rollBack();
+            AuditLogger::logSystem('purchase.failed', "Domain purchase exception for {$request->domain}.", [
+                'service' => 'domains',
+                'function' => 'purchase',
+                'client_id' => $request->client_id,
+            ], [
+                'new_values' => ['error' => $e->getMessage()],
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error registering domain: ' . $e->getMessage(),

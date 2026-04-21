@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ServicesController;
 use App\Http\Controllers\Admin\SyncController;
 use App\Models\Client;
 use App\Models\Domain;
+use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
@@ -32,6 +33,11 @@ class RunSyncTaskCommand extends Command
 
     private function runSynergyDomainSync(): int
     {
+        AuditLogger::logSystem('sync.started', 'Scheduled Synergy domain sync started.', [
+            'service' => 'synergy',
+            'function' => 'sync-domains',
+        ]);
+
         $synergy = app(SynergyWholesaleClient::class);
 
         $page = 1;
@@ -45,6 +51,12 @@ class RunSyncTaskCommand extends Command
                 $error = $response['errorMessage'] ?? 'Unknown error from Synergy listDomains';
                 $this->error('Synergy domain sync failed: ' . $error);
                 Log::error('Scheduled Synergy domain sync failed', ['error' => $error, 'response' => $response]);
+                AuditLogger::logSystem('sync.failed', 'Scheduled Synergy domain sync failed.', [
+                    'service' => 'synergy',
+                    'function' => 'sync-domains',
+                ], [
+                    'new_values' => ['error' => $error],
+                ]);
 
                 return self::FAILURE;
             }
@@ -84,12 +96,23 @@ class RunSyncTaskCommand extends Command
         } while ($hasMore && $page < 1000);
 
         $this->info("Synergy domain sync complete. Imported/updated {$imported} domain records.");
+        AuditLogger::logSystem('sync.completed', "Scheduled Synergy domain sync completed ({$imported} records).", [
+            'service' => 'synergy',
+            'function' => 'sync-domains',
+        ], [
+            'new_values' => ['imported' => $imported],
+        ]);
 
         return self::SUCCESS;
     }
 
     private function runHaloDomainSync(): int
     {
+        AuditLogger::logSystem('sync.started', 'Scheduled Halo domain sync started.', [
+            'service' => 'halo',
+            'function' => 'sync-halo-domains',
+        ]);
+
         $domainIds = Domain::whereNotNull('client_id')->pluck('id')->all();
 
         if (empty($domainIds)) {
@@ -104,21 +127,42 @@ class RunSyncTaskCommand extends Command
         if (!empty($payload['error'])) {
             $this->error('Halo domain sync failed: ' . $payload['error']);
             Log::error('Scheduled halo domain sync failed', $payload);
+            AuditLogger::logSystem('sync.failed', 'Scheduled Halo domain sync failed.', [
+                'service' => 'halo',
+                'function' => 'sync-halo-domains',
+            ], [
+                'new_values' => ['error' => $payload['error']],
+            ]);
             return self::FAILURE;
         }
 
         $this->info('Halo domain sync complete. Synced: ' . ($payload['synced_count'] ?? 0));
+        AuditLogger::logSystem('sync.completed', 'Scheduled Halo domain sync completed.', [
+            'service' => 'halo',
+            'function' => 'sync-halo-domains',
+        ], [
+            'new_values' => ['synced_count' => $payload['synced_count'] ?? 0],
+        ]);
 
         return self::SUCCESS;
     }
 
     private function runHostingServiceSync(): int
     {
+        AuditLogger::logSystem('sync.started', 'Scheduled hosting service sync started.', [
+            'service' => 'synergy',
+            'function' => 'sync-hosting-services',
+        ]);
+
         $controller = app(ServicesController::class);
         $synergy = app(SynergyWholesaleClient::class);
 
         $controller->sync(Request::create('/admin/services/hosting/sync', 'POST'), $synergy);
         $this->info('Hosting service sync triggered successfully.');
+        AuditLogger::logSystem('sync.completed', 'Scheduled hosting service sync completed.', [
+            'service' => 'synergy',
+            'function' => 'sync-hosting-services',
+        ]);
 
         return self::SUCCESS;
     }
@@ -151,6 +195,11 @@ class RunSyncTaskCommand extends Command
 
     private function runItGlueSync(): int
     {
+        AuditLogger::logSystem('sync.started', 'Scheduled IT Glue sync started.', [
+            'service' => 'itglue',
+            'function' => 'sync-itglue',
+        ]);
+
         $items = Domain::query()
             ->whereHas('client', function ($query) {
                 $query->whereNotNull('itglue_org_id');
@@ -174,10 +223,22 @@ class RunSyncTaskCommand extends Command
         if (!empty($payload['error'])) {
             $this->error('IT Glue sync failed: ' . $payload['error']);
             Log::error('Scheduled IT Glue sync failed', $payload);
+            AuditLogger::logSystem('sync.failed', 'Scheduled IT Glue sync failed.', [
+                'service' => 'itglue',
+                'function' => 'sync-itglue',
+            ], [
+                'new_values' => ['error' => $payload['error']],
+            ]);
             return self::FAILURE;
         }
 
         $this->info('IT Glue configuration sync complete. Synced: ' . ($payload['synced_count'] ?? 0));
+        AuditLogger::logSystem('sync.completed', 'Scheduled IT Glue sync completed.', [
+            'service' => 'itglue',
+            'function' => 'sync-itglue',
+        ], [
+            'new_values' => ['synced_count' => $payload['synced_count'] ?? 0],
+        ]);
 
         return self::SUCCESS;
     }
