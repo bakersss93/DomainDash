@@ -58,7 +58,12 @@
             </div>
             <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Service</label>
-                <input type="text" name="service" value="{{ $filters['service'] }}" placeholder="synergy, halo, dns, ssl...">
+                <select name="service">
+                    <option value="">All services</option>
+                    @foreach($serviceOptions as $serviceOption)
+                        <option value="{{ $serviceOption }}" {{ $filters['service'] === $serviceOption ? 'selected' : '' }}>{{ $serviceOption }}</option>
+                    @endforeach
+                </select>
             </div>
             <div class="dd-audit-field">
                 <label style="display:block;font-size:12px;margin-bottom:4px;">Function</label>
@@ -82,6 +87,11 @@
 
     <div class="dd-card">
         <h2 style="margin-bottom: 0.75rem;">Event Timeline</h2>
+        <div style="margin-bottom:0.75rem;max-width:360px;">
+            <label for="audit-live-search" style="display:block;font-size:12px;margin-bottom:4px;">Live search in current results</label>
+            <input id="audit-live-search" type="text" placeholder="Type to filter visible rows...">
+        </div>
+        <p id="audit-live-empty" style="display:none; margin:0 0 0.75rem; color:#6b7280;">No rows match the live search.</p>
         <div style="overflow:auto;">
             <table class="dd-table" style="width:100%; min-width:1200px;">
                 <thead>
@@ -96,15 +106,19 @@
                         <th>Changes</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="audit-log-body">
                     @forelse($logs as $log)
                         @php
                             $context = $log->context ?? [];
                             $clientId = $context['client_id'] ?? $log->new_values['client_id'] ?? $log->old_values['client_id'] ?? null;
                             $service = $context['service'] ?? '-';
                             $function = $context['function'] ?? '-';
+                            $changePayload = json_encode([
+                                'old' => $log->old_values,
+                                'new' => $log->new_values,
+                            ], JSON_PRETTY_PRINT);
                         @endphp
-                        <tr>
+                        <tr data-audit-row>
                             <td>{{ $log->created_at?->toDateTimeString() }}</td>
                             <td>{{ $log->action }}</td>
                             <td>{{ $log->user_email ?? optional($log->user)->email ?? '-' }}</td>
@@ -114,19 +128,20 @@
                             <td>{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id ?? '-' }}</td>
                             <td>
                                 @if(!empty($log->old_values) || !empty($log->new_values))
-                                    <details>
-                                        <summary>View</summary>
-                                        <div style="font-size:12px;line-height:1.5;margin-top:6px;">
-                                            @if(!empty($log->old_values))
-                                                <strong>Old:</strong>
-                                                <pre style="white-space:pre-wrap;">{{ json_encode($log->old_values, JSON_PRETTY_PRINT) }}</pre>
-                                            @endif
-                                            @if(!empty($log->new_values))
-                                                <strong>New:</strong>
-                                                <pre style="white-space:pre-wrap;">{{ json_encode($log->new_values, JSON_PRETTY_PRINT) }}</pre>
-                                            @endif
-                                        </div>
-                                    </details>
+                                    <button
+                                        type="button"
+                                        class="dd-account-password-btn dd-audit-view-btn"
+                                        data-event="{{ $log->action }}"
+                                        data-timestamp="{{ $log->created_at?->toDateTimeString() }}"
+                                        data-user="{{ $log->user_email ?? optional($log->user)->email ?? '-' }}"
+                                        data-service="{{ $service }}"
+                                        data-function="{{ $function }}"
+                                        data-description="{{ $log->description ?? '-' }}"
+                                        data-entity="{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id ?? '-' }}"
+                                        data-changes="{{ $changePayload }}"
+                                    >
+                                        View
+                                    </button>
                                 @else
                                     -
                                 @endif
@@ -142,6 +157,27 @@
         </div>
         <div style="margin-top: 1rem;">
             {{ $logs->links() }}
+        </div>
+    </div>
+</div>
+
+<div id="audit-event-modal" class="dd-account-modal-backdrop" hidden>
+    <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="auditEventTitle">
+        <div class="dd-account-modal-header">
+            <h2 id="auditEventTitle">Audit Event Details</h2>
+            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">x</button>
+        </div>
+        <div class="dd-account-modal-grid">
+            <div><strong>Timestamp:</strong> <span id="audit-event-time"></span></div>
+            <div><strong>Event:</strong> <span id="audit-event-action"></span></div>
+            <div><strong>User:</strong> <span id="audit-event-user"></span></div>
+            <div><strong>Service / Function:</strong> <span id="audit-event-scope"></span></div>
+            <div><strong>Entity:</strong> <span id="audit-event-entity"></span></div>
+            <div><strong>Description:</strong> <span id="audit-event-description"></span></div>
+            <div>
+                <strong>Changes:</strong>
+                <pre id="audit-event-changes" style="white-space:pre-wrap;margin-top:8px;"></pre>
+            </div>
         </div>
     </div>
 </div>
@@ -217,4 +253,72 @@
     transform: rotate(45deg);
 }
 </style>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('audit-live-search');
+    const body = document.getElementById('audit-log-body');
+    const noResults = document.getElementById('audit-live-empty');
+    const modal = document.getElementById('audit-event-modal');
+    const close = document.getElementById('audit-event-close');
+
+    function applyLiveSearch() {
+        if (!searchInput || !body) {
+            return;
+        }
+
+        const term = searchInput.value.trim().toLowerCase();
+        const rows = Array.from(body.querySelectorAll('tr[data-audit-row]'));
+        let shown = 0;
+
+        rows.forEach((row) => {
+            const text = (row.textContent || '').toLowerCase();
+            const visible = term === '' || text.includes(term);
+            row.style.display = visible ? '' : 'none';
+            if (visible) {
+                shown += 1;
+            }
+        });
+
+        if (noResults) {
+            noResults.style.display = rows.length > 0 && shown === 0 ? 'block' : 'none';
+        }
+    }
+
+    function openEventModal(button) {
+        if (!modal) {
+            return;
+        }
+
+        document.getElementById('audit-event-time').textContent = button.dataset.timestamp || '-';
+        document.getElementById('audit-event-action').textContent = button.dataset.event || '-';
+        document.getElementById('audit-event-user').textContent = button.dataset.user || '-';
+        document.getElementById('audit-event-scope').textContent = `${button.dataset.service || '-'} / ${button.dataset.function || '-'}`;
+        document.getElementById('audit-event-entity').textContent = button.dataset.entity || '-';
+        document.getElementById('audit-event-description').textContent = button.dataset.description || '-';
+        document.getElementById('audit-event-changes').textContent = button.dataset.changes || '{}';
+
+        modal.hidden = false;
+    }
+
+    function closeEventModal() {
+        if (modal) {
+            modal.hidden = true;
+        }
+    }
+
+    document.querySelectorAll('.dd-audit-view-btn').forEach((button) => {
+        button.addEventListener('click', () => openEventModal(button));
+    });
+
+    close?.addEventListener('click', closeEventModal);
+    modal?.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeEventModal();
+        }
+    });
+
+    searchInput?.addEventListener('input', applyLiveSearch);
+})();
+</script>
 @endsection

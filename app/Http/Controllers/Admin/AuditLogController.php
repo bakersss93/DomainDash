@@ -51,8 +51,8 @@ class AuditLogController extends Controller
 
         if ($filters['service'] !== '') {
             $query->where(function ($builder) use ($filters) {
-                $builder->where('description', 'like', '%'.$filters['service'].'%')
-                    ->orWhere('context', 'like', '%'.$filters['service'].'%');
+                $builder->where('context->service', $filters['service'])
+                    ->orWhere('description', 'like', '%'.$filters['service'].'%');
             });
         }
 
@@ -74,6 +74,15 @@ class AuditLogController extends Controller
             ->unique()
             ->sort()
             ->values();
+        $serviceOptions = AuditLog::query()
+            ->whereNotNull('context')
+            ->get(['context'])
+            ->pluck('context')
+            ->map(fn ($context) => $context['service'] ?? null)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
         $users = User::query()->orderBy('name')->get(['id', 'name', 'email']);
         $clients = Client::query()->orderBy('business_name')->get(['id', 'business_name']);
 
@@ -90,6 +99,7 @@ class AuditLogController extends Controller
             'filters',
             'actionOptions',
             'functionOptions',
+            'serviceOptions',
             'users',
             'clients',
             'retentionDays',
