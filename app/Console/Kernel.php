@@ -22,6 +22,9 @@ class Kernel extends ConsoleKernel
         // Backup
         $schedule->command('domaindash:backup-run')->dailyAt('03:00');
 
+        // Audit retention housekeeping
+        $schedule->command('domaindash:audit-prune')->dailyAt('03:30');
+
         // Expiry notifications
         $schedule->command('domaindash:notify-expiring')->hourly();
     }

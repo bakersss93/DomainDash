@@ -574,7 +574,7 @@
                 </div>
                 <div id="sync-scheduler-content" class="settings-content" style="padding:20px 24px;display:none;">
                     @foreach([
-                        'sync_domains' => 'Sync Domains to HaloPSA',
+                        'sync_domains' => 'Sync Domains from Synergy',
                         'sync_hosting_services' => 'Sync Hosting Services',
                         'sync_halo_assets' => 'Sync Client Domain Assets to/from HaloPSA',
                         'sync_itglue' => 'Sync IT Glue Domain Assets',

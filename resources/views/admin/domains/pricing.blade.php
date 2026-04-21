@@ -68,6 +68,7 @@
                     <th><button type="button" class="dd-sort-btn" data-sort-key="saleEnd">Sale End Date <span class="dd-sort-indicator"></span></button></th>
                     <th><button type="button" class="dd-sort-btn" data-sort-key="effective">Effective Buy <span class="dd-sort-indicator"></span></button></th>
                     <th><button type="button" class="dd-sort-btn" data-sort-key="sell">Sell Price <span class="dd-sort-indicator"></span></button></th>
+                    <th><button type="button" class="dd-sort-btn" data-sort-key="common">Common Domain <span class="dd-sort-indicator"></span></button></th>
                 </tr>
                 </thead>
                 <tbody id="pricing-table-body">
@@ -87,6 +88,7 @@
                         data-sale-end="{{ $saleEndDate ?? '' }}"
                         data-effective="{{ $effectivePrice !== null ? number_format((float) $effectivePrice, 2, '.', '') : '' }}"
                         data-sell="{{ $pricing->sell_price !== null ? number_format((float) $pricing->sell_price, 2, '.', '') : '' }}"
+                        data-common="{{ $pricing->is_common ? '1' : '0' }}"
                         data-on-sale="{{ $saleActive ? '1' : '0' }}"
                         data-sale-ended="{{ $saleEnded ? '1' : '0' }}"
                     >
@@ -114,10 +116,22 @@
                             <span>{{ $pricing->sell_price !== null ? '$' . number_format((float) $pricing->sell_price, 2) : 'N/A' }}</span>
                             @endcan
                         </td>
+                        <td>
+                            @can('domain-pricing.manage')
+                            <form method="POST" action="{{ route('admin.domains.pricing.common-domain', $pricing) }}">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="is_common" value="0">
+                                <input type="checkbox" name="is_common" value="1" onchange="this.form.submit()" {{ $pricing->is_common ? 'checked' : '' }}>
+                            </form>
+                            @else
+                            <span>{{ $pricing->is_common ? 'Yes' : 'No' }}</span>
+                            @endcan
+                        </td>
                     </tr>
                 @empty
                     <tr id="pricing-empty-row">
-                        <td colspan="6" style="text-align:center; color:#6b7280;">No pricing loaded yet. Import a CSV to begin.</td>
+                        <td colspan="7" style="text-align:center; color:#6b7280;">No pricing loaded yet. Import a CSV to begin.</td>
                     </tr>
                 @endforelse
                 </tbody>
@@ -145,7 +159,7 @@
             return value === '' ? Number.POSITIVE_INFINITY : Date.parse(value);
         }
 
-        if (['buy', 'sale', 'effective', 'sell'].includes(key)) {
+        if (['buy', 'sale', 'effective', 'sell', 'common'].includes(key)) {
             const value = row.dataset[key] || '';
             return value === '' ? Number.POSITIVE_INFINITY : Number.parseFloat(value);
         }

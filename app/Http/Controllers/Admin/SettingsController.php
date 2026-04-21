@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Support\MailSettings;
+use App\Services\AuditLogger;
 
 class SettingsController extends Controller
 {
@@ -35,6 +36,9 @@ class SettingsController extends Controller
                 'remember_browser' => true,
                 'issuer' => config('app.name', 'DomainDash'),
             ]),
+            'audit' => Setting::get('audit', [
+                'retention_days' => 90,
+            ]),
         ];
         return view('admin.settings.index', compact('settings'));
     }
@@ -61,6 +65,8 @@ class SettingsController extends Controller
             'mfa.allow_recovery_codes' => 'nullable|boolean',
             'mfa.remember_browser' => 'nullable|boolean',
             'mfa.issuer' => 'nullable|string|max:120',
+            'audit' => 'array',
+            'audit.retention_days' => 'nullable|integer|min:1|max:3650',
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
         ]);
 
@@ -120,6 +126,13 @@ class SettingsController extends Controller
                 Setting::put($key, $value);
             }
         }
+
+        AuditLogger::logSystem('settings.update', 'System settings updated.', [
+            'service' => 'settings',
+            'function' => 'settings-update',
+        ], [
+            'new_values' => ['keys' => array_keys($data)],
+        ]);
 
         return back()->with('status', 'Settings saved.');
     }

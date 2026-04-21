@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Domain;
 use App\Models\Client;
 use Illuminate\Http\Request;
+use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
 use App\Support\WhoisFormatter;
 
@@ -111,6 +112,11 @@ class DomainController extends Controller
         $domain->client_id = $data['client_id'] ?: null;
         $domain->save();
 
+        AuditLogger::logAction('domain.assign-client', $domain, "Updated client assignment for {$domain->name}.", [
+            'new_values' => ['client_id' => $domain->client_id],
+            'context' => ['service' => 'domains', 'function' => 'assign-client', 'client_id' => $domain->client_id],
+        ]);
+
         return back()->with('status', 'Client assignment updated for '.$domain->name);
     }
 
@@ -147,6 +153,12 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
         if (($response['status'] ?? null) !== 'OK') {
             // If Synergy returned an error, show it to the admin
             $msg = $response['errorMessage'] ?? 'Unknown error from Synergy listDomains';
+            AuditLogger::logSystem('sync.failed', 'Manual domain bulk sync failed.', [
+                'service' => 'synergy',
+                'function' => 'domains.bulk-sync',
+            ], [
+                'new_values' => ['error' => $msg],
+            ]);
             return back()->with('status', 'Bulk sync failed: ' . $msg);
         }
 
@@ -192,6 +204,13 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
 
     } while ($hasMore && $page < 1000); // hard safety cap
 
+    AuditLogger::logSystem('sync.completed', "Manual domain bulk sync completed ({$imported} domains).", [
+        'service' => 'synergy',
+        'function' => 'domains.bulk-sync',
+    ], [
+        'new_values' => ['imported' => $imported],
+    ]);
+
     return back()->with('status', "Bulk sync complete. Imported/updated {$imported} domains.");
 }
 
@@ -207,6 +226,10 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
     {
         $request->validate(['years'=>'required|integer|min:1|max:10']);
         $res = $synergy->renewDomain($domain->name, (int)$request->years);
+        AuditLogger::logAction('domain.renew', $domain, "Renewal requested for {$domain->name}.", [
+            'new_values' => ['years' => (int) $request->years, 'response' => $res],
+            'context' => ['service' => 'domains', 'function' => 'renew', 'client_id' => $domain->client_id],
+        ]);
         return back()->with('status','Renewal requested')->with('renewal', $res);
     }
 
@@ -229,6 +252,12 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
             'idProtect'=>'required',
         ]);
         $res = $synergy->transferDomain($payload);
+        AuditLogger::logSystem('domain.transfer', "Domain transfer requested for {$payload['domainName']}.", [
+            'service' => 'domains',
+            'function' => 'transfer',
+        ], [
+            'new_values' => ['domain' => $payload['domainName'], 'response' => $res],
+        ]);
         return back()->with('status','Transfer initiated')->with('transfer', $res);
     }
     

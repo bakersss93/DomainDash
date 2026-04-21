@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DomainPricing;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -85,6 +86,13 @@ class DomainPricingController extends Controller
 
         fclose($handle);
 
+        AuditLogger::logSystem('pricing.import', "Imported {$imported} domain pricing row(s).", [
+            'service' => 'domains',
+            'function' => 'pricing-import',
+        ], [
+            'new_values' => ['imported' => $imported],
+        ]);
+
         return back()->with('status', "Imported {$imported} pricing row(s).");
     }
 
@@ -98,7 +106,30 @@ class DomainPricingController extends Controller
             'sell_price' => round((float) $validated['sell_price'], 2),
         ]);
 
+        AuditLogger::logAction('pricing.sell-price-update', $domainPricing, "Updated sell price for .{$domainPricing->tld}.", [
+            'context' => ['service' => 'domains', 'function' => 'pricing-sell-price'],
+            'new_values' => ['sell_price' => $domainPricing->sell_price],
+        ]);
+
         return back()->with('status', "Updated sell price for .{$domainPricing->tld}.");
+    }
+
+    public function updateCommonDomain(Request $request, DomainPricing $domainPricing): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_common' => 'nullable|boolean',
+        ]);
+
+        $domainPricing->update([
+            'is_common' => (bool) ($validated['is_common'] ?? false),
+        ]);
+
+        AuditLogger::logAction('pricing.common-flag-update', $domainPricing, "Updated common domain flag for .{$domainPricing->tld}.", [
+            'context' => ['service' => 'domains', 'function' => 'pricing-common-flag'],
+            'new_values' => ['is_common' => $domainPricing->is_common],
+        ]);
+
+        return back()->with('status', "Updated common domain flag for .{$domainPricing->tld}.");
     }
 
     public function bulkMarkup(Request $request): RedirectResponse
@@ -119,6 +150,13 @@ class DomainPricingController extends Controller
                 'sell_price' => round($base * $multiplier, 2),
             ]);
         });
+
+        AuditLogger::logSystem('pricing.bulk-markup', 'Bulk sell pricing updated from current buy prices.', [
+            'service' => 'domains',
+            'function' => 'pricing-bulk-markup',
+        ], [
+            'new_values' => ['multiplier' => $multiplier],
+        ]);
 
         return back()->with('status', 'Bulk sell pricing updated from current buy prices.');
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Domain;
 use Illuminate\Http\Request;
+use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
 
 class DnsController extends Controller
@@ -87,6 +88,14 @@ class DnsController extends Controller
             $data['prio'] ?? 0
         );
 
+        AuditLogger::logSystem('dns.create', "DNS record added for {$domain->name}.", [
+            'service' => 'dns',
+            'function' => 'record-create',
+            'client_id' => $domain->client_id,
+        ], [
+            'new_values' => $data,
+        ]);
+
         return back()->with('status', 'DNS record added.');
     }
 
@@ -114,6 +123,14 @@ class DnsController extends Controller
             $data['prio'] ?? 0
         );
 
+        AuditLogger::logSystem('dns.update', "DNS record updated for {$domain->name}.", [
+            'service' => 'dns',
+            'function' => 'record-update',
+            'client_id' => $domain->client_id,
+        ], [
+            'new_values' => array_merge($data, ['record_id' => $recordId]),
+        ]);
+
         return back()->with('status', 'DNS record updated.');
     }
 
@@ -123,6 +140,14 @@ class DnsController extends Controller
     public function destroy(Domain $domain, $recordId, SynergyWholesaleClient $synergy)
     {
         $synergy->deleteDNSRecord($domain->name, $recordId);
+
+        AuditLogger::logSystem('dns.delete', "DNS record deleted for {$domain->name}.", [
+            'service' => 'dns',
+            'function' => 'record-delete',
+            'client_id' => $domain->client_id,
+        ], [
+            'new_values' => ['record_id' => $recordId],
+        ]);
 
         return back()->with('status', 'DNS record deleted.');
     }
@@ -170,6 +195,14 @@ class DnsController extends Controller
         }
 
         $domain->save();
+
+        AuditLogger::logSystem('dns.options-update', "DNS options updated for {$domain->name}.", [
+            'service' => 'dns',
+            'function' => 'dns-options',
+            'client_id' => $domain->client_id,
+        ], [
+            'new_values' => ['dns_mode' => $dnsMode, 'nameservers' => $nameservers],
+        ]);
 
         return back()->with(
             'status',
