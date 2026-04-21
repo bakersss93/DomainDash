@@ -14,10 +14,14 @@ class Kernel extends ConsoleKernel
         $schedule->job(new \App\Jobs\SyncSynergyDomainsJob())->dailyAt('02:30');
 
         $syncSchedule = Setting::get('sync_schedule', []);
-        $this->scheduleSyncTask($schedule, $syncSchedule['sync_domains'] ?? [], 'sync-domains', 'domaindash:sync-task sync-domains');
-        $this->scheduleSyncTask($schedule, $syncSchedule['sync_hosting_services'] ?? [], 'sync-hosting-services', 'domaindash:sync-task sync-hosting-services');
-        $this->scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'domaindash:sync-task sync-halo-assets');
-        $this->scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'domaindash:sync-task sync-itglue');
+        $timezone = $syncSchedule['timezone'] ?? config('app.timezone', 'UTC');
+        if (!in_array($timezone, timezone_identifiers_list(), true)) {
+            $timezone = config('app.timezone', 'UTC');
+        }
+        $this->scheduleSyncTask($schedule, $syncSchedule['sync_domains'] ?? [], 'sync-domains', 'domaindash:sync-task sync-domains', $timezone);
+        $this->scheduleSyncTask($schedule, $syncSchedule['sync_hosting_services'] ?? [], 'sync-hosting-services', 'domaindash:sync-task sync-hosting-services', $timezone);
+        $this->scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'domaindash:sync-task sync-halo-assets', $timezone);
+        $this->scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'domaindash:sync-task sync-itglue', $timezone);
 
         // Backup
         $schedule->command('domaindash:backup-run')->dailyAt('03:00');
@@ -34,7 +38,7 @@ class Kernel extends ConsoleKernel
         $this->load(__DIR__.'/Commands');
     }
 
-    private function scheduleSyncTask(Schedule $schedule, array $taskConfig, string $taskName, string $command): void
+    private function scheduleSyncTask(Schedule $schedule, array $taskConfig, string $taskName, string $command, string $timezone): void
     {
         $enabled = filter_var($taskConfig['enabled'] ?? false, FILTER_VALIDATE_BOOL);
         if (!$enabled) {
@@ -50,6 +54,6 @@ class Kernel extends ConsoleKernel
             default => $schedule->command($command)->dailyAt($time),
         };
 
-        $event->name("scheduled-{$taskName}");
+        $event->timezone($timezone)->name("scheduled-{$taskName}");
     }
 }
