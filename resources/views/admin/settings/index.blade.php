@@ -556,16 +556,19 @@
             @php
                 $syncSchedule = $settings['sync_schedule'] ?? [];
                 $syncFrequencies = ['hourly' => 'Hourly', 'daily' => 'Daily', 'weekly' => 'Weekly'];
-                $syncTimezones = [
+                $allTimezones = timezone_identifiers_list();
+                $australianTimezones = array_values(array_filter(
+                    $allTimezones,
+                    static fn (string $timezone): bool => str_starts_with($timezone, 'Australia/')
+                ));
+                $syncTimezones = array_values(array_unique(array_merge([
                     'UTC',
-                    'Australia/Sydney',
-                    'Australia/Perth',
                     'America/New_York',
                     'America/Chicago',
                     'America/Denver',
                     'America/Los_Angeles',
                     'Europe/London',
-                ];
+                ], $australianTimezones)));
                 $selectedSyncTimezone = $syncSchedule['timezone'] ?? config('app.timezone', 'UTC');
             @endphp
             <div class="settings-section" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:12px;margin-bottom:16px;overflow:hidden;">
@@ -592,7 +595,7 @@
                             @endforeach
                         </select>
                         <small style="display:block;margin-top:6px;font-size:12px;color:#9ca3af;">
-                            Sync run times below are interpreted in this timezone.
+                            Sync run times below are interpreted in this timezone (for UTC+9:30 with DST, use Australia/Adelaide).
                         </small>
                     </div>
                     @foreach([
