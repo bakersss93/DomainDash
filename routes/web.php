@@ -212,5 +212,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/services/ssl/{ssl}/certificate', [\App\Http\Controllers\Admin\SslController::class,'getCertificate'])->whereNumber('ssl')->name('admin.services.ssl.certificate');
         Route::post('/services/ssl/{ssl}/renew', [\App\Http\Controllers\Admin\SslController::class,'renew'])->whereNumber('ssl')->name('admin.services.ssl.renew');
         Route::post('/services/ssl/{ssl}/rekey', [\App\Http\Controllers\Admin\SslController::class,'rekey'])->whereNumber('ssl')->name('admin.services.ssl.rekey');
+        Route::post('/services/ssl/{ssl}/assign-client', [\App\Http\Controllers\Admin\SslController::class,'assignClient'])->whereNumber('ssl')->name('admin.services.ssl.assignClient');
+        Route::post('/services/ssl/decode-csr', [\App\Http\Controllers\Admin\SslController::class,'decodeCsr'])->name('admin.services.ssl.decodeCsr');
     });
 });

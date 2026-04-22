@@ -654,6 +654,17 @@ class SynergyWholesaleClient
         return (array) $res;
     }
 
+    public function decodeSSLCsr(string $csr): array
+    {
+        $params = array_merge($this->creds(), [
+            'csr' => $csr,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_decodeCSR', [$params]);
+
+        return (array) $res;
+    }
+
     /* -----------------------------------------------------------------
      |  Account Balance
      |------------------------------------------------------------------*/

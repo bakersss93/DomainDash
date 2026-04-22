@@ -1,38 +1,489 @@
 @extends('layouts.app')
+
 @section('content')
-<h1>SSL Certificates</h1>
-<form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="margin-bottom:12px;">
-    @csrf
-    <button type="submit" class="btn-accent">Sync from Synergy</button>
-</form>
-<form method="GET">
-    <select name="client_id">
-        <option value="">All Clients</option>
-        @foreach($clients as $c)
-            <option value="{{ $c->id }}" @selected(request('client_id')==$c->id)>{{ $c->business_name }}</option>
-        @endforeach
-    </select>
-    <button type="submit">Filter</button>
-</form>
-<table border="1" cellpadding="6" cellspacing="0" width="100%" style="margin-top:12px;">
-    <thead><tr><th>Common Name</th><th>Client</th><th>Product</th><th>Start</th><th>Expire</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-    @foreach($ssls as $s)
-        <tr @class(['danger'=>$s->isExpiringSoon()])>
-            <td>
-                <a href="{{ route('admin.services.ssl.show', $s) }}" style="color:inherit;text-decoration:underline;">
-                    {{ $s->common_name }}
-                </a>
-            </td>
-            <td>{{ optional($s->client)->business_name }}</td>
-            <td>{{ $s->product_name ?: 'Unknown product' }}</td>
-            <td>{{ optional($s->start_date)->toDateString() }}</td>
-            <td>{{ optional($s->expire_date)->toDateString() }}</td>
-            <td>{{ $s->status }}</td>
-            <td><a href="{{ route('admin.services.ssl.show', $s) }}">Manage</a></td>
-        </tr>
-    @endforeach
-    </tbody>
-</table>
-{{ $ssls->withQueryString()->links() }}
+<div class="dd-page">
+    <h1 class="dd-page-title" style="font-size:1.45rem;">SSL Certificates</h1>
+
+    @if(session('status'))
+        <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('status') }}</div>
+    @endif
+
+    @if(session('ssl_action_message'))
+        <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('ssl_action_message') }}</div>
+    @endif
+
+    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
+        <form method="GET" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
+            <select name="client_id" class="dd-input dd-input-inline" style="flex:1;min-width:240px;">
+                <option value="">All Clients</option>
+                @foreach($clients as $c)
+                    <option value="{{ $c->id }}" @selected(request('client_id')==$c->id)>{{ $c->business_name }}</option>
+                @endforeach
+            </select>
+            <button type="submit" class="btn-accent">Filter</button>
+        </form>
+
+        <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;">
+            @csrf
+            <button type="submit" class="btn-accent" style="white-space:nowrap;">Sync from Synergy</button>
+        </form>
+    </div>
+
+    <div class="dd-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>SSL Certificate</th>
+                    <th>Product</th>
+                    <th>Certificate Expiry</th>
+                    <th>Status</th>
+                    <th>Client</th>
+                    <th style="width:120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach($ssls as $ssl)
+                @php
+                    $rowId = 'ssl-'.$ssl->id;
+                    $expiresInDays = null;
+                    if (!empty($ssl->expire_date)) {
+                        try {
+                            $expiry = \Carbon\Carbon::parse($ssl->expire_date)->startOfDay();
+                            $today = now()->startOfDay();
+                            $expiresInDays = (int) floor($today->diffInDays($expiry, false));
+                        } catch (\Throwable $e) {
+                            $expiresInDays = null;
+                        }
+                    }
+                @endphp
+
+                <tr data-ssl-toggle="{{ $rowId }}" class="dd-domain-row" style="cursor:pointer;">
+                    <td>{{ $ssl->common_name ?: '—' }}</td>
+                    <td>{{ $ssl->product_name ?: 'Unknown product' }}</td>
+                    <td class="{{ $ssl->isExpiringSoon() ? 'danger' : '' }}">
+                        @if($expiresInDays !== null)
+                            {{ optional($ssl->expire_date)->toDateString() }} ({{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }})
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td>{{ $ssl->status ?: '—' }}</td>
+                    <td>{{ optional($ssl->client)->business_name ?: '—' }}</td>
+                    <td>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;font-size:14px;">
+                            <span title="Toggle details">▾</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr data-ssl-panel="{{ $rowId }}" class="dd-domain-panel">
+                    <td colspan="6">
+                        <div class="dd-domain-panel-inner">
+                            <div class="dd-domain-panel-header">
+                                <div>
+                                    <div style="font-weight:600;">{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}</div>
+                                    <div style="font-size:13px;opacity:.8;">
+                                        {{ $ssl->status ?: 'Status unknown' }}
+                                        @if($expiresInDays !== null)
+                                            • expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
+                                        @endif
+                                        @if($ssl->cert_id)
+                                            • Cert ID {{ $ssl->cert_id }}
+                                        @endif
+                                    </div>
+                                </div>
+                                <div style="font-size:13px;opacity:.7;">Product: {{ $ssl->product_name ?: 'Unknown product' }}</div>
+                            </div>
+
+                            <div class="dd-domain-options-grid">
+                                <a href="{{ route('admin.services.ssl.show', $ssl) }}" class="dd-domain-option">
+                                    <div class="dd-domain-option-icon">👁️</div>
+                                    <div class="dd-domain-option-label">Overview</div>
+                                </a>
+
+                                <form method="POST" action="{{ route('admin.services.ssl.renew', $ssl) }}" class="dd-domain-option-form" onsubmit="return confirm('Renew this SSL now?');">
+                                    @csrf
+                                    <button type="submit" class="dd-domain-option-btn">
+                                        <div class="dd-domain-option-icon">🔄</div>
+                                        <div class="dd-domain-option-label">Renew</div>
+                                    </button>
+                                </form>
+
+                                <button type="button" class="dd-domain-option" data-assign-client="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}" data-client-id="{{ $ssl->client_id }}">
+                                    <div class="dd-domain-option-icon">👥</div>
+                                    <div class="dd-domain-option-label">Assign client</div>
+                                </button>
+
+                                <form method="POST" action="{{ route('admin.services.ssl.certificate', $ssl) }}" class="dd-domain-option-form">
+                                    @csrf
+                                    <button type="submit" class="dd-domain-option-btn">
+                                        <div class="dd-domain-option-icon">📄</div>
+                                        <div class="dd-domain-option-label">Get cert / bundle</div>
+                                    </button>
+                                </form>
+
+                                <button type="button" class="dd-domain-option" data-open-rekey="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">
+                                    <div class="dd-domain-option-icon">♻️</div>
+                                    <div class="dd-domain-option-label">Rekey / reissue</div>
+                                </button>
+
+                                <a href="{{ route('admin.services.ssl.show', $ssl) }}" class="dd-domain-option">
+                                    <div class="dd-domain-option-icon">🧩</div>
+                                    <div class="dd-domain-option-label">Manage details</div>
+                                </a>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+
+        {{ $ssls->withQueryString()->links() }}
+    </div>
+
+    <div id="dd-assign-modal" class="dd-modal" style="display:none;">
+        <div class="dd-modal-backdrop"></div>
+        <div class="dd-modal-dialog">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">Assign client</h2>
+            <p style="font-size:14px;margin-bottom:12px;">Update client for <span id="dd-assign-ssl-name"></span></p>
+
+            <form method="POST" id="dd-assign-form" data-action-template="{{ url('/admin/services/ssl/__SSL__/assign-client') }}" action="{{ url('/admin/services/ssl/0/assign-client') }}">
+                @csrf
+                <input type="hidden" id="dd-assign-ssl-id">
+                <label for="dd-assign-client-select" style="font-size:14px;display:block;margin-bottom:6px;">Client organisation</label>
+                <select id="dd-assign-client-select" name="client_id" class="dd-input" style="width:100%;">
+                    <option value="">— No client —</option>
+                    @foreach($clients as $client)
+                        <option value="{{ $client->id }}">{{ $client->business_name }}</option>
+                    @endforeach
+                </select>
+                <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="submit" class="btn-accent">Save</button>
+                    <button type="button" class="btn-accent" id="dd-assign-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="dd-rekey-modal" class="dd-modal" style="display:none;">
+        <div class="dd-modal-backdrop"></div>
+        <div class="dd-modal-dialog" style="width:720px;max-width:96%;">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">Rekey / Reissue SSL</h2>
+            <p style="font-size:14px;margin-bottom:12px;">Certificate: <span id="dd-rekey-ssl-name"></span></p>
+
+            <label for="dd-rekey-csr" style="font-size:14px;display:block;margin-bottom:6px;">CSR</label>
+            <textarea id="dd-rekey-csr" rows="7" class="dd-input" style="width:100%;font-family:monospace;" placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea>
+
+            <div style="margin-top:10px;display:flex;gap:10px;">
+                <button type="button" class="btn-accent" id="dd-rekey-decode">Decode CSR</button>
+                <button type="button" class="btn-accent" id="dd-rekey-submit" disabled>Confirm and submit reissue</button>
+                <button type="button" class="btn-accent" id="dd-rekey-cancel">Cancel</button>
+            </div>
+
+            <div id="dd-rekey-status" style="margin-top:10px;font-size:14px;"></div>
+
+            <div id="dd-rekey-decoded" style="display:none;margin-top:12px;padding:12px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--surface-muted);">
+                <div style="font-weight:600;margin-bottom:8px;">CSR decoded details</div>
+                <div id="dd-rekey-decoded-grid" style="display:grid;grid-template-columns:160px 1fr;gap:6px;font-size:14px;"></div>
+            </div>
+
+            <form method="POST" id="dd-rekey-form" data-action-template="{{ url('/admin/services/ssl/__SSL__/rekey') }}" action="{{ url('/admin/services/ssl/0/rekey') }}" style="display:none;">
+                @csrf
+                <input type="hidden" name="csr" id="dd-rekey-csr-hidden">
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-ssl-toggle]').forEach(function (row) {
+                row.addEventListener('click', function (e) {
+                    if (e.target.closest('a,button,form,input,select,textarea')) return;
+
+                    var id = this.dataset.sslToggle;
+                    var panel = document.querySelector('[data-ssl-panel="' + id + '"]');
+                    if (!panel) return;
+
+                    panel.classList.toggle('open', !panel.classList.contains('open'));
+                });
+            });
+
+            var assignModal = document.getElementById('dd-assign-modal');
+            var assignForm = document.getElementById('dd-assign-form');
+            var assignSslName = document.getElementById('dd-assign-ssl-name');
+            var assignSelect = document.getElementById('dd-assign-client-select');
+            var assignCancel = document.getElementById('dd-assign-cancel');
+
+            function closeAssignModal() {
+                assignModal.style.display = 'none';
+            }
+
+            document.querySelectorAll('[data-assign-client]').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var sslId = this.getAttribute('data-assign-client');
+                    var sslName = this.getAttribute('data-ssl-name') || '';
+                    var clientId = this.getAttribute('data-client-id') || '';
+
+                    assignSslName.textContent = sslName;
+                    assignSelect.value = clientId;
+                    assignForm.action = assignForm.dataset.actionTemplate.replace('__SSL__', sslId);
+                    assignModal.style.display = 'flex';
+                });
+            });
+
+            assignCancel.addEventListener('click', function (e) {
+                e.preventDefault();
+                closeAssignModal();
+            });
+
+            assignModal.querySelector('.dd-modal-backdrop').addEventListener('click', closeAssignModal);
+
+            var rekeyModal = document.getElementById('dd-rekey-modal');
+            var rekeyForm = document.getElementById('dd-rekey-form');
+            var rekeySslName = document.getElementById('dd-rekey-ssl-name');
+            var rekeyCsr = document.getElementById('dd-rekey-csr');
+            var rekeyCsrHidden = document.getElementById('dd-rekey-csr-hidden');
+            var rekeyDecodeBtn = document.getElementById('dd-rekey-decode');
+            var rekeySubmitBtn = document.getElementById('dd-rekey-submit');
+            var rekeyCancelBtn = document.getElementById('dd-rekey-cancel');
+            var rekeyStatus = document.getElementById('dd-rekey-status');
+            var rekeyDecoded = document.getElementById('dd-rekey-decoded');
+            var rekeyDecodedGrid = document.getElementById('dd-rekey-decoded-grid');
+            var csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+            function closeRekeyModal() {
+                rekeyModal.style.display = 'none';
+                rekeyCsr.value = '';
+                rekeyCsrHidden.value = '';
+                rekeyStatus.textContent = '';
+                rekeyDecoded.style.display = 'none';
+                rekeyDecodedGrid.innerHTML = '';
+                rekeySubmitBtn.disabled = true;
+            }
+
+            document.querySelectorAll('[data-open-rekey]').forEach(function (btn) {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var sslId = this.getAttribute('data-open-rekey');
+                    var sslName = this.getAttribute('data-ssl-name') || '';
+
+                    rekeySslName.textContent = sslName;
+                    rekeyForm.action = rekeyForm.dataset.actionTemplate.replace('__SSL__', sslId);
+                    rekeyModal.style.display = 'flex';
+                });
+            });
+
+            rekeyDecodeBtn.addEventListener('click', async function () {
+                var csrValue = rekeyCsr.value.trim();
+                if (!csrValue) {
+                    rekeyStatus.textContent = 'Please paste CSR data first.';
+                    return;
+                }
+
+                rekeyDecodeBtn.disabled = true;
+                rekeySubmitBtn.disabled = true;
+                rekeyStatus.textContent = 'Decoding CSR...';
+                rekeyDecoded.style.display = 'none';
+                rekeyDecodedGrid.innerHTML = '';
+
+                try {
+                    var response = await fetch('{{ route('admin.services.ssl.decodeCsr') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ csr: csrValue })
+                    });
+
+                    var payload = await response.json();
+
+                    if (!response.ok || !payload.success) {
+                        rekeyStatus.textContent = payload.message || 'Unable to decode CSR.';
+                        return;
+                    }
+
+                    var decoded = payload.decoded || {};
+                    var fields = [
+                        ['Common Name', decoded.commonName],
+                        ['Organisation', decoded.organisation],
+                        ['Org Unit', decoded.organisationUnit],
+                        ['City', decoded.city],
+                        ['State', decoded.state],
+                        ['Country', decoded.country],
+                        ['Email', decoded.emailAddress],
+                        ['Key Length', decoded.privateKeyLength]
+                    ];
+
+                    fields.forEach(function (field) {
+                        var label = document.createElement('strong');
+                        label.textContent = field[0];
+                        var value = document.createElement('span');
+                        value.textContent = field[1] || '—';
+                        rekeyDecodedGrid.appendChild(label);
+                        rekeyDecodedGrid.appendChild(value);
+                    });
+
+                    rekeyDecoded.style.display = 'block';
+                    rekeyStatus.textContent = 'CSR decoded successfully. Confirm to submit reissue.';
+                    rekeyCsrHidden.value = csrValue;
+                    rekeySubmitBtn.disabled = false;
+                } catch (error) {
+                    rekeyStatus.textContent = 'Decode failed: ' + error.message;
+                } finally {
+                    rekeyDecodeBtn.disabled = false;
+                }
+            });
+
+            rekeySubmitBtn.addEventListener('click', function () {
+                if (!rekeyCsrHidden.value) {
+                    rekeyStatus.textContent = 'Decode CSR first before submitting.';
+                    return;
+                }
+
+                if (!confirm('Submit this CSR for reissue to Synergy?')) {
+                    return;
+                }
+
+                rekeyForm.submit();
+            });
+
+            rekeyCancelBtn.addEventListener('click', closeRekeyModal);
+            rekeyModal.querySelector('.dd-modal-backdrop').addEventListener('click', closeRekeyModal);
+        });
+    </script>
+
+    <style>
+        tr[data-ssl-panel] {
+            display: none;
+            height: 0;
+        }
+        tr[data-ssl-panel] > td {
+            padding: 0;
+            border: 0;
+        }
+        tr[data-ssl-panel].open {
+            display: table-row;
+            height: auto;
+        }
+
+        .dd-domain-panel-inner {
+            max-height: 0;
+            padding: 0;
+            margin-top: 0;
+            border: 0;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease, padding 0.2s ease, margin-top 0.2s ease, border-width 0.2s ease;
+        }
+
+        tr[data-ssl-panel].open > td > .dd-domain-panel-inner {
+            max-height: 700px;
+            opacity: 1;
+            transform: translateY(0);
+            padding: 16px 18px 18px;
+            margin-top: 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: var(--surface-elevated);
+        }
+
+        .dd-domain-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: var(--surface-muted);
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 14px;
+        }
+
+        .dd-domain-options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .dd-domain-option,
+        .dd-domain-option-btn {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border-subtle);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            min-height: 52px;
+            box-sizing: border-box;
+            transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .dd-domain-option:hover,
+        .dd-domain-option-btn:hover {
+            background: var(--surface-muted);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .dd-domain-option-btn {
+            background: transparent;
+            color: inherit;
+            height: 100%;
+        }
+
+        .dd-domain-option-form {
+            margin: 0;
+        }
+
+        .dd-domain-option-icon {
+            width: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+        }
+
+        .dd-domain-option-label {
+            flex: 1;
+        }
+
+        .dd-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 70;
+        }
+
+        .dd-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+        }
+
+        .dd-modal-dialog {
+            position: relative;
+            background: var(--surface-elevated);
+            border-radius: 12px;
+            padding: 16px 18px 18px;
+            border: 1px solid var(--border-subtle);
+            width: 420px;
+            max-width: 95%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</div>
 @endsection

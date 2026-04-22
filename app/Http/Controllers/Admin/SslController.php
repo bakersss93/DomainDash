@@ -163,6 +163,54 @@ class SslController extends Controller
         return back()->with('ssl_action_message', $payload['errorMessage'] ?? ($payload['status'] ?? 'Rekey request submitted.'));
     }
 
+    public function assignClient(Request $request, SslCertificate $ssl)
+    {
+        $validated = $request->validate([
+            'client_id' => 'nullable|integer|exists:clients,id',
+        ]);
+
+        $ssl->client_id = $validated['client_id'] ?? null;
+        $ssl->save();
+
+        AuditLogger::logAction('ssl.assign-client', $ssl, "Updated SSL client assignment for {$ssl->common_name}.", [
+            'context' => ['service' => 'ssl', 'function' => 'assign-client'],
+            'new_values' => ['client_id' => $ssl->client_id],
+        ]);
+
+        return back()->with('ssl_action_message', 'Client assignment updated.');
+    }
+
+    public function decodeCsr(Request $request, SynergyWholesaleClient $synergy)
+    {
+        $validated = $request->validate([
+            'csr' => 'required|string',
+        ]);
+
+        $payload = $synergy->decodeSSLCsr($validated['csr']);
+        $status = strtoupper((string) ($payload['status'] ?? ''));
+
+        if ($status !== 'OK') {
+            return response()->json([
+                'success' => false,
+                'message' => $payload['errorMessage'] ?? 'Unable to decode CSR.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'decoded' => [
+                'commonName' => $payload['commonName'] ?? null,
+                'organisation' => $payload['organisation'] ?? null,
+                'organisationUnit' => $payload['organisationUnit'] ?? null,
+                'city' => $payload['city'] ?? null,
+                'state' => $payload['state'] ?? null,
+                'country' => $payload['country'] ?? null,
+                'emailAddress' => $payload['emailAddress'] ?? null,
+                'privateKeyLength' => $payload['privateKeyLength'] ?? null,
+            ],
+        ]);
+    }
+
     private function buildContactPayload(?Client $client): array
     {
         $contactName = trim((string) (($client?->primary_contact_name) ?: ($client?->business_name) ?: 'DomainDash Contact'));
