@@ -254,7 +254,7 @@
     <div id="halo-import-backdrop"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.8);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:#020617;border-radius:12px;padding:20px 24px;
+        <div style="background:var(--dd-card-bg);border:1px solid var(--dd-card-border);color:var(--dd-text-color);border-radius:12px;padding:20px 24px;
                     width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);">
             <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
                 Import clients from HaloPSA
@@ -268,22 +268,22 @@
             <input type="text"
                    id="halo-import-search"
                    placeholder="Search clients..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #1f2937;
-                          font-size:14px;margin-bottom:12px;background:#0f172a;color:#e5e7eb;">
+                   style="width:100%;padding:8px 12px;border-radius:12px;border:1px solid var(--dd-card-border);
+                          font-size:14px;margin-bottom:12px;background:var(--dd-pill-bg);color:var(--dd-text-color);">
 
             <div id="halo-import-loading" class="dd-loading-text">
                 Loading clients from HaloPSA...
             </div>
 
-            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid #1f2937;">
+            <div style="max-height:360px;overflow:auto;border-radius:10px;border:1px solid var(--dd-card-border);background:var(--dd-card-bg);">
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
-                        <tr style="background:#020617;">
-                            <th style="width:40px;padding:8px 6px;border-bottom:1px solid #1f2937;text-align:center;">&nbsp;</th>
-                            <th data-import-sort="name" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                        <tr style="background:var(--dd-header-bg);">
+                            <th style="width:40px;padding:8px 6px;border-bottom:1px solid var(--dd-card-border);text-align:center;">&nbsp;</th>
+                            <th data-import-sort="name" style="padding:8px 6px;border-bottom:1px solid var(--dd-card-border);text-align:left;cursor:pointer;user-select:none;">
                                 Name <span class="import-sort-arrow">↕</span>
                             </th>
-                            <th data-import-sort="reference" style="padding:8px 6px;border-bottom:1px solid #1f2937;text-align:left;cursor:pointer;user-select:none;">
+                            <th data-import-sort="reference" style="padding:8px 6px;border-bottom:1px solid var(--dd-card-border);text-align:left;cursor:pointer;user-select:none;">
                                 Reference <span class="import-sort-arrow">↕</span>
                             </th>
                         </tr>
@@ -361,6 +361,7 @@
         const searchInput = document.getElementById('halo-import-search');
 
         let allImportClients = [];
+        let selectedImportClientIds = new Set();
         let currentImportSort = { column: 'name', direction: 'asc' };
 
         function showModal() {
@@ -372,6 +373,7 @@
         function hideModal() {
             modal.classList.add('dd-hidden');
             modal.style.display = 'none';
+            selectedImportClientIds.clear();
         }
 
         async function loadHaloClients() {
@@ -402,6 +404,7 @@
                 }
 
                 allImportClients = data;
+                selectedImportClientIds.clear();
                 renderImportClients();
             } catch (e) {
                 console.error('Load error', e);
@@ -462,13 +465,23 @@
             // Render rows
             filteredClients.forEach(function (client) {
                 const tr = document.createElement('tr');
+                const isChecked = selectedImportClientIds.has(String(client.id));
                 tr.innerHTML = `
-                    <td style="padding:6px 8px;text-align:center;">
-                        <input type="checkbox" class="halo-client-checkbox" value="${client.id}">
+                    <td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);">
+                        <input type="checkbox" class="halo-client-checkbox dd-checkbox" value="${client.id}" ${isChecked ? 'checked' : ''}>
                     </td>
-                    <td style="padding:6px 8px;">${client.name || ''}</td>
-                    <td style="padding:6px 8px;">${client.reference || ''}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${client.name || ''}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${client.reference || ''}</td>
                 `;
+                const checkbox = tr.querySelector('.halo-client-checkbox');
+                checkbox.addEventListener('change', function () {
+                    const clientId = String(client.id);
+                    if (this.checked) {
+                        selectedImportClientIds.add(clientId);
+                    } else {
+                        selectedImportClientIds.delete(clientId);
+                    }
+                });
                 tbody.appendChild(tr);
             });
         }
@@ -500,8 +513,7 @@
         }
 
         async function importSelected() {
-            const checkboxes = tbody.querySelectorAll('.halo-client-checkbox:checked');
-            const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const ids = Array.from(selectedImportClientIds).map(id => parseInt(id, 10)).filter(Number.isFinite);
 
             if (ids.length === 0) {
                 alert('Please select at least one client');
