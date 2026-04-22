@@ -113,10 +113,21 @@
                             $clientId = $context['client_id'] ?? $log->new_values['client_id'] ?? $log->old_values['client_id'] ?? null;
                             $service = $context['service'] ?? '-';
                             $function = $context['function'] ?? '-';
-                            $changePayload = json_encode([
-                                'old' => $log->old_values,
-                                'new' => $log->new_values,
-                            ], JSON_PRETTY_PRINT);
+                            $eventPayload = [
+                                'timestamp' => $log->created_at?->toDateTimeString(),
+                                'event' => $log->action,
+                                'user' => $log->user_email ?? optional($log->user)->email ?? '-',
+                                'service' => $service,
+                                'function' => $function,
+                                'entity' => class_basename($log->auditable_type) . ' #' . ($log->auditable_id ?? '-'),
+                                'description' => $log->description ?? '-',
+                                'client_id' => $clientId,
+                                'ip_address' => $log->ip_address,
+                                'user_agent' => $log->user_agent,
+                                'context' => $context,
+                                'old_values' => $log->old_values ?? [],
+                                'new_values' => $log->new_values ?? [],
+                            ];
                         @endphp
                         <tr data-audit-row>
                             <td>{{ $log->created_at?->toDateTimeString() }}</td>
@@ -127,24 +138,13 @@
                             <td>{{ $log->description ?? '-' }}</td>
                             <td>{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id ?? '-' }}</td>
                             <td>
-                                @if(!empty($log->old_values) || !empty($log->new_values))
-                                    <button
-                                        type="button"
-                                        class="dd-account-password-btn dd-audit-view-btn"
-                                        data-event="{{ $log->action }}"
-                                        data-timestamp="{{ $log->created_at?->toDateTimeString() }}"
-                                        data-user="{{ $log->user_email ?? optional($log->user)->email ?? '-' }}"
-                                        data-service="{{ $service }}"
-                                        data-function="{{ $function }}"
-                                        data-description="{{ $log->description ?? '-' }}"
-                                        data-entity="{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id ?? '-' }}"
-                                        data-changes="{{ $changePayload }}"
-                                    >
-                                        View
-                                    </button>
-                                @else
-                                    -
-                                @endif
+                                <button
+                                    type="button"
+                                    class="dd-account-password-btn dd-audit-view-btn"
+                                    data-payload='@json($eventPayload)'
+                                >
+                                    View
+                                </button>
                             </td>
                         </tr>
                     @empty
@@ -161,26 +161,63 @@
     </div>
 </div>
 
-<div id="audit-event-modal" class="dd-account-modal-backdrop" hidden>
-    <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="auditEventTitle">
-        <div class="dd-account-modal-header">
-            <h2 id="auditEventTitle">Audit Event Details</h2>
-            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">x</button>
-        </div>
-        <div class="dd-account-modal-grid">
-            <div><strong>Timestamp:</strong> <span id="audit-event-time"></span></div>
-            <div><strong>Event:</strong> <span id="audit-event-action"></span></div>
-            <div><strong>User:</strong> <span id="audit-event-user"></span></div>
-            <div><strong>Service / Function:</strong> <span id="audit-event-scope"></span></div>
-            <div><strong>Entity:</strong> <span id="audit-event-entity"></span></div>
-            <div><strong>Description:</strong> <span id="audit-event-description"></span></div>
+<dialog id="audit-event-modal" class="dd-audit-modal" aria-labelledby="auditEventTitle">
+    <div class="dd-audit-modal-panel">
+        <div class="dd-account-modal-header dd-audit-modal-header">
             <div>
-                <strong>Changes:</strong>
-                <pre id="audit-event-changes" style="white-space:pre-wrap;margin-top:8px;"></pre>
+                <h2 id="auditEventTitle">Audit Event Details</h2>
+                <p id="audit-event-headline" class="dd-audit-modal-headline">Event details and change history.</p>
             </div>
+            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">&times;</button>
         </div>
+        <div class="dd-audit-tablist" role="tablist" aria-label="Audit details tabs">
+            <button type="button" class="dd-audit-tab is-active" data-tab="details" role="tab" aria-selected="true">Details</button>
+            <button type="button" class="dd-audit-tab" data-tab="changes" role="tab" aria-selected="false">Changes</button>
+            <button type="button" class="dd-audit-tab" data-tab="difference" role="tab" aria-selected="false">Difference</button>
+        </div>
+
+        <section class="dd-audit-tab-panel is-active" data-tab-panel="details" role="tabpanel">
+            <div class="dd-account-modal-grid">
+                <div><strong>Timestamp:</strong> <span id="audit-event-time"></span></div>
+                <div><strong>Event:</strong> <span id="audit-event-action"></span></div>
+                <div><strong>User:</strong> <span id="audit-event-user"></span></div>
+                <div><strong>Service / Function:</strong> <span id="audit-event-scope"></span></div>
+                <div><strong>Entity:</strong> <span id="audit-event-entity"></span></div>
+                <div><strong>Description:</strong> <span id="audit-event-description"></span></div>
+                <div><strong>Client:</strong> <span id="audit-event-client"></span></div>
+                <div><strong>IP Address:</strong> <span id="audit-event-ip"></span></div>
+                <div style="grid-column: 1 / -1;"><strong>User Agent:</strong> <span id="audit-event-user-agent"></span></div>
+            </div>
+        </section>
+
+        <section class="dd-audit-tab-panel" data-tab-panel="changes" role="tabpanel" hidden>
+            <div><strong>Changed Fields:</strong></div>
+            <div id="audit-event-diff-empty" style="display:none;margin-top:8px;color:var(--text-muted);">No field-level changes were captured for this event.</div>
+            <div style="overflow:auto;">
+                <table id="audit-event-diff-table" class="dd-table" style="width:100%;margin-top:8px;">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Previous Value</th>
+                            <th>New Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-event-diff-body"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:12px;">
+                <strong>Context Payload:</strong>
+                <pre id="audit-event-context" class="dd-audit-code"></pre>
+            </div>
+        </section>
+
+        <section class="dd-audit-tab-panel" data-tab-panel="difference" role="tabpanel" hidden>
+            <div><strong>Old vs New (line view):</strong></div>
+            <div id="audit-event-lines-empty" style="display:none;margin-top:8px;color:var(--text-muted);">No differences captured for this event.</div>
+            <pre id="audit-event-diff-lines" class="dd-audit-code dd-audit-diff-lines"></pre>
+        </section>
     </div>
-</div>
+</dialog>
 
 <style>
 .dd-audit-retention-form {
@@ -252,6 +289,122 @@
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
+
+.dd-audit-modal {
+    width: min(1100px, 94vw);
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.dd-audit-modal::backdrop {
+    background: rgba(2, 6, 23, 0.75);
+}
+
+.dd-audit-modal-panel {
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    background: var(--surface-elevated);
+    color: var(--text);
+    box-shadow: 0 24px 44px rgba(2, 6, 23, 0.6);
+    padding: 20px;
+    max-height: 84vh;
+    overflow: auto;
+    position: relative;
+}
+
+.dd-audit-modal-header {
+    margin-bottom: 4px;
+    padding-right: 52px;
+}
+
+.dd-audit-modal .dd-account-modal-close {
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-muted);
+    color: var(--text);
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.dd-audit-modal-headline {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+}
+
+.dd-audit-tablist {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dd-audit-tab {
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 2px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dd-audit-tab.is-active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+}
+
+.dd-audit-tab-panel {
+    animation: ddAuditFadeIn 140ms ease-out;
+}
+
+.dd-audit-code {
+    margin-top: 8px;
+    white-space: pre-wrap;
+    background: var(--surface-muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 12px;
+    overflow: auto;
+}
+
+.dd-audit-diff-lines {
+    max-height: 46vh;
+}
+
+.dd-audit-diff-line {
+    display: block;
+    padding: 3px 6px;
+    border-radius: 6px;
+}
+
+.dd-audit-diff-line--added {
+    background: color-mix(in srgb, #22c55e 24%, transparent);
+}
+
+.dd-audit-diff-line--removed {
+    background: color-mix(in srgb, #ef4444 24%, transparent);
+}
+
+@keyframes ddAuditFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 </style>
 
 <script>
@@ -261,6 +414,8 @@
     const noResults = document.getElementById('audit-live-empty');
     const modal = document.getElementById('audit-event-modal');
     const close = document.getElementById('audit-event-close');
+    const tabs = Array.from(document.querySelectorAll('.dd-audit-tab'));
+    const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
 
     function applyLiveSearch() {
         if (!searchInput || !body) {
@@ -285,35 +440,255 @@
         }
     }
 
+    function normaliseValue(value) {
+        if (value === null || typeof value === 'undefined' || value === '') {
+            return '-';
+        }
+
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+
+        return String(value);
+    }
+
+    function isPlainObject(value) {
+        return Object.prototype.toString.call(value) === '[object Object]';
+    }
+
+    function summariseAuditObject(value) {
+        if (!isPlainObject(value)) {
+            return normaliseValue(value);
+        }
+
+        const label = value.domain || value.name || value.record || value.host || value.type || 'item';
+        const idPart = typeof value.id !== 'undefined' && value.id !== null ? `#${value.id}` : null;
+        const detailParts = Object.entries(value)
+            .filter(([key]) => !['id', 'name', 'domain', 'record', 'host'].includes(key))
+            .filter(([, entryValue]) => entryValue !== null && typeof entryValue !== 'undefined' && entryValue !== '')
+            .map(([key, entryValue]) => `${key}=${normaliseValue(entryValue)}`);
+        const headline = idPart ? `${label} (${idPart})` : label;
+
+        if (detailParts.length === 0) {
+            return headline;
+        }
+
+        return `${headline} | ${detailParts.join(', ')}`;
+    }
+
+    function flattenDiffValues(value, path = '', output = {}) {
+        if (Array.isArray(value)) {
+            if (value.length === 0 && path) {
+                output[path] = [];
+                return output;
+            }
+
+            value.forEach((entry, index) => {
+                const nextPath = path ? `${path}[${index}]` : `[${index}]`;
+                if (isPlainObject(entry)) {
+                    output[nextPath] = summariseAuditObject(entry);
+                    return;
+                }
+
+                if (Array.isArray(entry)) {
+                    flattenDiffValues(entry, nextPath, output);
+                    return;
+                }
+
+                output[nextPath] = entry;
+            });
+            return output;
+        }
+
+        if (isPlainObject(value)) {
+            // Keep domain-like entities on one line to avoid noisy key-by-key expansion in sync and DNS audit entries.
+            const hasEntityIdentity = (
+                (typeof value.id !== 'undefined' && value.id !== null)
+                && (value.domain || value.name || value.record || value.host)
+            );
+            if (hasEntityIdentity && path) {
+                output[path] = summariseAuditObject(value);
+                return output;
+            }
+
+            const entries = Object.entries(value).filter(([, entryValue]) => typeof entryValue !== 'function');
+            if (entries.length === 0 && path) {
+                output[path] = {};
+                return output;
+            }
+
+            entries.forEach(([key, entryValue]) => {
+                const nextPath = path ? `${path}.${key}` : key;
+                flattenDiffValues(entryValue, nextPath, output);
+            });
+            return output;
+        }
+
+        if (path) {
+            output[path] = value;
+        }
+
+        return output;
+    }
+
+    function getChangedFieldKeys(payload) {
+        const oldValues = payload.old_values && typeof payload.old_values === 'object' ? payload.old_values : {};
+        const newValues = payload.new_values && typeof payload.new_values === 'object' ? payload.new_values : {};
+        const oldFlat = flattenDiffValues(oldValues);
+        const newFlat = flattenDiffValues(newValues);
+        const allKeys = Array.from(new Set(Object.keys(oldFlat).concat(Object.keys(newFlat)))).sort();
+        const changedKeys = allKeys.filter((key) => normaliseValue(oldFlat[key]) !== normaliseValue(newFlat[key]));
+
+        return {
+            changedKeys,
+            oldFlat,
+            newFlat,
+        };
+    }
+
+    function renderDiff(payload) {
+        const diffBody = document.getElementById('audit-event-diff-body');
+        const diffTable = document.getElementById('audit-event-diff-table');
+        const diffEmpty = document.getElementById('audit-event-diff-empty');
+
+        if (!diffBody || !diffTable || !diffEmpty) {
+            return;
+        }
+
+        diffBody.innerHTML = '';
+        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
+
+        if (changedKeys.length === 0) {
+            diffTable.style.display = 'none';
+            diffEmpty.style.display = 'block';
+            return;
+        }
+
+        diffTable.style.display = '';
+        diffEmpty.style.display = 'none';
+
+        changedKeys.forEach((key) => {
+            const row = document.createElement('tr');
+            const oldValue = normaliseValue(oldFlat[key]);
+            const newValue = normaliseValue(newFlat[key]);
+            const fieldCell = document.createElement('td');
+            const oldCell = document.createElement('td');
+            const newCell = document.createElement('td');
+            fieldCell.textContent = key;
+            oldCell.textContent = oldValue;
+            newCell.textContent = newValue;
+            row.appendChild(fieldCell);
+            row.appendChild(oldCell);
+            row.appendChild(newCell);
+            diffBody.appendChild(row);
+        });
+    }
+
+    function renderDifferenceLines(payload) {
+        const linesContainer = document.getElementById('audit-event-diff-lines');
+        const emptyState = document.getElementById('audit-event-lines-empty');
+        if (!linesContainer || !emptyState) {
+            return;
+        }
+
+        linesContainer.innerHTML = '';
+        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
+
+        if (changedKeys.length === 0) {
+            linesContainer.hidden = true;
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        linesContainer.hidden = false;
+        emptyState.style.display = 'none';
+
+        changedKeys.forEach((key) => {
+            const oldLine = document.createElement('span');
+            oldLine.className = 'dd-audit-diff-line dd-audit-diff-line--removed';
+            oldLine.textContent = `- ${key}: ${normaliseValue(oldFlat[key])}`;
+            linesContainer.appendChild(oldLine);
+
+            const newLine = document.createElement('span');
+            newLine.className = 'dd-audit-diff-line dd-audit-diff-line--added';
+            newLine.textContent = `+ ${key}: ${normaliseValue(newFlat[key])}`;
+            linesContainer.appendChild(newLine);
+        });
+    }
+
+    function activateTab(tabName) {
+        tabs.forEach((tab) => {
+            const isActive = tab.dataset.tab === tabName;
+            tab.classList.toggle('is-active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        panels.forEach((panel) => {
+            const isActive = panel.dataset.tabPanel === tabName;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+        });
+    }
+
     function openEventModal(button) {
         if (!modal) {
             return;
         }
 
-        document.getElementById('audit-event-time').textContent = button.dataset.timestamp || '-';
-        document.getElementById('audit-event-action').textContent = button.dataset.event || '-';
-        document.getElementById('audit-event-user').textContent = button.dataset.user || '-';
-        document.getElementById('audit-event-scope').textContent = `${button.dataset.service || '-'} / ${button.dataset.function || '-'}`;
-        document.getElementById('audit-event-entity').textContent = button.dataset.entity || '-';
-        document.getElementById('audit-event-description').textContent = button.dataset.description || '-';
-        document.getElementById('audit-event-changes').textContent = button.dataset.changes || '{}';
+        const payload = button.dataset.payload ? JSON.parse(button.dataset.payload) : {};
 
-        modal.hidden = false;
+        document.getElementById('audit-event-time').textContent = payload.timestamp || '-';
+        document.getElementById('audit-event-action').textContent = payload.event || '-';
+        document.getElementById('audit-event-user').textContent = payload.user || '-';
+        document.getElementById('audit-event-scope').textContent = `${payload.service || '-'} / ${payload.function || '-'}`;
+        document.getElementById('audit-event-entity').textContent = payload.entity || '-';
+        document.getElementById('audit-event-description').textContent = payload.description || '-';
+        document.getElementById('audit-event-client').textContent = payload.client_id || '-';
+        document.getElementById('audit-event-ip').textContent = payload.ip_address || '-';
+        document.getElementById('audit-event-user-agent').textContent = payload.user_agent || '-';
+        document.getElementById('audit-event-context').textContent = JSON.stringify(payload.context || {}, null, 2);
+        document.getElementById('audit-event-headline').textContent = payload.description || 'Event details and change history.';
+
+        renderDiff(payload);
+        renderDifferenceLines(payload);
+        activateTab('details');
+
+        if (typeof modal.showModal === 'function') {
+            modal.showModal();
+            return;
+        }
+
+        modal.setAttribute('open', 'open');
     }
 
     function closeEventModal() {
-        if (modal) {
-            modal.hidden = true;
+        if (!modal) {
+            return;
         }
+
+        if (typeof modal.close === 'function') {
+            modal.close();
+            return;
+        }
+
+        modal.removeAttribute('open');
     }
 
     document.querySelectorAll('.dd-audit-view-btn').forEach((button) => {
         button.addEventListener('click', () => openEventModal(button));
     });
+    tabs.forEach((tab) => {
+        tab.addEventListener('click', () => activateTab(tab.dataset.tab || 'details'));
+    });
 
     close?.addEventListener('click', closeEventModal);
     modal?.addEventListener('click', (event) => {
         if (event.target === modal) {
+            closeEventModal();
+        }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && modal && modal.hasAttribute('open')) {
             closeEventModal();
         }
     });
