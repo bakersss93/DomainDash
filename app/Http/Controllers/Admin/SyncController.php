@@ -77,16 +77,43 @@ class SyncController extends Controller
      */
     public function syncHaloClients(Request $request)
     {
+        $clients = $request->input('clients', []);
+        AuditLogger::logSystem('sync.started', 'Manual Halo client sync started.', [
+            'service' => 'halo',
+            'function' => 'sync-halo-clients-manual',
+        ], [
+            'new_values' => [
+                'requested_items' => count($clients),
+                'requested_item_details' => collect($clients)->map(function (array $item): array {
+                    return [
+                        'id' => $item['dash_client_id'] ?? null,
+                        'type' => 'client',
+                        'name' => $item['dash_name'] ?? null,
+                        'halo_id' => $item['halo_id'] ?? null,
+                    ];
+                })->values()->all(),
+            ],
+        ]);
+
         try {
-            $clients = $request->input('clients', []);
             $haloConfig = Setting::get('halo', []);
             $token = $this->getHaloAccessToken($haloConfig);
 
             $syncedCount = 0;
+            $results = [];
 
             foreach ($clients as $clientData) {
                 $dashClient = Client::find($clientData['dash_client_id']);
                 if (!$dashClient) {
+                    $results[] = [
+                        'item' => [
+                            'id' => $clientData['dash_client_id'] ?? null,
+                            'type' => 'client',
+                            'name' => $clientData['dash_name'] ?? null,
+                        ],
+                        'success' => false,
+                        'error' => 'Client not found',
+                    ];
                     continue;
                 }
 
@@ -95,6 +122,15 @@ class SyncController extends Controller
                     ->get($haloConfig['base_url'] . '/client/' . $clientData['halo_id']);
 
                 if (!$response->successful()) {
+                    $results[] = [
+                        'item' => [
+                            'id' => $dashClient->id,
+                            'type' => 'client',
+                            'name' => $dashClient->business_name,
+                        ],
+                        'success' => false,
+                        'error' => 'Failed to load Halo client details',
+                    ];
                     continue;
                 }
 
@@ -118,14 +154,48 @@ class SyncController extends Controller
                 $this->syncClientDomainAssignments($dashClient, $haloClient, $token, $haloConfig);
 
                 $syncedCount++;
+                $results[] = [
+                    'item' => [
+                        'id' => $dashClient->id,
+                        'type' => 'client',
+                        'name' => $dashClient->business_name,
+                    ],
+                    'success' => true,
+                    'action' => 'updated',
+                ];
             }
+
+            $failedCount = collect($results)->where('success', false)->count();
+            $resultSummary = $this->formatSyncAuditResults($results);
+            AuditLogger::logSystem('sync.completed', 'Manual Halo client sync completed.', [
+                'service' => 'halo',
+                'function' => 'sync-halo-clients-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($clients),
+                    'synced_count' => $syncedCount,
+                    'failed_count' => $failedCount,
+                    'synced_items' => $resultSummary['synced'],
+                    'failed_items' => $resultSummary['failed'],
+                ],
+            ]);
 
             return response()->json([
                 'success' => true,
-                'synced_count' => $syncedCount
+                'synced_count' => $syncedCount,
+                'results' => $results,
             ]);
         } catch (\Exception $e) {
             Log::error('Halo client sync error: ' . $e->getMessage());
+            AuditLogger::logSystem('sync.failed', 'Manual Halo client sync failed.', [
+                'service' => 'halo',
+                'function' => 'sync-halo-clients-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($clients),
+                    'error' => $e->getMessage(),
+                ],
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -177,14 +247,34 @@ class SyncController extends Controller
      */
     public function syncHaloDomains(Request $request)
     {
+        $domainIds = $request->input('domain_ids', []);
+        AuditLogger::logSystem('sync.started', 'Manual Halo domain sync started.', [
+            'service' => 'halo',
+            'function' => 'sync-halo-domains-manual',
+        ], [
+            'new_values' => [
+                'requested_items' => count($domainIds),
+                'requested_item_details' => Domain::query()
+                    ->whereIn('id', $domainIds)
+                    ->get(['id', 'name'])
+                    ->map(fn (Domain $domain): array => [
+                        'id' => $domain->id,
+                        'type' => 'domain',
+                        'name' => $domain->name,
+                    ])
+                    ->values()
+                    ->all(),
+            ],
+        ]);
+
         try {
-            $domainIds = $request->input('domain_ids', []);
             $halo = new \App\Services\Halo\HaloPsaClient();
             $haloConfig = Setting::get('halo', []);
             $token = $this->getHaloAccessToken($haloConfig);
 
             $syncedCount = 0;
             $errors = [];
+            $results = [];
 
             // First, get the asset type ID for "Domain" assets
             $domainAssetTypeId = $this->getDomainAssetTypeId($token, $haloConfig);
@@ -205,6 +295,15 @@ class SyncController extends Controller
                 if (!$domain || !$domain->client) {
                     $errors[] = "Domain {$domainId}: No client assigned";
                     Log::warning("Domain sync skipped - no client", ['domain_id' => $domainId]);
+                    $results[] = [
+                        'item' => [
+                            'id' => $domainId,
+                            'type' => 'domain',
+                            'name' => null,
+                        ],
+                        'success' => false,
+                        'error' => 'No client assigned',
+                    ];
                     continue;
                 }
 
@@ -214,6 +313,15 @@ class SyncController extends Controller
                         'domain' => $domain->name,
                         'client' => $domain->client->business_name
                     ]);
+                    $results[] = [
+                        'item' => [
+                            'id' => $domain->id,
+                            'type' => 'domain',
+                            'name' => $domain->name,
+                        ],
+                        'success' => false,
+                        'error' => 'Client not linked to HaloPSA',
+                    ];
                     continue;
                 }
 
@@ -255,6 +363,15 @@ class SyncController extends Controller
                         Log::warning('Domain sync skipped - missing expiry date', [
                             'domain' => $domain->name
                         ]);
+                        $results[] = [
+                            'item' => [
+                                'id' => $domain->id,
+                                'type' => 'domain',
+                                'name' => $domain->name,
+                            ],
+                            'success' => false,
+                            'error' => 'Missing expiry date',
+                        ];
                         continue;
                     }
 
@@ -346,6 +463,15 @@ class SyncController extends Controller
                         $domain->save();
 
                         $syncedCount++;
+                        $results[] = [
+                            'item' => [
+                                'id' => $domain->id,
+                                'type' => 'domain',
+                                'name' => $domain->name,
+                            ],
+                            'success' => true,
+                            'action' => $existingAsset ? 'updated' : 'created',
+                        ];
 
                         Log::info('Saved domain asset in Halo', [
                             'domain' => $domain->name,
@@ -355,6 +481,15 @@ class SyncController extends Controller
                         $errorMsg = "Domain {$domain->name}: Failed to sync asset - no ID in response";
                         $errors[] = $errorMsg;
                         Log::error($errorMsg, ['response' => $result]);
+                        $results[] = [
+                            'item' => [
+                                'id' => $domain->id,
+                                'type' => 'domain',
+                                'name' => $domain->name,
+                            ],
+                            'success' => false,
+                            'error' => 'Failed to sync asset - no ID in response',
+                        ];
                     }
                 } catch (\Exception $e) {
                     $errorMsg = "Domain {$domain->name}: {$e->getMessage()}";
@@ -364,12 +499,36 @@ class SyncController extends Controller
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
                     ]);
+                    $results[] = [
+                        'item' => [
+                            'id' => $domain->id,
+                            'type' => 'domain',
+                            'name' => $domain->name,
+                        ],
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                    ];
                 }
             }
 
+            $resultSummary = $this->formatSyncAuditResults($results);
+            AuditLogger::logSystem('sync.completed', 'Manual Halo domain sync completed.', [
+                'service' => 'halo',
+                'function' => 'sync-halo-domains-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($domainIds),
+                    'synced_count' => $syncedCount,
+                    'failed_count' => count($resultSummary['failed']),
+                    'synced_items' => $resultSummary['synced'],
+                    'failed_items' => $resultSummary['failed'],
+                ],
+            ]);
+
             $response = [
                 'success' => true,
-                'synced_count' => $syncedCount
+                'synced_count' => $syncedCount,
+                'results' => $results,
             ];
 
             if (!empty($errors)) {
@@ -380,6 +539,15 @@ class SyncController extends Controller
         } catch (\Exception $e) {
             Log::error('Halo domain sync error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
+            ]);
+            AuditLogger::logSystem('sync.failed', 'Manual Halo domain sync failed.', [
+                'service' => 'halo',
+                'function' => 'sync-halo-domains-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($domainIds),
+                    'error' => $e->getMessage(),
+                ],
             ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -610,9 +778,19 @@ class SyncController extends Controller
      */
     public function syncItGlueClients(Request $request)
     {
+        $mappings = $request->input('mappings', []);
+        AuditLogger::logSystem('sync.started', 'Manual IT Glue client mapping sync started.', [
+            'service' => 'itglue',
+            'function' => 'sync-itglue-clients-manual',
+        ], [
+            'new_values' => [
+                'requested_items' => count($mappings),
+            ],
+        ]);
+
         try {
-            $mappings = $request->input('mappings', []);
             $mappedCount = 0;
+            $results = [];
 
             foreach ($mappings as $mapping) {
                 $client = Client::find($mapping['dash_client_id']);
@@ -621,14 +799,58 @@ class SyncController extends Controller
                     $client->itglue_org_id = $mapping['itglue_org_id'];
                     $client->save();
                     $mappedCount++;
+                    $results[] = [
+                        'item' => [
+                            'id' => $client->id,
+                            'type' => 'client',
+                            'name' => $client->business_name,
+                        ],
+                        'success' => true,
+                        'action' => 'mapped',
+                    ];
+                    continue;
                 }
+
+                $results[] = [
+                    'item' => [
+                        'id' => $mapping['dash_client_id'] ?? null,
+                        'type' => 'client',
+                        'name' => null,
+                    ],
+                    'success' => false,
+                    'error' => 'Client not found',
+                ];
             }
+
+            $resultSummary = $this->formatSyncAuditResults($results);
+            AuditLogger::logSystem('sync.completed', 'Manual IT Glue client mapping sync completed.', [
+                'service' => 'itglue',
+                'function' => 'sync-itglue-clients-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($mappings),
+                    'mapped_count' => $mappedCount,
+                    'failed_count' => count($resultSummary['failed']),
+                    'synced_items' => $resultSummary['synced'],
+                    'failed_items' => $resultSummary['failed'],
+                ],
+            ]);
 
             return response()->json([
                 'success' => true,
-                'mapped_count' => $mappedCount
+                'mapped_count' => $mappedCount,
+                'results' => $results,
             ]);
         } catch (\Exception $e) {
+            AuditLogger::logSystem('sync.failed', 'Manual IT Glue client mapping sync failed.', [
+                'service' => 'itglue',
+                'function' => 'sync-itglue-clients-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($mappings),
+                    'error' => $e->getMessage(),
+                ],
+            ]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
