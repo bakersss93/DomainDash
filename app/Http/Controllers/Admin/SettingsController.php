@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
 
@@ -100,41 +99,90 @@ class SettingsController extends Controller
             }
         }
 
-        // Handle logo upload if provided
+        // Handle logo upload if provided.
         if ($request->hasFile('branding_logo')) {
             $file = $request->file('branding_logo');
-
-            // Store on the "public" disk so Storage::url() works
             $path = $file->store('logos', 'public'); // e.g. logos/abcd1234.png
-
-            // Merge into existing branding settings
-            $branding = Setting::get('branding', []);
-            $branding['logo'] = $path;
-
-            Setting::put('branding', $branding);
-
-            // Make sure we don't overwrite branding with an older array below
-            unset($data['branding']);
+            $data['branding'] = array_merge(
+                Setting::get('branding', []),
+                $data['branding'] ?? [],
+                ['logo' => $path]
+            );
+        } elseif (isset($data['branding']) && is_array($data['branding'])) {
+            $data['branding'] = array_merge(Setting::get('branding', []), $data['branding']);
         }
 
-        // Save all other settings (and branding if present and not overwritten above)
+        $oldValues = [];
+        $newValues = [];
+
+        // Persist only values that actually changed and capture a precise audit diff.
         foreach ($data as $key => $value) {
-            if ($key === 'branding') {
-                $current = Setting::get('branding', []);
-                Setting::put('branding', array_merge($current, $value ?? []));
-            } else {
-                Setting::put($key, $value);
+            if ($key === 'branding_logo') {
+                continue;
             }
+
+            $currentValue = Setting::get($key, null);
+            $diff = $this->extractChangedValues($currentValue, $value);
+            if ($diff === null) {
+                continue;
+            }
+
+            Setting::put($key, $value);
+            $oldValues[$key] = $diff['old'];
+            $newValues[$key] = $diff['new'];
         }
 
-        AuditLogger::logSystem('settings.update', 'System settings updated.', [
-            'service' => 'settings',
-            'function' => 'settings-update',
-        ], [
-            'new_values' => ['keys' => array_keys($data)],
-        ]);
+        if (!empty($newValues)) {
+            AuditLogger::logSystem('settings.update', 'System settings updated.', [
+                'service' => 'settings',
+                'function' => 'settings-update',
+                'changed_keys' => array_keys($newValues),
+            ], [
+                'old_values' => $oldValues,
+                'new_values' => $newValues,
+            ]);
+        }
 
-        return back()->with('status', 'Settings saved.');
+        return back()->with('status', empty($newValues) ? 'No setting changes detected.' : 'Settings saved.');
+    }
+
+    private function extractChangedValues($oldValue, $newValue): ?array
+    {
+        if (is_array($oldValue) && is_array($newValue)) {
+            $oldChanges = [];
+            $newChanges = [];
+
+            foreach (array_unique(array_merge(array_keys($oldValue), array_keys($newValue))) as $key) {
+                $oldExists = array_key_exists($key, $oldValue);
+                $newExists = array_key_exists($key, $newValue);
+                $oldItem = $oldExists ? $oldValue[$key] : null;
+                $newItem = $newExists ? $newValue[$key] : null;
+                $childDiff = $this->extractChangedValues($oldItem, $newItem);
+
+                if ($childDiff !== null) {
+                    $oldChanges[$key] = $childDiff['old'];
+                    $newChanges[$key] = $childDiff['new'];
+                }
+            }
+
+            if (empty($oldChanges) && empty($newChanges)) {
+                return null;
+            }
+
+            return [
+                'old' => $oldChanges,
+                'new' => $newChanges,
+            ];
+        }
+
+        if ($oldValue == $newValue) {
+            return null;
+        }
+
+        return [
+            'old' => $oldValue,
+            'new' => $newValue,
+        ];
     }
 
     public function testSmtp(Request $request)
