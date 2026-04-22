@@ -44,6 +44,31 @@ class SynergyWholesaleClient
     }
 
     /**
+     * Normalize SOAP array-like payloads to plain PHP arrays.
+     *
+     * Synergy SOAP responses often return stdClass entries inside array fields,
+     * even when the parent field is cast to an array.
+     */
+    protected function normalizeSoapEntries(mixed $value): array
+    {
+        if (is_object($value)) {
+            $value = [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_map(function ($entry) {
+            if (is_object($entry)) {
+                return (array) $entry;
+            }
+
+            return is_array($entry) ? $entry : [];
+        }, $value);
+    }
+
+    /**
      * Update nameservers and DNS config for a domain.
      *
      * Wraps the Synergy "updateNameServers" SOAP operation.
@@ -510,17 +535,7 @@ class SynergyWholesaleClient
         $res = $this->soap->__soapCall('getSSLPricing', [$params]);
         $payload = (array) $res;
 
-        $pricing = $payload['pricing'] ?? [];
-
-        if (is_object($pricing)) {
-            $pricing = [$pricing];
-        }
-
-        if (! is_array($pricing)) {
-            $pricing = [];
-        }
-
-        $payload['pricing'] = $pricing;
+        $payload['pricing'] = $this->normalizeSoapEntries($payload['pricing'] ?? []);
 
         return $payload;
     }
@@ -574,17 +589,7 @@ class SynergyWholesaleClient
         $res = $this->soap->__soapCall('SSL_listAllCerts', [$params]);
         $payload = (array) $res;
 
-        $certs = $payload['certs'] ?? [];
-
-        if (is_object($certs)) {
-            $certs = [$certs];
-        }
-
-        if (! is_array($certs)) {
-            $certs = [];
-        }
-
-        $payload['certs'] = $certs;
+        $payload['certs'] = $this->normalizeSoapEntries($payload['certs'] ?? []);
 
         return $payload;
     }
