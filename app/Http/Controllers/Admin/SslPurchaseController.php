@@ -26,7 +26,8 @@ class SslPurchaseController extends Controller
     public function index()
     {
         try {
-            $products = $this->synergy->listSSLProducts();
+            $productsResponse = $this->synergy->listSSLProducts();
+            $products = $productsResponse['pricing'] ?? [];
             $clients = Client::orderBy('business_name')->get();
 
             return view('admin.services.ssl-purchase', compact('products', 'clients'));
@@ -49,6 +50,8 @@ class SslPurchaseController extends Controller
             'domain' => 'required|string',
             'years' => 'required|integer|min:1|max:5',
             'client_id' => 'required|exists:clients,id',
+            'csr' => 'required|string',
+            'private_key' => 'required|string',
         ]);
 
         DB::beginTransaction();
@@ -56,14 +59,30 @@ class SslPurchaseController extends Controller
         try {
             $client = Client::findOrFail($request->client_id);
 
-            // Purchase SSL with Synergy
+            $contactName = trim((string) ($client->primary_contact_name ?: $client->business_name));
+            [$firstName, $lastName] = array_pad(preg_split('/\s+/', $contactName, 2) ?: [], 2, '');
+
             $result = $this->synergy->purchaseSSL(
                 $request->product_id,
                 $request->domain,
-                $request->years
+                $request->years,
+                [
+                    'csr' => $request->csr,
+                    'privateKey' => $request->private_key,
+                    'firstName' => $firstName,
+                    'lastName' => $lastName,
+                    'emailAddress' => $client->email ?: 'support@example.com',
+                    'address' => $client->address ?: 'Unknown',
+                    'city' => $client->city ?: 'Unknown',
+                    'state' => $client->state ?: 'Unknown',
+                    'postCode' => $client->postcode ?: '0000',
+                    'country' => $client->country ?: 'AU',
+                    'phone' => $client->phone ?: '0000000000',
+                    'fax' => $client->phone ?: '0000000000',
+                ]
             );
 
-            if (isset($result['status']) && in_array($result['status'], ['OK', 'pending'])) {
+            if (isset($result['status']) && in_array(strtolower((string) $result['status']), ['ok', 'pending'], true)) {
                 // Find or create domain record
                 $domain = Domain::where('name', $request->domain)->first();
                 if (!$domain) {
@@ -80,11 +99,11 @@ class SslPurchaseController extends Controller
                     'client_id' => $client->id,
                     'domain_id' => $domain->id,
                     'cert_id' => $result['certID'] ?? null,
-                    'common_name' => $request->domain,
+                    'common_name' => $result['commonName'] ?? $request->domain,
                     'product_name' => $request->product_id,
                     'start_date' => now(),
                     'expire_date' => now()->addYears($request->years),
-                    'status' => 'pending',
+                    'status' => $result['certStatus'] ?? 'pending',
                 ]);
 
                 DB::commit();

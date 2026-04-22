@@ -507,8 +507,22 @@ class SynergyWholesaleClient
     public function listSSLProducts(): array
     {
         $params = $this->creds();
-        $res = $this->soap->__soapCall('listSSLProducts', [$params]);
-        return (array) $res;
+        $res = $this->soap->__soapCall('getSSLPricing', [$params]);
+        $payload = (array) $res;
+
+        $pricing = $payload['pricing'] ?? [];
+
+        if (is_object($pricing)) {
+            $pricing = [$pricing];
+        }
+
+        if (! is_array($pricing)) {
+            $pricing = [];
+        }
+
+        $payload['pricing'] = $pricing;
+
+        return $payload;
     }
 
     /**
@@ -526,18 +540,53 @@ class SynergyWholesaleClient
         int $years = 1,
         array $extra = []
     ): array {
-        $params = array_merge($this->creds(), [
-            'productID' => $productId,
-            'domain' => $domain,
-            'years' => $years,
-        ]);
+        $defaults = [
+            'privateKey' => '',
+            'csr' => '',
+            'firstName' => '',
+            'lastName' => '',
+            'emailAddress' => '',
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'postCode' => '',
+            'country' => '',
+            'phone' => '',
+            'fax' => '',
+            'businessCategory' => null,
+        ];
 
-        if (!empty($extra)) {
-            $params = array_merge($params, $extra);
+        $params = array_merge($this->creds(), $defaults, [
+            'productID' => $productId,
+        ], $extra);
+
+        $res = $this->soap->__soapCall('SSL_purchaseSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    /**
+     * List all SSL certificates in the reseller account.
+     */
+    public function listAllSSLCerts(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('SSL_listAllCerts', [$params]);
+        $payload = (array) $res;
+
+        $certs = $payload['certs'] ?? [];
+
+        if (is_object($certs)) {
+            $certs = [$certs];
         }
 
-        $res = $this->soap->__soapCall('purchaseSSL', [$params]);
-        return (array) $res;
+        if (! is_array($certs)) {
+            $certs = [];
+        }
+
+        $payload['certs'] = $certs;
+
+        return $payload;
     }
 
     /* -----------------------------------------------------------------

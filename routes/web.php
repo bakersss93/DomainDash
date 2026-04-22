@@ -205,6 +205,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // ============================================================================
         // SSL CERTIFICATE ROUTES
         // ============================================================================
+        Route::post('/services/ssl/sync', [\App\Http\Controllers\Admin\SslController::class,'sync'])->name('admin.services.ssl.sync');
         Route::get('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'index'])->name('admin.services.ssl.purchase');
         Route::post('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'purchase'])->name('admin.services.ssl.purchase.store');
     });

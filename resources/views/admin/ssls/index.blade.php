@@ -1,6 +1,10 @@
 @extends('layouts.app')
 @section('content')
 <h1>SSL Certificates</h1>
+<form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="margin-bottom:12px;">
+    @csrf
+    <button type="submit" class="btn-accent">Sync from Synergy</button>
+</form>
 <form method="GET">
     <select name="client_id">
         <option value="">All Clients</option>
