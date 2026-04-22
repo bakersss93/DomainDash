@@ -123,9 +123,26 @@ class SslController extends Controller
         $ssl->load('client', 'domain');
 
         $statusPayload = null;
+        $csrDetails = null;
 
         if ($ssl->cert_id) {
             $statusPayload = $synergy->getSSLCertSimpleStatus($ssl->cert_id);
+            $csr = $synergy->getCsrForCertificate($ssl->cert_id);
+            if (!empty($csr)) {
+                $decoded = $synergy->decodeSSLCsr($csr);
+                if (strtoupper((string) ($decoded['status'] ?? '')) === 'OK') {
+                    $csrDetails = [
+                        'country' => $decoded['country'] ?? null,
+                        'commonName' => $decoded['commonName'] ?? null,
+                        'city' => $decoded['city'] ?? null,
+                        'state' => $decoded['state'] ?? null,
+                        'organisation' => $decoded['organisation'] ?? null,
+                        'organisationUnit' => $decoded['organisationUnit'] ?? null,
+                        'emailAddress' => $decoded['emailAddress'] ?? null,
+                        'privateKeyLength' => $decoded['privateKeyLength'] ?? null,
+                    ];
+                }
+            }
         }
 
         $ssl->setAttribute('display_product_name', $this->resolveProductName($ssl->product_name));
@@ -133,6 +150,7 @@ class SslController extends Controller
         return view('admin.ssls.show', [
             'ssl' => $ssl,
             'statusPayload' => $statusPayload,
+            'csrDetails' => $csrDetails,
             'certPayload' => session('ssl_certificate_payload'),
             'actionMessage' => session('ssl_action_message'),
         ]);
@@ -225,6 +243,27 @@ class SslController extends Controller
         ]);
 
         return back()->with('ssl_action_message', $payload['errorMessage'] ?? ($payload['status'] ?? 'Renew request submitted.'));
+    }
+
+    public function resendCompletionEmail(SslCertificate $ssl, SynergyWholesaleClient $synergy)
+    {
+        if (!$ssl->cert_id) {
+            return back()->with('ssl_action_message', 'This SSL record has no Synergy cert ID. Run sync first.');
+        }
+
+        $payload = $synergy->resendIssuedCertificateEmail($ssl->cert_id);
+        $status = strtoupper((string) ($payload['status'] ?? ''));
+
+        AuditLogger::logAction('ssl.resend-completion-email', $ssl, "Resent completion email for {$ssl->common_name}.", [
+            'context' => ['service' => 'ssl', 'function' => 'resend-completion-email'],
+            'new_values' => ['cert_id' => $ssl->cert_id, 'status' => $payload['status'] ?? null],
+        ]);
+
+        if ($status !== 'OK') {
+            return back()->with('ssl_action_message', $payload['errorMessage'] ?? 'Unable to resend completion email.');
+        }
+
+        return back()->with('ssl_action_message', 'Completion email sent from Synergy.');
     }
 
     public function rekey(Request $request, SslCertificate $ssl, SynergyWholesaleClient $synergy)

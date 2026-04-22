@@ -654,6 +654,17 @@ class SynergyWholesaleClient
         return (array) $res;
     }
 
+    public function resendIssuedCertificateEmail(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_resendIssuedCertificateEmail', [$params]);
+
+        return (array) $res;
+    }
+
     public function decodeSSLCsr(string $csr): array
     {
         $params = array_merge($this->creds(), [
@@ -663,6 +674,23 @@ class SynergyWholesaleClient
         $res = $this->soap->__soapCall('SSL_decodeCSR', [$params]);
 
         return (array) $res;
+    }
+
+    public function getCsrForCertificate(string $certId): ?string
+    {
+        $payload = $this->listAllSSLCerts();
+        if (strtoupper((string) ($payload['status'] ?? '')) !== 'OK') {
+            return null;
+        }
+
+        foreach ($payload['certs'] ?? [] as $entry) {
+            if ((string) ($entry['certID'] ?? '') === $certId) {
+                $csr = trim((string) ($entry['csr'] ?? ''));
+                return $csr !== '' ? $csr : null;
+            }
+        }
+
+        return null;
     }
 
     /* -----------------------------------------------------------------

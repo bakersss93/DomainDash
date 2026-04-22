@@ -124,10 +124,13 @@
                                     <div class="dd-domain-option-label">Rekey / reissue</div>
                                 </button>
 
-                                <a href="{{ route('admin.services.ssl.show', $ssl) }}" class="dd-domain-option">
-                                    <div class="dd-domain-option-icon">🧩</div>
-                                    <div class="dd-domain-option-label">Manage details</div>
-                                </a>
+                                <form method="POST" action="{{ route('admin.services.ssl.resendCompletionEmail', $ssl) }}" class="dd-domain-option-form">
+                                    @csrf
+                                    <button type="submit" class="dd-domain-option-btn">
+                                        <div class="dd-domain-option-icon">✉️</div>
+                                        <div class="dd-domain-option-label">Resend completion email</div>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </td>

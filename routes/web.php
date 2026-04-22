@@ -211,6 +211,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/ssl/{ssl}', [\App\Http\Controllers\Admin\SslController::class,'show'])->whereNumber('ssl')->name('admin.services.ssl.show');
         Route::post('/services/ssl/{ssl}/certificate', [\App\Http\Controllers\Admin\SslController::class,'getCertificate'])->whereNumber('ssl')->name('admin.services.ssl.certificate');
         Route::get('/services/ssl/{ssl}/bundle.zip', [\App\Http\Controllers\Admin\SslController::class,'downloadBundle'])->whereNumber('ssl')->name('admin.services.ssl.bundleZip');
+        Route::post('/services/ssl/{ssl}/resend-completion-email', [\App\Http\Controllers\Admin\SslController::class,'resendCompletionEmail'])->whereNumber('ssl')->name('admin.services.ssl.resendCompletionEmail');
         Route::post('/services/ssl/{ssl}/renew', [\App\Http\Controllers\Admin\SslController::class,'renew'])->whereNumber('ssl')->name('admin.services.ssl.renew');
         Route::post('/services/ssl/{ssl}/rekey', [\App\Http\Controllers\Admin\SslController::class,'rekey'])->whereNumber('ssl')->name('admin.services.ssl.rekey');
         Route::post('/services/ssl/{ssl}/assign-client', [\App\Http\Controllers\Admin\SslController::class,'assignClient'])->whereNumber('ssl')->name('admin.services.ssl.assignClient');

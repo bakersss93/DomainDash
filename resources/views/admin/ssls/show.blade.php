@@ -42,6 +42,24 @@
         </div>
     </div>
 
+    <div style="padding:16px;border:1px solid #334155;border-radius:10px;margin-bottom:16px;">
+        <h2 style="font-size:18px;margin-bottom:10px;">CSR Details</h2>
+        @if($csrDetails)
+            <div style="display:grid;grid-template-columns:170px 1fr;gap:8px;">
+                <strong>Country</strong><span>{{ $csrDetails['country'] ?: 'N/A' }}</span>
+                <strong>Common Name</strong><span>{{ $csrDetails['commonName'] ?: 'N/A' }}</span>
+                <strong>Location</strong><span>{{ $csrDetails['city'] ?: 'N/A' }}</span>
+                <strong>State</strong><span>{{ $csrDetails['state'] ?: 'N/A' }}</span>
+                <strong>Organization</strong><span>{{ $csrDetails['organisation'] ?: 'N/A' }}</span>
+                <strong>Organization Unit</strong><span>{{ $csrDetails['organisationUnit'] ?: 'N/A' }}</span>
+                <strong>Email</strong><span>{{ $csrDetails['emailAddress'] ?: 'N/A' }}</span>
+                <strong>Key Length</strong><span>{{ $csrDetails['privateKeyLength'] ?: 'N/A' }}</span>
+            </div>
+        @else
+            <p>CSR details are unavailable for this certificate.</p>
+        @endif
+    </div>
+
     <div style="padding:16px;border:1px solid #334155;border-radius:10px;">
         <h2 style="font-size:18px;margin-bottom:12px;">SSL Management Options</h2>
         <div style="display:flex;flex-wrap:wrap;gap:10px;">
