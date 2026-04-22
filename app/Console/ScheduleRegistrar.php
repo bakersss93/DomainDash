@@ -10,7 +10,10 @@ class ScheduleRegistrar
     public static function register(Schedule $schedule): void
     {
         // Nightly domain/hosting/SSL sync
-        $schedule->job(new \App\Jobs\SyncSynergyDomainsJob())->dailyAt('02:30');
+        $schedule->job(new \App\Jobs\SyncSynergyDomainsJob())
+            ->dailyAt('02:30')
+            ->name('scheduled-synergy-domain-job')
+            ->description('Queue job: Sync Synergy domains');
 
         $syncSchedule = Setting::get('sync_schedule', []);
         $timezone = date_default_timezone_get();
@@ -21,13 +24,22 @@ class ScheduleRegistrar
         self::scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'sync-itglue', $timezone);
 
         // Backup
-        $schedule->command('domaindash:backup-run')->dailyAt('03:00');
+        $schedule->command('domaindash:backup-run')
+            ->dailyAt('03:00')
+            ->name('scheduled-backup-run')
+            ->description('Command: run scheduled backup');
 
         // Audit retention housekeeping
-        $schedule->command('domaindash:audit-prune')->dailyAt('03:30');
+        $schedule->command('domaindash:audit-prune')
+            ->dailyAt('03:30')
+            ->name('scheduled-audit-prune')
+            ->description('Command: prune audit logs');
 
         // Expiry notifications
-        $schedule->command('domaindash:notify-expiring')->hourly();
+        $schedule->command('domaindash:notify-expiring')
+            ->hourly()
+            ->name('scheduled-notify-expiring')
+            ->description('Command: send expiry notifications');
     }
 
     private static function scheduleSyncTask(Schedule $schedule, array $taskConfig, string $taskName, string $taskArgument, string $timezone): void
@@ -46,6 +58,9 @@ class ScheduleRegistrar
             default => $schedule->command('domaindash:sync-task', ['task' => $taskArgument])->dailyAt($time),
         };
 
-        $event->timezone($timezone)->name("scheduled-{$taskName}");
+        $event->timezone($timezone)
+            ->withoutOverlapping(30)
+            ->name("scheduled-{$taskName}")
+            ->description("Command: domaindash:sync-task {$taskArgument}");
     }
 }

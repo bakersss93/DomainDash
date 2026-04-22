@@ -7,6 +7,10 @@ use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
+use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -71,6 +75,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            if (! $this->shouldAuditConsoleCommand($event->command)) {
+                return;
+            }
+
             AuditLogger::logSystem(
                 'console.command_started',
                 sprintf('Console command started: %s', $event->command ?? 'unknown'),
@@ -89,6 +97,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::listen(CommandFinished::class, function (CommandFinished $event): void {
+            if (! $this->shouldAuditConsoleCommand($event->command)) {
+                return;
+            }
+
             AuditLogger::logSystem(
                 'console.command_finished',
                 sprintf('Console command finished: %s', $event->command ?? 'unknown'),
@@ -101,6 +113,85 @@ class AppServiceProvider extends ServiceProvider
                     'new_values' => [
                         'command' => $event->command,
                         'exit_code' => $event->exitCode,
+                    ],
+                ]
+            );
+        });
+
+        Event::listen(ScheduledTaskStarting::class, function (ScheduledTaskStarting $event): void {
+            AuditLogger::logSystem(
+                'scheduler.task_started',
+                sprintf('Scheduled task started: %s', $event->task->description),
+                [
+                    'function' => 'scheduler-task',
+                    'service' => 'scheduler',
+                    'automated' => true,
+                ],
+                [
+                    'new_values' => [
+                        'description' => $event->task->description,
+                        'command' => $event->task->command,
+                        'expression' => $event->task->expression,
+                    ],
+                ]
+            );
+        });
+
+        Event::listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
+            AuditLogger::logSystem(
+                'scheduler.task_finished',
+                sprintf('Scheduled task finished: %s', $event->task->description),
+                [
+                    'function' => 'scheduler-task',
+                    'service' => 'scheduler',
+                    'automated' => true,
+                ],
+                [
+                    'new_values' => [
+                        'description' => $event->task->description,
+                        'command' => $event->task->command,
+                        'expression' => $event->task->expression,
+                        'runtime_seconds' => $event->runtime,
+                        'exit_code' => $event->task->exitCode,
+                    ],
+                ]
+            );
+        });
+
+        Event::listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
+            AuditLogger::logSystem(
+                'scheduler.task_skipped',
+                sprintf('Scheduled task skipped: %s', $event->task->description),
+                [
+                    'function' => 'scheduler-task',
+                    'service' => 'scheduler',
+                    'automated' => true,
+                ],
+                [
+                    'new_values' => [
+                        'description' => $event->task->description,
+                        'command' => $event->task->command,
+                        'expression' => $event->task->expression,
+                    ],
+                ]
+            );
+        });
+
+        Event::listen(ScheduledTaskFailed::class, function (ScheduledTaskFailed $event): void {
+            AuditLogger::logSystem(
+                'scheduler.task_failed',
+                sprintf('Scheduled task failed: %s', $event->task->description),
+                [
+                    'function' => 'scheduler-task',
+                    'service' => 'scheduler',
+                    'automated' => true,
+                ],
+                [
+                    'new_values' => [
+                        'description' => $event->task->description,
+                        'command' => $event->task->command,
+                        'expression' => $event->task->expression,
+                        'error' => $event->exception->getMessage(),
                     ],
                 ]
             );
@@ -163,5 +254,14 @@ class AppServiceProvider extends ServiceProvider
                 ]
             );
         });
+    }
+
+    private function shouldAuditConsoleCommand(?string $command): bool
+    {
+        if ($command === null) {
+            return true;
+        }
+
+        return ! in_array($command, ['schedule:run', 'schedule:work'], true);
     }
 }
