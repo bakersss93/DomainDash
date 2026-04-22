@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\Domain;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\AuditLogger;
 use App\Services\Ip2whois\Ip2whoisClient;
 use App\Support\WhoisFormatter;
 use SoapClient;
@@ -752,8 +753,17 @@ class SyncController extends Controller
      */
     public function syncItGlueConfigurations(Request $request)
     {
+        $items = $request->input('items', []);
+        AuditLogger::logSystem('sync.started', 'Manual IT Glue configuration sync started.', [
+            'service' => 'itglue',
+            'function' => 'sync-itglue-manual',
+        ], [
+            'new_values' => [
+                'requested_items' => count($items),
+            ],
+        ]);
+
         try {
-            $items = $request->input('items', []);
             $syncedCount = 0;
             $results = [];
 
@@ -816,6 +826,18 @@ class SyncController extends Controller
                 }
             }
 
+            $failedCount = collect($results)->where('success', false)->count();
+            AuditLogger::logSystem('sync.completed', 'Manual IT Glue configuration sync completed.', [
+                'service' => 'itglue',
+                'function' => 'sync-itglue-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($items),
+                    'synced_count' => $syncedCount,
+                    'failed_count' => $failedCount,
+                ],
+            ]);
+
             return response()->json([
                 'success' => true,
                 'synced_count' => $syncedCount,
@@ -824,6 +846,15 @@ class SyncController extends Controller
         } catch (\Exception $e) {
             Log::error('Error syncing ITGlue configurations: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
+            ]);
+            AuditLogger::logSystem('sync.failed', 'Manual IT Glue configuration sync failed.', [
+                'service' => 'itglue',
+                'function' => 'sync-itglue-manual',
+            ], [
+                'new_values' => [
+                    'requested_items' => count($items),
+                    'error' => $e->getMessage(),
+                ],
             ]);
 
             return response()->json(['error' => $e->getMessage()], 500);
