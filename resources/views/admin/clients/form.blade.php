@@ -37,7 +37,7 @@
                     <input id="business_name" name="business_name" type="text"
                            value="{{ old('business_name', $client->business_name) }}"
                            required
-                           style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--dd-border);font-size:14px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                           style="width:100%;font-size:14px;">
                     @error('business_name')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
@@ -48,7 +48,7 @@
                     <label for="abn" style="display:block;font-size:14px;margin-bottom:4px;">ABN</label>
                     <input id="abn" name="abn" type="text"
                            value="{{ old('abn', $client->abn) }}"
-                           style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--dd-border);font-size:14px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                           style="width:100%;font-size:14px;">
                     @error('abn')
                         <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
@@ -66,7 +66,7 @@
                                value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
                                placeholder="Selected HaloPSA client reference"
                                readonly
-                               style="flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--dd-border);font-size:14px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                               style="flex:1;font-size:14px;background:var(--surface-muted);color:var(--text);border:1px solid var(--border-subtle);">
 
                         {{-- Button opens the HaloPSA picker modal --}}
                         <button type="button"
@@ -108,7 +108,7 @@
                                value="{{ old('itglue_org_name', $client->itglue_org_name) }}"
                                placeholder="Selected ITGlue org name"
                                readonly
-                               style="flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--dd-border);font-size:14px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                               style="flex:1;font-size:14px;background:var(--surface-muted);color:var(--text);border:1px solid var(--border-subtle);">
 
                         {{-- Button opens the ITGlue picker modal --}}
                         <button type="button"
@@ -153,7 +153,7 @@
 
                     <label style="display:inline-flex;align-items:center;gap:8px;
                                   padding:6px 12px;border-radius:9999px;
-                                  border:1px solid var(--dd-border);background:var(--dd-surface-soft);font-size:14px;cursor:pointer;color:var(--dd-text);">
+                                  border:1px solid var(--border-subtle);background:var(--surface-muted);font-size:14px;cursor:pointer;color:var(--text);">
                         <input type="checkbox"
                                name="active"
                                value="1"
@@ -276,8 +276,8 @@
     <div id="itglue-modal-backdrop"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:var(--dd-surface);opacity:1;border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
-                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);color:var(--dd-text);">
+        <div style="background:var(--surface-elevated);opacity:1;border:1px solid var(--border-subtle);border-radius:12px;padding:20px 24px;
+                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);color:var(--text);">
             <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
                 Select ITGlue Organisation
             </h2>
@@ -290,25 +290,25 @@
             <input type="text"
                    id="itglue-search"
                    placeholder="Search organisations..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--dd-border);
-                          font-size:14px;margin-bottom:12px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-subtle);
+                          font-size:14px;margin-bottom:12px;background:var(--surface-muted);color:var(--text);">
 
             <div id="itglue-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
                 Loading organisations from ITGlue…
             </div>
 
-            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--dd-border);">
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--border-subtle);">
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
-                    <tr style="background:var(--dd-surface-muted);">
-                        <th data-sort="name" style="padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:left;cursor:pointer;user-select:none;">
+                    <tr style="background:var(--surface-muted);">
+                        <th data-sort="name" style="padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:left;cursor:pointer;user-select:none;">
                             Name <span class="sort-arrow">↕</span>
                         </th>
-                        <th data-sort="ref" style="padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:left;cursor:pointer;user-select:none;">
+                        <th data-sort="ref" style="padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:left;cursor:pointer;user-select:none;">
                             Reference / ID <span class="sort-arrow">↕</span>
                         </th>
-                        <th style="width:120px;padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:right;">&nbsp;</th>
+                        <th style="width:120px;padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:right;">&nbsp;</th>
                     </tr>
                     </thead>
                     <tbody id="itglue-tbody">
@@ -347,8 +347,8 @@
     <div id="halopsa-modal-backdrop"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.7);
                 z-index:50;align-items:center;justify-content:center;">
-        <div style="background:var(--dd-surface);opacity:1;border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
-                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);color:var(--dd-text);">
+        <div style="background:var(--surface-elevated);opacity:1;border:1px solid var(--border-subtle);border-radius:12px;padding:20px 24px;
+                    width:100%;max-width:720px;box-shadow:0 20px 40px rgba(0,0,0,0.45);color:var(--text);">
             <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">
                 Select HaloPSA Client
             </h2>
@@ -361,25 +361,25 @@
             <input type="text"
                    id="halopsa-search"
                    placeholder="Search clients..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--dd-border);
-                          font-size:14px;margin-bottom:12px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-subtle);
+                          font-size:14px;margin-bottom:12px;background:var(--surface-muted);color:var(--text);">
 
             <div id="halopsa-loading"
                  style="font-size:14px;color:#9ca3af;margin:8px 0;">
                 Loading clients from HaloPSA…
             </div>
 
-            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--dd-border);">
+            <div style="max-height:360px;overflow:auto;border-radius:6px;border:1px solid var(--border-subtle);">
                 <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
-                    <tr style="background:var(--dd-surface-muted);">
-                        <th data-halosort="name" style="padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:left;cursor:pointer;user-select:none;">
+                    <tr style="background:var(--surface-muted);">
+                        <th data-halosort="name" style="padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:left;cursor:pointer;user-select:none;">
                             Name <span class="halosort-arrow">↕</span>
                         </th>
-                        <th data-halosort="reference" style="padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:left;cursor:pointer;user-select:none;">
+                        <th data-halosort="reference" style="padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:left;cursor:pointer;user-select:none;">
                             Reference <span class="halosort-arrow">↕</span>
                         </th>
-                        <th style="width:120px;padding:8px 6px;border-bottom:1px solid var(--dd-border);text-align:right;">&nbsp;</th>
+                        <th style="width:120px;padding:8px 6px;border-bottom:1px solid var(--border-subtle);text-align:right;">&nbsp;</th>
                     </tr>
                     </thead>
                     <tbody id="halopsa-tbody">
@@ -651,9 +651,9 @@
                     const tr = document.createElement('tr');
 
                     tr.innerHTML = `
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">${org.name}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">${org.ref || org.id || ''}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);text-align:right;">
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${org.name}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${org.ref || org.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);text-align:right;">
                             <button type="button"
                                     class="btn-accent"
                                     style="padding:6px 10px;font-size:13px;">
@@ -1010,9 +1010,9 @@
                     const tr = document.createElement('tr');
 
                     tr.innerHTML = `
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">${client.name || 'Unknown'}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">${client.reference || client.id || ''}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--dd-border);background:var(--dd-surface);text-align:right;">
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${client.name || 'Unknown'}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${client.reference || client.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);text-align:right;">
                             <button type="button"
                                     class="btn-accent"
                                     style="padding:6px 10px;font-size:13px;">
