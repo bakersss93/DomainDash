@@ -44,6 +44,31 @@ class SynergyWholesaleClient
     }
 
     /**
+     * Normalize SOAP array-like payloads to plain PHP arrays.
+     *
+     * Synergy SOAP responses often return stdClass entries inside array fields,
+     * even when the parent field is cast to an array.
+     */
+    protected function normalizeSoapEntries(mixed $value): array
+    {
+        if (is_object($value)) {
+            $value = [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_map(function ($entry) {
+            if (is_object($entry)) {
+                return (array) $entry;
+            }
+
+            return is_array($entry) ? $entry : [];
+        }, $value);
+    }
+
+    /**
      * Update nameservers and DNS config for a domain.
      *
      * Wraps the Synergy "updateNameServers" SOAP operation.
@@ -507,8 +532,12 @@ class SynergyWholesaleClient
     public function listSSLProducts(): array
     {
         $params = $this->creds();
-        $res = $this->soap->__soapCall('listSSLProducts', [$params]);
-        return (array) $res;
+        $res = $this->soap->__soapCall('getSSLPricing', [$params]);
+        $payload = (array) $res;
+
+        $payload['pricing'] = $this->normalizeSoapEntries($payload['pricing'] ?? []);
+
+        return $payload;
     }
 
     /**
@@ -526,18 +555,142 @@ class SynergyWholesaleClient
         int $years = 1,
         array $extra = []
     ): array {
-        $params = array_merge($this->creds(), [
+        $defaults = [
+            'privateKey' => '',
+            'csr' => '',
+            'firstName' => '',
+            'lastName' => '',
+            'emailAddress' => '',
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'postCode' => '',
+            'country' => '',
+            'phone' => '',
+            'fax' => '',
+            'businessCategory' => null,
+        ];
+
+        $params = array_merge($this->creds(), $defaults, [
             'productID' => $productId,
-            'domain' => $domain,
-            'years' => $years,
+        ], $extra);
+
+        $res = $this->soap->__soapCall('SSL_purchaseSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    /**
+     * List all SSL certificates in the reseller account.
+     */
+    public function listAllSSLCerts(): array
+    {
+        $params = $this->creds();
+        $res = $this->soap->__soapCall('SSL_listAllCerts', [$params]);
+        $payload = (array) $res;
+
+        $payload['certs'] = $this->normalizeSoapEntries($payload['certs'] ?? []);
+
+        return $payload;
+    }
+
+
+
+    public function getSSLCertificate(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
         ]);
 
-        if (!empty($extra)) {
-            $params = array_merge($params, $extra);
+        $res = $this->soap->__soapCall('SSL_getSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    public function getSSLCertSimpleStatus(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_getCertSimpleStatus', [$params]);
+
+        return (array) $res;
+    }
+
+    public function renewSSLCertificate(string $certId, array $contact): array
+    {
+        $defaults = [
+            'firstName' => '',
+            'lastName' => '',
+            'emailAddress' => '',
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'postCode' => '',
+            'country' => '',
+            'phone' => '',
+            'fax' => '',
+        ];
+
+        $params = array_merge($this->creds(), $defaults, [
+            'certID' => $certId,
+        ], $contact);
+
+        $res = $this->soap->__soapCall('SSL_renewSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    public function reissueSSLCertificate(string $certId, string $newCsr): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+            'newCSR' => $newCsr,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_reissueCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    public function resendIssuedCertificateEmail(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_resendIssuedCertificateEmail', [$params]);
+
+        return (array) $res;
+    }
+
+    public function decodeSSLCsr(string $csr): array
+    {
+        $params = array_merge($this->creds(), [
+            'csr' => $csr,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_decodeCSR', [$params]);
+
+        return (array) $res;
+    }
+
+    public function getCsrForCertificate(string $certId): ?string
+    {
+        $payload = $this->listAllSSLCerts();
+        if (strtoupper((string) ($payload['status'] ?? '')) !== 'OK') {
+            return null;
         }
 
-        $res = $this->soap->__soapCall('purchaseSSL', [$params]);
-        return (array) $res;
+        foreach ($payload['certs'] ?? [] as $entry) {
+            if ((string) ($entry['certID'] ?? '') === $certId) {
+                $csr = trim((string) ($entry['csr'] ?? ''));
+                return $csr !== '' ? $csr : null;
+            }
+        }
+
+        return null;
     }
 
     /* -----------------------------------------------------------------

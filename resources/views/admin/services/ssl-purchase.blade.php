@@ -64,6 +64,19 @@
             </div>
         </div>
 
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">CSR *</label>
+            <textarea id="csr" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"
+                style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; font-family: monospace;"></textarea>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Private Key *</label>
+            <textarea id="private-key" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"
+                style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; font-family: monospace;"></textarea>
+        </div>
+
         <div style="margin-bottom: 16px; padding: 16px; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 6px;">
             <p style="color: #1e40af; font-size: 14px;">
                 <strong>Note:</strong> After purchase, you will need to generate and submit a CSR (Certificate Signing Request) to activate the certificate.
@@ -82,8 +95,10 @@ function purchaseSSL() {
     const domain = document.getElementById('domain').value.trim();
     const years = parseInt(document.getElementById('years').value);
     const clientId = document.getElementById('client-id').value;
+    const csr = document.getElementById('csr').value.trim();
+    const privateKey = document.getElementById('private-key').value.trim();
 
-    if (!productId || !domain || !clientId) {
+    if (!productId || !domain || !clientId || !csr || !privateKey) {
         alert('Please fill in all required fields.');
         return;
     }
@@ -102,7 +117,9 @@ function purchaseSSL() {
             product_id: productId,
             domain: domain,
             years: years,
-            client_id: clientId
+            client_id: clientId,
+            csr: csr,
+            private_key: privateKey
         })
     })
     .then(res => res.json())
