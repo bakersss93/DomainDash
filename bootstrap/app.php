@@ -26,6 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\ApplyImpersonation::class,
+            \App\Http\Middleware\AuditRequestActions::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\AuditRequestActions::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule) {
