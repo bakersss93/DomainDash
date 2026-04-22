@@ -789,7 +789,11 @@ class SyncController extends Controller
 
                 if (!$domain) {
                     $results[] = [
-                        'item' => $item,
+                        'item' => [
+                            'id' => $item['id'] ?? null,
+                            'type' => $item['type'] ?? null,
+                            'name' => $item['name'] ?? null,
+                        ],
                         'success' => false,
                         'error' => 'Domain not found'
                     ];
@@ -798,7 +802,11 @@ class SyncController extends Controller
 
                 if (!$domain->client || !$domain->client->itglue_org_id) {
                     $results[] = [
-                        'item' => $item,
+                        'item' => [
+                            'id' => $domain->id,
+                            'type' => 'domain',
+                            'name' => $domain->name,
+                        ],
                         'success' => false,
                         'error' => 'Domain is not linked to an ITGlue organization'
                     ];
@@ -820,13 +828,21 @@ class SyncController extends Controller
                     }
 
                     $results[] = [
-                        'item' => $item,
+                        'item' => [
+                            'id' => $domain->id,
+                            'type' => 'domain',
+                            'name' => $domain->name,
+                        ],
                         'success' => true,
                         'action' => $syncResult['action'] ?? 'updated'
                     ];
                 } else {
                     $results[] = [
-                        'item' => $item,
+                        'item' => [
+                            'id' => $domain->id,
+                            'type' => 'domain',
+                            'name' => $domain->name,
+                        ],
                         'success' => false,
                         'error' => $syncResult['error'] ?? 'Unknown error'
                     ];

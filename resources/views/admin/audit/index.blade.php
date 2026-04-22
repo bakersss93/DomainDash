@@ -456,6 +456,26 @@
         return Object.prototype.toString.call(value) === '[object Object]';
     }
 
+    function summariseAuditObject(value) {
+        if (!isPlainObject(value)) {
+            return normaliseValue(value);
+        }
+
+        const label = value.domain || value.name || value.record || value.host || value.type || 'item';
+        const idPart = typeof value.id !== 'undefined' && value.id !== null ? `#${value.id}` : null;
+        const detailParts = Object.entries(value)
+            .filter(([key]) => !['id', 'name', 'domain', 'record', 'host'].includes(key))
+            .filter(([, entryValue]) => entryValue !== null && typeof entryValue !== 'undefined' && entryValue !== '')
+            .map(([key, entryValue]) => `${key}=${normaliseValue(entryValue)}`);
+        const headline = idPart ? `${label} (${idPart})` : label;
+
+        if (detailParts.length === 0) {
+            return headline;
+        }
+
+        return `${headline} | ${detailParts.join(', ')}`;
+    }
+
     function flattenDiffValues(value, path = '', output = {}) {
         if (Array.isArray(value)) {
             if (value.length === 0 && path) {
@@ -465,12 +485,32 @@
 
             value.forEach((entry, index) => {
                 const nextPath = path ? `${path}[${index}]` : `[${index}]`;
-                flattenDiffValues(entry, nextPath, output);
+                if (isPlainObject(entry)) {
+                    output[nextPath] = summariseAuditObject(entry);
+                    return;
+                }
+
+                if (Array.isArray(entry)) {
+                    flattenDiffValues(entry, nextPath, output);
+                    return;
+                }
+
+                output[nextPath] = entry;
             });
             return output;
         }
 
         if (isPlainObject(value)) {
+            // Keep domain-like entities on one line to avoid noisy key-by-key expansion in sync and DNS audit entries.
+            const hasEntityIdentity = (
+                (typeof value.id !== 'undefined' && value.id !== null)
+                && (value.domain || value.name || value.record || value.host)
+            );
+            if (hasEntityIdentity && path) {
+                output[path] = summariseAuditObject(value);
+                return output;
+            }
+
             const entries = Object.entries(value).filter(([, entryValue]) => typeof entryValue !== 'function');
             if (entries.length === 0 && path) {
                 output[path] = {};
