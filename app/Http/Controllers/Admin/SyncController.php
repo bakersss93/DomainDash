@@ -760,6 +760,13 @@ class SyncController extends Controller
         ], [
             'new_values' => [
                 'requested_items' => count($items),
+                'requested_item_details' => collect($items)->map(function (array $item): array {
+                    return [
+                        'id' => $item['id'] ?? null,
+                        'type' => $item['type'] ?? null,
+                        'name' => $item['name'] ?? null,
+                    ];
+                })->values()->all(),
             ],
         ]);
 
@@ -827,6 +834,7 @@ class SyncController extends Controller
             }
 
             $failedCount = collect($results)->where('success', false)->count();
+            $resultSummary = $this->formatSyncAuditResults($results);
             AuditLogger::logSystem('sync.completed', 'Manual IT Glue configuration sync completed.', [
                 'service' => 'itglue',
                 'function' => 'sync-itglue-manual',
@@ -835,6 +843,8 @@ class SyncController extends Controller
                     'requested_items' => count($items),
                     'synced_count' => $syncedCount,
                     'failed_count' => $failedCount,
+                    'synced_items' => $resultSummary['synced'],
+                    'failed_items' => $resultSummary['failed'],
                 ],
             ]);
 
@@ -862,6 +872,34 @@ class SyncController extends Controller
     }
 
     // Helper Methods
+
+    private function formatSyncAuditResults(array $results): array
+    {
+        $synced = [];
+        $failed = [];
+
+        foreach ($results as $result) {
+            $row = [
+                'id' => $result['item']['id'] ?? null,
+                'type' => $result['item']['type'] ?? null,
+                'name' => $result['item']['name'] ?? null,
+            ];
+
+            if (($result['success'] ?? false) === true) {
+                $row['action'] = $result['action'] ?? 'updated';
+                $synced[] = $row;
+                continue;
+            }
+
+            $row['error'] = $result['error'] ?? null;
+            $failed[] = $row;
+        }
+
+        return [
+            'synced' => $synced,
+            'failed' => $failed,
+        ];
+    }
 
     private function getHaloAccessToken($config)
     {
