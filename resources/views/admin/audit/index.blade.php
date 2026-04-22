@@ -310,16 +310,30 @@
     padding: 20px;
     max-height: 84vh;
     overflow: auto;
+    position: relative;
 }
 
 .dd-audit-modal-header {
     margin-bottom: 4px;
+    padding-right: 52px;
 }
 
 .dd-audit-modal .dd-account-modal-close {
     border: 1px solid var(--border-subtle);
     background: var(--surface-muted);
     color: var(--text);
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
 }
 
 .dd-audit-modal-headline {
@@ -438,6 +452,60 @@
         return String(value);
     }
 
+    function isPlainObject(value) {
+        return Object.prototype.toString.call(value) === '[object Object]';
+    }
+
+    function flattenDiffValues(value, path = '', output = {}) {
+        if (Array.isArray(value)) {
+            if (value.length === 0 && path) {
+                output[path] = [];
+                return output;
+            }
+
+            value.forEach((entry, index) => {
+                const nextPath = path ? `${path}[${index}]` : `[${index}]`;
+                flattenDiffValues(entry, nextPath, output);
+            });
+            return output;
+        }
+
+        if (isPlainObject(value)) {
+            const entries = Object.entries(value).filter(([, entryValue]) => typeof entryValue !== 'function');
+            if (entries.length === 0 && path) {
+                output[path] = {};
+                return output;
+            }
+
+            entries.forEach(([key, entryValue]) => {
+                const nextPath = path ? `${path}.${key}` : key;
+                flattenDiffValues(entryValue, nextPath, output);
+            });
+            return output;
+        }
+
+        if (path) {
+            output[path] = value;
+        }
+
+        return output;
+    }
+
+    function getChangedFieldKeys(payload) {
+        const oldValues = payload.old_values && typeof payload.old_values === 'object' ? payload.old_values : {};
+        const newValues = payload.new_values && typeof payload.new_values === 'object' ? payload.new_values : {};
+        const oldFlat = flattenDiffValues(oldValues);
+        const newFlat = flattenDiffValues(newValues);
+        const allKeys = Array.from(new Set(Object.keys(oldFlat).concat(Object.keys(newFlat)))).sort();
+        const changedKeys = allKeys.filter((key) => normaliseValue(oldFlat[key]) !== normaliseValue(newFlat[key]));
+
+        return {
+            changedKeys,
+            oldFlat,
+            newFlat,
+        };
+    }
+
     function renderDiff(payload) {
         const diffBody = document.getElementById('audit-event-diff-body');
         const diffTable = document.getElementById('audit-event-diff-table');
@@ -448,12 +516,9 @@
         }
 
         diffBody.innerHTML = '';
+        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
 
-        const oldValues = payload.old_values && typeof payload.old_values === 'object' ? payload.old_values : {};
-        const newValues = payload.new_values && typeof payload.new_values === 'object' ? payload.new_values : {};
-        const keys = Array.from(new Set(Object.keys(oldValues).concat(Object.keys(newValues)))).sort();
-
-        if (keys.length === 0) {
+        if (changedKeys.length === 0) {
             diffTable.style.display = 'none';
             diffEmpty.style.display = 'block';
             return;
@@ -462,10 +527,10 @@
         diffTable.style.display = '';
         diffEmpty.style.display = 'none';
 
-        keys.forEach((key) => {
+        changedKeys.forEach((key) => {
             const row = document.createElement('tr');
-            const oldValue = normaliseValue(oldValues[key]);
-            const newValue = normaliseValue(newValues[key]);
+            const oldValue = normaliseValue(oldFlat[key]);
+            const newValue = normaliseValue(newFlat[key]);
             const fieldCell = document.createElement('td');
             const oldCell = document.createElement('td');
             const newCell = document.createElement('td');
@@ -487,12 +552,9 @@
         }
 
         linesContainer.innerHTML = '';
+        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
 
-        const oldValues = payload.old_values && typeof payload.old_values === 'object' ? payload.old_values : {};
-        const newValues = payload.new_values && typeof payload.new_values === 'object' ? payload.new_values : {};
-        const keys = Array.from(new Set(Object.keys(oldValues).concat(Object.keys(newValues)))).sort();
-
-        if (keys.length === 0) {
+        if (changedKeys.length === 0) {
             linesContainer.hidden = true;
             emptyState.style.display = 'block';
             return;
@@ -501,15 +563,15 @@
         linesContainer.hidden = false;
         emptyState.style.display = 'none';
 
-        keys.forEach((key) => {
+        changedKeys.forEach((key) => {
             const oldLine = document.createElement('span');
             oldLine.className = 'dd-audit-diff-line dd-audit-diff-line--removed';
-            oldLine.textContent = `- ${key}: ${normaliseValue(oldValues[key])}`;
+            oldLine.textContent = `- ${key}: ${normaliseValue(oldFlat[key])}`;
             linesContainer.appendChild(oldLine);
 
             const newLine = document.createElement('span');
             newLine.className = 'dd-audit-diff-line dd-audit-diff-line--added';
-            newLine.textContent = `+ ${key}: ${normaliseValue(newValues[key])}`;
+            newLine.textContent = `+ ${key}: ${normaliseValue(newFlat[key])}`;
             linesContainer.appendChild(newLine);
         });
     }
