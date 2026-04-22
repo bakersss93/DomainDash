@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Domain;
 use App\Models\SslCertificate;
+use App\Models\SslProduct;
 use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
 use Illuminate\Http\Request;
+use ZipArchive;
 
 class SslController extends Controller
 {
@@ -29,7 +31,9 @@ class SslController extends Controller
         }
 
         $productsResponse = $synergy->listSSLProducts();
-        $productNameById = collect($productsResponse['pricing'] ?? [])
+        $pricing = collect($productsResponse['pricing'] ?? []);
+
+        $productNameById = $pricing
             ->map(fn (array $entry): array => [
                 'id' => (string) ($entry['productID'] ?? ''),
                 'name' => $entry['productName'] ?? null,
@@ -37,6 +41,24 @@ class SslController extends Controller
             ->filter(fn (array $entry): bool => $entry['id'] !== '' && !empty($entry['name']))
             ->pluck('name', 'id')
             ->all();
+
+        foreach ($pricing as $entry) {
+            $productId = (string) ($entry['productID'] ?? '');
+            if ($productId === '') {
+                continue;
+            }
+
+            SslProduct::updateOrCreate(
+                ['product_id' => $productId],
+                [
+                    'name' => (string) ($entry['productName'] ?? ('Product #' . $productId)),
+                    'description' => $entry['productDescription'] ?? null,
+                    'remote_product_type' => $entry['remoteProductType'] ?? null,
+                    'price' => $entry['price'] ?? null,
+                    'last_synced_at' => now(),
+                ]
+            );
+        }
 
         $certs = $response['certs'] ?? [];
         $synced = 0;
@@ -86,6 +108,12 @@ class SslController extends Controller
 
         $ssls = $q->orderByDesc('expire_date')->paginate(25);
         $clients = Client::orderBy('business_name')->get();
+        $productNames = SslProduct::query()->pluck('name', 'product_id');
+
+        $ssls->getCollection()->transform(function (SslCertificate $ssl) use ($productNames): SslCertificate {
+            $ssl->setAttribute('display_product_name', $this->resolveProductName($ssl->product_name, $productNames));
+            return $ssl;
+        });
 
         return view('admin.ssls.index', compact('ssls', 'clients'));
     }
@@ -100,6 +128,8 @@ class SslController extends Controller
             $statusPayload = $synergy->getSSLCertSimpleStatus($ssl->cert_id);
         }
 
+        $ssl->setAttribute('display_product_name', $this->resolveProductName($ssl->product_name));
+
         return view('admin.ssls.show', [
             'ssl' => $ssl,
             'statusPayload' => $statusPayload,
@@ -111,10 +141,35 @@ class SslController extends Controller
     public function getCertificate(SslCertificate $ssl, SynergyWholesaleClient $synergy)
     {
         if (!$ssl->cert_id) {
+            if (request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'This SSL record has no Synergy cert ID. Run sync first.'], 422);
+            }
+
             return back()->with('ssl_action_message', 'This SSL record has no Synergy cert ID. Run sync first.');
         }
 
         $payload = $synergy->getSSLCertificate($ssl->cert_id);
+        $status = strtoupper((string) ($payload['status'] ?? ''));
+
+        if (request()->expectsJson()) {
+            if ($status !== 'OK') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $payload['errorMessage'] ?? 'Unable to fetch certificate bundle.',
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'bundle' => [
+                    'cer' => $payload['cer'] ?? '',
+                    'p7b' => $payload['p7b'] ?? '',
+                    'caBundle' => $payload['caBundle'] ?? '',
+                    'certStatus' => $payload['certStatus'] ?? null,
+                    'commonName' => $payload['commonName'] ?? $ssl->common_name,
+                ],
+            ]);
+        }
 
         AuditLogger::logAction('ssl.get-certificate', $ssl, "Fetched certificate bundle for {$ssl->common_name}.", [
             'context' => ['service' => 'ssl', 'function' => 'get-certificate'],
@@ -124,6 +179,35 @@ class SslController extends Controller
         return back()
             ->with('ssl_action_message', $payload['errorMessage'] ?? 'Certificate bundle fetched from Synergy.')
             ->with('ssl_certificate_payload', $payload);
+    }
+
+    public function downloadBundle(SslCertificate $ssl, SynergyWholesaleClient $synergy)
+    {
+        if (!$ssl->cert_id) {
+            return back()->with('ssl_action_message', 'This SSL record has no Synergy cert ID. Run sync first.');
+        }
+
+        $payload = $synergy->getSSLCertificate($ssl->cert_id);
+        $status = strtoupper((string) ($payload['status'] ?? ''));
+
+        if ($status !== 'OK') {
+            return back()->with('ssl_action_message', $payload['errorMessage'] ?? 'Unable to build certificate ZIP.');
+        }
+
+        if (!class_exists(ZipArchive::class)) {
+            return back()->with('ssl_action_message', 'ZIP support is not available on this server.');
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ssl_bundle_');
+        $zip = new ZipArchive();
+        $zip->open($zipPath, ZipArchive::OVERWRITE);
+        $zip->addFromString('certificate.cer', (string) ($payload['cer'] ?? ''));
+        $zip->addFromString('certificate.p7b', (string) ($payload['p7b'] ?? ''));
+        $zip->addFromString('ca-bundle.pem', (string) ($payload['caBundle'] ?? ''));
+        $zip->close();
+
+        $safeName = preg_replace('/[^A-Za-z0-9_.-]/', '-', (string) ($ssl->common_name ?: 'ssl-certificate'));
+        return response()->download($zipPath, $safeName . '-bundle.zip')->deleteFileAfterSend(true);
     }
 
     public function renew(Request $request, SslCertificate $ssl, SynergyWholesaleClient $synergy)
@@ -228,5 +312,24 @@ class SslController extends Controller
             'phone' => $client?->phone ?: '0000000000',
             'fax' => $client?->phone ?: '0000000000',
         ];
+    }
+
+    private function resolveProductName(?string $rawProductName, $productNames = null): string
+    {
+        $value = trim((string) ($rawProductName ?? ''));
+        if ($value === '') {
+            return 'Unknown product';
+        }
+
+        $map = $productNames ?? SslProduct::query()->pluck('name', 'product_id');
+        if (isset($map[$value]) && !empty($map[$value])) {
+            return $map[$value];
+        }
+
+        if (ctype_digit($value)) {
+            return 'Product #' . $value;
+        }
+
+        return $value;
     }
 }

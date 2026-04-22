@@ -59,7 +59,7 @@
 
                 <tr data-ssl-toggle="{{ $rowId }}" class="dd-domain-row" style="cursor:pointer;">
                     <td>{{ $ssl->common_name ?: '—' }}</td>
-                    <td>{{ $ssl->product_name ?: 'Unknown product' }}</td>
+                    <td>{{ $ssl->display_product_name }}</td>
                     <td class="{{ $ssl->isExpiringSoon() ? 'danger' : '' }}">
                         @if($expiresInDays !== null)
                             {{ optional($ssl->expire_date)->toDateString() }} ({{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }})
@@ -92,7 +92,7 @@
                                         @endif
                                     </div>
                                 </div>
-                                <div style="font-size:13px;opacity:.7;">Product: {{ $ssl->product_name ?: 'Unknown product' }}</div>
+                                <div style="font-size:13px;opacity:.7;">Product: {{ $ssl->display_product_name }}</div>
                             </div>
 
                             <div class="dd-domain-options-grid">
@@ -114,13 +114,10 @@
                                     <div class="dd-domain-option-label">Assign client</div>
                                 </button>
 
-                                <form method="POST" action="{{ route('admin.services.ssl.certificate', $ssl) }}" class="dd-domain-option-form">
-                                    @csrf
-                                    <button type="submit" class="dd-domain-option-btn">
-                                        <div class="dd-domain-option-icon">📄</div>
-                                        <div class="dd-domain-option-label">Get cert / bundle</div>
-                                    </button>
-                                </form>
+                                <button type="button" class="dd-domain-option" data-open-bundle="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">
+                                    <div class="dd-domain-option-icon">📄</div>
+                                    <div class="dd-domain-option-label">Get cert / bundle</div>
+                                </button>
 
                                 <button type="button" class="dd-domain-option" data-open-rekey="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">
                                     <div class="dd-domain-option-icon">♻️</div>
@@ -192,6 +189,36 @@
                 @csrf
                 <input type="hidden" name="csr" id="dd-rekey-csr-hidden">
             </form>
+        </div>
+    </div>
+
+    <div id="dd-bundle-modal" class="dd-modal" style="display:none;">
+        <div class="dd-modal-backdrop"></div>
+        <div class="dd-modal-dialog" style="width:900px;max-width:97%;">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;">Certificate Bundle</h2>
+            <p style="font-size:14px;margin-bottom:12px;">Certificate: <span id="dd-bundle-ssl-name"></span></p>
+
+            <div style="display:flex;gap:10px;margin-bottom:10px;">
+                <a href="#" id="dd-bundle-download-link" class="btn-accent" style="text-decoration:none;pointer-events:none;opacity:.5;">Download ZIP file</a>
+                <button type="button" id="dd-bundle-close" class="btn-accent">Close</button>
+            </div>
+
+            <div id="dd-bundle-status" style="margin-bottom:10px;font-size:14px;"></div>
+
+            <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+                <div>
+                    <label style="display:block;margin-bottom:6px;">Certificate (CER)</label>
+                    <textarea id="dd-bundle-cer" rows="5" class="dd-input" style="width:100%;font-family:monospace;" readonly></textarea>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:6px;">Certificate (P7B)</label>
+                    <textarea id="dd-bundle-p7b" rows="5" class="dd-input" style="width:100%;font-family:monospace;" readonly></textarea>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:6px;">CA Bundle</label>
+                    <textarea id="dd-bundle-ca" rows="5" class="dd-input" style="width:100%;font-family:monospace;" readonly></textarea>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -357,6 +384,72 @@
 
             rekeyCancelBtn.addEventListener('click', closeRekeyModal);
             rekeyModal.querySelector('.dd-modal-backdrop').addEventListener('click', closeRekeyModal);
+
+            var bundleModal = document.getElementById('dd-bundle-modal');
+            var bundleSslName = document.getElementById('dd-bundle-ssl-name');
+            var bundleStatus = document.getElementById('dd-bundle-status');
+            var bundleCer = document.getElementById('dd-bundle-cer');
+            var bundleP7b = document.getElementById('dd-bundle-p7b');
+            var bundleCa = document.getElementById('dd-bundle-ca');
+            var bundleDownloadLink = document.getElementById('dd-bundle-download-link');
+            var bundleCloseBtn = document.getElementById('dd-bundle-close');
+
+            function closeBundleModal() {
+                bundleModal.style.display = 'none';
+                bundleStatus.textContent = '';
+                bundleCer.value = '';
+                bundleP7b.value = '';
+                bundleCa.value = '';
+                bundleDownloadLink.href = '#';
+                bundleDownloadLink.style.pointerEvents = 'none';
+                bundleDownloadLink.style.opacity = '0.5';
+            }
+
+            document.querySelectorAll('[data-open-bundle]').forEach(function (btn) {
+                btn.addEventListener('click', async function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var sslId = this.getAttribute('data-open-bundle');
+                    var sslName = this.getAttribute('data-ssl-name') || '';
+
+                    bundleModal.style.display = 'flex';
+                    bundleSslName.textContent = sslName;
+                    bundleStatus.textContent = 'Loading certificate bundle...';
+                    bundleCer.value = '';
+                    bundleP7b.value = '';
+                    bundleCa.value = '';
+                    bundleDownloadLink.href = '/admin/services/ssl/' + sslId + '/bundle.zip';
+
+                    try {
+                        var response = await fetch('/admin/services/ssl/' + sslId + '/certificate', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        var payload = await response.json();
+                        if (!response.ok || !payload.success) {
+                            bundleStatus.textContent = payload.message || 'Unable to load certificate bundle.';
+                            return;
+                        }
+
+                        bundleCer.value = payload.bundle.cer || '';
+                        bundleP7b.value = payload.bundle.p7b || '';
+                        bundleCa.value = payload.bundle.caBundle || '';
+                        bundleStatus.textContent = 'Certificate bundle fetched from Synergy.';
+                        bundleDownloadLink.style.pointerEvents = 'auto';
+                        bundleDownloadLink.style.opacity = '1';
+                    } catch (error) {
+                        bundleStatus.textContent = 'Bundle fetch failed: ' + error.message;
+                    }
+                });
+            });
+
+            bundleCloseBtn.addEventListener('click', closeBundleModal);
+            bundleModal.querySelector('.dd-modal-backdrop').addEventListener('click', closeBundleModal);
         });
     </script>
 
