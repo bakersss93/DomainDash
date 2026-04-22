@@ -208,5 +208,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/services/ssl/sync', [\App\Http\Controllers\Admin\SslController::class,'sync'])->name('admin.services.ssl.sync');
         Route::get('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'index'])->name('admin.services.ssl.purchase');
         Route::post('/services/ssl/purchase', [\App\Http\Controllers\Admin\SslPurchaseController::class,'purchase'])->name('admin.services.ssl.purchase.store');
+        Route::get('/services/ssl/{ssl}', [\App\Http\Controllers\Admin\SslController::class,'show'])->whereNumber('ssl')->name('admin.services.ssl.show');
+        Route::post('/services/ssl/{ssl}/certificate', [\App\Http\Controllers\Admin\SslController::class,'getCertificate'])->whereNumber('ssl')->name('admin.services.ssl.certificate');
+        Route::post('/services/ssl/{ssl}/renew', [\App\Http\Controllers\Admin\SslController::class,'renew'])->whereNumber('ssl')->name('admin.services.ssl.renew');
+        Route::post('/services/ssl/{ssl}/rekey', [\App\Http\Controllers\Admin\SslController::class,'rekey'])->whereNumber('ssl')->name('admin.services.ssl.rekey');
     });
 });

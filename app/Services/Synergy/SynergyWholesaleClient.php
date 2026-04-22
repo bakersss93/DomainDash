@@ -594,6 +594,66 @@ class SynergyWholesaleClient
         return $payload;
     }
 
+
+
+    public function getSSLCertificate(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_getSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    public function getSSLCertSimpleStatus(string $certId): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_getCertSimpleStatus', [$params]);
+
+        return (array) $res;
+    }
+
+    public function renewSSLCertificate(string $certId, array $contact): array
+    {
+        $defaults = [
+            'firstName' => '',
+            'lastName' => '',
+            'emailAddress' => '',
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'postCode' => '',
+            'country' => '',
+            'phone' => '',
+            'fax' => '',
+        ];
+
+        $params = array_merge($this->creds(), $defaults, [
+            'certID' => $certId,
+        ], $contact);
+
+        $res = $this->soap->__soapCall('SSL_renewSSLCertificate', [$params]);
+
+        return (array) $res;
+    }
+
+    public function reissueSSLCertificate(string $certId, string $newCsr): array
+    {
+        $params = array_merge($this->creds(), [
+            'certID' => $certId,
+            'newCSR' => $newCsr,
+        ]);
+
+        $res = $this->soap->__soapCall('SSL_reissueCertificate', [$params]);
+
+        return (array) $res;
+    }
+
     /* -----------------------------------------------------------------
      |  Account Balance
      |------------------------------------------------------------------*/
