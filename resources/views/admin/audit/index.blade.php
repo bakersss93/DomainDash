@@ -161,11 +161,11 @@
     </div>
 </div>
 
-<div id="audit-event-modal" class="dd-account-modal-backdrop" hidden>
-    <div class="dd-account-modal" role="dialog" aria-modal="true" aria-labelledby="auditEventTitle">
+<dialog id="audit-event-modal" class="dd-audit-modal" aria-labelledby="auditEventTitle">
+    <div class="dd-audit-modal-panel">
         <div class="dd-account-modal-header">
             <h2 id="auditEventTitle">Audit Event Details</h2>
-            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">x</button>
+            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">&times;</button>
         </div>
         <div class="dd-account-modal-grid">
             <div><strong>Timestamp:</strong> <span id="audit-event-time"></span></div>
@@ -199,7 +199,7 @@
             </div>
         </div>
     </div>
-</div>
+</dialog>
 
 <style>
 .dd-audit-retention-form {
@@ -270,6 +270,27 @@
     border: solid #fff;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
+}
+
+.dd-audit-modal {
+    width: min(1100px, 94vw);
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.dd-audit-modal::backdrop {
+    background: rgba(2, 6, 23, 0.75);
+}
+
+.dd-audit-modal-panel {
+    border: 1px solid #334155;
+    border-radius: 16px;
+    background: #0f172a;
+    box-shadow: 0 24px 44px rgba(2, 6, 23, 0.6);
+    padding: 20px;
+    max-height: 84vh;
+    overflow: auto;
 }
 </style>
 
@@ -377,16 +398,25 @@
 
         renderDiff(payload);
 
-        modal.hidden = false;
-        document.body.classList.add('dd-account-modal-open');
+        if (typeof modal.showModal === 'function') {
+            modal.showModal();
+            return;
+        }
+
+        modal.setAttribute('open', 'open');
     }
 
     function closeEventModal() {
-        if (modal) {
-            modal.hidden = true;
+        if (!modal) {
+            return;
         }
 
-        document.body.classList.remove('dd-account-modal-open');
+        if (typeof modal.close === 'function') {
+            modal.close();
+            return;
+        }
+
+        modal.removeAttribute('open');
     }
 
     document.querySelectorAll('.dd-audit-view-btn').forEach((button) => {
@@ -400,7 +430,7 @@
         }
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && modal && !modal.hidden) {
+        if (event.key === 'Escape' && modal && modal.hasAttribute('open')) {
             closeEventModal();
         }
     });
