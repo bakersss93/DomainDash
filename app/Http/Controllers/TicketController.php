@@ -49,7 +49,6 @@ class TicketController extends Controller
                     $page,
                     $pageSize
                 );
-                $tickets = $this->hydrateTicketDetails($halo, $tickets);
                 $fetchedTicketCount = count($tickets);
             } catch (\RuntimeException $exception) {
                 $error = $exception->getMessage();
