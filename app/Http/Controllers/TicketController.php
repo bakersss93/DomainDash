@@ -9,6 +9,7 @@ use App\Models\HostingService;
 use App\Models\Setting;
 use App\Models\SslCertificate;
 use App\Services\Halo\HaloPsaClient;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class TicketController extends Controller
@@ -48,6 +49,7 @@ class TicketController extends Controller
                     $page,
                     $pageSize
                 );
+                $tickets = $this->hydrateTicketDetails($halo, $tickets);
                 $fetchedTicketCount = count($tickets);
             } catch (\RuntimeException $exception) {
                 $error = $exception->getMessage();
@@ -99,7 +101,7 @@ class TicketController extends Controller
         }
 
         $hasMore = $fetchedTicketCount === $pageSize;
-        $rows = $this->normalizeTicketRows($tickets);
+        $rows = $this->normalizeTicketRows($tickets, $ticketMappings);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -354,15 +356,30 @@ class TicketController extends Controller
         };
     }
 
-    private function normalizeTicketRows(array $tickets): array
+    private function normalizeTicketRows(array $tickets, array $ticketMappings): array
     {
-        return array_values(array_map(function (array $ticket): array {
+        $typeNameById = [];
+        foreach ($ticketMappings as $mapping) {
+            $typeId = (int) ($mapping['halo_ticket_type_id'] ?? 0);
+            $typeName = trim((string) ($mapping['halo_ticket_type_name'] ?? ''));
+            if ($typeId > 0 && $typeName !== '') {
+                $typeNameById[$typeId] = $typeName;
+            }
+        }
+
+        return array_values(array_map(function (array $ticket) use ($typeNameById): array {
+            $ticketTypeId = $this->extractTicketTypeId($ticket);
+            $ticketTypeLabel = $this->extractTicketTypeLabel($ticket);
+            if ($ticketTypeLabel === 'Unknown' && isset($typeNameById[$ticketTypeId])) {
+                $ticketTypeLabel = $typeNameById[$ticketTypeId];
+            }
+
             return [
                 'id' => $ticket['id'] ?? $ticket['Id'] ?? '-',
                 'summary' => $ticket['summary'] ?? $ticket['Summary'] ?? '-',
                 'service' => $this->extractTicketServiceLabel($ticket),
-                'type' => $this->extractTicketTypeLabel($ticket),
-                'type_id' => $this->extractTicketTypeId($ticket),
+                'type' => $ticketTypeLabel,
+                'type_id' => $ticketTypeId,
                 'status' => $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-',
                 'updated' => $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-',
             ];
@@ -445,5 +462,31 @@ class TicketController extends Controller
         }
 
         return (string) ($ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-');
+    }
+
+    private function hydrateTicketDetails(HaloPsaClient $halo, array $tickets): array
+    {
+        return array_values(array_map(function ($ticket) use ($halo): array {
+            if (!is_array($ticket)) {
+                return [];
+            }
+
+            $ticketId = (int) ($ticket['id'] ?? $ticket['Id'] ?? 0);
+            if ($ticketId <= 0) {
+                return $ticket;
+            }
+
+            try {
+                $details = $halo->getTicket($ticketId);
+                return is_array($details) ? array_merge($ticket, $details) : $ticket;
+            } catch (\RuntimeException $exception) {
+                Log::warning('Unable to hydrate Halo ticket details.', [
+                    'ticket_id' => $ticketId,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return $ticket;
+            }
+        }, $tickets));
     }
 }

@@ -547,6 +547,24 @@ class HaloPsaClient
     }
 
     /**
+     * Fetch a single ticket by ID.
+     */
+    public function getTicket(int $ticketId): array
+    {
+        $result = $this->request('GET', 'tickets/' . $ticketId);
+
+        if (isset($result['ticket']) && is_array($result['ticket'])) {
+            return $result['ticket'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            return $result['data'];
+        }
+
+        return $result;
+    }
+
+    /**
      * Fetch HaloPSA ticket types.
      */
     public function listTicketTypes(): array
