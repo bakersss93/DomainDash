@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
+use App\Services\Halo\HaloPsaClient;
 
 class SettingsController extends Controller
 {
@@ -17,7 +18,10 @@ class SettingsController extends Controller
             'branding' => Setting::get('branding', ['primary'=>'#1f2937','accent'=>'#06b6d4','text'=>'#111827','bg'=>'#ffffff']),
             'smtp'     => Setting::get('smtp', []),
             'synergy'  => Setting::get('synergy', []),
-            'halo'     => Setting::get('halo', []),
+            'halo'     => array_merge([
+                'ticket_type_mappings' => [],
+                'status_mappings' => [],
+            ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
             'ip2whois' => Setting::get('ip2whois', []),
             'sync_schedule' => Setting::get('sync_schedule', [
@@ -49,6 +53,22 @@ class SettingsController extends Controller
             'smtp'          => 'array',
             'synergy'       => 'array',
             'halo'          => 'array',
+            'halo.base_url' => 'nullable|string|max:255',
+            'halo.auth_server' => 'nullable|string|max:255',
+            'halo.tenant' => 'nullable|string|max:120',
+            'halo.client_id' => 'nullable|string|max:120',
+            'halo.api_key' => 'nullable|string|max:255',
+            'halo.ticket_type_mappings' => 'nullable|array',
+            'halo.ticket_type_mappings.*' => 'nullable|array',
+            'halo.ticket_type_mappings.*.service_category' => 'nullable|string|max:120',
+            'halo.ticket_type_mappings.*.ticket_type' => 'nullable|in:Support/Issue,Service Request',
+            'halo.ticket_type_mappings.*.halo_ticket_type_id' => 'nullable|integer|min:1',
+            'halo.ticket_type_mappings.*.halo_ticket_type_name' => 'nullable|string|max:180',
+            'halo.status_mappings' => 'nullable|array',
+            'halo.status_mappings.*' => 'nullable|array',
+            'halo.status_mappings.*.domaindash_status' => 'nullable|string|max:120',
+            'halo.status_mappings.*.halo_status_id' => 'nullable|integer|min:1',
+            'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
             'ip2whois'      => 'array',
             'sync_schedule' => 'array',
@@ -74,8 +94,16 @@ class SettingsController extends Controller
          * If the form posts "********" we keep the existing secret.
          */
         if (isset($data['halo']) && is_array($data['halo'])) {
+            $currentHalo = Setting::get('halo', []);
+            if (!is_array($currentHalo)) {
+                $currentHalo = [];
+            }
+
+            // Merge with existing settings so missing posted keys do not erase
+            // previously saved Halo credentials.
+            $data['halo'] = array_merge($currentHalo, $data['halo']);
+
             if (array_key_exists('api_key', $data['halo']) && $data['halo']['api_key'] === '********') {
-                $currentHalo = Setting::get('halo', []);
                 if (isset($currentHalo['api_key'])) {
                     $data['halo']['api_key'] = $currentHalo['api_key'];
                 } else {
@@ -144,6 +172,56 @@ class SettingsController extends Controller
         }
 
         return back()->with('status', empty($newValues) ? 'No setting changes detected.' : 'Settings saved.');
+    }
+
+    public function haloTicketTypes()
+    {
+        try {
+            $halo = app(HaloPsaClient::class);
+            $types = $halo->listTicketTypes();
+            $normalized = array_values(array_map(function (array $type): array {
+                return [
+                    'id' => (int) ($type['id'] ?? $type['Id'] ?? 0),
+                    'name' => (string) ($type['name'] ?? $type['Name'] ?? ('Type #' . ($type['id'] ?? $type['Id'] ?? '0'))),
+                ];
+            }, $types));
+
+            $normalized = array_values(array_filter($normalized, fn (array $type): bool => $type['id'] > 0));
+
+            return response()->json([
+                'types' => $normalized,
+            ]);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'types' => [],
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function haloTicketStatuses()
+    {
+        try {
+            $halo = app(HaloPsaClient::class);
+            $statuses = $halo->listTicketStatuses();
+            $normalized = array_values(array_map(function (array $status): array {
+                return [
+                    'id' => (int) ($status['id'] ?? $status['Id'] ?? 0),
+                    'name' => (string) ($status['name'] ?? $status['Name'] ?? ('Status #' . ($status['id'] ?? $status['Id'] ?? '0'))),
+                ];
+            }, $statuses));
+
+            $normalized = array_values(array_filter($normalized, fn (array $status): bool => $status['id'] > 0));
+
+            return response()->json([
+                'statuses' => $normalized,
+            ]);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'statuses' => [],
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     private function extractChangedValues($oldValue, $newValue): ?array

@@ -513,4 +513,97 @@ class HaloPsaClient
             'json' => $data,
         ]);
     }
+
+    /**
+     * List support tickets for a Halo client, optionally constrained to ticket type IDs.
+     */
+    public function listTicketsForClient(int $clientId, array $ticketTypeIds = [], int $page = 1, int $pageSize = 20): array
+    {
+        $query = [
+            'client_id' => $clientId,
+            'count' => $pageSize,
+            'page' => $page,
+            'page_no' => $page,
+        ];
+
+        if (!empty($ticketTypeIds)) {
+            $query['tickettype_id'] = implode(',', array_map('intval', $ticketTypeIds));
+        }
+
+        $result = $this->request('GET', 'tickets', [
+            'query' => $query,
+        ]);
+
+        $tickets = $result['tickets']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        if (!is_array($tickets)) {
+            return [];
+        }
+
+        return $tickets;
+    }
+
+    /**
+     * Fetch a single ticket by ID.
+     */
+    public function getTicket(int $ticketId): array
+    {
+        $result = $this->request('GET', 'tickets/' . $ticketId);
+
+        if (isset($result['ticket']) && is_array($result['ticket'])) {
+            return $result['ticket'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            return $result['data'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetch HaloPSA ticket types.
+     */
+    public function listTicketTypes(): array
+    {
+        $result = $this->request('GET', 'tickettype', [
+            'query' => ['count' => 200],
+        ]);
+
+        $types = $result['tickettypes']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        if (!is_array($types)) {
+            return [];
+        }
+
+        return array_values(array_filter($types, 'is_array'));
+    }
+
+    /**
+     * Fetch HaloPSA ticket statuses.
+     */
+    public function listTicketStatuses(): array
+    {
+        $result = $this->request('GET', 'status', [
+            'query' => ['count' => 200],
+        ]);
+
+        $statuses = $result['statuses']
+            ?? $result['status']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        if (!is_array($statuses)) {
+            return [];
+        }
+
+        return array_values(array_filter($statuses, 'is_array'));
+    }
 }
