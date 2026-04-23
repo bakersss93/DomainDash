@@ -202,6 +202,7 @@ class TicketController extends Controller
             'portalUrl' => $this->extractPortalUrl($ticket),
             'ticketStatusLabel' => $this->resolveTicketStatusLabel($ticket, $statusNameById),
             'ticketTypeLabel' => $this->extractTicketTypeLabel($ticket),
+            'ticketServiceLabel' => $this->extractTicketServiceLabel($ticket),
             'ticketUpdatedLabel' => $this->extractTicketUpdated($ticket),
         ]);
     }

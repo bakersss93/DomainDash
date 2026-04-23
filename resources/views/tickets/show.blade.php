@@ -19,6 +19,12 @@
     }
     $ticketType = is_string($ticketType) ? $ticketType : '-';
 
+    $ticketService = $ticketServiceLabel ?? $ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-';
+    if (is_array($ticketService)) {
+        $ticketService = $ticketService['name'] ?? $ticketService['Name'] ?? '-';
+    }
+    $ticketService = is_string($ticketService) ? $ticketService : '-';
+
     $ticketUpdated = $ticketUpdatedLabel ?? $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-';
     if (is_array($ticketUpdated)) {
         $ticketUpdated = '-';
@@ -56,9 +62,10 @@
         </div>
     @endif
 
-    <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+    <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
         <div><strong>Client</strong><br>{{ $selectedClient->business_name }}</div>
         <div><strong>Status</strong><br>{{ $ticketStatus }}</div>
+        <div><strong>Service</strong><br>{{ $ticketService }}</div>
         <div><strong>Type</strong><br>{{ $ticketType }}</div>
         <div><strong>Last Update</strong><br>{{ $ticketUpdated }}</div>
     </div>
