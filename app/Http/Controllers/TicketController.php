@@ -35,7 +35,7 @@ class TicketController extends Controller
             $error = 'This client is not linked to HaloPSA yet.';
         }
 
-        return view('tickets.index', [
+        return view('tickets.requests', [
             'clients' => $clients,
             'selectedClientId' => $selectedClientId,
             'selectedClient' => $selectedClient,
