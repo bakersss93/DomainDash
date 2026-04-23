@@ -174,7 +174,10 @@ class TicketController extends Controller
                 abort(403, 'You are not allowed to view this ticket.');
             }
 
-            $actions = $halo->getTicketActions($ticketId);
+            $actions = array_values(array_filter(
+                $halo->getTicketActions($ticketId),
+                fn (array $action): bool => $this->isClientVisibleAction($action)
+            ));
         } catch (\RuntimeException $exception) {
             return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
                 ->withErrors(['halo' => $exception->getMessage()]);
@@ -645,5 +648,89 @@ class TicketController extends Controller
         }
 
         return $candidate;
+    }
+
+    private function isClientVisibleAction(array $action): bool
+    {
+        $privateFlags = [
+            'private',
+            'isprivate',
+            'is_private',
+            'private_note',
+            'privateNote',
+            'hiddenfromuser',
+            'hidden_from_user',
+            'hidefromuser',
+            'internal',
+            'internalnote',
+            'internal_note',
+            'agentonly',
+            'agent_only',
+            'nonpublic',
+            'non_public',
+        ];
+
+        foreach ($privateFlags as $flag) {
+            if ($this->extractTruthyFlag($action, $flag)) {
+                return false;
+            }
+        }
+
+        $clientVisibleFlags = [
+            'clientvisible',
+            'client_visible',
+            'showinportal',
+            'show_in_portal',
+            'public',
+            'ispublic',
+            'is_public',
+            'noteforclient',
+            'note_for_client',
+            'sendemail',
+            'send_email',
+            'emailsent',
+            'email_sent',
+        ];
+
+        foreach ($clientVisibleFlags as $flag) {
+            if ($this->extractTruthyFlag($action, $flag)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function extractTruthyFlag(array $action, string $field): bool
+    {
+        $candidates = [$field, ucfirst($field)];
+        if (str_contains($field, '_')) {
+            $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $field))));
+            $studly = str_replace(' ', '', ucwords(str_replace('_', ' ', $field)));
+            $candidates[] = $camel;
+            $candidates[] = $studly;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!array_key_exists($candidate, $action)) {
+                continue;
+            }
+
+            $value = $action[$candidate];
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_numeric($value)) {
+                return (int) $value === 1;
+            }
+
+            if (is_string($value)) {
+                $normalized = strtolower(trim($value));
+                return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
+            }
+        }
+
+        return false;
     }
 }

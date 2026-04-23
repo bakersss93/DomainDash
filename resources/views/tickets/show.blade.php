@@ -68,7 +68,6 @@
         <div style="max-height:460px;overflow:auto;">
             @forelse($actions as $action)
                 @php
-                    $isClientVisible = (bool) ($action['clientvisible'] ?? $action['ClientVisible'] ?? $action['is_client_visible'] ?? true);
                     $actionAuthor = $action['agent_name'] ?? $action['AgentName'] ?? $action['who'] ?? 'Update';
                     if (!is_string($actionAuthor) || trim($actionAuthor) === '') {
                         $actionAuthor = 'Update';
@@ -87,15 +86,13 @@
                         $actionDetails = '-';
                     }
                 @endphp
-                @if($isClientVisible)
-                    <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:grid;gap:6px;">
-                        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-                            <strong>{{ $actionAuthor }}</strong>
-                            <span style="color:var(--text-muted);font-size:12px;">{{ $actionDate }}</span>
-                        </div>
-                        <div style="white-space:pre-wrap;">{{ $actionDetails }}</div>
+                <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);display:grid;gap:6px;">
+                    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                        <strong>{{ $actionAuthor }}</strong>
+                        <span style="color:var(--text-muted);font-size:12px;">{{ $actionDate }}</span>
                     </div>
-                @endif
+                    <div style="white-space:pre-wrap;">{{ $actionDetails }}</div>
+                </div>
             @empty
                 <div style="padding:14px;color:var(--text-muted);">No client-visible communications were returned for this ticket.</div>
             @endforelse
