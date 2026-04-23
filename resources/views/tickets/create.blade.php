@@ -81,20 +81,11 @@
                         @endforeach
                     </select>
                 </div>
-
-                <div class="dd-ticket-field">
-                    <label for="sub_category">Sub-category</label>
-                    <select id="sub_category" name="sub_category" required>
-                        @foreach($subCategories as $subCategory)
-                            <option value="{{ $subCategory }}" @selected(old('sub_category', 'Domain') === $subCategory)>{{ $subCategory }}</option>
-                        @endforeach
-                    </select>
-                </div>
             </div>
 
             <div class="dd-ticket-grid">
                 <div class="dd-ticket-field">
-                    <label for="reference_type">Reference Type</label>
+                    <label for="reference_type">Service Category</label>
                     <select id="reference_type" name="reference_type" required>
                         <option value="domain" @selected(old('reference_type', 'domain') === 'domain')>Domain</option>
                         <option value="service" @selected(old('reference_type') === 'service')>Web Hosting</option>
@@ -103,7 +94,7 @@
                 </div>
 
                 <div class="dd-ticket-field">
-                    <label for="reference_id">Reference Item</label>
+                    <label for="reference_id">Related Service</label>
                     <select id="reference_id" name="reference_id" required>
                         @foreach($domains as $domain)
                             <option data-reference-type="domain" data-client-id="{{ $domain->client_id }}" value="{{ $domain->id }}" @selected(old('reference_type', 'domain') === 'domain' && (int) old('reference_id') === $domain->id)>

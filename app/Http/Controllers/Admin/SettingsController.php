@@ -52,6 +52,11 @@ class SettingsController extends Controller
             'smtp'          => 'array',
             'synergy'       => 'array',
             'halo'          => 'array',
+            'halo.base_url' => 'nullable|string|max:255',
+            'halo.auth_server' => 'nullable|string|max:255',
+            'halo.tenant' => 'nullable|string|max:120',
+            'halo.client_id' => 'nullable|string|max:120',
+            'halo.api_key' => 'nullable|string|max:255',
             'halo.support_issue_ticket_type_id' => 'nullable|integer|min:1',
             'halo.service_request_ticket_type_id' => 'nullable|integer|min:1',
             'itglue'        => 'array',
@@ -79,8 +84,16 @@ class SettingsController extends Controller
          * If the form posts "********" we keep the existing secret.
          */
         if (isset($data['halo']) && is_array($data['halo'])) {
+            $currentHalo = Setting::get('halo', []);
+            if (!is_array($currentHalo)) {
+                $currentHalo = [];
+            }
+
+            // Merge with existing settings so missing posted keys do not erase
+            // previously saved Halo credentials.
+            $data['halo'] = array_merge($currentHalo, $data['halo']);
+
             if (array_key_exists('api_key', $data['halo']) && $data['halo']['api_key'] === '********') {
-                $currentHalo = Setting::get('halo', []);
                 if (isset($currentHalo['api_key'])) {
                     $data['halo']['api_key'] = $currentHalo['api_key'];
                 } else {
