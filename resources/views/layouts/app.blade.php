@@ -899,6 +899,26 @@
                     </ul>
                 </li>
 
+                <li class="nav-item nav-section {{ request()->routeIs('tickets.*') ? 'expanded' : '' }}">
+                    <div class="nav-link nav-toggle" onclick="toggleNav(this)">
+                        <span class="icon">🎫</span>
+                        <span class="text">Support</span>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <ul class="nav-submenu">
+                        <li class="nav-item">
+                            <a href="{{ route('tickets.create') }}" class="nav-link {{ request()->routeIs('tickets.create') ? 'active' : '' }}">
+                                Log Support Ticket
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('tickets.index') }}" class="nav-link {{ request()->routeIs('tickets.index') ? 'active' : '' }}">
+                                View Support Requests
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
                 <!-- Admin Section (hidden for non-admin users) -->
                 @role('Administrator')
                     <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.notifications.templates*') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') || request()->routeIs('admin.audit.*') ? 'expanded' : '' }}">
@@ -1005,7 +1025,7 @@
                             </span>
                         </summary>
                         <div class="user-menu-menu">
-                            <a href="{{ route('tickets.create') }}">Log support ticket</a>
+                            <a href="{{ route('tickets.index') }}">Support requests</a>
 
                             <button type="button" class="user-menu-button" id="open-account-settings">
                                 Account Settings

@@ -298,6 +298,41 @@
                         Stored securely; value is not displayed. Click "Update key" to set a new one.
                     </small>
                 </div>
+
+                <div style="margin-top:16px;padding:14px;border:1px solid rgba(148,163,184,0.2);border-radius:10px;background:rgba(15,23,42,0.45);">
+                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support ticket type IDs</h4>
+                    <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
+                        These HaloPSA Ticket Type IDs are used when creating and syncing support requests.
+                    </p>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+                        <div>
+                            <label for="halo_support_issue_ticket_type_id" style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                                Support/Issue Type ID
+                            </label>
+                            <input id="halo_support_issue_ticket_type_id"
+                                   type="number"
+                                   min="1"
+                                   name="halo[support_issue_ticket_type_id]"
+                                   value="{{ old('halo.support_issue_ticket_type_id', $settings['halo']['support_issue_ticket_type_id'] ?? '') }}"
+                                   placeholder="e.g. 20"
+                                   style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                        </div>
+
+                        <div>
+                            <label for="halo_service_request_ticket_type_id" style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
+                                Service Request Type ID
+                            </label>
+                            <input id="halo_service_request_ticket_type_id"
+                                   type="number"
+                                   min="1"
+                                   name="halo[service_request_ticket_type_id]"
+                                   value="{{ old('halo.service_request_ticket_type_id', $settings['halo']['service_request_ticket_type_id'] ?? '') }}"
+                                   placeholder="e.g. 21"
+                                   style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                        </div>
+                    </div>
+                </div>
                 </div>
             </div>
 

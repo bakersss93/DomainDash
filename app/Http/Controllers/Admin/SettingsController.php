@@ -17,7 +17,10 @@ class SettingsController extends Controller
             'branding' => Setting::get('branding', ['primary'=>'#1f2937','accent'=>'#06b6d4','text'=>'#111827','bg'=>'#ffffff']),
             'smtp'     => Setting::get('smtp', []),
             'synergy'  => Setting::get('synergy', []),
-            'halo'     => Setting::get('halo', []),
+            'halo'     => array_merge([
+                'support_issue_ticket_type_id' => '',
+                'service_request_ticket_type_id' => '',
+            ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
             'ip2whois' => Setting::get('ip2whois', []),
             'sync_schedule' => Setting::get('sync_schedule', [
@@ -49,6 +52,8 @@ class SettingsController extends Controller
             'smtp'          => 'array',
             'synergy'       => 'array',
             'halo'          => 'array',
+            'halo.support_issue_ticket_type_id' => 'nullable|integer|min:1',
+            'halo.service_request_ticket_type_id' => 'nullable|integer|min:1',
             'itglue'        => 'array',
             'ip2whois'      => 'array',
             'sync_schedule' => 'array',

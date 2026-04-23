@@ -513,4 +513,34 @@ class HaloPsaClient
             'json' => $data,
         ]);
     }
+
+    /**
+     * List support tickets for a Halo client, optionally constrained to ticket type IDs.
+     */
+    public function listTicketsForClient(int $clientId, array $ticketTypeIds = []): array
+    {
+        $query = [
+            'client_id' => $clientId,
+            'count' => 100,
+        ];
+
+        if (!empty($ticketTypeIds)) {
+            $query['tickettype_id'] = implode(',', array_map('intval', $ticketTypeIds));
+        }
+
+        $result = $this->request('GET', 'tickets', [
+            'query' => $query,
+        ]);
+
+        $tickets = $result['tickets']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        if (!is_array($tickets)) {
+            return [];
+        }
+
+        return $tickets;
+    }
 }
