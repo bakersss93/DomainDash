@@ -74,7 +74,7 @@
             </thead>
             <tbody id="support-ticket-table-body">
                 @forelse($tickets as $ticket)
-                    <tr>
+                    <tr onclick="window.location='{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId]) }}'" style="cursor:pointer;">
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['service'] ?? '-' }}</td>
@@ -110,8 +110,9 @@
         const currentPageLabel = document.getElementById('support-ticket-current-page');
         let currentPage = Number(currentPageLabel.textContent || '1');
 
+        const selectedClientId = @json($selectedClientId);
         const buildRow = (row) => `
-            <tr>
+            <tr onclick="window.location='{{ url('/tickets') }}/${row.id}?client_id=${selectedClientId}'" style="cursor:pointer;">
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.id}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.summary}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.service}</td>

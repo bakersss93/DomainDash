@@ -145,6 +145,52 @@ class TicketController extends Controller
         ]);
     }
 
+    public function show(Request $request, int $ticketId)
+    {
+        $user = auth()->user();
+        $clients = $this->availableClients($user);
+        $selectedClientId = $this->resolveSelectedClientId($request, $clients);
+        $selectedClient = $clients->firstWhere('id', $selectedClientId);
+
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to view this ticket.');
+        }
+
+        if (!$this->isHaloConfigured()) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => 'HaloPSA is not configured yet. Please update Admin > Settings > HaloPSA.']);
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => 'This client is not linked to HaloPSA yet.']);
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to view this ticket.');
+            }
+
+            $actions = $halo->getTicketActions($ticketId);
+        } catch (\RuntimeException $exception) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => $exception->getMessage()]);
+        }
+
+        return view('tickets.show', [
+            'ticket' => $ticket,
+            'ticketId' => $ticketId,
+            'actions' => $actions,
+            'selectedClientId' => $selectedClientId,
+            'selectedClient' => $selectedClient,
+            'portalUrl' => $this->extractPortalUrl($ticket),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -214,6 +260,46 @@ class TicketController extends Controller
         }
 
         return redirect()->back()->with('status', 'Ticket logged to HaloPSA');
+    }
+
+    public function reply(Request $request, int $ticketId)
+    {
+        $data = $request->validate([
+            'client_id' => 'required|integer|exists:clients,id',
+            'message' => 'required|string',
+        ]);
+
+        $clients = $this->availableClients(auth()->user());
+        $selectedClient = $clients->firstWhere('id', (int) $data['client_id']);
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to reply to this ticket.');
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return back()->withErrors([
+                'halo' => 'This client is not linked to HaloPSA yet.',
+            ])->withInput();
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to reply to this ticket.');
+            }
+
+            $halo->createTicketAction($ticketId, trim((string) $data['message']));
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors([
+                'halo' => $exception->getMessage(),
+            ])->withInput();
+        }
+
+        return redirect()->route('tickets.show', [
+            'ticketId' => $ticketId,
+            'client_id' => $selectedClient->id,
+        ])->with('status', 'Reply sent to Halo ticket.');
     }
 
     private function availableClients($user)
@@ -543,5 +629,22 @@ class TicketController extends Controller
                 return $ticket;
             }
         }, $tickets));
+    }
+
+    private function extractPortalUrl(array $ticket): ?string
+    {
+        $candidate = $ticket['portal_url']
+            ?? $ticket['PortalUrl']
+            ?? $ticket['client_portal_url']
+            ?? $ticket['ClientPortalUrl']
+            ?? $ticket['web_url']
+            ?? $ticket['WebUrl']
+            ?? null;
+
+        if (!is_string($candidate) || trim($candidate) === '') {
+            return null;
+        }
+
+        return $candidate;
     }
 }

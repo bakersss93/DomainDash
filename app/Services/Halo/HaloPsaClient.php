@@ -565,6 +565,70 @@ class HaloPsaClient
     }
 
     /**
+     * Fetch ticket communications/actions from Halo.
+     */
+    public function getTicketActions(int $ticketId): array
+    {
+        $endpoints = [
+            'tickets/' . $ticketId . '/actions',
+            'actions',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $query = [];
+            if ($endpoint === 'actions') {
+                $query = [
+                    'ticket_id' => $ticketId,
+                    'count' => 200,
+                ];
+            }
+
+            try {
+                $result = $this->request('GET', $endpoint, [
+                    'query' => $query,
+                ]);
+
+                $actions = $result['actions']
+                    ?? $result['ticket_actions']
+                    ?? $result['data']
+                    ?? $result['Results']
+                    ?? (array_is_list($result) ? $result : []);
+
+                if (is_array($actions)) {
+                    return array_values(array_filter($actions, 'is_array'));
+                }
+            } catch (\RuntimeException $exception) {
+                Log::warning('Failed Halo ticket action endpoint.', [
+                    'ticket_id' => $ticketId,
+                    'endpoint' => $endpoint,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Add a client-visible action/note reply to a ticket.
+     */
+    public function createTicketAction(int $ticketId, string $message): array
+    {
+        return $this->request('POST', 'actions', [
+            'json' => [
+                'ticket_id' => $ticketId,
+                'TicketId' => $ticketId,
+                'details' => $message,
+                'Details' => $message,
+                'clientvisible' => true,
+                'ClientVisible' => true,
+                'sendemail' => true,
+                'SendEmail' => true,
+            ],
+        ]);
+    }
+
+    /**
      * Fetch HaloPSA ticket types.
      */
     public function listTicketTypes(): array
