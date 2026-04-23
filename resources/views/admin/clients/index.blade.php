@@ -1084,6 +1084,45 @@
         color: #9ca3af;
     }
 
+    /* Force rounded custom checkboxes in Halo import modal (native checkboxes stay square on some browsers). */
+    .halo-client-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        border: 1px solid var(--dd-pill-border);
+        background: var(--dd-pill-bg);
+        display: inline-grid;
+        place-content: center;
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .halo-client-checkbox::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 3px;
+        transform: scale(0);
+        transition: transform 0.12s ease-in-out;
+        background: var(--dd-accent-contrast);
+    }
+
+    .halo-client-checkbox:checked {
+        border-color: var(--dd-accent-strong);
+        background: var(--dd-accent-strong);
+    }
+
+    .halo-client-checkbox:checked::before {
+        transform: scale(1);
+    }
+
+    .halo-client-checkbox:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--dd-accent) 45%, transparent);
+    }
+
     /* Modal */
     .dd-modal {
         position: fixed;
