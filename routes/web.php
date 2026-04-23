@@ -107,6 +107,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
+        Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
         Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');

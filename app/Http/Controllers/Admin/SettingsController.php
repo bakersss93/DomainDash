@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
+use App\Services\Halo\HaloPsaClient;
 
 class SettingsController extends Controller
 {
@@ -20,6 +21,7 @@ class SettingsController extends Controller
             'halo'     => array_merge([
                 'support_issue_ticket_type_id' => '',
                 'service_request_ticket_type_id' => '',
+                'ticket_type_mappings' => [],
             ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
             'ip2whois' => Setting::get('ip2whois', []),
@@ -59,6 +61,11 @@ class SettingsController extends Controller
             'halo.api_key' => 'nullable|string|max:255',
             'halo.support_issue_ticket_type_id' => 'nullable|integer|min:1',
             'halo.service_request_ticket_type_id' => 'nullable|integer|min:1',
+            'halo.ticket_type_mappings' => 'nullable|array',
+            'halo.ticket_type_mappings.*' => 'nullable|array',
+            'halo.ticket_type_mappings.*.service_category' => 'nullable|string|max:120',
+            'halo.ticket_type_mappings.*.halo_ticket_type_id' => 'nullable|integer|min:1',
+            'halo.ticket_type_mappings.*.halo_ticket_type_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
             'ip2whois'      => 'array',
             'sync_schedule' => 'array',
@@ -162,6 +169,31 @@ class SettingsController extends Controller
         }
 
         return back()->with('status', empty($newValues) ? 'No setting changes detected.' : 'Settings saved.');
+    }
+
+    public function haloTicketTypes()
+    {
+        try {
+            $halo = app(HaloPsaClient::class);
+            $types = $halo->listTicketTypes();
+            $normalized = array_values(array_map(function (array $type): array {
+                return [
+                    'id' => (int) ($type['id'] ?? $type['Id'] ?? 0),
+                    'name' => (string) ($type['name'] ?? $type['Name'] ?? ('Type #' . ($type['id'] ?? $type['Id'] ?? '0'))),
+                ];
+            }, $types));
+
+            $normalized = array_values(array_filter($normalized, fn (array $type): bool => $type['id'] > 0));
+
+            return response()->json([
+                'types' => $normalized,
+            ]);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'types' => [],
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     private function extractChangedValues($oldValue, $newValue): ?array

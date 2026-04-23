@@ -21,16 +21,34 @@ class TicketController extends Controller
         $clients = $this->availableClients($user);
         $selectedClientId = $this->resolveSelectedClientId($request, $clients);
         $selectedClient = $clients->firstWhere('id', $selectedClientId);
+        $serviceFilter = trim((string) $request->query('service_category', ''));
+        $ticketTypeFilter = $request->filled('ticket_type_id') ? (int) $request->query('ticket_type_id') : null;
+        $page = max(1, (int) $request->query('page', 1));
+        $pageSize = 20;
+        $ticketMappings = $this->configuredTicketMappings();
+        $configuredTypeIds = $this->ticketTypeIds();
+        $serviceOptions = array_values(array_unique(array_map(
+            fn (array $mapping): string => (string) ($mapping['service_category'] ?? ''),
+            $ticketMappings
+        )));
+        $serviceOptions = array_values(array_filter($serviceOptions, fn (string $value): bool => $value !== ''));
         $tickets = [];
         $error = null;
+        $hasMore = false;
+        $fetchedTicketCount = 0;
 
         if (!$this->isHaloConfigured()) {
             $error = 'HaloPSA is not configured yet. Please update Admin > Settings > HaloPSA.';
         } elseif ($selectedClient && $selectedClient->halopsa_reference) {
             try {
                 $halo = app(HaloPsaClient::class);
-                $ticketTypeIds = $this->ticketTypeIds();
-                $tickets = $halo->listTicketsForClient((int) $selectedClient->halopsa_reference, $ticketTypeIds);
+                $tickets = $halo->listTicketsForClient(
+                    (int) $selectedClient->halopsa_reference,
+                    $configuredTypeIds,
+                    $page,
+                    $pageSize
+                );
+                $fetchedTicketCount = count($tickets);
             } catch (\RuntimeException $exception) {
                 $error = $exception->getMessage();
             }
@@ -38,11 +56,37 @@ class TicketController extends Controller
             $error = 'This client is not linked to HaloPSA yet.';
         }
 
+        if ($serviceFilter !== '') {
+            $tickets = array_values(array_filter($tickets, function (array $ticket) use ($serviceFilter): bool {
+                $ticketServiceCategory = (string) ($ticket['category_1']
+                    ?? $ticket['Category1']
+                    ?? $ticket['category1']
+                    ?? '');
+
+                return strcasecmp($ticketServiceCategory, $serviceFilter) === 0;
+            }));
+        }
+
+        if ($ticketTypeFilter !== null) {
+            $tickets = array_values(array_filter($tickets, function (array $ticket) use ($ticketTypeFilter): bool {
+                $ticketTypeId = (int) ($ticket['tickettype_id'] ?? $ticket['TicketTypeId'] ?? 0);
+                return $ticketTypeId === $ticketTypeFilter;
+            }));
+        }
+
+        $hasMore = $fetchedTicketCount === $pageSize;
+
         return view('tickets.requests', [
             'clients' => $clients,
             'selectedClientId' => $selectedClientId,
             'selectedClient' => $selectedClient,
             'tickets' => $tickets,
+            'ticketMappings' => $ticketMappings,
+            'serviceOptions' => $serviceOptions,
+            'selectedServiceCategory' => $serviceFilter,
+            'selectedTicketTypeId' => $ticketTypeFilter,
+            'page' => $page,
+            'hasMore' => $hasMore,
             'error' => $error,
         ]);
     }
@@ -140,8 +184,16 @@ class TicketController extends Controller
 
     private function ticketTypeIds(): array
     {
-        $haloSettings = $this->haloSettings();
+        $mappingTypeIds = array_values(array_filter(array_map(
+            fn (array $mapping): ?int => isset($mapping['halo_ticket_type_id']) ? (int) $mapping['halo_ticket_type_id'] : null,
+            $this->configuredTicketMappings()
+        )));
 
+        if (!empty($mappingTypeIds)) {
+            return array_values(array_unique($mappingTypeIds));
+        }
+
+        $haloSettings = $this->haloSettings();
         return array_values(array_filter([
             isset($haloSettings['support_issue_ticket_type_id']) ? (int) $haloSettings['support_issue_ticket_type_id'] : null,
             isset($haloSettings['service_request_ticket_type_id']) ? (int) $haloSettings['service_request_ticket_type_id'] : null,
@@ -180,6 +232,22 @@ class TicketController extends Controller
     {
         $haloSettings = Setting::get('halo', []);
         return is_array($haloSettings) ? $haloSettings : [];
+    }
+
+    private function configuredTicketMappings(): array
+    {
+        $haloSettings = $this->haloSettings();
+        $mappings = $haloSettings['ticket_type_mappings'] ?? [];
+
+        if (!is_array($mappings)) {
+            return [];
+        }
+
+        return array_values(array_filter($mappings, function ($mapping): bool {
+            return is_array($mapping)
+                && !empty($mapping['service_category'])
+                && !empty($mapping['halo_ticket_type_id']);
+        }));
     }
 
     private function isHaloConfigured(): bool

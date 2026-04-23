@@ -300,39 +300,127 @@
                 </div>
 
                 <div style="margin-top:16px;padding:14px;border:1px solid rgba(148,163,184,0.2);border-radius:10px;background:rgba(15,23,42,0.45);">
-                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support ticket type IDs</h4>
+                    @php
+                        $ticketTypeMappings = old('halo.ticket_type_mappings', $settings['halo']['ticket_type_mappings'] ?? []);
+                        if (!is_array($ticketTypeMappings)) {
+                            $ticketTypeMappings = [];
+                        }
+                    @endphp
+                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support ticket type mappings</h4>
                     <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
-                        These HaloPSA Ticket Type IDs are used when creating and syncing support requests.
+                        Map DomainDash service categories to HaloPSA ticket types used for create/sync/list filters.
                     </p>
 
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+                    <div id="halo-ticket-type-mapping-list" style="display:grid;gap:10px;">
+                        @forelse($ticketTypeMappings as $index => $mapping)
+                            <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                                <div>
+                                    <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
+                                    <input type="text"
+                                           name="halo[ticket_type_mappings][{{ $index }}][service_category]"
+                                           value="{{ $mapping['service_category'] ?? '' }}"
+                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Ticket Type</label>
+                                    <input type="hidden"
+                                           name="halo[ticket_type_mappings][{{ $index }}][halo_ticket_type_id]"
+                                           value="{{ $mapping['halo_ticket_type_id'] ?? '' }}">
+                                    <input type="text"
+                                           name="halo[ticket_type_mappings][{{ $index }}][halo_ticket_type_name]"
+                                           value="{{ $mapping['halo_ticket_type_name'] ?? '' }}"
+                                           placeholder="Choose ticket type"
+                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                </div>
+                                <button type="button"
+                                        onclick="removeHaloTicketTypeMapping(this)"
+                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">
+                                    Remove
+                                </button>
+                            </div>
+                        @empty
+                            <div id="halo-ticket-type-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:#94a3b8;font-size:13px;">
+                                No mappings configured yet.
+                            </div>
+                        @endforelse
+                    </div>
+
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                        <button type="button"
+                                class="btn-accent"
+                                style="padding:8px 12px;"
+                                onclick="openHaloTicketTypeMappingModal();">
+                            Add Mapping
+                        </button>
                         <div>
-                            <label for="halo_support_issue_ticket_type_id" style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
-                                Support/Issue Type ID
-                            </label>
+                            <label for="halo_support_issue_ticket_type_id" style="display:block;font-size:11px;margin-bottom:4px;color:#94a3b8;">Legacy Support/Issue Type ID</label>
                             <input id="halo_support_issue_ticket_type_id"
                                    type="number"
                                    min="1"
                                    name="halo[support_issue_ticket_type_id]"
                                    value="{{ old('halo.support_issue_ticket_type_id', $settings['halo']['support_issue_ticket_type_id'] ?? '') }}"
-                                   placeholder="e.g. 20"
-                                   style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                                   placeholder="Optional fallback"
+                                   style="padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
                         </div>
-
                         <div>
-                            <label for="halo_service_request_ticket_type_id" style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">
-                                Service Request Type ID
-                            </label>
+                            <label for="halo_service_request_ticket_type_id" style="display:block;font-size:11px;margin-bottom:4px;color:#94a3b8;">Legacy Service Request Type ID</label>
                             <input id="halo_service_request_ticket_type_id"
                                    type="number"
                                    min="1"
                                    name="halo[service_request_ticket_type_id]"
                                    value="{{ old('halo.service_request_ticket_type_id', $settings['halo']['service_request_ticket_type_id'] ?? '') }}"
-                                   placeholder="e.g. 21"
-                                   style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                                   placeholder="Optional fallback"
+                                   style="padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
                         </div>
                     </div>
                 </div>
+                </div>
+            </div>
+
+            <template id="halo-ticket-type-mapping-template">
+                <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                    <div>
+                        <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
+                        <input type="text" data-field="service_category" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Ticket Type</label>
+                        <input type="hidden" data-field="halo_ticket_type_id">
+                        <input type="text" data-field="halo_ticket_type_name" readonly style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Choose ticket type">
+                    </div>
+                    <button type="button" onclick="removeHaloTicketTypeMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
+                </div>
+            </template>
+
+            <div id="haloTicketTypeMappingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;">
+                <div style="width:min(720px,92vw);background:#0f172a;border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h3 style="margin:0;font-size:18px;color:#f8fafc;">Add ticket type mapping</h3>
+                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="display:grid;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Service Category</label>
+                            <select id="haloMappingServiceCategorySelect" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;"></select>
+                        </div>
+                        <div id="haloMappingCustomServiceWrap" style="display:none;">
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Custom Service Category</label>
+                            <input id="haloMappingCustomServiceInput" type="text" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Enter service category">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Halo Ticket Type</label>
+                            <div style="display:flex;gap:8px;">
+                                <select id="haloMappingTicketTypeSelect" style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                    <option value="">Select Halo ticket type</option>
+                                </select>
+                                <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="loadHaloTicketTypesForMapping()">Load Types</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
+                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:#94a3b8;cursor:pointer;">Cancel</button>
+                        <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="confirmHaloTicketTypeMapping()">Add</button>
+                    </div>
                 </div>
             </div>
 
@@ -1558,5 +1646,138 @@
                 window.hideGlobalLoader();
             }
         }
+
+        const defaultServiceCategories = ['Domain', 'Web Hosting', 'SSL'];
+
+        function serviceCategoriesForModal() {
+            const set = new Set(defaultServiceCategories);
+            document.querySelectorAll('#halo-ticket-type-mapping-list .halo-ticket-mapping-row input[name*="[service_category]"]').forEach(input => {
+                const value = (input.value || '').trim();
+                if (value) {
+                    set.add(value);
+                }
+            });
+            return Array.from(set);
+        }
+
+        function openHaloTicketTypeMappingModal() {
+            const modal = document.getElementById('haloTicketTypeMappingModal');
+            const serviceSelect = document.getElementById('haloMappingServiceCategorySelect');
+            serviceSelect.innerHTML = '';
+
+            serviceCategoriesForModal().forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                serviceSelect.appendChild(option);
+            });
+
+            const customOption = document.createElement('option');
+            customOption.value = '__custom__';
+            customOption.textContent = 'Other (custom)';
+            serviceSelect.appendChild(customOption);
+
+            toggleCustomServiceCategoryInput();
+            modal.style.display = 'flex';
+        }
+
+        function closeHaloTicketTypeMappingModal() {
+            document.getElementById('haloTicketTypeMappingModal').style.display = 'none';
+            document.getElementById('haloMappingCustomServiceInput').value = '';
+        }
+
+        function toggleCustomServiceCategoryInput() {
+            const value = document.getElementById('haloMappingServiceCategorySelect').value;
+            const customWrap = document.getElementById('haloMappingCustomServiceWrap');
+            customWrap.style.display = value === '__custom__' ? 'block' : 'none';
+        }
+
+        async function loadHaloTicketTypesForMapping() {
+            const select = document.getElementById('haloMappingTicketTypeSelect');
+            select.innerHTML = '<option value=\"\">Loading…</option>';
+
+            try {
+                const response = await fetch('{{ route('admin.settings.halo.ticket-types') }}');
+                const data = await response.json();
+                const types = Array.isArray(data.types) ? data.types : [];
+                select.innerHTML = '<option value=\"\">Select Halo ticket type</option>';
+                types.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = String(type.id);
+                    option.textContent = type.name;
+                    option.dataset.name = type.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                select.innerHTML = '<option value=\"\">Unable to load ticket types</option>';
+            }
+        }
+
+        function ensureHaloMappingRowNames() {
+            const rows = Array.from(document.querySelectorAll('#halo-ticket-type-mapping-list .halo-ticket-mapping-row'));
+            rows.forEach((row, index) => {
+                const serviceInput = row.querySelector('input[data-field=\"service_category\"], input[name*=\"[service_category]\"]');
+                const typeIdInput = row.querySelector('input[data-field=\"halo_ticket_type_id\"], input[name*=\"[halo_ticket_type_id]\"]');
+                const typeNameInput = row.querySelector('input[data-field=\"halo_ticket_type_name\"], input[name*=\"[halo_ticket_type_name]\"]');
+
+                if (serviceInput) {
+                    serviceInput.name = `halo[ticket_type_mappings][${index}][service_category]`;
+                }
+                if (typeIdInput) {
+                    typeIdInput.name = `halo[ticket_type_mappings][${index}][halo_ticket_type_id]`;
+                }
+                if (typeNameInput) {
+                    typeNameInput.name = `halo[ticket_type_mappings][${index}][halo_ticket_type_name]`;
+                }
+            });
+
+            const empty = document.getElementById('halo-ticket-type-empty');
+            if (empty) {
+                empty.style.display = rows.length === 0 ? 'block' : 'none';
+            }
+        }
+
+        function confirmHaloTicketTypeMapping() {
+            const serviceSelect = document.getElementById('haloMappingServiceCategorySelect');
+            const customInput = document.getElementById('haloMappingCustomServiceInput');
+            const typeSelect = document.getElementById('haloMappingTicketTypeSelect');
+
+            const serviceCategory = serviceSelect.value === '__custom__'
+                ? customInput.value.trim()
+                : serviceSelect.value.trim();
+
+            if (!serviceCategory) {
+                alert('Please choose a service category.');
+                return;
+            }
+
+            if (!typeSelect.value) {
+                alert('Please choose a Halo ticket type.');
+                return;
+            }
+
+            const typeName = typeSelect.selectedOptions[0]?.textContent?.trim() || '';
+
+            const template = document.getElementById('halo-ticket-type-mapping-template');
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('[data-field=\"service_category\"]').value = serviceCategory;
+            clone.querySelector('[data-field=\"halo_ticket_type_id\"]').value = typeSelect.value;
+            clone.querySelector('[data-field=\"halo_ticket_type_name\"]').value = typeName;
+
+            document.getElementById('halo-ticket-type-mapping-list').appendChild(clone);
+            ensureHaloMappingRowNames();
+            closeHaloTicketTypeMappingModal();
+        }
+
+        function removeHaloTicketTypeMapping(button) {
+            const row = button.closest('.halo-ticket-mapping-row');
+            if (row) {
+                row.remove();
+                ensureHaloMappingRowNames();
+            }
+        }
+
+        document.getElementById('haloMappingServiceCategorySelect')?.addEventListener('change', toggleCustomServiceCategoryInput);
+        document.addEventListener('DOMContentLoaded', ensureHaloMappingRowNames);
     </script>
 @endsection
