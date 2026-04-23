@@ -651,13 +651,25 @@ class HaloPsaClient
                 'HiddenFromUser' => false,
                 'SendEmail' => true,
             ],
+            [
+                'ticket_id' => $ticketId,
+                'note' => $message,
+                'actiontype' => 'Email User',
+                'hiddenfromuser' => false,
+                'sendemail' => true,
+            ],
         ];
 
         $endpoints = [
             'tickets/' . $ticketId . '/actions',
             'tickets/' . $ticketId . '/action',
+            'tickets/' . $ticketId . '/reply',
+            'tickets/' . $ticketId . '/respond',
+            'tickets/' . $ticketId . '/email',
+            'tickets/' . $ticketId . '/emailuser',
             'action',
             'actions',
+            'tickets',
         ];
 
         $lastError = null;

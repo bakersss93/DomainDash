@@ -753,6 +753,24 @@ class TicketController extends Controller
             }
         }
 
+        $clientFacingTypes = [
+            strtolower(trim((string) ($action['outcome'] ?? ''))),
+            strtolower(trim((string) ($action['Outcome'] ?? ''))),
+            strtolower(trim((string) ($action['actiontype'] ?? ''))),
+            strtolower(trim((string) ($action['ActionType'] ?? ''))),
+            strtolower(trim((string) ($action['type'] ?? ''))),
+            strtolower(trim((string) ($action['Type'] ?? ''))),
+        ];
+        foreach ($clientFacingTypes as $typeLabel) {
+            if ($typeLabel === '') {
+                continue;
+            }
+
+            if (in_array($typeLabel, ['email user', 'with user', 'client note', 'public note'], true)) {
+                return true;
+            }
+        }
+
         return false;
     }
 
