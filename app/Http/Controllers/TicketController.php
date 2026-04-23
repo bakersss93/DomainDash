@@ -193,6 +193,11 @@ class TicketController extends Controller
             }
         }
 
+        $ticketServiceLabel = $this->extractTicketServiceLabel($ticket);
+        if (trim($ticketServiceLabel) === '-' && $request->filled('service')) {
+            $ticketServiceLabel = trim((string) $request->query('service'));
+        }
+
         return view('tickets.show', [
             'ticket' => $ticket,
             'ticketId' => $ticketId,
@@ -202,7 +207,7 @@ class TicketController extends Controller
             'portalUrl' => $this->extractPortalUrl($ticket),
             'ticketStatusLabel' => $this->resolveTicketStatusLabel($ticket, $statusNameById),
             'ticketTypeLabel' => $this->extractTicketTypeLabel($ticket),
-            'ticketServiceLabel' => $this->extractTicketServiceLabel($ticket),
+            'ticketServiceLabel' => $ticketServiceLabel,
             'ticketUpdatedLabel' => $this->extractTicketUpdated($ticket),
         ]);
     }

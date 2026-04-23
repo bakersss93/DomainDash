@@ -80,7 +80,7 @@
             </thead>
             <tbody id="support-ticket-table-body">
                 @forelse($tickets as $ticket)
-                    <tr data-ticket-link="{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId]) }}" style="cursor:pointer;">
+                    <tr data-ticket-link="{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId, 'service' => $ticket['service'] ?? '']) }}" style="cursor:pointer;">
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['service'] ?? '-' }}</td>
@@ -161,7 +161,7 @@
 
         const selectedClientId = @json($selectedClientId);
         const buildRow = (row) => `
-            <tr data-ticket-link="{{ url('/tickets') }}/${row.id}?client_id=${selectedClientId}" style="cursor:pointer;">
+            <tr data-ticket-link="{{ url('/tickets') }}/${row.id}?client_id=${selectedClientId}&service=${encodeURIComponent(row.service || '')}" style="cursor:pointer;">
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.id}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.summary}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.service}</td>
