@@ -72,7 +72,7 @@
                     <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Updated</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="support-ticket-table-body">
                 @forelse($tickets as $ticket)
                     @php
                         $ticketTypeLabel = $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? $ticket['TicketType'] ?? 'Unknown';
@@ -96,15 +96,68 @@
     </div>
 
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
-        <div style="color:var(--text-muted);font-size:13px;">Page {{ $page }} (20 per page)</div>
+        <div style="color:var(--text-muted);font-size:13px;">Page <span id="support-ticket-current-page">{{ $page }}</span> (25 per load)</div>
         @if($hasMore)
-            <a class="btn-accent" style="text-decoration:none;" href="{{ route('tickets.index', array_filter([
-                'client_id' => $selectedClientId,
-                'service_category' => $selectedServiceCategory,
-                'ticket_type_id' => $selectedTicketTypeId,
-                'page' => $page + 1,
-            ])) }}">Next 20</a>
+            <button id="support-ticket-load-more" class="btn-accent" type="button">Load Next 25</button>
         @endif
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const loadMoreButton = document.getElementById('support-ticket-load-more');
+        if (!loadMoreButton) {
+            return;
+        }
+
+        const tableBody = document.getElementById('support-ticket-table-body');
+        const currentPageLabel = document.getElementById('support-ticket-current-page');
+        let currentPage = Number(currentPageLabel.textContent || '1');
+
+        const buildRow = (row) => `
+            <tr>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.id}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.summary}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.service}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.type}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.status}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.updated}</td>
+            </tr>
+        `;
+
+        loadMoreButton.addEventListener('click', async function () {
+            const params = new URLSearchParams(window.location.search);
+            params.set('page', String(currentPage + 1));
+
+            loadMoreButton.disabled = true;
+            loadMoreButton.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(`{{ route('tickets.index') }}?${params.toString()}`, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await response.json();
+                const rows = Array.isArray(data.rows) ? data.rows : [];
+
+                rows.forEach(row => {
+                    tableBody.insertAdjacentHTML('beforeend', buildRow(row));
+                });
+
+                currentPage = Number(data.page || currentPage + 1);
+                currentPageLabel.textContent = String(currentPage);
+
+                if (!data.has_more || rows.length === 0) {
+                    loadMoreButton.remove();
+                } else {
+                    loadMoreButton.disabled = false;
+                    loadMoreButton.textContent = 'Load Next 25';
+                }
+            } catch (error) {
+                loadMoreButton.disabled = false;
+                loadMoreButton.textContent = 'Load Next 25';
+                alert('Unable to load next ticket page.');
+            }
+        });
+    });
+</script>
 @endsection

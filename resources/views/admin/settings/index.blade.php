@@ -311,7 +311,14 @@
                         Map DomainDash service categories to HaloPSA ticket types used for create/sync/list filters.
                     </p>
 
-                    <div id="halo-ticket-type-mapping-list" style="display:grid;gap:10px;">
+                    <div style="display:grid;gap:8px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
+                            <span>Service Category</span>
+                            <span>Halo Ticket Type</span>
+                            <span>Action</span>
+                        </div>
+                    </div>
+                    <div id="halo-ticket-type-mapping-list" style="display:grid;gap:10px;margin-top:8px;">
                         @forelse($ticketTypeMappings as $index => $mapping)
                             <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
                                 <div>
@@ -352,26 +359,6 @@
                                 onclick="openHaloTicketTypeMappingModal();">
                             Add Mapping
                         </button>
-                        <div>
-                            <label for="halo_support_issue_ticket_type_id" style="display:block;font-size:11px;margin-bottom:4px;color:#94a3b8;">Legacy Support/Issue Type ID</label>
-                            <input id="halo_support_issue_ticket_type_id"
-                                   type="number"
-                                   min="1"
-                                   name="halo[support_issue_ticket_type_id]"
-                                   value="{{ old('halo.support_issue_ticket_type_id', $settings['halo']['support_issue_ticket_type_id'] ?? '') }}"
-                                   placeholder="Optional fallback"
-                                   style="padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
-                        </div>
-                        <div>
-                            <label for="halo_service_request_ticket_type_id" style="display:block;font-size:11px;margin-bottom:4px;color:#94a3b8;">Legacy Service Request Type ID</label>
-                            <input id="halo_service_request_ticket_type_id"
-                                   type="number"
-                                   min="1"
-                                   name="halo[service_request_ticket_type_id]"
-                                   value="{{ old('halo.service_request_ticket_type_id', $settings['halo']['service_request_ticket_type_id'] ?? '') }}"
-                                   placeholder="Optional fallback"
-                                   style="padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
-                        </div>
                     </div>
                 </div>
                 </div>

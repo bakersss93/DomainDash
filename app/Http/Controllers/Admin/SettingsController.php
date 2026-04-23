@@ -19,8 +19,6 @@ class SettingsController extends Controller
             'smtp'     => Setting::get('smtp', []),
             'synergy'  => Setting::get('synergy', []),
             'halo'     => array_merge([
-                'support_issue_ticket_type_id' => '',
-                'service_request_ticket_type_id' => '',
                 'ticket_type_mappings' => [],
             ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
@@ -59,8 +57,6 @@ class SettingsController extends Controller
             'halo.tenant' => 'nullable|string|max:120',
             'halo.client_id' => 'nullable|string|max:120',
             'halo.api_key' => 'nullable|string|max:255',
-            'halo.support_issue_ticket_type_id' => 'nullable|integer|min:1',
-            'halo.service_request_ticket_type_id' => 'nullable|integer|min:1',
             'halo.ticket_type_mappings' => 'nullable|array',
             'halo.ticket_type_mappings.*' => 'nullable|array',
             'halo.ticket_type_mappings.*.service_category' => 'nullable|string|max:120',

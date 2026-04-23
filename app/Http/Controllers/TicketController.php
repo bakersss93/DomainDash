@@ -24,7 +24,7 @@ class TicketController extends Controller
         $serviceFilter = trim((string) $request->query('service_category', ''));
         $ticketTypeFilter = $request->filled('ticket_type_id') ? (int) $request->query('ticket_type_id') : null;
         $page = max(1, (int) $request->query('page', 1));
-        $pageSize = 20;
+        $pageSize = 25;
         $ticketMappings = $this->configuredTicketMappings();
         $configuredTypeIds = $this->ticketTypeIds();
         $serviceOptions = array_values(array_unique(array_map(
@@ -56,6 +56,35 @@ class TicketController extends Controller
             $error = 'This client is not linked to HaloPSA yet.';
         }
 
+        if ($selectedClient && $selectedClient->halopsa_reference) {
+            $ticketMappingsByKey = [];
+            foreach ($ticketMappings as $mapping) {
+                $mapTypeId = (int) ($mapping['halo_ticket_type_id'] ?? 0);
+                $mapServiceCategory = trim((string) ($mapping['service_category'] ?? ''));
+                if ($mapTypeId <= 0 || $mapServiceCategory === '') {
+                    continue;
+                }
+                $ticketMappingsByKey[strtolower($mapServiceCategory) . '|' . $mapTypeId] = true;
+            }
+
+            $tickets = array_values(array_filter($tickets, function (array $ticket) use ($selectedClient, $ticketMappingsByKey): bool {
+                $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+                if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                    return false;
+                }
+
+                if (empty($ticketMappingsByKey)) {
+                    return false;
+                }
+
+                $ticketTypeId = (int) ($ticket['tickettype_id'] ?? $ticket['TicketTypeId'] ?? 0);
+                $ticketServiceCategory = trim((string) ($ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? ''));
+                $mappingKey = strtolower($ticketServiceCategory) . '|' . $ticketTypeId;
+
+                return isset($ticketMappingsByKey[$mappingKey]);
+            }));
+        }
+
         if ($serviceFilter !== '') {
             $tickets = array_values(array_filter($tickets, function (array $ticket) use ($serviceFilter): bool {
                 $ticketServiceCategory = (string) ($ticket['category_1']
@@ -75,6 +104,25 @@ class TicketController extends Controller
         }
 
         $hasMore = $fetchedTicketCount === $pageSize;
+
+        if ($request->wantsJson()) {
+            $rows = array_values(array_map(function (array $ticket): array {
+                return [
+                    'id' => $ticket['id'] ?? $ticket['Id'] ?? '-',
+                    'summary' => $ticket['summary'] ?? $ticket['Summary'] ?? '-',
+                    'service' => $ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-',
+                    'type' => $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? $ticket['TicketType'] ?? 'Unknown',
+                    'status' => $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-',
+                    'updated' => $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-',
+                ];
+            }, $tickets));
+
+            return response()->json([
+                'rows' => $rows,
+                'has_more' => $hasMore,
+                'page' => $page,
+            ]);
+        }
 
         return view('tickets.requests', [
             'clients' => $clients,
@@ -189,15 +237,7 @@ class TicketController extends Controller
             $this->configuredTicketMappings()
         )));
 
-        if (!empty($mappingTypeIds)) {
-            return array_values(array_unique($mappingTypeIds));
-        }
-
-        $haloSettings = $this->haloSettings();
-        return array_values(array_filter([
-            isset($haloSettings['support_issue_ticket_type_id']) ? (int) $haloSettings['support_issue_ticket_type_id'] : null,
-            isset($haloSettings['service_request_ticket_type_id']) ? (int) $haloSettings['service_request_ticket_type_id'] : null,
-        ]));
+        return array_values(array_unique($mappingTypeIds));
     }
 
     private function resolveReferenceLabel(array $data): string
