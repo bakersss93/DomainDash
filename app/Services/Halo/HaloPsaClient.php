@@ -571,12 +571,13 @@ class HaloPsaClient
     {
         $endpoints = [
             'tickets/' . $ticketId . '/actions',
+            'action',
             'actions',
         ];
 
         foreach ($endpoints as $endpoint) {
             $query = [];
-            if ($endpoint === 'actions') {
+            if ($endpoint === 'actions' || $endpoint === 'action') {
                 $query = [
                     'ticket_id' => $ticketId,
                     'count' => 200,
@@ -614,18 +615,48 @@ class HaloPsaClient
      */
     public function createTicketAction(int $ticketId, string $message): array
     {
-        return $this->request('POST', 'actions', [
-            'json' => [
+        $payloads = [
+            [
                 'ticket_id' => $ticketId,
-                'TicketId' => $ticketId,
-                'details' => $message,
-                'Details' => $message,
-                'clientvisible' => true,
-                'ClientVisible' => true,
+                'note' => $message,
+                'outcome' => 'Note',
+                'hiddenfromuser' => false,
                 'sendemail' => true,
+            ],
+            [
+                'ticket_id' => $ticketId,
+                'details' => $message,
+                'outcome' => 'Note',
+                'hiddenfromuser' => false,
+                'sendemail' => true,
+            ],
+            [
+                'TicketId' => $ticketId,
+                'Note' => $message,
+                'Outcome' => 'Note',
+                'HiddenFromUser' => false,
                 'SendEmail' => true,
             ],
-        ]);
+        ];
+
+        foreach (['action', 'actions'] as $endpoint) {
+            foreach ($payloads as $payload) {
+                try {
+                    return $this->request('POST', $endpoint, [
+                        'json' => $payload,
+                    ]);
+                } catch (\RuntimeException $exception) {
+                    Log::warning('Failed Halo ticket action create payload.', [
+                        'ticket_id' => $ticketId,
+                        'endpoint' => $endpoint,
+                        'payload_keys' => array_keys($payload),
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        throw new \RuntimeException('Unable to submit reply to Halo ticket with available action payload formats.');
     }
 
     /**

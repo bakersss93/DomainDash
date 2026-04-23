@@ -7,19 +7,19 @@
         $ticketSummary = 'Support ticket details';
     }
 
-    $ticketStatus = $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-';
+    $ticketStatus = $ticketStatusLabel ?? $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-';
     if (is_array($ticketStatus)) {
         $ticketStatus = $ticketStatus['name'] ?? $ticketStatus['Name'] ?? '-';
     }
     $ticketStatus = is_string($ticketStatus) ? $ticketStatus : '-';
 
-    $ticketType = $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? '-';
+    $ticketType = $ticketTypeLabel ?? $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? '-';
     if (is_array($ticketType)) {
         $ticketType = $ticketType['name'] ?? $ticketType['Name'] ?? '-';
     }
     $ticketType = is_string($ticketType) ? $ticketType : '-';
 
-    $ticketUpdated = $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-';
+    $ticketUpdated = $ticketUpdatedLabel ?? $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-';
     if (is_array($ticketUpdated)) {
         $ticketUpdated = '-';
     }

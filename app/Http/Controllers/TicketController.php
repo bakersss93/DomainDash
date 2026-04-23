@@ -178,9 +178,19 @@ class TicketController extends Controller
                 $halo->getTicketActions($ticketId),
                 fn (array $action): bool => $this->isClientVisibleAction($action)
             ));
+            $actions = $this->prependInitialSubmission($ticket, $actions);
         } catch (\RuntimeException $exception) {
             return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
                 ->withErrors(['halo' => $exception->getMessage()]);
+        }
+
+        $statusNameById = [];
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+            $statusName = trim((string) ($mapping['domaindash_status'] ?? ''));
+            if ($statusId > 0 && $statusName !== '') {
+                $statusNameById[$statusId] = $statusName;
+            }
         }
 
         return view('tickets.show', [
@@ -190,6 +200,9 @@ class TicketController extends Controller
             'selectedClientId' => $selectedClientId,
             'selectedClient' => $selectedClient,
             'portalUrl' => $this->extractPortalUrl($ticket),
+            'ticketStatusLabel' => $this->resolveTicketStatusLabel($ticket, $statusNameById),
+            'ticketTypeLabel' => $this->extractTicketTypeLabel($ticket),
+            'ticketUpdatedLabel' => $this->extractTicketUpdated($ticket),
         ]);
     }
 
@@ -648,6 +661,42 @@ class TicketController extends Controller
         }
 
         return $candidate;
+    }
+
+    private function prependInitialSubmission(array $ticket, array $actions): array
+    {
+        $initialMessage = $ticket['details'] ?? $ticket['Details'] ?? null;
+        if (!is_string($initialMessage) || trim($initialMessage) === '') {
+            return $actions;
+        }
+
+        foreach ($actions as $action) {
+            $existing = $action['note'] ?? $action['details'] ?? $action['Details'] ?? null;
+            if (is_string($existing) && trim($existing) === trim($initialMessage)) {
+                return $actions;
+            }
+        }
+
+        $actions = array_values($actions);
+        array_unshift($actions, [
+            'who' => $ticket['user_name'] ?? $ticket['UserName'] ?? 'Client',
+            'datecreated' => $ticket['datecreated'] ?? $ticket['DateCreated'] ?? '-',
+            'note' => $initialMessage,
+            '_domaindash_initial_submission' => true,
+        ]);
+
+        return $actions;
+    }
+
+    private function extractTicketUpdated(array $ticket): string
+    {
+        $updated = $ticket['lastactiondate']
+            ?? $ticket['LastActionDate']
+            ?? $ticket['datecreated']
+            ?? $ticket['DateCreated']
+            ?? '-';
+
+        return is_string($updated) ? $updated : '-';
     }
 
     private function isClientVisibleAction(array $action): bool
