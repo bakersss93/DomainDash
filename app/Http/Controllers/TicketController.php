@@ -57,31 +57,26 @@ class TicketController extends Controller
         }
 
         if ($selectedClient && $selectedClient->halopsa_reference) {
-            $ticketMappingsByKey = [];
+            $allowedTypeIds = [];
             foreach ($ticketMappings as $mapping) {
                 $mapTypeId = (int) ($mapping['halo_ticket_type_id'] ?? 0);
-                $mapServiceCategory = trim((string) ($mapping['service_category'] ?? ''));
-                if ($mapTypeId <= 0 || $mapServiceCategory === '') {
-                    continue;
+                if ($mapTypeId > 0) {
+                    $allowedTypeIds[$mapTypeId] = true;
                 }
-                $ticketMappingsByKey[strtolower($mapServiceCategory) . '|' . $mapTypeId] = true;
             }
 
-            $tickets = array_values(array_filter($tickets, function (array $ticket) use ($selectedClient, $ticketMappingsByKey): bool {
+            $tickets = array_values(array_filter($tickets, function (array $ticket) use ($selectedClient, $allowedTypeIds): bool {
                 $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
                 if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
                     return false;
                 }
 
-                if (empty($ticketMappingsByKey)) {
+                if (empty($allowedTypeIds)) {
                     return false;
                 }
 
                 $ticketTypeId = (int) ($ticket['tickettype_id'] ?? $ticket['TicketTypeId'] ?? 0);
-                $ticketServiceCategory = trim((string) ($ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? ''));
-                $mappingKey = strtolower($ticketServiceCategory) . '|' . $ticketTypeId;
-
-                return isset($ticketMappingsByKey[$mappingKey]);
+                return isset($allowedTypeIds[$ticketTypeId]);
             }));
         }
 
@@ -190,12 +185,20 @@ class TicketController extends Controller
         $referenceLabel = $this->resolveReferenceLabel($data);
         $serviceCategory = $this->serviceCategoryFromReferenceType($data['reference_type']);
         try {
+            $mapping = $this->findTicketMapping($serviceCategory, $data['ticket_type']);
+            if ($mapping === null) {
+                return back()->withErrors([
+                    'ticket_type' => 'No Halo ticket type mapping is configured for this service category and ticket type. Please ask an administrator to update Settings > HaloPSA.',
+                ])->withInput();
+            }
+
             $halo = app(HaloPsaClient::class);
             $halo->createTicket([
                 'Summary'  => $data['subject'],
                 'Details'  => $data['message'],
                 'ClientId' => (int) $client->halopsa_reference,
                 'TicketType' => $data['ticket_type'],
+                'TicketTypeId' => (int) $mapping['halo_ticket_type_id'],
                 'Category1' => $serviceCategory,
                 'CustomFields' => [
                     [
@@ -288,6 +291,44 @@ class TicketController extends Controller
                 && !empty($mapping['service_category'])
                 && !empty($mapping['halo_ticket_type_id']);
         }));
+    }
+
+    private function findTicketMapping(string $serviceCategory, string $ticketType): ?array
+    {
+        $serviceCategory = trim($serviceCategory);
+        $ticketType = trim($ticketType);
+
+        $serviceOnlyFallback = null;
+
+        foreach ($this->configuredTicketMappings() as $mapping) {
+            $mappedService = trim((string) ($mapping['service_category'] ?? ''));
+            $mappedTicketType = trim((string) ($mapping['ticket_type'] ?? ''));
+            $mappedTypeId = (int) ($mapping['halo_ticket_type_id'] ?? 0);
+
+            if ($mappedTypeId <= 0) {
+                continue;
+            }
+
+            if (strcasecmp($mappedService, $serviceCategory) !== 0) {
+                continue;
+            }
+
+            if ($serviceOnlyFallback === null) {
+                $serviceOnlyFallback = $mapping;
+            }
+
+            if ($mappedTicketType === '') {
+                continue;
+            }
+
+            if (strcasecmp($mappedTicketType, $ticketType) !== 0) {
+                continue;
+            }
+
+            return $mapping;
+        }
+
+        return $serviceOnlyFallback;
     }
 
     private function isHaloConfigured(): bool

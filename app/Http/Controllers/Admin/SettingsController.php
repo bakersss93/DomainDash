@@ -60,6 +60,7 @@ class SettingsController extends Controller
             'halo.ticket_type_mappings' => 'nullable|array',
             'halo.ticket_type_mappings.*' => 'nullable|array',
             'halo.ticket_type_mappings.*.service_category' => 'nullable|string|max:120',
+            'halo.ticket_type_mappings.*.ticket_type' => 'nullable|in:Support/Issue,Service Request',
             'halo.ticket_type_mappings.*.halo_ticket_type_id' => 'nullable|integer|min:1',
             'halo.ticket_type_mappings.*.halo_ticket_type_name' => 'nullable|string|max:180',
             'itglue'        => 'array',

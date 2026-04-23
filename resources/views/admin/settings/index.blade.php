@@ -312,21 +312,29 @@
                     </p>
 
                     <div style="display:grid;gap:8px;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
                             <span>Service Category</span>
+                            <span>Ticket Class</span>
                             <span>Halo Ticket Type</span>
                             <span>Action</span>
                         </div>
                     </div>
                     <div id="halo-ticket-type-mapping-list" style="display:grid;gap:10px;margin-top:8px;">
                         @forelse($ticketTypeMappings as $index => $mapping)
-                            <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                            <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
                                     <input type="text"
                                            name="halo[ticket_type_mappings][{{ $index }}][service_category]"
                                            value="{{ $mapping['service_category'] ?? '' }}"
                                            style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Ticket Class</label>
+                                    <select name="halo[ticket_type_mappings][{{ $index }}][ticket_type]" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                        <option value="Support/Issue" @selected(($mapping['ticket_type'] ?? 'Support/Issue') === 'Support/Issue')>Support/Issue</option>
+                                        <option value="Service Request" @selected(($mapping['ticket_type'] ?? '') === 'Service Request')>Service Request</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Ticket Type</label>
@@ -365,10 +373,17 @@
             </div>
 
             <template id="halo-ticket-type-mapping-template">
-                <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
                         <input type="text" data-field="service_category" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Ticket Class</label>
+                        <select data-field="ticket_type" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                            <option value="Support/Issue">Support/Issue</option>
+                            <option value="Service Request">Service Request</option>
+                        </select>
                     </div>
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Ticket Type</label>
@@ -402,6 +417,13 @@
                                 </select>
                                 <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="loadHaloTicketTypesForMapping()">Load Types</button>
                             </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Ticket Class</label>
+                            <select id="haloMappingTicketClassSelect" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                <option value="Support/Issue">Support/Issue</option>
+                                <option value="Service Request">Service Request</option>
+                            </select>
                         </div>
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
@@ -1704,11 +1726,15 @@
             const rows = Array.from(document.querySelectorAll('#halo-ticket-type-mapping-list .halo-ticket-mapping-row'));
             rows.forEach((row, index) => {
                 const serviceInput = row.querySelector('input[data-field=\"service_category\"], input[name*=\"[service_category]\"]');
+                const ticketTypeSelect = row.querySelector('select[data-field=\"ticket_type\"], select[name*=\"[ticket_type]\"]');
                 const typeIdInput = row.querySelector('input[data-field=\"halo_ticket_type_id\"], input[name*=\"[halo_ticket_type_id]\"]');
                 const typeNameInput = row.querySelector('input[data-field=\"halo_ticket_type_name\"], input[name*=\"[halo_ticket_type_name]\"]');
 
                 if (serviceInput) {
                     serviceInput.name = `halo[ticket_type_mappings][${index}][service_category]`;
+                }
+                if (ticketTypeSelect) {
+                    ticketTypeSelect.name = `halo[ticket_type_mappings][${index}][ticket_type]`;
                 }
                 if (typeIdInput) {
                     typeIdInput.name = `halo[ticket_type_mappings][${index}][halo_ticket_type_id]`;
@@ -1728,6 +1754,7 @@
             const serviceSelect = document.getElementById('haloMappingServiceCategorySelect');
             const customInput = document.getElementById('haloMappingCustomServiceInput');
             const typeSelect = document.getElementById('haloMappingTicketTypeSelect');
+            const ticketClassSelect = document.getElementById('haloMappingTicketClassSelect');
 
             const serviceCategory = serviceSelect.value === '__custom__'
                 ? customInput.value.trim()
@@ -1748,6 +1775,7 @@
             const template = document.getElementById('halo-ticket-type-mapping-template');
             const clone = template.content.cloneNode(true);
             clone.querySelector('[data-field=\"service_category\"]').value = serviceCategory;
+            clone.querySelector('[data-field=\"ticket_type\"]').value = ticketClassSelect?.value || 'Support/Issue';
             clone.querySelector('[data-field=\"halo_ticket_type_id\"]').value = typeSelect.value;
             clone.querySelector('[data-field=\"halo_ticket_type_name\"]').value = typeName;
 
