@@ -369,6 +369,70 @@
                         </button>
                     </div>
                 </div>
+
+                <div style="margin-top:16px;padding:14px;border:1px solid rgba(148,163,184,0.2);border-radius:10px;background:rgba(15,23,42,0.45);">
+                    @php
+                        $statusMappings = old('halo.status_mappings', $settings['halo']['status_mappings'] ?? []);
+                        if (!is_array($statusMappings)) {
+                            $statusMappings = [];
+                        }
+                    @endphp
+                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support status mappings</h4>
+                    <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
+                        Map HaloPSA statuses to a DomainDash status label for the Support Requests table.
+                    </p>
+
+                    <div style="display:grid;gap:8px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
+                            <span>DomainDash Status</span>
+                            <span>Halo Status</span>
+                            <span>Action</span>
+                        </div>
+                    </div>
+                    <div id="halo-status-mapping-list" style="display:grid;gap:10px;margin-top:8px;">
+                        @forelse($statusMappings as $index => $mapping)
+                            <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                                <div>
+                                    <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">DomainDash Status</label>
+                                    <input type="text"
+                                           name="halo[status_mappings][{{ $index }}][domaindash_status]"
+                                           value="{{ $mapping['domaindash_status'] ?? '' }}"
+                                           placeholder="e.g. Open, In Progress, Closed"
+                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Status</label>
+                                    <input type="hidden"
+                                           name="halo[status_mappings][{{ $index }}][halo_status_id]"
+                                           value="{{ $mapping['halo_status_id'] ?? '' }}">
+                                    <input type="text"
+                                           name="halo[status_mappings][{{ $index }}][halo_status_name]"
+                                           value="{{ $mapping['halo_status_name'] ?? '' }}"
+                                           placeholder="Choose Halo status"
+                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                </div>
+                                <button type="button"
+                                        onclick="removeHaloStatusMapping(this)"
+                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">
+                                    Remove
+                                </button>
+                            </div>
+                        @empty
+                            <div id="halo-status-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:#94a3b8;font-size:13px;">
+                                No status mappings configured yet.
+                            </div>
+                        @endforelse
+                    </div>
+
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                        <button type="button"
+                                class="btn-accent"
+                                style="padding:8px 12px;"
+                                onclick="openHaloStatusMappingModal();">
+                            Add Status Mapping
+                        </button>
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -429,6 +493,49 @@
                     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
                         <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:#94a3b8;cursor:pointer;">Cancel</button>
                         <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="confirmHaloTicketTypeMapping()">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <template id="halo-status-mapping-template">
+                <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                    <div>
+                        <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">DomainDash Status</label>
+                        <input type="text" data-field="domaindash_status" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="e.g. Open, In Progress, Closed">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Status</label>
+                        <input type="hidden" data-field="halo_status_id">
+                        <input type="text" data-field="halo_status_name" readonly style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Choose Halo status">
+                    </div>
+                    <button type="button" onclick="removeHaloStatusMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
+                </div>
+            </template>
+
+            <div id="haloStatusMappingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;">
+                <div style="width:min(640px,92vw);background:#0f172a;border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h3 style="margin:0;font-size:18px;color:#f8fafc;">Add status mapping</h3>
+                        <button type="button" onclick="closeHaloStatusMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="display:grid;gap:12px;">
+                        <div>
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">DomainDash Status</label>
+                            <input id="haloMappingDomainDashStatusInput" type="text" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="e.g. Open, In Progress, Closed">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Halo Status</label>
+                            <div style="display:flex;gap:8px;">
+                                <select id="haloMappingStatusSelect" style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                    <option value="">Select Halo status</option>
+                                </select>
+                                <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="loadHaloStatusesForMapping()">Load Statuses</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
+                        <button type="button" onclick="closeHaloStatusMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:#94a3b8;cursor:pointer;">Cancel</button>
+                        <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="confirmHaloStatusMapping()">Add</button>
                     </div>
                 </div>
             </div>
@@ -1792,7 +1899,99 @@
             }
         }
 
+        function openHaloStatusMappingModal() {
+            const modal = document.getElementById('haloStatusMappingModal');
+            modal.style.display = 'flex';
+        }
+
+        function closeHaloStatusMappingModal() {
+            document.getElementById('haloStatusMappingModal').style.display = 'none';
+            document.getElementById('haloMappingDomainDashStatusInput').value = '';
+        }
+
+        async function loadHaloStatusesForMapping() {
+            const select = document.getElementById('haloMappingStatusSelect');
+            select.innerHTML = '<option value=\"\">Loading…</option>';
+
+            try {
+                const response = await fetch('{{ route('admin.settings.halo.ticket-statuses') }}');
+                const data = await response.json();
+                const statuses = Array.isArray(data.statuses) ? data.statuses : [];
+                select.innerHTML = '<option value=\"\">Select Halo status</option>';
+                statuses.forEach(status => {
+                    const option = document.createElement('option');
+                    option.value = String(status.id);
+                    option.textContent = status.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                select.innerHTML = '<option value=\"\">Unable to load statuses</option>';
+            }
+        }
+
+        function ensureHaloStatusMappingRowNames() {
+            const rows = Array.from(document.querySelectorAll('#halo-status-mapping-list .halo-status-mapping-row'));
+            rows.forEach((row, index) => {
+                const domainDashInput = row.querySelector('input[data-field=\"domaindash_status\"], input[name*=\"[domaindash_status]\"]');
+                const haloStatusIdInput = row.querySelector('input[data-field=\"halo_status_id\"], input[name*=\"[halo_status_id]\"]');
+                const haloStatusNameInput = row.querySelector('input[data-field=\"halo_status_name\"], input[name*=\"[halo_status_name]\"]');
+
+                if (domainDashInput) {
+                    domainDashInput.name = `halo[status_mappings][${index}][domaindash_status]`;
+                }
+                if (haloStatusIdInput) {
+                    haloStatusIdInput.name = `halo[status_mappings][${index}][halo_status_id]`;
+                }
+                if (haloStatusNameInput) {
+                    haloStatusNameInput.name = `halo[status_mappings][${index}][halo_status_name]`;
+                }
+            });
+
+            const empty = document.getElementById('halo-status-empty');
+            if (empty) {
+                empty.style.display = rows.length === 0 ? 'block' : 'none';
+            }
+        }
+
+        function confirmHaloStatusMapping() {
+            const domainDashInput = document.getElementById('haloMappingDomainDashStatusInput');
+            const statusSelect = document.getElementById('haloMappingStatusSelect');
+
+            const domainDashStatus = domainDashInput.value.trim();
+            if (!domainDashStatus) {
+                alert('Please enter a DomainDash status label.');
+                return;
+            }
+
+            if (!statusSelect.value) {
+                alert('Please choose a Halo status.');
+                return;
+            }
+
+            const haloStatusName = statusSelect.selectedOptions[0]?.textContent?.trim() || '';
+            const template = document.getElementById('halo-status-mapping-template');
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('[data-field=\"domaindash_status\"]').value = domainDashStatus;
+            clone.querySelector('[data-field=\"halo_status_id\"]').value = statusSelect.value;
+            clone.querySelector('[data-field=\"halo_status_name\"]').value = haloStatusName;
+
+            document.getElementById('halo-status-mapping-list').appendChild(clone);
+            ensureHaloStatusMappingRowNames();
+            closeHaloStatusMappingModal();
+        }
+
+        function removeHaloStatusMapping(button) {
+            const row = button.closest('.halo-status-mapping-row');
+            if (row) {
+                row.remove();
+                ensureHaloStatusMappingRowNames();
+            }
+        }
+
         document.getElementById('haloMappingServiceCategorySelect')?.addEventListener('change', toggleCustomServiceCategoryInput);
-        document.addEventListener('DOMContentLoaded', ensureHaloMappingRowNames);
+        document.addEventListener('DOMContentLoaded', function () {
+            ensureHaloMappingRowNames();
+            ensureHaloStatusMappingRowNames();
+        });
     </script>
 @endsection

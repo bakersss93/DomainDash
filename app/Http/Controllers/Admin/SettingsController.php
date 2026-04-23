@@ -20,6 +20,7 @@ class SettingsController extends Controller
             'synergy'  => Setting::get('synergy', []),
             'halo'     => array_merge([
                 'ticket_type_mappings' => [],
+                'status_mappings' => [],
             ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
             'ip2whois' => Setting::get('ip2whois', []),
@@ -63,6 +64,11 @@ class SettingsController extends Controller
             'halo.ticket_type_mappings.*.ticket_type' => 'nullable|in:Support/Issue,Service Request',
             'halo.ticket_type_mappings.*.halo_ticket_type_id' => 'nullable|integer|min:1',
             'halo.ticket_type_mappings.*.halo_ticket_type_name' => 'nullable|string|max:180',
+            'halo.status_mappings' => 'nullable|array',
+            'halo.status_mappings.*' => 'nullable|array',
+            'halo.status_mappings.*.domaindash_status' => 'nullable|string|max:120',
+            'halo.status_mappings.*.halo_status_id' => 'nullable|integer|min:1',
+            'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
             'ip2whois'      => 'array',
             'sync_schedule' => 'array',
@@ -188,6 +194,31 @@ class SettingsController extends Controller
         } catch (\RuntimeException $exception) {
             return response()->json([
                 'types' => [],
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function haloTicketStatuses()
+    {
+        try {
+            $halo = app(HaloPsaClient::class);
+            $statuses = $halo->listTicketStatuses();
+            $normalized = array_values(array_map(function (array $status): array {
+                return [
+                    'id' => (int) ($status['id'] ?? $status['Id'] ?? 0),
+                    'name' => (string) ($status['name'] ?? $status['Name'] ?? ('Status #' . ($status['id'] ?? $status['Id'] ?? '0'))),
+                ];
+            }, $statuses));
+
+            $normalized = array_values(array_filter($normalized, fn (array $status): bool => $status['id'] > 0));
+
+            return response()->json([
+                'statuses' => $normalized,
+            ]);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'statuses' => [],
                 'error' => $exception->getMessage(),
             ], 422);
         }

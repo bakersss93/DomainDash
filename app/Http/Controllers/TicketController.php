@@ -367,7 +367,16 @@ class TicketController extends Controller
             }
         }
 
-        return array_values(array_map(function (array $ticket) use ($typeNameById): array {
+        $statusNameById = [];
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+            $statusName = trim((string) ($mapping['domaindash_status'] ?? ''));
+            if ($statusId > 0 && $statusName !== '') {
+                $statusNameById[$statusId] = $statusName;
+            }
+        }
+
+        return array_values(array_map(function (array $ticket) use ($typeNameById, $statusNameById): array {
             $ticketTypeId = $this->extractTicketTypeId($ticket);
             $ticketTypeLabel = $this->extractTicketTypeLabel($ticket);
             if ($ticketTypeLabel === 'Unknown' && isset($typeNameById[$ticketTypeId])) {
@@ -380,7 +389,7 @@ class TicketController extends Controller
                 'service' => $this->extractTicketServiceLabel($ticket),
                 'type' => $ticketTypeLabel,
                 'type_id' => $ticketTypeId,
-                'status' => $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-',
+                'status' => $this->resolveTicketStatusLabel($ticket, $statusNameById),
                 'updated' => $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-',
             ];
         }, $tickets));
@@ -462,6 +471,52 @@ class TicketController extends Controller
         }
 
         return (string) ($ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-');
+    }
+
+    private function configuredStatusMappings(): array
+    {
+        $haloSettings = $this->haloSettings();
+        $mappings = $haloSettings['status_mappings'] ?? [];
+
+        if (!is_array($mappings)) {
+            return [];
+        }
+
+        return array_values(array_filter($mappings, function ($mapping): bool {
+            return is_array($mapping)
+                && !empty($mapping['domaindash_status'])
+                && !empty($mapping['halo_status_id']);
+        }));
+    }
+
+    private function resolveTicketStatusLabel(array $ticket, array $statusNameById = []): string
+    {
+        $statusId = (int) (
+            $ticket['status_id']
+            ?? $ticket['StatusId']
+            ?? $ticket['ticketstatus_id']
+            ?? $ticket['TicketStatusId']
+            ?? $ticket['status']['id']
+            ?? $ticket['status']['Id']
+            ?? $ticket['Status']['id']
+            ?? $ticket['Status']['Id']
+            ?? 0
+        );
+
+        if ($statusId > 0 && isset($statusNameById[$statusId])) {
+            return $statusNameById[$statusId];
+        }
+
+        $statusLabel = $ticket['status_name']
+            ?? $ticket['StatusName']
+            ?? $ticket['status']['name']
+            ?? $ticket['status']['Name']
+            ?? $ticket['Status']['name']
+            ?? $ticket['Status']['Name']
+            ?? $ticket['status']
+            ?? '-';
+
+        return is_string($statusLabel) ? $statusLabel : '-';
     }
 
     private function hydrateTicketDetails(HaloPsaClient $halo, array $tickets): array

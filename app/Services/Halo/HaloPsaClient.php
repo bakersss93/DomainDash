@@ -584,4 +584,26 @@ class HaloPsaClient
 
         return array_values(array_filter($types, 'is_array'));
     }
+
+    /**
+     * Fetch HaloPSA ticket statuses.
+     */
+    public function listTicketStatuses(): array
+    {
+        $result = $this->request('GET', 'status', [
+            'query' => ['count' => 200],
+        ]);
+
+        $statuses = $result['statuses']
+            ?? $result['status']
+            ?? $result['data']
+            ?? $result['Results']
+            ?? (array_is_list($result) ? $result : []);
+
+        if (!is_array($statuses)) {
+            return [];
+        }
+
+        return array_values(array_filter($statuses, 'is_array'));
+    }
 }
