@@ -75,7 +75,7 @@ class TicketController extends Controller
                     return false;
                 }
 
-                $ticketTypeId = (int) ($ticket['tickettype_id'] ?? $ticket['TicketTypeId'] ?? 0);
+                $ticketTypeId = $this->extractTicketTypeId($ticket);
                 return isset($allowedTypeIds[$ticketTypeId]);
             }));
         }
@@ -93,25 +93,15 @@ class TicketController extends Controller
 
         if ($ticketTypeFilter !== null) {
             $tickets = array_values(array_filter($tickets, function (array $ticket) use ($ticketTypeFilter): bool {
-                $ticketTypeId = (int) ($ticket['tickettype_id'] ?? $ticket['TicketTypeId'] ?? 0);
+                $ticketTypeId = $this->extractTicketTypeId($ticket);
                 return $ticketTypeId === $ticketTypeFilter;
             }));
         }
 
         $hasMore = $fetchedTicketCount === $pageSize;
+        $rows = $this->normalizeTicketRows($tickets);
 
         if ($request->wantsJson()) {
-            $rows = array_values(array_map(function (array $ticket): array {
-                return [
-                    'id' => $ticket['id'] ?? $ticket['Id'] ?? '-',
-                    'summary' => $ticket['summary'] ?? $ticket['Summary'] ?? '-',
-                    'service' => $ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-',
-                    'type' => $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? $ticket['TicketType'] ?? 'Unknown',
-                    'status' => $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-',
-                    'updated' => $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-',
-                ];
-            }, $tickets));
-
             return response()->json([
                 'rows' => $rows,
                 'has_more' => $hasMore,
@@ -123,7 +113,7 @@ class TicketController extends Controller
             'clients' => $clients,
             'selectedClientId' => $selectedClientId,
             'selectedClient' => $selectedClient,
-            'tickets' => $tickets,
+            'tickets' => $rows,
             'ticketMappings' => $ticketMappings,
             'serviceOptions' => $serviceOptions,
             'selectedServiceCategory' => $serviceFilter,
@@ -182,7 +172,7 @@ class TicketController extends Controller
             ])->withInput();
         }
 
-        $referenceLabel = $this->resolveReferenceLabel($data);
+        $referenceContext = $this->resolveReferenceContext($data);
         $serviceCategory = $this->serviceCategoryFromReferenceType($data['reference_type']);
         try {
             $mapping = $this->findTicketMapping($serviceCategory, $data['ticket_type']);
@@ -193,7 +183,7 @@ class TicketController extends Controller
             }
 
             $halo = app(HaloPsaClient::class);
-            $halo->createTicket([
+            $payload = [
                 'Summary'  => $data['subject'],
                 'Details'  => $data['message'],
                 'ClientId' => (int) $client->halopsa_reference,
@@ -203,10 +193,18 @@ class TicketController extends Controller
                 'CustomFields' => [
                     [
                         'Name'  => 'DomainDash Reference',
-                        'Value' => $referenceLabel,
+                        'Value' => $referenceContext['label'],
                     ],
                 ],
-            ]);
+            ];
+
+            // Attach the DomainDash-linked Halo asset so Halo tickets stay
+            // connected to the same asset shown in Related Assets.
+            if (!empty($referenceContext['asset_id'])) {
+                $payload['AssetId'] = (int) $referenceContext['asset_id'];
+            }
+
+            $halo->createTicket($payload);
         } catch (\RuntimeException $exception) {
             return back()->withErrors([
                 'halo' => $exception->getMessage(),
@@ -243,7 +241,7 @@ class TicketController extends Controller
         return array_values(array_unique($mappingTypeIds));
     }
 
-    private function resolveReferenceLabel(array $data): string
+    private function resolveReferenceContext(array $data): array
     {
         if ($data['reference_type'] === 'domain') {
             $domain = Domain::query()
@@ -251,7 +249,10 @@ class TicketController extends Controller
                 ->where('client_id', $data['client_id'])
                 ->firstOrFail();
 
-            return 'Domain: ' . $domain->name;
+            return [
+                'label' => 'Domain: ' . $domain->name,
+                'asset_id' => $domain->halo_asset_id ? (int) $domain->halo_asset_id : null,
+            ];
         }
 
         if ($data['reference_type'] === 'service') {
@@ -260,7 +261,11 @@ class TicketController extends Controller
                 ->where('client_id', $data['client_id'])
                 ->firstOrFail();
 
-            return 'Hosting Service: ' . ($service->username ?: 'Service #' . $service->id);
+            $domain = $service->domain;
+            return [
+                'label' => 'Hosting Service: ' . ($service->username ?: 'Service #' . $service->id),
+                'asset_id' => $domain && $domain->halo_asset_id ? (int) $domain->halo_asset_id : null,
+            ];
         }
 
         $ssl = SslCertificate::query()
@@ -268,7 +273,11 @@ class TicketController extends Controller
             ->where('client_id', $data['client_id'])
             ->firstOrFail();
 
-        return 'SSL: ' . ($ssl->common_name ?: 'Certificate #' . $ssl->id);
+        $domain = $ssl->domain;
+        return [
+            'label' => 'SSL: ' . ($ssl->common_name ?: 'Certificate #' . $ssl->id),
+            'asset_id' => $domain && $domain->halo_asset_id ? (int) $domain->halo_asset_id : null,
+        ];
     }
 
     private function haloSettings(): array
@@ -343,5 +352,98 @@ class TicketController extends Controller
             'service' => 'Web Hosting',
             default => 'SSL',
         };
+    }
+
+    private function normalizeTicketRows(array $tickets): array
+    {
+        return array_values(array_map(function (array $ticket): array {
+            return [
+                'id' => $ticket['id'] ?? $ticket['Id'] ?? '-',
+                'summary' => $ticket['summary'] ?? $ticket['Summary'] ?? '-',
+                'service' => $this->extractTicketServiceLabel($ticket),
+                'type' => $this->extractTicketTypeLabel($ticket),
+                'type_id' => $this->extractTicketTypeId($ticket),
+                'status' => $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-',
+                'updated' => $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-',
+            ];
+        }, $tickets));
+    }
+
+    private function extractTicketTypeId(array $ticket): int
+    {
+        return (int) (
+            $ticket['tickettype_id']
+            ?? $ticket['TicketTypeId']
+            ?? $ticket['ticket_type_id']
+            ?? $ticket['tickettype']['id']
+            ?? $ticket['tickettype']['Id']
+            ?? $ticket['TicketType']['id']
+            ?? $ticket['TicketType']['Id']
+            ?? 0
+        );
+    }
+
+    private function extractTicketTypeLabel(array $ticket): string
+    {
+        $label = $ticket['tickettype_name']
+            ?? $ticket['TicketTypeName']
+            ?? $ticket['tickettypename']
+            ?? $ticket['tickettype']['name']
+            ?? $ticket['tickettype']['Name']
+            ?? $ticket['TicketType']['name']
+            ?? $ticket['TicketType']['Name']
+            ?? $ticket['tickettype']
+            ?? $ticket['TicketType']
+            ?? null;
+
+        return is_string($label) && trim($label) !== '' ? $label : 'Unknown';
+    }
+
+    private function extractTicketServiceLabel(array $ticket): string
+    {
+        $direct = $ticket['asset_name']
+            ?? $ticket['AssetName']
+            ?? $ticket['asset']
+            ?? $ticket['Asset']
+            ?? null;
+        if (is_string($direct) && trim($direct) !== '') {
+            return $direct;
+        }
+
+        $assetCollections = [
+            $ticket['related_assets'] ?? null,
+            $ticket['RelatedAssets'] ?? null,
+            $ticket['linked_assets'] ?? null,
+            $ticket['LinkedAssets'] ?? null,
+            $ticket['assets'] ?? null,
+            $ticket['Assets'] ?? null,
+            $ticket['ticketassets'] ?? null,
+            $ticket['TicketAssets'] ?? null,
+        ];
+
+        foreach ($assetCollections as $assets) {
+            if (!is_array($assets)) {
+                continue;
+            }
+
+            foreach ($assets as $asset) {
+                if (!is_array($asset)) {
+                    continue;
+                }
+
+                $label = $asset['inventory_number']
+                    ?? $asset['InventoryNumber']
+                    ?? $asset['key_field']
+                    ?? $asset['KeyField']
+                    ?? $asset['name']
+                    ?? $asset['Name']
+                    ?? null;
+                if (is_string($label) && trim($label) !== '') {
+                    return $label;
+                }
+            }
+        }
+
+        return (string) ($ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-');
     }
 }

@@ -74,17 +74,13 @@
             </thead>
             <tbody id="support-ticket-table-body">
                 @forelse($tickets as $ticket)
-                    @php
-                        $ticketTypeLabel = $ticket['tickettype_name'] ?? $ticket['TicketTypeName'] ?? $ticket['tickettype'] ?? $ticket['TicketType'] ?? 'Unknown';
-                        $ticketService = $ticket['category_1'] ?? $ticket['Category1'] ?? $ticket['category1'] ?? '-';
-                    @endphp
                     <tr>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? $ticket['Id'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? $ticket['Summary'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticketService }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticketTypeLabel }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['status_name'] ?? $ticket['StatusName'] ?? $ticket['status'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['lastactiondate'] ?? $ticket['LastActionDate'] ?? $ticket['datecreated'] ?? '-' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? '-' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? '-' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['service'] ?? '-' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['type'] ?? 'Unknown' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['status'] ?? '-' }}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['updated'] ?? '-' }}</td>
                     </tr>
                 @empty
                     <tr>
