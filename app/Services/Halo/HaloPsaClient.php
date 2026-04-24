@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class HaloPsaClient
 {
+    private const ACCESS_TOKEN_CACHE_KEY = 'halo_api_access_token';
+
     protected Client $http;
 
     protected string $baseUrl;
@@ -50,7 +52,7 @@ class HaloPsaClient
      */
     protected function getAccessToken(): string
     {
-        $cacheKey = 'halo_api_access_token';
+        $cacheKey = self::ACCESS_TOKEN_CACHE_KEY;
 
         if ($token = Cache::get($cacheKey)) {
             return $token;
@@ -113,11 +115,23 @@ class HaloPsaClient
         }
 
         $options['headers'] = array_merge(
-            $options['headers'] ?? [],
-            $this->headers()
+            $this->headers(),
+            $options['headers'] ?? []
         );
 
-        $response = $this->http->request($method, $uri, $options);
+        try {
+            $response = $this->http->request($method, $uri, $options);
+        } catch (ClientException $exception) {
+            $statusCode = $exception->getResponse()?->getStatusCode();
+            if ($statusCode === 401) {
+                Cache::forget(self::ACCESS_TOKEN_CACHE_KEY);
+
+                $options['headers']['Authorization'] = 'Bearer ' . $this->getAccessToken();
+                $response = $this->http->request($method, $uri, $options);
+            } else {
+                throw $exception;
+            }
+        }
 
         $json = json_decode((string) $response->getBody(), true);
 
@@ -562,6 +576,181 @@ class HaloPsaClient
         }
 
         return $result;
+    }
+
+    /**
+     * Fetch ticket communications/actions from Halo.
+     */
+    public function getTicketActions(int $ticketId): array
+    {
+        $endpoints = [
+            'tickets/' . $ticketId . '/actions',
+            'action',
+            'actions',
+        ];
+
+        foreach ($endpoints as $endpoint) {
+            $query = [];
+            if ($endpoint === 'actions' || $endpoint === 'action') {
+                $query = [
+                    'ticket_id' => $ticketId,
+                    'count' => 200,
+                ];
+            }
+
+            try {
+                $result = $this->request('GET', $endpoint, [
+                    'query' => $query,
+                ]);
+
+                $actions = $result['actions']
+                    ?? $result['ticket_actions']
+                    ?? $result['data']
+                    ?? $result['Results']
+                    ?? (array_is_list($result) ? $result : []);
+
+                if (is_array($actions)) {
+                    return array_values(array_filter($actions, 'is_array'));
+                }
+            } catch (\RuntimeException $exception) {
+                Log::warning('Failed Halo ticket action endpoint.', [
+                    'ticket_id' => $ticketId,
+                    'endpoint' => $endpoint,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Add an action/note to a ticket.
+     */
+    public function createTicketAction(
+        int $ticketId,
+        string $message,
+        string $outcome = 'Client-Responded',
+        ?string $who = null,
+        bool $sendEmail = false
+    ): array {
+        $author = trim((string) $who);
+        $timestamp = gmdate('Y-m-d\TH:i:s\Z');
+        $effectiveAuthor = $author !== '' ? $author : 'Client';
+        $payloads = [
+            [[
+                'outcome' => $outcome,
+                'ticket_id' => $ticketId,
+                'datetime' => $timestamp,
+                'last_updated' => $timestamp,
+                'note' => $message,
+                'Who' => $effectiveAuthor,
+            ]],
+            [[
+                'ticket_id' => $ticketId,
+                'note' => $message,
+                'outcome' => $outcome,
+                'who' => $effectiveAuthor,
+                'hiddenfromuser' => false,
+                'sendemail' => $sendEmail,
+            ]],
+        ];
+
+        $lastError = null;
+        foreach ($payloads as $requestPayload) {
+            try {
+                $result = $this->request('POST', 'Actions', [
+                    'headers' => [
+                        'Content-Type' => 'application/json-patch+json',
+                    ],
+                    'body' => json_encode($requestPayload, JSON_UNESCAPED_SLASHES),
+                ]);
+
+                $action = $this->extractActionPayload($result);
+                if (!empty($action)) {
+                    return $action;
+                }
+
+                return $result;
+            } catch (\RuntimeException $exception) {
+                $lastError = $exception->getMessage();
+                Log::warning('Failed Halo ticket action create payload.', [
+                    'ticket_id' => $ticketId,
+                    'endpoint' => 'Actions',
+                    'wrapped' => true,
+                    'payload_keys' => array_keys($requestPayload[0] ?? []),
+                    'error' => $lastError,
+                ]);
+            }
+        }
+
+        $suffix = $lastError ? ' Last error: ' . $lastError : '';
+        throw new \RuntimeException('Unable to submit reply to Halo ticket via /Actions endpoint.' . $suffix);
+    }
+
+    private function extractActionPayload(array $result): array
+    {
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        if (isset($result['action']) && is_array($result['action'])) {
+            return $result['action'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            return $result['data'];
+        }
+
+        if (isset($result['id']) || isset($result['Id'])) {
+            return $result;
+        }
+
+        return [];
+    }
+
+    public function updateTicketStatus(int $ticketId, int $statusId): array
+    {
+        $payloads = [
+            ['id' => $ticketId, 'status_id' => $statusId],
+            ['id' => $ticketId, 'ticketstatus_id' => $statusId],
+            ['TicketId' => $ticketId, 'StatusId' => $statusId],
+            ['TicketId' => $ticketId, 'TicketStatusId' => $statusId],
+        ];
+
+        $endpoints = [
+            'tickets/' . $ticketId,
+            'tickets/' . $ticketId . '/status',
+            'tickets',
+        ];
+
+        $lastError = null;
+        foreach ($endpoints as $endpoint) {
+            foreach ($payloads as $payload) {
+                foreach ([false, true] as $wrapInArray) {
+                    $jsonPayload = $wrapInArray ? [$payload] : $payload;
+
+                    try {
+                        return $this->request('POST', $endpoint, [
+                            'json' => $jsonPayload,
+                        ]);
+                    } catch (\RuntimeException $exception) {
+                        $lastError = $exception->getMessage();
+                        Log::warning('Failed Halo ticket status update payload.', [
+                            'ticket_id' => $ticketId,
+                            'status_id' => $statusId,
+                            'endpoint' => $endpoint,
+                            'wrapped' => $wrapInArray,
+                            'payload_keys' => array_keys($payload),
+                            'error' => $lastError,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $suffix = $lastError ? ' Last error: ' . $lastError : '';
+        throw new \RuntimeException('Unable to close ticket with available status payload formats.' . $suffix);
     }
 
     /**

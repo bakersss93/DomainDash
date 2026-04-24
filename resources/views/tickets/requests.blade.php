@@ -2,6 +2,12 @@
 
 @section('content')
 <div style="max-width:1080px;">
+    <div id="ticket-loading-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
+        <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
+            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:ticket-spin 0.7s linear infinite;"></span>
+            <span id="ticket-loading-text">Loading tickets...</span>
+        </div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
         <div>
             <h1 class="dd-page-title" style="font-size:1.6rem;margin-bottom:10px;">Support Requests</h1>
@@ -11,7 +17,7 @@
     </div>
 
     @if($clients->isNotEmpty())
-        <form method="GET" action="{{ route('tickets.index') }}" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end;">
+        <form id="ticket-filter-form" method="GET" action="{{ route('tickets.index') }}" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end;">
             <div>
                 <label for="client_id" style="display:block;font-weight:600;margin-bottom:6px;">Client</label>
                 <select id="client_id" name="client_id" style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:9px 11px;background:var(--bg);color:var(--text);">
@@ -74,7 +80,7 @@
             </thead>
             <tbody id="support-ticket-table-body">
                 @forelse($tickets as $ticket)
-                    <tr>
+                    <tr data-ticket-link="{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId, 'service' => $ticket['service'] ?? '']) }}" style="cursor:pointer;">
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? '-' }}</td>
                         <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['service'] ?? '-' }}</td>
@@ -101,17 +107,61 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const loadingOverlay = document.getElementById('ticket-loading-overlay');
+        const loadingText = document.getElementById('ticket-loading-text');
+        const filterForm = document.getElementById('ticket-filter-form');
         const loadMoreButton = document.getElementById('support-ticket-load-more');
+        const tableBody = document.getElementById('support-ticket-table-body');
+
+        const showLoading = (text) => {
+            if (!loadingOverlay || !loadingText) {
+                return;
+            }
+
+            loadingText.textContent = text;
+            loadingOverlay.style.display = 'flex';
+        };
+
+        const hideLoading = () => {
+            if (!loadingOverlay) {
+                return;
+            }
+
+            loadingOverlay.style.display = 'none';
+        };
+
+        const wireTicketRowClicks = (scope) => {
+            scope.querySelectorAll('tr[data-ticket-link]').forEach((row) => {
+                row.addEventListener('click', function () {
+                    const targetUrl = row.getAttribute('data-ticket-link');
+                    if (!targetUrl) {
+                        return;
+                    }
+
+                    showLoading('Loading ticket details...');
+                    window.location.href = targetUrl;
+                });
+            });
+        };
+
+        if (filterForm) {
+            filterForm.addEventListener('submit', function () {
+                showLoading('Loading tickets...');
+            });
+        }
+
+        wireTicketRowClicks(document);
+
         if (!loadMoreButton) {
             return;
         }
 
-        const tableBody = document.getElementById('support-ticket-table-body');
         const currentPageLabel = document.getElementById('support-ticket-current-page');
         let currentPage = Number(currentPageLabel.textContent || '1');
 
+        const selectedClientId = @json($selectedClientId);
         const buildRow = (row) => `
-            <tr>
+            <tr data-ticket-link="{{ url('/tickets') }}/${row.id}?client_id=${selectedClientId}&service=${encodeURIComponent(row.service || '')}" style="cursor:pointer;">
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.id}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.summary}</td>
                 <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.service}</td>
@@ -125,6 +175,7 @@
             const params = new URLSearchParams(window.location.search);
             params.set('page', String(currentPage + 1));
 
+            showLoading('Loading more tickets...');
             loadMoreButton.disabled = true;
             loadMoreButton.textContent = 'Loading...';
 
@@ -138,6 +189,7 @@
                 rows.forEach(row => {
                     tableBody.insertAdjacentHTML('beforeend', buildRow(row));
                 });
+                wireTicketRowClicks(tableBody);
 
                 currentPage = Number(data.page || currentPage + 1);
                 currentPageLabel.textContent = String(currentPage);
@@ -152,8 +204,15 @@
                 loadMoreButton.disabled = false;
                 loadMoreButton.textContent = 'Load Next 25';
                 alert('Unable to load next ticket page.');
+            } finally {
+                hideLoading();
             }
         });
     });
 </script>
+<style>
+    @keyframes ticket-spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
 @endsection

@@ -49,7 +49,6 @@ class TicketController extends Controller
                     $page,
                     $pageSize
                 );
-                $tickets = $this->hydrateTicketDetails($halo, $tickets);
                 $fetchedTicketCount = count($tickets);
             } catch (\RuntimeException $exception) {
                 $error = $exception->getMessage();
@@ -145,6 +144,74 @@ class TicketController extends Controller
         ]);
     }
 
+    public function show(Request $request, int $ticketId)
+    {
+        $user = auth()->user();
+        $clients = $this->availableClients($user);
+        $selectedClientId = $this->resolveSelectedClientId($request, $clients);
+        $selectedClient = $clients->firstWhere('id', $selectedClientId);
+
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to view this ticket.');
+        }
+
+        if (!$this->isHaloConfigured()) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => 'HaloPSA is not configured yet. Please update Admin > Settings > HaloPSA.']);
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => 'This client is not linked to HaloPSA yet.']);
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to view this ticket.');
+            }
+
+            $actions = array_values(array_filter(
+                $halo->getTicketActions($ticketId),
+                fn (array $action): bool => $this->isClientVisibleAction($action)
+            ));
+            $actions = $this->prependInitialSubmission($ticket, $actions);
+        } catch (\RuntimeException $exception) {
+            return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
+                ->withErrors(['halo' => $exception->getMessage()]);
+        }
+
+        $statusNameById = [];
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+            $statusName = trim((string) ($mapping['domaindash_status'] ?? ''));
+            if ($statusId > 0 && $statusName !== '') {
+                $statusNameById[$statusId] = $statusName;
+            }
+        }
+
+        $ticketServiceLabel = $this->extractTicketServiceLabel($ticket);
+        if (trim($ticketServiceLabel) === '-' && $request->filled('service')) {
+            $ticketServiceLabel = trim((string) $request->query('service'));
+        }
+
+        return view('tickets.show', [
+            'ticket' => $ticket,
+            'ticketId' => $ticketId,
+            'actions' => $actions,
+            'selectedClientId' => $selectedClientId,
+            'selectedClient' => $selectedClient,
+            'portalUrl' => $this->extractPortalUrl($ticket),
+            'ticketStatusLabel' => $this->resolveTicketStatusLabel($ticket, $statusNameById),
+            'ticketTypeLabel' => $this->extractTicketTypeLabel($ticket),
+            'ticketServiceLabel' => $ticketServiceLabel,
+            'ticketUpdatedLabel' => $this->extractTicketUpdated($ticket),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -214,6 +281,109 @@ class TicketController extends Controller
         }
 
         return redirect()->back()->with('status', 'Ticket logged to HaloPSA');
+    }
+
+    public function reply(Request $request, int $ticketId)
+    {
+        $data = $request->validate([
+            'client_id' => 'required|integer|exists:clients,id',
+            'message' => 'required|string',
+        ]);
+
+        $clients = $this->availableClients(auth()->user());
+        $selectedClient = $clients->firstWhere('id', (int) $data['client_id']);
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to reply to this ticket.');
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return back()->withErrors([
+                'halo' => 'This client is not linked to HaloPSA yet.',
+            ])->withInput();
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to reply to this ticket.');
+            }
+
+            $message = trim((string) $data['message']);
+            $replyAction = $halo->createTicketAction(
+                $ticketId,
+                $message,
+                'Client-Responded',
+                auth()->user()?->name ?? 'Client'
+            );
+            $hasMessage = $this->actionContainsMessage($replyAction, $message);
+            $outcome = strtolower(trim((string) ($replyAction['outcome'] ?? $replyAction['Outcome'] ?? '')));
+            if (!$hasMessage && $outcome !== 'client-responded') {
+                throw new \RuntimeException('Reply request was accepted by Halo, but no matching ticket update was returned afterwards.');
+            }
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors([
+                'halo' => $exception->getMessage(),
+            ])->withInput();
+        }
+
+        return redirect()->route('tickets.show', [
+            'ticketId' => $ticketId,
+            'client_id' => $selectedClient->id,
+        ])->with('status', 'Reply sent to Halo ticket.');
+    }
+
+    public function close(Request $request, int $ticketId)
+    {
+        $data = $request->validate([
+            'client_id' => 'required|integer|exists:clients,id',
+            'reason' => 'required|string',
+        ]);
+
+        $clients = $this->availableClients(auth()->user());
+        $selectedClient = $clients->firstWhere('id', (int) $data['client_id']);
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to close this ticket.');
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return back()->withErrors([
+                'halo' => 'This client is not linked to HaloPSA yet.',
+            ]);
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to close this ticket.');
+            }
+
+            $closeReason = trim((string) $data['reason']);
+            $closeAction = $halo->createTicketAction(
+                $ticketId,
+                $closeReason,
+                'Close No Survey',
+                auth()->user()?->name ?? 'Client'
+            );
+
+            $outcome = strtolower(trim((string) ($closeAction['outcome'] ?? $closeAction['Outcome'] ?? '')));
+            $hasClosure = in_array($outcome, ['close no survey', 'closed'], true);
+            if (!$hasClosure) {
+                throw new \RuntimeException('Closure request was accepted by Halo, but no close action was returned afterwards.');
+            }
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors([
+                'halo' => $exception->getMessage(),
+            ]);
+        }
+
+        return redirect()->route('tickets.show', [
+            'ticketId' => $ticketId,
+            'client_id' => $selectedClient->id,
+        ])->with('status', 'Ticket has been marked as closed.');
     }
 
     private function availableClients($user)
@@ -543,5 +713,186 @@ class TicketController extends Controller
                 return $ticket;
             }
         }, $tickets));
+    }
+
+    private function extractPortalUrl(array $ticket): ?string
+    {
+        $candidate = $ticket['portal_url']
+            ?? $ticket['PortalUrl']
+            ?? $ticket['client_portal_url']
+            ?? $ticket['ClientPortalUrl']
+            ?? $ticket['web_url']
+            ?? $ticket['WebUrl']
+            ?? null;
+
+        if (!is_string($candidate) || trim($candidate) === '') {
+            return null;
+        }
+
+        return $candidate;
+    }
+
+    private function prependInitialSubmission(array $ticket, array $actions): array
+    {
+        $initialMessage = $ticket['details'] ?? $ticket['Details'] ?? null;
+        if (!is_string($initialMessage) || trim($initialMessage) === '') {
+            return $actions;
+        }
+
+        foreach ($actions as $action) {
+            $existing = $action['note'] ?? $action['details'] ?? $action['Details'] ?? null;
+            if (is_string($existing) && trim($existing) === trim($initialMessage)) {
+                return $actions;
+            }
+        }
+
+        $actions = array_values($actions);
+        array_unshift($actions, [
+            'who' => $ticket['user_name'] ?? $ticket['UserName'] ?? 'Client',
+            'datecreated' => $ticket['datecreated'] ?? $ticket['DateCreated'] ?? '-',
+            'note' => $initialMessage,
+            '_domaindash_initial_submission' => true,
+        ]);
+
+        return $actions;
+    }
+
+    private function extractTicketUpdated(array $ticket): string
+    {
+        $updated = $ticket['lastactiondate']
+            ?? $ticket['LastActionDate']
+            ?? $ticket['datecreated']
+            ?? $ticket['DateCreated']
+            ?? '-';
+
+        return is_string($updated) ? $updated : '-';
+    }
+
+    private function isClientVisibleAction(array $action): bool
+    {
+        $privateFlags = [
+            'private',
+            'isprivate',
+            'is_private',
+            'private_note',
+            'privateNote',
+            'hiddenfromuser',
+            'hidden_from_user',
+            'hidefromuser',
+            'internal',
+            'internalnote',
+            'internal_note',
+            'agentonly',
+            'agent_only',
+            'nonpublic',
+            'non_public',
+        ];
+
+        foreach ($privateFlags as $flag) {
+            if ($this->extractTruthyFlag($action, $flag)) {
+                return false;
+            }
+        }
+
+        $clientVisibleFlags = [
+            'clientvisible',
+            'client_visible',
+            'showinportal',
+            'show_in_portal',
+            'public',
+            'ispublic',
+            'is_public',
+            'noteforclient',
+            'note_for_client',
+            'sendemail',
+            'send_email',
+            'emailsent',
+            'email_sent',
+        ];
+
+        foreach ($clientVisibleFlags as $flag) {
+            if ($this->extractTruthyFlag($action, $flag)) {
+                return true;
+            }
+        }
+
+        $clientFacingTypes = [
+            strtolower(trim((string) ($action['outcome'] ?? ''))),
+            strtolower(trim((string) ($action['Outcome'] ?? ''))),
+            strtolower(trim((string) ($action['actiontype'] ?? ''))),
+            strtolower(trim((string) ($action['ActionType'] ?? ''))),
+            strtolower(trim((string) ($action['type'] ?? ''))),
+            strtolower(trim((string) ($action['Type'] ?? ''))),
+        ];
+        foreach ($clientFacingTypes as $typeLabel) {
+            if ($typeLabel === '') {
+                continue;
+            }
+
+            if (in_array($typeLabel, ['email user', 'with user', 'client note', 'public note'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function extractTruthyFlag(array $action, string $field): bool
+    {
+        $candidates = [$field, ucfirst($field)];
+        if (str_contains($field, '_')) {
+            $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $field))));
+            $studly = str_replace(' ', '', ucwords(str_replace('_', ' ', $field)));
+            $candidates[] = $camel;
+            $candidates[] = $studly;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!array_key_exists($candidate, $action)) {
+                continue;
+            }
+
+            $value = $action[$candidate];
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_numeric($value)) {
+                return (int) $value === 1;
+            }
+
+            if (is_string($value)) {
+                $normalized = strtolower(trim($value));
+                return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
+            }
+        }
+
+        return false;
+    }
+
+    private function actionContainsMessage(array $action, string $message): bool
+    {
+        $candidates = [
+            $action['details'] ?? null,
+            $action['Details'] ?? null,
+            $action['note'] ?? null,
+            $action['Note'] ?? null,
+            $action['body'] ?? null,
+            $action['Body'] ?? null,
+        ];
+
+        $needle = strtolower(trim(strip_tags($message)));
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate)) {
+                continue;
+            }
+
+            $haystack = strtolower(trim(strip_tags($candidate)));
+            if ($needle !== '' && str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
