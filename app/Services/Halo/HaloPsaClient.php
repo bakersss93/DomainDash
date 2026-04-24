@@ -623,138 +623,55 @@ class HaloPsaClient
         $author = trim((string) $who);
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $effectiveAuthor = $author !== '' ? $author : 'Client';
-
-        // First attempt mirrors the known-good Swagger request shape exactly.
-        $swaggerPayload = [[
-            'outcome' => $outcome,
-            'ticket_id' => $ticketId,
-            'datetime' => $timestamp,
-            'last_updated' => $timestamp,
-            'note' => $message,
-            'Who' => $effectiveAuthor,
-        ]];
-
-        $lastError = null;
-        try {
-            $result = $this->request('POST', 'Actions', [
-                'headers' => [
-                    'Content-Type' => 'application/json-patch+json',
-                ],
-                'body' => json_encode($swaggerPayload, JSON_UNESCAPED_SLASHES),
-            ]);
-
-            $action = $this->extractActionPayload($result);
-            if (!empty($action)) {
-                return $action;
-            }
-
-            return $result;
-        } catch (\RuntimeException $exception) {
-            $lastError = $exception->getMessage();
-            Log::warning('Failed Halo ticket action create payload.', [
-                'ticket_id' => $ticketId,
-                'endpoint' => 'Actions',
-                'wrapped' => true,
-                'payload_keys' => array_keys($swaggerPayload[0]),
-                'error' => $lastError,
-            ]);
-        }
-
         $payloads = [
-            [
+            [[
                 'outcome' => $outcome,
                 'ticket_id' => $ticketId,
                 'datetime' => $timestamp,
                 'last_updated' => $timestamp,
                 'note' => $message,
                 'Who' => $effectiveAuthor,
-            ],
-            [
+            ]],
+            [[
                 'ticket_id' => $ticketId,
                 'note' => $message,
                 'outcome' => $outcome,
+                'who' => $effectiveAuthor,
                 'hiddenfromuser' => false,
                 'sendemail' => $sendEmail,
-            ],
-            [
-                'ticket_id' => $ticketId,
-                'note' => $message,
-                'outcome' => $outcome,
-                'who' => $author !== '' ? $author : null,
-                'hiddenfromuser' => false,
-                'sendemail' => $sendEmail,
-            ],
-            [
-                'ticket_id' => $ticketId,
-                'details' => $message,
-                'outcome' => $outcome,
-                'who' => $author !== '' ? $author : null,
-                'hiddenfromuser' => false,
-                'sendemail' => $sendEmail,
-            ],
-            [
-                'TicketId' => $ticketId,
-                'Note' => $message,
-                'Outcome' => $outcome,
-                'Who' => $author !== '' ? $author : null,
-                'HiddenFromUser' => false,
-                'SendEmail' => $sendEmail,
-            ],
-            [
-                'ticketid' => $ticketId,
-                'note' => $message,
-                'outcome' => $outcome,
-                'who' => $author !== '' ? $author : null,
-                'hiddenfromuser' => false,
-                'sendemail' => $sendEmail,
-            ],
+            ]],
         ];
 
-        $payloads = array_map(function (array $payload) {
-            return array_filter($payload, static fn ($value) => $value !== null);
-        }, $payloads);
+        $lastError = null;
+        foreach ($payloads as $requestPayload) {
+            try {
+                $result = $this->request('POST', 'Actions', [
+                    'headers' => [
+                        'Content-Type' => 'application/json-patch+json',
+                    ],
+                    'body' => json_encode($requestPayload, JSON_UNESCAPED_SLASHES),
+                ]);
 
-        $endpoints = [
-            'Actions',
-            'Action',
-            'actions',
-            'action',
-        ];
-        foreach ($endpoints as $endpoint) {
-            foreach ($payloads as $payload) {
-                foreach ([false, true] as $wrapInArray) {
-                    $requestPayload = $wrapInArray ? [$payload] : $payload;
-
-                    try {
-                        $result = $this->request('POST', $endpoint, [
-                            'headers' => [
-                                'Content-Type' => 'application/json-patch+json',
-                            ],
-                            'body' => json_encode($requestPayload, JSON_UNESCAPED_SLASHES),
-                        ]);
-
-                        $action = $this->extractActionPayload($result);
-                        if (!empty($action)) {
-                            return $action;
-                        }
-
-                        return $result;
-                    } catch (\RuntimeException $exception) {
-                        $lastError = $exception->getMessage();
-                        Log::warning('Failed Halo ticket action create payload.', [
-                            'ticket_id' => $ticketId,
-                            'endpoint' => $endpoint,
-                            'wrapped' => $wrapInArray,
-                            'payload_keys' => array_keys($payload),
-                            'error' => $lastError,
-                        ]);
-                    }
+                $action = $this->extractActionPayload($result);
+                if (!empty($action)) {
+                    return $action;
                 }
+
+                return $result;
+            } catch (\RuntimeException $exception) {
+                $lastError = $exception->getMessage();
+                Log::warning('Failed Halo ticket action create payload.', [
+                    'ticket_id' => $ticketId,
+                    'endpoint' => 'Actions',
+                    'wrapped' => true,
+                    'payload_keys' => array_keys($requestPayload[0] ?? []),
+                    'error' => $lastError,
+                ]);
             }
         }
 
         $suffix = $lastError ? ' Last error: ' . $lastError : '';
-        throw new \RuntimeException('Unable to submit reply to Halo ticket with available action payload formats.' . $suffix);
+        throw new \RuntimeException('Unable to submit reply to Halo ticket via /Actions endpoint.' . $suffix);
     }
 
     private function extractActionPayload(array $result): array
