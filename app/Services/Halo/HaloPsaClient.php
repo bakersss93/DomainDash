@@ -113,8 +113,8 @@ class HaloPsaClient
         }
 
         $options['headers'] = array_merge(
-            $options['headers'] ?? [],
-            $this->headers()
+            $this->headers(),
+            $options['headers'] ?? []
         );
 
         $response = $this->http->request($method, $uri, $options);
@@ -621,7 +621,16 @@ class HaloPsaClient
         bool $sendEmail = false
     ): array {
         $author = trim((string) $who);
+        $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $payloads = [
+            [
+                'outcome' => $outcome,
+                'ticket_id' => $ticketId,
+                'datetime' => $timestamp,
+                'last_updated' => $timestamp,
+                'note' => $message,
+                'Who' => $author !== '' ? $author : null,
+            ],
             [
                 'ticket_id' => $ticketId,
                 'note' => $message,
@@ -668,6 +677,8 @@ class HaloPsaClient
         }, $payloads);
 
         $endpoints = [
+            'Actions',
+            'Action',
             'actions',
             'action',
             'tickets/' . $ticketId . '/actions',
@@ -682,6 +693,9 @@ class HaloPsaClient
 
                     try {
                         $result = $this->request('POST', $endpoint, [
+                            'headers' => [
+                                'Content-Type' => 'application/json-patch+json',
+                            ],
                             'json' => $jsonPayload,
                         ]);
 
