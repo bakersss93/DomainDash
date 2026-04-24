@@ -373,14 +373,14 @@ class TicketController extends Controller
             $closeAction = $halo->createTicketAction(
                 $ticketId,
                 $closeReason,
-                'Close No Survey',
+                'Close - User Portal',
                 auth()->user()?->name ?? 'Client',
                 false,
                 $closeActionMeta
             );
 
             $outcome = strtolower(trim((string) ($closeAction['outcome'] ?? $closeAction['Outcome'] ?? '')));
-            $hasClosure = in_array($outcome, ['close no survey', 'closed'], true);
+            $hasClosure = in_array($outcome, ['close - user portal', 'close no survey', 'closed'], true);
             $actionClosedStatusId = (int) ($closeAction['new_status'] ?? $closeAction['NewStatus'] ?? 0);
             $expectedClosedStatusId = (int) ($closedStatus['id'] ?? 0);
             $statusUpdatedByAction = $expectedClosedStatusId > 0 && $actionClosedStatusId === $expectedClosedStatusId;
