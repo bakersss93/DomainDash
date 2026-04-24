@@ -31,6 +31,13 @@
     }
     $ticketUpdated = is_string($ticketUpdated) ? $ticketUpdated : '-';
 @endphp
+<style>
+    .dd-ticket-action-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+</style>
 <div style="max-width:1080px;display:grid;gap:14px;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
         <div>
@@ -94,12 +101,17 @@
                         $actionDate = '-';
                     }
 
-                    $actionDetails = $action['details'] ?? $action['Details'] ?? $action['note'] ?? '-';
-                    if (is_array($actionDetails)) {
-                        $actionDetails = $actionDetails['text'] ?? $actionDetails['Text'] ?? '-';
-                    }
-                    if (!is_string($actionDetails) || trim($actionDetails) === '') {
-                        $actionDetails = '-';
+                    $actionDetailsHtml = $action['_display_note_html'] ?? null;
+                    if (!is_string($actionDetailsHtml) || trim($actionDetailsHtml) === '') {
+                        $actionDetails = $action['details'] ?? $action['Details'] ?? $action['note'] ?? '-';
+                        if (is_array($actionDetails)) {
+                            $actionDetails = $actionDetails['text'] ?? $actionDetails['Text'] ?? '-';
+                        }
+                        if (!is_string($actionDetails) || trim($actionDetails) === '') {
+                            $actionDetails = '-';
+                        }
+
+                        $actionDetailsHtml = nl2br(e($actionDetails));
                     }
                 @endphp
                 <div style="padding:14px;border:1px solid var(--border-subtle);border-radius:10px;display:grid;gap:8px;margin-bottom:10px;background:rgba(15,23,42,0.36);">
@@ -107,7 +119,7 @@
                         <strong>{{ $actionAuthor }}</strong>
                         <span style="color:var(--text-muted);font-size:12px;">{{ $actionDate }}</span>
                     </div>
-                    <div style="white-space:pre-wrap;">{{ $actionDetails }}</div>
+                    <div class="dd-ticket-action-content" style="white-space:normal;overflow-wrap:anywhere;">{!! $actionDetailsHtml !!}</div>
                 </div>
             @empty
                 <div style="padding:14px;color:var(--text-muted);">No client-visible communications were returned for this ticket.</div>
