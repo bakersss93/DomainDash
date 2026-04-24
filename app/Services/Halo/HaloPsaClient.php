@@ -594,6 +594,8 @@ class HaloPsaClient
                 'ticket_id' => $ticketId,
                 'count' => 200,
                 'excludeprivate' => 'true',
+                'excludesys' => 'true',
+                'includehtmlnote' => 'true',
             ];
 
             try {

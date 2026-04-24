@@ -179,6 +179,7 @@ class TicketController extends Controller
                 fn (array $action): bool => $this->isClientVisibleAction($action)
             ));
             $actions = $this->prependInitialSubmission($ticket, $actions);
+            $actions = $this->prepareActionsForDisplay($actions);
         } catch (\RuntimeException $exception) {
             return redirect()->route('tickets.index', ['client_id' => $selectedClientId])
                 ->withErrors(['halo' => $exception->getMessage()]);
@@ -938,5 +939,50 @@ class TicketController extends Controller
         }
 
         return false;
+    }
+
+    private function prepareActionsForDisplay(array $actions): array
+    {
+        $seenIds = [];
+        $prepared = [];
+
+        foreach ($actions as $action) {
+            if (!is_array($action)) {
+                continue;
+            }
+
+            $actionId = (int) ($action['id'] ?? $action['Id'] ?? 0);
+            if ($actionId > 0) {
+                if (isset($seenIds[$actionId])) {
+                    continue;
+                }
+
+                $seenIds[$actionId] = true;
+            }
+
+            $htmlNote = $action['note_html'] ?? $action['NoteHtml'] ?? $action['noteHtml'] ?? null;
+            if (is_string($htmlNote) && trim($htmlNote) !== '') {
+                $action['_display_note_html'] = $this->sanitizeActionHtml($htmlNote);
+            } else {
+                $fallback = $action['details'] ?? $action['Details'] ?? $action['note'] ?? $action['Note'] ?? '';
+                $action['_display_note_html'] = nl2br(e((string) $fallback));
+            }
+
+            $prepared[] = $action;
+        }
+
+        return $prepared;
+    }
+
+    private function sanitizeActionHtml(string $html): string
+    {
+        $sanitized = preg_replace('#<script\b[^>]*>(.*?)</script>#is', '', $html) ?? '';
+        $sanitized = preg_replace('#\son[a-zA-Z]+\s*=\s*(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)#i', '', $sanitized) ?? '';
+        $sanitized = preg_replace('#\s(href|src)\s*=\s*([\"\'])\s*javascript:[^\\2]*\\2#i', '', $sanitized) ?? '';
+
+        return strip_tags(
+            $sanitized,
+            '<p><br><strong><em><b><i><u><a><ul><ol><li><blockquote><code><pre><span><div><img>'
+        );
     }
 }
