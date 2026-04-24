@@ -311,21 +311,12 @@ class TicketController extends Controller
             }
 
             $message = trim((string) $data['message']);
-            $halo->createTicketAction($ticketId, $message);
+            $beforeActions = $halo->getTicketActions($ticketId);
+            $halo->createTicketAction($ticketId, $message, 'Client Update', auth()->user()?->name ?? 'Client');
             $updatedActions = $halo->getTicketActions($ticketId);
-            $hasMessage = false;
-            foreach ($updatedActions as $action) {
-                if (!is_array($action)) {
-                    continue;
-                }
-
-                if ($this->actionContainsMessage($action, $message)) {
-                    $hasMessage = true;
-                    break;
-                }
-            }
-
-            if (!$hasMessage) {
+            $hasMessage = $this->actionsContainMessage($updatedActions, $message);
+            $hasNewAction = count($updatedActions) > count($beforeActions);
+            if (!$hasMessage && !$hasNewAction) {
                 throw new \RuntimeException('Reply request was accepted by Halo, but no matching ticket update was returned afterwards.');
             }
         } catch (\RuntimeException $exception) {
@@ -386,8 +377,25 @@ class TicketController extends Controller
             }
 
             $closeReason = trim((string) $data['reason']);
-            $halo->createTicketAction($ticketId, "Ticket closure requested by client:\n" . $closeReason);
-            $halo->updateTicketStatus($ticketId, $closedStatusId);
+            $beforeActions = $halo->getTicketActions($ticketId);
+            $halo->createTicketAction($ticketId, $closeReason, 'Close No Survey', auth()->user()?->name ?? 'Client');
+            $updatedActions = $halo->getTicketActions($ticketId);
+            $hasClosure = false;
+            foreach ($updatedActions as $action) {
+                if (!is_array($action)) {
+                    continue;
+                }
+
+                $outcome = strtolower(trim((string) ($action['outcome'] ?? $action['Outcome'] ?? '')));
+                if ($outcome === 'close no survey' || $outcome === 'closed') {
+                    $hasClosure = true;
+                    break;
+                }
+            }
+
+            if (!$hasClosure && count($updatedActions) <= count($beforeActions)) {
+                throw new \RuntimeException('Closure request was accepted by Halo, but no close action was returned afterwards.');
+            }
         } catch (\RuntimeException $exception) {
             return back()->withErrors([
                 'halo' => $exception->getMessage(),
@@ -878,6 +886,21 @@ class TicketController extends Controller
             if (is_string($value)) {
                 $normalized = strtolower(trim($value));
                 return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
+            }
+        }
+
+        return false;
+    }
+
+    private function actionsContainMessage(array $actions, string $message): bool
+    {
+        foreach ($actions as $action) {
+            if (!is_array($action)) {
+                continue;
+            }
+
+            if ($this->actionContainsMessage($action, $message)) {
+                return true;
             }
         }
 
