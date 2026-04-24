@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class HaloPsaClient
 {
+    private const ACCESS_TOKEN_CACHE_KEY = 'halo_api_access_token';
+
     protected Client $http;
 
     protected string $baseUrl;
@@ -50,7 +52,7 @@ class HaloPsaClient
      */
     protected function getAccessToken(): string
     {
-        $cacheKey = 'halo_api_access_token';
+        $cacheKey = self::ACCESS_TOKEN_CACHE_KEY;
 
         if ($token = Cache::get($cacheKey)) {
             return $token;
@@ -117,7 +119,19 @@ class HaloPsaClient
             $options['headers'] ?? []
         );
 
-        $response = $this->http->request($method, $uri, $options);
+        try {
+            $response = $this->http->request($method, $uri, $options);
+        } catch (ClientException $exception) {
+            $statusCode = $exception->getResponse()?->getStatusCode();
+            if ($statusCode === 401) {
+                Cache::forget(self::ACCESS_TOKEN_CACHE_KEY);
+
+                $options['headers']['Authorization'] = 'Bearer ' . $this->getAccessToken();
+                $response = $this->http->request($method, $uri, $options);
+            } else {
+                throw $exception;
+            }
+        }
 
         $json = json_decode((string) $response->getBody(), true);
 
