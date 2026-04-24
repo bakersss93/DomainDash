@@ -523,9 +523,18 @@ class HaloPsaClient
      */
     public function createTicket(array $data): array
     {
-        return $this->request('POST', 'tickets', [
-            'json' => $data,
+        // Halo ticket creation expects an array payload, even for a single
+        // ticket. Sending a plain object triggers a 400 deserialization error.
+        $result = $this->request('POST', 'tickets', [
+            'json' => [$data],
         ]);
+
+        // Normalize array responses so callers always receive one ticket.
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
     }
 
     /**
