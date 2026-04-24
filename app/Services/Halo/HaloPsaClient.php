@@ -622,6 +622,44 @@ class HaloPsaClient
     ): array {
         $author = trim((string) $who);
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
+        $effectiveAuthor = $author !== '' ? $author : 'Client';
+
+        // First attempt mirrors the known-good Swagger request shape exactly.
+        $swaggerPayload = [[
+            'outcome' => $outcome,
+            'ticket_id' => $ticketId,
+            'datetime' => $timestamp,
+            'last_updated' => $timestamp,
+            'note' => $message,
+            'Who' => $effectiveAuthor,
+        ]];
+
+        $lastError = null;
+        try {
+            $result = $this->request('POST', 'Actions', [
+                'headers' => [
+                    'Content-Type' => 'application/json-patch+json',
+                ],
+                'body' => json_encode($swaggerPayload, JSON_UNESCAPED_SLASHES),
+            ]);
+
+            $action = $this->extractActionPayload($result);
+            if (!empty($action)) {
+                return $action;
+            }
+
+            return $result;
+        } catch (\RuntimeException $exception) {
+            $lastError = $exception->getMessage();
+            Log::warning('Failed Halo ticket action create payload.', [
+                'ticket_id' => $ticketId,
+                'endpoint' => 'Actions',
+                'wrapped' => true,
+                'payload_keys' => array_keys($swaggerPayload[0]),
+                'error' => $lastError,
+            ]);
+        }
+
         $payloads = [
             [
                 'outcome' => $outcome,
@@ -629,7 +667,7 @@ class HaloPsaClient
                 'datetime' => $timestamp,
                 'last_updated' => $timestamp,
                 'note' => $message,
-                'Who' => $author !== '' ? $author : null,
+                'Who' => $effectiveAuthor,
             ],
             [
                 'ticket_id' => $ticketId,
@@ -681,22 +719,18 @@ class HaloPsaClient
             'Action',
             'actions',
             'action',
-            'tickets/' . $ticketId . '/actions',
-            'tickets/' . $ticketId . '/action',
         ];
-
-        $lastError = null;
         foreach ($endpoints as $endpoint) {
             foreach ($payloads as $payload) {
                 foreach ([false, true] as $wrapInArray) {
-                    $jsonPayload = $wrapInArray ? [$payload] : $payload;
+                    $requestPayload = $wrapInArray ? [$payload] : $payload;
 
                     try {
                         $result = $this->request('POST', $endpoint, [
                             'headers' => [
                                 'Content-Type' => 'application/json-patch+json',
                             ],
-                            'json' => $jsonPayload,
+                            'body' => json_encode($requestPayload, JSON_UNESCAPED_SLASHES),
                         ]);
 
                         $action = $this->extractActionPayload($result);
