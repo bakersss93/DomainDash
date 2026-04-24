@@ -5,7 +5,7 @@
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
         <div>
             <h1 class="dd-page-title" style="font-size:1.6rem;margin-bottom:10px;">Support Requests</h1>
-            <p style="margin:0 0 14px;color:var(--text-muted);">Showing HaloPSA tickets limited to ticket types configured in Admin Settings.</p>
+            <p style="margin:0 0 14px;color:var(--text-muted);">Showing Support & Service Request tickets linked to your account.</p>
         </div>
         <a href="{{ route('tickets.create') }}" class="btn-accent" style="text-decoration:none;">Log Support Ticket</a>
     </div>

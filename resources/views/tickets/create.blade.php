@@ -3,7 +3,7 @@
 @section('content')
 <div class="dd-ticket-wrap">
     <h1 class="dd-page-title">Log Support Ticket</h1>
-    <p class="dd-ticket-intro">Create a HaloPSA request for Domain, Web Hosting, or SSL services.</p>
+    <p class="dd-ticket-intro">Create a Support or Service Request for Domain, Web Hosting, or SSL services.</p>
 
     <style>
         .dd-ticket-wrap { max-width: 980px; }
