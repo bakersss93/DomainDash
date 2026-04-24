@@ -39,11 +39,7 @@
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button type="button" id="open-reply-modal" class="btn-accent">Submit Reply</button>
-            <form method="POST" action="{{ route('tickets.close', ['ticketId' => $ticketId]) }}" style="margin:0;">
-                @csrf
-                <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-                <button type="submit" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;">Close Ticket</button>
-            </form>
+            <button type="button" id="open-close-modal" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;">Close Ticket</button>
             <a href="{{ route('tickets.index', ['client_id' => $selectedClientId]) }}" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border-subtle);text-decoration:none;color:var(--text-muted);">Back to tickets</a>
             @if($portalUrl)
                 <a href="{{ $portalUrl }}" target="_blank" rel="noopener noreferrer" class="btn-accent" style="text-decoration:none;">Open in Client Portal</a>
@@ -86,7 +82,14 @@
                         $actionAuthor = 'Update';
                     }
 
-                    $actionDate = $action['datecreated'] ?? $action['DateCreated'] ?? $action['date'] ?? '-';
+                    $actionDate = $action['datecreated']
+                        ?? $action['DateCreated']
+                        ?? $action['date']
+                        ?? $action['datetime']
+                        ?? $action['DateTime']
+                        ?? $action['startdate']
+                        ?? $action['StartDate']
+                        ?? '-';
                     if (!is_string($actionDate) || trim($actionDate) === '') {
                         $actionDate = '-';
                     }
@@ -120,9 +123,26 @@
                 <label for="ticket_reply" style="font-weight:600;">Reply to technician / provide update</label>
                 <button type="button" id="close-reply-modal" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;color:var(--text-muted);cursor:pointer;">Close</button>
             </div>
-            <textarea id="ticket_reply" name="message" rows="8" required style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 11px;background:var(--bg);color:var(--text);">{{ old('message') }}</textarea>
+            <input type="hidden" id="ticket_reply" name="message" value="{{ old('message') }}">
+            <div id="ticket_reply_editor" contenteditable="true" style="width:100%;min-height:220px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 11px;background:var(--bg);color:var(--text);overflow:auto;"></div>
             <div>
                 <button class="btn-accent" type="submit">Submit Reply</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="close-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.72);z-index:12050;align-items:center;justify-content:center;padding:16px;">
+        <form method="POST" action="{{ route('tickets.close', ['ticketId' => $ticketId]) }}" style="width:min(640px, 96vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;display:grid;gap:10px;">
+            @csrf
+            <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                <label for="close_reason" style="font-weight:600;">Reason for closure</label>
+                <button type="button" id="close-close-modal" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;color:var(--text-muted);cursor:pointer;">Close</button>
+            </div>
+            <input type="hidden" id="close_reason" name="reason" value="{{ old('reason') }}">
+            <div id="close_reason_editor" contenteditable="true" style="width:100%;min-height:180px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 11px;background:var(--bg);color:var(--text);overflow:auto;"></div>
+            <div>
+                <button type="submit" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;">Confirm Close Ticket</button>
             </div>
         </form>
     </div>
@@ -133,28 +153,76 @@
         const openButton = document.getElementById('open-reply-modal');
         const closeButton = document.getElementById('close-reply-modal');
         const modal = document.getElementById('reply-modal');
+        const openCloseButton = document.getElementById('open-close-modal');
+        const closeCloseButton = document.getElementById('close-close-modal');
+        const closeModal = document.getElementById('close-modal');
+        const replyEditor = document.getElementById('ticket_reply_editor');
+        const replyInput = document.getElementById('ticket_reply');
+        const closeReasonEditor = document.getElementById('close_reason_editor');
+        const closeReasonInput = document.getElementById('close_reason');
 
-        if (!openButton || !closeButton || !modal) {
+        if (!openButton || !closeButton || !modal || !openCloseButton || !closeCloseButton || !closeModal || !replyEditor || !replyInput || !closeReasonEditor || !closeReasonInput) {
             return;
         }
 
-        const openModal = () => {
+        const openReplyModal = () => {
             modal.style.display = 'flex';
         };
-        const closeModal = () => {
+        const hideReplyModal = () => {
             modal.style.display = 'none';
         };
+        const openCloseModal = () => {
+            closeModal.style.display = 'flex';
+        };
+        const hideCloseModal = () => {
+            closeModal.style.display = 'none';
+        };
 
-        openButton.addEventListener('click', openModal);
-        closeButton.addEventListener('click', closeModal);
+        const syncEditorToInput = (editor, input) => {
+            input.value = editor.innerHTML.trim();
+        };
+        const hydrateEditor = (editor, input) => {
+            if (input.value.trim() !== '') {
+                editor.innerHTML = input.value;
+            }
+        };
+
+        hydrateEditor(replyEditor, replyInput);
+        hydrateEditor(closeReasonEditor, closeReasonInput);
+        syncEditorToInput(replyEditor, replyInput);
+        syncEditorToInput(closeReasonEditor, closeReasonInput);
+
+        openButton.addEventListener('click', openReplyModal);
+        closeButton.addEventListener('click', hideReplyModal);
+        openCloseButton.addEventListener('click', openCloseModal);
+        closeCloseButton.addEventListener('click', hideCloseModal);
+        replyEditor.addEventListener('input', () => syncEditorToInput(replyEditor, replyInput));
+        closeReasonEditor.addEventListener('input', () => syncEditorToInput(closeReasonEditor, closeReasonInput));
+
+        modal.querySelector('form')?.addEventListener('submit', function () {
+            syncEditorToInput(replyEditor, replyInput);
+        });
+        closeModal.querySelector('form')?.addEventListener('submit', function () {
+            syncEditorToInput(closeReasonEditor, closeReasonInput);
+        });
+
         modal.addEventListener('click', function (event) {
             if (event.target === modal) {
-                closeModal();
+                hideReplyModal();
+            }
+        });
+        closeModal.addEventListener('click', function (event) {
+            if (event.target === closeModal) {
+                hideCloseModal();
             }
         });
 
         @if($errors->any())
-            openModal();
+            @if(old('reason'))
+                openCloseModal();
+            @else
+                openReplyModal();
+            @endif
         @endif
     });
 </script>

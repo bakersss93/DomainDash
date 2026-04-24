@@ -661,14 +661,14 @@ class HaloPsaClient
         ];
 
         $endpoints = [
+            'actions',
+            'action',
             'tickets/' . $ticketId . '/actions',
             'tickets/' . $ticketId . '/action',
             'tickets/' . $ticketId . '/reply',
             'tickets/' . $ticketId . '/respond',
             'tickets/' . $ticketId . '/email',
             'tickets/' . $ticketId . '/emailuser',
-            'action',
-            'actions',
             'tickets',
         ];
 

@@ -344,6 +344,7 @@ class TicketController extends Controller
     {
         $data = $request->validate([
             'client_id' => 'required|integer|exists:clients,id',
+            'reason' => 'required|string',
         ]);
 
         $clients = $this->availableClients(auth()->user());
@@ -384,6 +385,8 @@ class TicketController extends Controller
                 abort(403, 'You are not allowed to close this ticket.');
             }
 
+            $closeReason = trim((string) $data['reason']);
+            $halo->createTicketAction($ticketId, "Ticket closure requested by client:\n" . $closeReason);
             $halo->updateTicketStatus($ticketId, $closedStatusId);
         } catch (\RuntimeException $exception) {
             return back()->withErrors([
@@ -892,13 +895,14 @@ class TicketController extends Controller
             $action['Body'] ?? null,
         ];
 
-        $needle = strtolower(trim($message));
+        $needle = strtolower(trim(strip_tags($message)));
         foreach ($candidates as $candidate) {
             if (!is_string($candidate)) {
                 continue;
             }
 
-            if (str_contains(strtolower($candidate), $needle)) {
+            $haystack = strtolower(trim(strip_tags($candidate)));
+            if ($needle !== '' && str_contains($haystack, $needle)) {
                 return true;
             }
         }
