@@ -362,16 +362,32 @@ class TicketController extends Controller
             }
 
             $closeReason = trim((string) $data['reason']);
+            $closedStatus = $this->resolveClosedStatus($halo);
+            $closeActionMeta = [];
+            if (($closedStatus['id'] ?? 0) > 0) {
+                $closeActionMeta['new_status'] = $closedStatus['id'];
+                $closeActionMeta['new_status_name'] = $closedStatus['name'];
+            }
+
             $closeAction = $halo->createTicketAction(
                 $ticketId,
                 $closeReason,
                 'Close No Survey',
-                auth()->user()?->name ?? 'Client'
+                auth()->user()?->name ?? 'Client',
+                false,
+                $closeActionMeta
             );
 
             $outcome = strtolower(trim((string) ($closeAction['outcome'] ?? $closeAction['Outcome'] ?? '')));
             $hasClosure = in_array($outcome, ['close no survey', 'closed'], true);
-            if (!$hasClosure) {
+            $actionClosedStatusId = (int) ($closeAction['new_status'] ?? $closeAction['NewStatus'] ?? 0);
+            $expectedClosedStatusId = (int) ($closedStatus['id'] ?? 0);
+            $statusUpdatedByAction = $expectedClosedStatusId > 0 && $actionClosedStatusId === $expectedClosedStatusId;
+            if ($expectedClosedStatusId > 0 && !$statusUpdatedByAction) {
+                $halo->updateTicketStatus($ticketId, $expectedClosedStatusId);
+            }
+
+            if (!$hasClosure && !$statusUpdatedByAction) {
                 throw new \RuntimeException('Closure request was accepted by Halo, but no close action was returned afterwards.');
             }
         } catch (\RuntimeException $exception) {
@@ -816,25 +832,53 @@ class TicketController extends Controller
             }
         }
 
-        $clientFacingTypes = [
-            strtolower(trim((string) ($action['outcome'] ?? ''))),
-            strtolower(trim((string) ($action['Outcome'] ?? ''))),
-            strtolower(trim((string) ($action['actiontype'] ?? ''))),
-            strtolower(trim((string) ($action['ActionType'] ?? ''))),
-            strtolower(trim((string) ($action['type'] ?? ''))),
-            strtolower(trim((string) ($action['Type'] ?? ''))),
-        ];
-        foreach ($clientFacingTypes as $typeLabel) {
-            if ($typeLabel === '') {
+        // Halo's /Actions endpoint can already be filtered with
+        // excludeprivate=true, and many client-visible actions do not carry
+        // explicit "public" flags. If no private/internal marker exists, keep
+        // the action visible to avoid hiding agent updates and dashboard replies.
+        return true;
+    }
+
+    private function resolveClosedStatus(HaloPsaClient $halo): array
+    {
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $domainDashStatus = strtolower(trim((string) ($mapping['domaindash_status'] ?? '')));
+            $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+            $statusName = trim((string) ($mapping['halo_status_name'] ?? ''));
+
+            if ($statusId <= 0) {
                 continue;
             }
 
-            if (in_array($typeLabel, ['email user', 'with user', 'client note', 'public note'], true)) {
-                return true;
+            if ($domainDashStatus === 'closed') {
+                return [
+                    'id' => $statusId,
+                    'name' => $statusName !== '' ? $statusName : 'Closed',
+                ];
             }
         }
 
-        return false;
+        foreach ($halo->listTicketStatuses() as $status) {
+            $name = trim((string) ($status['name'] ?? $status['Name'] ?? ''));
+            if (strcasecmp($name, 'Closed') !== 0) {
+                continue;
+            }
+
+            $statusId = (int) ($status['id'] ?? $status['Id'] ?? 0);
+            if ($statusId <= 0) {
+                continue;
+            }
+
+            return [
+                'id' => $statusId,
+                'name' => $name,
+            ];
+        }
+
+        return [
+            'id' => 0,
+            'name' => 'Closed',
+        ];
     }
 
     private function extractTruthyFlag(array $action, string $field): bool

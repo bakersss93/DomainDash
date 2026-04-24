@@ -585,18 +585,16 @@ class HaloPsaClient
     {
         $endpoints = [
             'tickets/' . $ticketId . '/actions',
-            'action',
             'actions',
+            'action',
         ];
 
         foreach ($endpoints as $endpoint) {
-            $query = [];
-            if ($endpoint === 'actions' || $endpoint === 'action') {
-                $query = [
-                    'ticket_id' => $ticketId,
-                    'count' => 200,
-                ];
-            }
+            $query = [
+                'ticket_id' => $ticketId,
+                'count' => 200,
+                'excludeprivate' => 'true',
+            ];
 
             try {
                 $result = $this->request('GET', $endpoint, [
@@ -632,28 +630,29 @@ class HaloPsaClient
         string $message,
         string $outcome = 'Client-Responded',
         ?string $who = null,
-        bool $sendEmail = false
+        bool $sendEmail = false,
+        array $extraFields = []
     ): array {
         $author = trim((string) $who);
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
         $effectiveAuthor = $author !== '' ? $author : 'Client';
         $payloads = [
-            [[
+            [array_merge([
                 'outcome' => $outcome,
                 'ticket_id' => $ticketId,
                 'datetime' => $timestamp,
                 'last_updated' => $timestamp,
                 'note' => $message,
                 'Who' => $effectiveAuthor,
-            ]],
-            [[
+            ], $extraFields)],
+            [array_merge([
                 'ticket_id' => $ticketId,
                 'note' => $message,
                 'outcome' => $outcome,
                 'who' => $effectiveAuthor,
                 'hiddenfromuser' => false,
                 'sendemail' => $sendEmail,
-            ]],
+            ], $extraFields)],
         ];
 
         $lastError = null;
