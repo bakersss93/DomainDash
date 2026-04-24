@@ -700,6 +700,50 @@ class HaloPsaClient
         throw new \RuntimeException('Unable to submit reply to Halo ticket with available action payload formats.' . $suffix);
     }
 
+    public function updateTicketStatus(int $ticketId, int $statusId): array
+    {
+        $payloads = [
+            ['id' => $ticketId, 'status_id' => $statusId],
+            ['id' => $ticketId, 'ticketstatus_id' => $statusId],
+            ['TicketId' => $ticketId, 'StatusId' => $statusId],
+            ['TicketId' => $ticketId, 'TicketStatusId' => $statusId],
+        ];
+
+        $endpoints = [
+            'tickets/' . $ticketId,
+            'tickets/' . $ticketId . '/status',
+            'tickets',
+        ];
+
+        $lastError = null;
+        foreach ($endpoints as $endpoint) {
+            foreach ($payloads as $payload) {
+                foreach ([false, true] as $wrapInArray) {
+                    $jsonPayload = $wrapInArray ? [$payload] : $payload;
+
+                    try {
+                        return $this->request('POST', $endpoint, [
+                            'json' => $jsonPayload,
+                        ]);
+                    } catch (\RuntimeException $exception) {
+                        $lastError = $exception->getMessage();
+                        Log::warning('Failed Halo ticket status update payload.', [
+                            'ticket_id' => $ticketId,
+                            'status_id' => $statusId,
+                            'endpoint' => $endpoint,
+                            'wrapped' => $wrapInArray,
+                            'payload_keys' => array_keys($payload),
+                            'error' => $lastError,
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $suffix = $lastError ? ' Last error: ' . $lastError : '';
+        throw new \RuntimeException('Unable to close ticket with available status payload formats.' . $suffix);
+    }
+
     /**
      * Fetch HaloPSA ticket types.
      */

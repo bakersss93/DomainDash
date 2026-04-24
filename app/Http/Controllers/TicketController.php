@@ -310,7 +310,24 @@ class TicketController extends Controller
                 abort(403, 'You are not allowed to reply to this ticket.');
             }
 
-            $halo->createTicketAction($ticketId, trim((string) $data['message']));
+            $message = trim((string) $data['message']);
+            $halo->createTicketAction($ticketId, $message);
+            $updatedActions = $halo->getTicketActions($ticketId);
+            $hasMessage = false;
+            foreach ($updatedActions as $action) {
+                if (!is_array($action)) {
+                    continue;
+                }
+
+                if ($this->actionContainsMessage($action, $message)) {
+                    $hasMessage = true;
+                    break;
+                }
+            }
+
+            if (!$hasMessage) {
+                throw new \RuntimeException('Reply request was accepted by Halo, but no matching ticket update was returned afterwards.');
+            }
         } catch (\RuntimeException $exception) {
             return back()->withErrors([
                 'halo' => $exception->getMessage(),
@@ -321,6 +338,63 @@ class TicketController extends Controller
             'ticketId' => $ticketId,
             'client_id' => $selectedClient->id,
         ])->with('status', 'Reply sent to Halo ticket.');
+    }
+
+    public function close(Request $request, int $ticketId)
+    {
+        $data = $request->validate([
+            'client_id' => 'required|integer|exists:clients,id',
+        ]);
+
+        $clients = $this->availableClients(auth()->user());
+        $selectedClient = $clients->firstWhere('id', (int) $data['client_id']);
+        if (!$selectedClient) {
+            abort(403, 'You are not allowed to close this ticket.');
+        }
+
+        if (!$selectedClient->halopsa_reference) {
+            return back()->withErrors([
+                'halo' => 'This client is not linked to HaloPSA yet.',
+            ]);
+        }
+
+        $closedStatusId = null;
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $statusLabel = strtolower(trim((string) ($mapping['domaindash_status'] ?? '')));
+            if (in_array($statusLabel, ['closed', 'resolved', 'complete', 'completed', 'done'], true)) {
+                $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+                if ($statusId > 0) {
+                    $closedStatusId = $statusId;
+                    break;
+                }
+            }
+        }
+
+        if (!$closedStatusId) {
+            return back()->withErrors([
+                'halo' => 'No closed status mapping is configured in Halo settings.',
+            ]);
+        }
+
+        try {
+            $halo = app(HaloPsaClient::class);
+            $ticket = $halo->getTicket($ticketId);
+            $ticketClientId = (int) ($ticket['client_id'] ?? $ticket['ClientId'] ?? 0);
+            if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
+                abort(403, 'You are not allowed to close this ticket.');
+            }
+
+            $halo->updateTicketStatus($ticketId, $closedStatusId);
+        } catch (\RuntimeException $exception) {
+            return back()->withErrors([
+                'halo' => $exception->getMessage(),
+            ]);
+        }
+
+        return redirect()->route('tickets.show', [
+            'ticketId' => $ticketId,
+            'client_id' => $selectedClient->id,
+        ])->with('status', 'Ticket has been marked as closed.');
     }
 
     private function availableClients($user)
@@ -801,6 +875,31 @@ class TicketController extends Controller
             if (is_string($value)) {
                 $normalized = strtolower(trim($value));
                 return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
+            }
+        }
+
+        return false;
+    }
+
+    private function actionContainsMessage(array $action, string $message): bool
+    {
+        $candidates = [
+            $action['details'] ?? null,
+            $action['Details'] ?? null,
+            $action['note'] ?? null,
+            $action['Note'] ?? null,
+            $action['body'] ?? null,
+            $action['Body'] ?? null,
+        ];
+
+        $needle = strtolower(trim($message));
+        foreach ($candidates as $candidate) {
+            if (!is_string($candidate)) {
+                continue;
+            }
+
+            if (str_contains(strtolower($candidate), $needle)) {
+                return true;
             }
         }
 
