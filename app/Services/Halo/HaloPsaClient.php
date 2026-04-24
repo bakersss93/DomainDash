@@ -611,65 +611,67 @@ class HaloPsaClient
     }
 
     /**
-     * Add a client-visible action/note reply to a ticket.
+     * Add an action/note to a ticket.
      */
-    public function createTicketAction(int $ticketId, string $message): array
-    {
+    public function createTicketAction(
+        int $ticketId,
+        string $message,
+        string $outcome = 'Client-Responded',
+        ?string $who = null,
+        bool $sendEmail = false
+    ): array {
+        $author = trim((string) $who);
         $payloads = [
             [
                 'ticket_id' => $ticketId,
                 'note' => $message,
-                'outcome' => 'Note',
+                'outcome' => $outcome,
                 'hiddenfromuser' => false,
-                'sendemail' => true,
+                'sendemail' => $sendEmail,
+            ],
+            [
+                'ticket_id' => $ticketId,
+                'note' => $message,
+                'outcome' => $outcome,
+                'who' => $author !== '' ? $author : null,
+                'hiddenfromuser' => false,
+                'sendemail' => $sendEmail,
             ],
             [
                 'ticket_id' => $ticketId,
                 'details' => $message,
-                'outcome' => 'Note',
+                'outcome' => $outcome,
+                'who' => $author !== '' ? $author : null,
                 'hiddenfromuser' => false,
-                'sendemail' => true,
+                'sendemail' => $sendEmail,
             ],
             [
                 'TicketId' => $ticketId,
                 'Note' => $message,
-                'Outcome' => 'Note',
+                'Outcome' => $outcome,
+                'Who' => $author !== '' ? $author : null,
                 'HiddenFromUser' => false,
-                'SendEmail' => true,
+                'SendEmail' => $sendEmail,
             ],
             [
                 'ticketid' => $ticketId,
                 'note' => $message,
-                'outcome' => 'Note',
+                'outcome' => $outcome,
+                'who' => $author !== '' ? $author : null,
                 'hiddenfromuser' => false,
-                'sendemail' => true,
-            ],
-            [
-                'TicketID' => $ticketId,
-                'Details' => $message,
-                'Outcome' => 'Note',
-                'HiddenFromUser' => false,
-                'SendEmail' => true,
-            ],
-            [
-                'ticket_id' => $ticketId,
-                'note' => $message,
-                'actiontype' => 'Email User',
-                'hiddenfromuser' => false,
-                'sendemail' => true,
+                'sendemail' => $sendEmail,
             ],
         ];
+
+        $payloads = array_map(function (array $payload) {
+            return array_filter($payload, static fn ($value) => $value !== null);
+        }, $payloads);
 
         $endpoints = [
             'actions',
             'action',
             'tickets/' . $ticketId . '/actions',
             'tickets/' . $ticketId . '/action',
-            'tickets/' . $ticketId . '/reply',
-            'tickets/' . $ticketId . '/respond',
-            'tickets/' . $ticketId . '/email',
-            'tickets/' . $ticketId . '/emailuser',
-            'tickets',
         ];
 
         $lastError = null;
@@ -679,9 +681,16 @@ class HaloPsaClient
                     $jsonPayload = $wrapInArray ? [$payload] : $payload;
 
                     try {
-                        return $this->request('POST', $endpoint, [
+                        $result = $this->request('POST', $endpoint, [
                             'json' => $jsonPayload,
                         ]);
+
+                        $action = $this->extractActionPayload($result);
+                        if (!empty($action)) {
+                            return $action;
+                        }
+
+                        return $result;
                     } catch (\RuntimeException $exception) {
                         $lastError = $exception->getMessage();
                         Log::warning('Failed Halo ticket action create payload.', [
@@ -698,6 +707,27 @@ class HaloPsaClient
 
         $suffix = $lastError ? ' Last error: ' . $lastError : '';
         throw new \RuntimeException('Unable to submit reply to Halo ticket with available action payload formats.' . $suffix);
+    }
+
+    private function extractActionPayload(array $result): array
+    {
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        if (isset($result['action']) && is_array($result['action'])) {
+            return $result['action'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            return $result['data'];
+        }
+
+        if (isset($result['id']) || isset($result['Id'])) {
+            return $result;
+        }
+
+        return [];
     }
 
     public function updateTicketStatus(int $ticketId, int $statusId): array

@@ -311,12 +311,15 @@ class TicketController extends Controller
             }
 
             $message = trim((string) $data['message']);
-            $beforeActions = $halo->getTicketActions($ticketId);
-            $halo->createTicketAction($ticketId, $message, 'Client Update', auth()->user()?->name ?? 'Client');
-            $updatedActions = $halo->getTicketActions($ticketId);
-            $hasMessage = $this->actionsContainMessage($updatedActions, $message);
-            $hasNewAction = count($updatedActions) > count($beforeActions);
-            if (!$hasMessage && !$hasNewAction) {
+            $replyAction = $halo->createTicketAction(
+                $ticketId,
+                $message,
+                'Client-Responded',
+                auth()->user()?->name ?? 'Client'
+            );
+            $hasMessage = $this->actionContainsMessage($replyAction, $message);
+            $outcome = strtolower(trim((string) ($replyAction['outcome'] ?? $replyAction['Outcome'] ?? '')));
+            if (!$hasMessage && $outcome !== 'client-responded') {
                 throw new \RuntimeException('Reply request was accepted by Halo, but no matching ticket update was returned afterwards.');
             }
         } catch (\RuntimeException $exception) {
@@ -350,24 +353,6 @@ class TicketController extends Controller
             ]);
         }
 
-        $closedStatusId = null;
-        foreach ($this->configuredStatusMappings() as $mapping) {
-            $statusLabel = strtolower(trim((string) ($mapping['domaindash_status'] ?? '')));
-            if (in_array($statusLabel, ['closed', 'resolved', 'complete', 'completed', 'done'], true)) {
-                $statusId = (int) ($mapping['halo_status_id'] ?? 0);
-                if ($statusId > 0) {
-                    $closedStatusId = $statusId;
-                    break;
-                }
-            }
-        }
-
-        if (!$closedStatusId) {
-            return back()->withErrors([
-                'halo' => 'No closed status mapping is configured in Halo settings.',
-            ]);
-        }
-
         try {
             $halo = app(HaloPsaClient::class);
             $ticket = $halo->getTicket($ticketId);
@@ -377,23 +362,16 @@ class TicketController extends Controller
             }
 
             $closeReason = trim((string) $data['reason']);
-            $beforeActions = $halo->getTicketActions($ticketId);
-            $halo->createTicketAction($ticketId, $closeReason, 'Close No Survey', auth()->user()?->name ?? 'Client');
-            $updatedActions = $halo->getTicketActions($ticketId);
-            $hasClosure = false;
-            foreach ($updatedActions as $action) {
-                if (!is_array($action)) {
-                    continue;
-                }
+            $closeAction = $halo->createTicketAction(
+                $ticketId,
+                $closeReason,
+                'Close No Survey',
+                auth()->user()?->name ?? 'Client'
+            );
 
-                $outcome = strtolower(trim((string) ($action['outcome'] ?? $action['Outcome'] ?? '')));
-                if ($outcome === 'close no survey' || $outcome === 'closed') {
-                    $hasClosure = true;
-                    break;
-                }
-            }
-
-            if (!$hasClosure && count($updatedActions) <= count($beforeActions)) {
+            $outcome = strtolower(trim((string) ($closeAction['outcome'] ?? $closeAction['Outcome'] ?? '')));
+            $hasClosure = in_array($outcome, ['close no survey', 'closed'], true);
+            if (!$hasClosure) {
                 throw new \RuntimeException('Closure request was accepted by Halo, but no close action was returned afterwards.');
             }
         } catch (\RuntimeException $exception) {
@@ -886,21 +864,6 @@ class TicketController extends Controller
             if (is_string($value)) {
                 $normalized = strtolower(trim($value));
                 return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
-            }
-        }
-
-        return false;
-    }
-
-    private function actionsContainMessage(array $actions, string $message): bool
-    {
-        foreach ($actions as $action) {
-            if (!is_array($action)) {
-                continue;
-            }
-
-            if ($this->actionContainsMessage($action, $message)) {
-                return true;
             }
         }
 
