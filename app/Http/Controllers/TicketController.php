@@ -261,9 +261,9 @@ class TicketController extends Controller
                 'details' => $data['message'],
                 'client_id' => (int) $client->halopsa_reference,
                 'tickettype_id' => (int) $mapping['halo_ticket_type_id'],
-                'category_1' => $serviceCategory,
-                'user_name' => $submitterName,
-                'UserName' => $submitterName,
+                //'category_1' => $serviceCategory,
+                //'user_name' => $submitterName,
+                //'UserName' => $submitterName,
             ];
 
             // Attach the DomainDash-linked Halo asset so Halo tickets stay
