@@ -270,6 +270,9 @@ class TicketController extends Controller
                 $payload['asset_id'] = $assetId;
                 $payload['assetid'] = $assetId;
                 $payload['AssetId'] = $assetId;
+                $payload['assets'] = [['id' => $assetId]];
+                $payload['Assets'] = [['id' => $assetId]];
+                $payload['linked_assets'] = [['id' => $assetId]];
             }
 
             $halo->createTicket($payload);
