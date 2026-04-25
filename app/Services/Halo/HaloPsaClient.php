@@ -529,8 +529,8 @@ class HaloPsaClient
         ];
 
         $endpoints = [
+            'Tickets',
             'tickets',
-            'ticket',
         ];
 
         $lastError = null;
@@ -542,7 +542,7 @@ class HaloPsaClient
                     ]);
 
                     return $this->extractTicketPayload($result);
-                } catch (\Throwable $exception) {
+                } catch (ClientException|\RuntimeException $exception) {
                     $lastError = $exception->getMessage();
                     Log::warning('Failed Halo ticket create payload.', [
                         'endpoint' => $endpoint,
