@@ -254,24 +254,19 @@ class TicketController extends Controller
 
             $halo = app(HaloPsaClient::class);
             $payload = [
-                'Summary'  => $data['subject'],
-                'Details'  => $data['message'],
-                'ClientId' => (int) $client->halopsa_reference,
-                'TicketType' => $data['ticket_type'],
-                'TicketTypeId' => (int) $mapping['halo_ticket_type_id'],
-                'Category1' => $serviceCategory,
-                'CustomFields' => [
-                    [
-                        'Name'  => 'DomainDash Reference',
-                        'Value' => $referenceContext['label'],
-                    ],
-                ],
+                // Keep create payload aligned to core ticket schema fields that
+                // Halo always accepts across tenant configurations.
+                'summary' => $data['subject'],
+                'details' => $data['message'],
+                'client_id' => (int) $client->halopsa_reference,
+                'tickettype_id' => (int) $mapping['halo_ticket_type_id'],
+                'category_1' => $serviceCategory,
             ];
 
             // Attach the DomainDash-linked Halo asset so Halo tickets stay
             // connected to the same asset shown in Related Assets.
             if (!empty($referenceContext['asset_id'])) {
-                $payload['AssetId'] = (int) $referenceContext['asset_id'];
+                $payload['asset_id'] = (int) $referenceContext['asset_id'];
             }
 
             $halo->createTicket($payload);

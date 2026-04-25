@@ -523,15 +523,53 @@ class HaloPsaClient
      */
     public function createTicket(array $data): array
     {
-        // Halo ticket creation expects an array payload, even for a single
-        // ticket. Sending a plain object triggers a 400 deserialization error.
-        $result = $this->request('POST', 'tickets', [
-            'json' => [$data],
-        ]);
+        $payloads = [
+            $data,
+            [$data],
+        ];
 
-        // Normalize array responses so callers always receive one ticket.
+        $endpoints = [
+            'tickets',
+            'ticket',
+        ];
+
+        $lastError = null;
+        foreach ($endpoints as $endpoint) {
+            foreach ($payloads as $payload) {
+                try {
+                    $result = $this->request('POST', $endpoint, [
+                        'json' => $payload,
+                    ]);
+
+                    return $this->extractTicketPayload($result);
+                } catch (\Throwable $exception) {
+                    $lastError = $exception->getMessage();
+                    Log::warning('Failed Halo ticket create payload.', [
+                        'endpoint' => $endpoint,
+                        'wrapped' => array_is_list($payload),
+                        'payload_keys' => array_keys(is_array($payload) && isset($payload[0]) && is_array($payload[0]) ? $payload[0] : $payload),
+                        'error' => $lastError,
+                    ]);
+                }
+            }
+        }
+
+        $suffix = $lastError ? ' Last error: ' . $lastError : '';
+        throw new \RuntimeException('Unable to create ticket with available payload formats.' . $suffix);
+    }
+
+    private function extractTicketPayload(array $result): array
+    {
         if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
             return $result[0];
+        }
+
+        if (isset($result['ticket']) && is_array($result['ticket'])) {
+            return $result['ticket'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            return $result['data'];
         }
 
         return $result;
