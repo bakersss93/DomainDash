@@ -253,6 +253,7 @@ class TicketController extends Controller
             }
 
             $halo = app(HaloPsaClient::class);
+            $submitterName = trim((string) (auth()->user()?->name ?? 'Client'));
             $payload = [
                 // Keep create payload aligned to core ticket schema fields that
                 // Halo always accepts across tenant configurations.
@@ -265,7 +266,13 @@ class TicketController extends Controller
             // Attach the DomainDash-linked Halo asset so Halo tickets stay
             // connected to the same asset shown in Related Assets.
             if (!empty($referenceContext['asset_id'])) {
-                $payload['asset_id'] = (int) $referenceContext['asset_id'];
+                $assetId = (int) $referenceContext['asset_id'];
+                $payload['asset_id'] = $assetId;
+                $payload['assetid'] = $assetId;
+                $payload['AssetId'] = $assetId;
+                $payload['assets'] = [['id' => $assetId]];
+                $payload['Assets'] = [['id' => $assetId]];
+                $payload['linked_assets'] = [['id' => $assetId]];
             }
 
             $halo->createTicket($payload);
@@ -306,16 +313,32 @@ class TicketController extends Controller
             }
 
             $message = trim((string) $data['message']);
+            $currentStatusId = $this->extractTicketStatusId($ticket);
+            $replyStatusId = $currentStatusId === 1 ? 0 : $this->resolveReplyStatusId();
+            $replyActionMeta = [];
+            if ($replyStatusId > 0) {
+                $replyActionMeta['new_status'] = $replyStatusId;
+            }
+
             $replyAction = $halo->createTicketAction(
                 $ticketId,
                 $message,
                 'Client-Responded',
-                auth()->user()?->name ?? 'Client'
+                auth()->user()?->name ?? 'Client',
+                false,
+                $replyActionMeta
             );
+
             $hasMessage = $this->actionContainsMessage($replyAction, $message);
             $outcome = strtolower(trim((string) ($replyAction['outcome'] ?? $replyAction['Outcome'] ?? '')));
             if (!$hasMessage && $outcome !== 'client-responded') {
                 throw new \RuntimeException('Reply request was accepted by Halo, but no matching ticket update was returned afterwards.');
+            }
+
+            $actionStatusId = (int) ($replyAction['new_status'] ?? $replyAction['NewStatus'] ?? 0);
+            $statusUpdatedByAction = $replyStatusId > 0 && $actionStatusId === $replyStatusId;
+            if ($replyStatusId > 0 && !$statusUpdatedByAction) {
+                $halo->updateTicketStatus($ticketId, $replyStatusId);
             }
         } catch (\RuntimeException $exception) {
             return back()->withErrors([
@@ -874,6 +897,44 @@ class TicketController extends Controller
             'id' => 0,
             'name' => 'Closed',
         ];
+    }
+
+    private function extractTicketStatusId(array $ticket): int
+    {
+        return (int) (
+            $ticket['status_id']
+            ?? $ticket['StatusId']
+            ?? $ticket['ticketstatus_id']
+            ?? $ticket['TicketStatusId']
+            ?? $ticket['status']['id']
+            ?? $ticket['status']['Id']
+            ?? $ticket['Status']['id']
+            ?? $ticket['Status']['Id']
+            ?? 0
+        );
+    }
+
+    private function resolveReplyStatusId(): int
+    {
+        foreach ($this->configuredStatusMappings() as $mapping) {
+            $domainDashStatus = strtolower(trim((string) ($mapping['domaindash_status'] ?? '')));
+            $haloStatusName = strtolower(trim((string) ($mapping['halo_status_name'] ?? '')));
+            $statusId = (int) ($mapping['halo_status_id'] ?? 0);
+
+            if ($statusId <= 0) {
+                continue;
+            }
+
+            if (str_contains($domainDashStatus, 'repl')
+                || str_contains($domainDashStatus, 'respond')
+                || str_contains($haloStatusName, 'repl')
+                || str_contains($haloStatusName, 'respond')) {
+                return $statusId;
+            }
+        }
+
+        // Default from existing Halo setup where replies map to status ID 24.
+        return 24;
     }
 
     private function extractTruthyFlag(array $action, string $field): bool
