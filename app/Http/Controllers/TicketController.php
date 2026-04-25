@@ -253,6 +253,7 @@ class TicketController extends Controller
             }
 
             $halo = app(HaloPsaClient::class);
+            $submitterName = trim((string) (auth()->user()?->name ?? 'Client'));
             $payload = [
                 // Keep create payload aligned to core ticket schema fields that
                 // Halo always accepts across tenant configurations.
@@ -261,6 +262,8 @@ class TicketController extends Controller
                 'client_id' => (int) $client->halopsa_reference,
                 'tickettype_id' => (int) $mapping['halo_ticket_type_id'],
                 'category_1' => $serviceCategory,
+                'user_name' => $submitterName,
+                'UserName' => $submitterName,
             ];
 
             // Attach the DomainDash-linked Halo asset so Halo tickets stay
