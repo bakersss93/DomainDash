@@ -178,8 +178,8 @@ body {
     }
 
     .btn-primary {
-        background: linear-gradient(145deg, var(--primary), color-mix(in srgb, var(--primary) 85%, #000000 15%));
-        color: var(--accent-contrast);
+        background: linear-gradient(145deg, #6366f1, #4f46e5);
+        color: #ffffff;
     }
 
     .btn-success {

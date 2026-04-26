@@ -734,7 +734,8 @@
                     </div>
 
                     <button type="button" class="btn-accent" style="margin-top:12px;" onclick="openIp2whoisModal();">
-                        🔍 Sync WHOIS (select domains)
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Sync WHOIS (select domains)
                     </button>
                 </div>
             </div>
@@ -994,13 +995,16 @@
             <div class="dd-settings-panel" style="padding:20px;">
                 <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
                     <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
-                        💾 Save All Settings
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save All Settings
                     </button>
                     <button type="button" onclick="openHaloSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;">
-                        🔄 Sync with Halo
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        Sync with Halo
                     </button>
                     <button type="button" onclick="openItGlueSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;">
-                        🔄 Sync IT Glue
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        Sync IT Glue
                     </button>
                 </div>
             </div>
@@ -1053,11 +1057,13 @@
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
-                    <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-success);border:2px solid var(--dd-success);border-radius:10px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
-                        👥 Sync Clients
+                    <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-success);border:2px solid var(--dd-success);border-radius:10px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Sync Clients
                     </button>
-                    <button onclick="showHaloDomainSync()" id="haloDomainsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;">
-                        🌐 Sync Domains
+                    <button onclick="showHaloDomainSync()" id="haloDomainsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        Sync Domains
                     </button>
                 </div>
 
@@ -1066,10 +1072,12 @@
                         <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Client Mapping</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                🔄 Refresh List
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                Refresh List
                             </button>
                             <button onclick="syncHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                ✓ Sync Selected
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Sync Selected
                             </button>
                         </div>
                     </div>
@@ -1090,10 +1098,12 @@
                         <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Domain Assets</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                🔄 Refresh List
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                Refresh List
                             </button>
                             <button onclick="syncHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                ✓ Sync Selected
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Sync Selected
                             </button>
                         </div>
                     </div>
@@ -1121,11 +1131,13 @@
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
-                    <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #f59e0b;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
-                        👥 Sync Clients
+                    <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #f59e0b;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Sync Clients
                     </button>
-                    <button onclick="showItGlueConfigSync()" id="itglueConfigBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;">
-                        ⚙️ Sync Configurations
+                    <button onclick="showItGlueConfigSync()" id="itglueConfigBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Sync Configurations
                     </button>
                 </div>
 
@@ -1134,10 +1146,12 @@
                         <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Organization Mapping</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                🔄 Refresh List
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                Refresh List
                             </button>
                             <button onclick="syncItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                ✓ Save Mappings
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Save Mappings
                             </button>
                         </div>
                     </div>
@@ -1158,10 +1172,12 @@
                         <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Configuration Items</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                🔄 Refresh List
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                Refresh List
                             </button>
                             <button onclick="syncItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
-                                ✓ Sync Selected
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                Sync Selected
                             </button>
                         </div>
                     </div>
@@ -1191,8 +1207,8 @@
                 <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
                     <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Domains</h3>
                     <div style="display:flex;gap:8px;">
-                        <button onclick="loadIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">🔄 Refresh List</button>
-                        <button onclick="syncIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">✓ Sync Selected</button>
+                        <button onclick="loadIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh List</button>
+                        <button onclick="syncIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sync Selected</button>
                     </div>
                 </div>
                 <div id="ip2whoisDomainList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
