@@ -237,7 +237,9 @@ body {
 .dd-settings-page .settings-header h3,
 .dd-settings-page h1,
 .dd-settings-page h2,
-.dd-settings-page h3 {
+.dd-settings-page h3,
+.dd-settings-page h4,
+.dd-settings-page strong {
     color: var(--dd-text) !important;
 }
 

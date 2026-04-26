@@ -57,7 +57,7 @@
 
                     {{-- LIGHT MODE COLOURS --}}
                     <div>
-                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#94a3b8;margin:0 0 12px 0;">Light Mode</h4>
+                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--dd-text-soft,#64748b);margin:0 0 12px 0;">Light Mode</h4>
 
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
@@ -103,7 +103,7 @@
 
                     {{-- DARK MODE COLOURS --}}
                     <div>
-                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#94a3b8;margin:0 0 12px 0;">Dark Mode</h4>
+                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--dd-text-soft,#64748b);margin:0 0 12px 0;">Dark Mode</h4>
 
                         <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
@@ -156,7 +156,7 @@
 
                     @if (!empty($settings['branding']['logo']))
                         <div style="margin-bottom:8px;">
-                            <strong style="font-size:14px;color:#e2e8f0;">Current logo:</strong><br>
+                            <strong style="font-size:14px;color:var(--dd-text,#1e293b);">Current logo:</strong><br>
                             <img src="{{ Storage::url($settings['branding']['logo']) }}"
                                  alt="Current logo"
                                  style="max-height:80px;max-width:200px;border-radius:4px;margin-top:8px;">
@@ -370,13 +370,13 @@
                             $ticketTypeMappings = [];
                         }
                     @endphp
-                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support ticket type mappings</h4>
+                    <h4 style="margin:0 0 10px;color:var(--dd-text,#1e293b);font-size:14px;">Support ticket type mappings</h4>
                     <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
                         Map DomainDash service categories to HaloPSA ticket types used for create/sync/list filters.
                     </p>
 
                     <div style="display:grid;gap:8px;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:var(--dd-text-soft,#64748b);font-weight:700;">
                             <span>Service Category</span>
                             <span>Ticket Class</span>
                             <span>Halo Ticket Type</span>
@@ -441,13 +441,13 @@
                             $statusMappings = [];
                         }
                     @endphp
-                    <h4 style="margin:0 0 10px;color:#f8fafc;font-size:14px;">Support status mappings</h4>
+                    <h4 style="margin:0 0 10px;color:var(--dd-text,#1e293b);font-size:14px;">Support status mappings</h4>
                     <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
                         Map HaloPSA statuses to a DomainDash status label for the Support Requests table.
                     </p>
 
                     <div style="display:grid;gap:8px;">
-                        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:#cbd5e1;font-weight:700;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(148,163,184,0.15);font-size:12px;color:var(--dd-text-soft,#64748b);font-weight:700;">
                             <span>DomainDash Status</span>
                             <span>Halo Status</span>
                             <span>Action</span>
@@ -998,11 +998,11 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                         Save All Settings
                     </button>
-                    <button type="button" onclick="openHaloSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;">
+                    <button type="button" onclick="openHaloSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(145deg,#10b981,#059669);color:#ffffff;border:none;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         Sync with Halo
                     </button>
-                    <button type="button" onclick="openItGlueSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;">
+                    <button type="button" onclick="openItGlueSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(145deg,#f59e0b,#d97706);color:#ffffff;border:none;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         Sync IT Glue
                     </button>
