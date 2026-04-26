@@ -941,19 +941,6 @@
         display: inline-block;
     }
 
-    /* Status badges */
-    .dd-status-success {
-        color: #34d399;
-    }
-
-    .dd-status-info {
-        color: #60a5fa;
-    }
-
-    .dd-status-muted {
-        color: #6b7280;
-    }
-
     .dd-error-text {
         color: #f87171;
     }
@@ -1064,11 +1051,6 @@
     .dd-sync-status {
         margin-top: 4px;
         font-size: 12px;
-    }
-
-    .dd-no-integration {
-        font-size: 13px;
-        margin-bottom: 12px;
     }
 
     /* Pill button styling */

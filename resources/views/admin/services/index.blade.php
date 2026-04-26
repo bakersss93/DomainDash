@@ -43,7 +43,7 @@
             <button type="submit"
                     class="btn-accent dd-pill-btn"
                     onclick="return confirm('Sync hosting services from Synergy now?');">
-                🔄 Sync from Synergy
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync from Synergy
             </button>
         </form>
     </div>
@@ -124,7 +124,7 @@
                             <div class="dd-service-options-grid">
                                 {{-- Overview --}}
                                 <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
-                                    <div class="dd-service-option-icon">👁️</div>
+                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
                                     <div class="dd-service-option-label">Overview</div>
                                 </a>
 
@@ -132,7 +132,7 @@
                                 <button type="button"
                                         class="dd-service-option dd-password-btn"
                                         data-password-id="{{ $service->id }}">
-                                    <div class="dd-service-option-icon">🔐</div>
+                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
                                     <div class="dd-service-option-label">Show password</div>
                                 </button>
 
@@ -143,7 +143,7 @@
                                       target="_blank">
                                     @csrf
                                     <button type="submit" class="dd-service-option-btn">
-                                        <div class="dd-service-option-icon">💻</div>
+                                        <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
                                         <div class="dd-service-option-label">Open cPanel</div>
                                     </button>
                                 </form>
@@ -154,7 +154,7 @@
                                         data-service-id="{{ $service->id }}"
                                         data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
                                         data-current-client-id="{{ $service->client_id ?? '' }}">
-                                    <div class="dd-service-option-icon">👥</div>
+                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                                     <div class="dd-service-option-label">Assign client</div>
                                 </button>
 
@@ -164,7 +164,7 @@
                                         data-service-id="{{ $service->id }}"
                                         data-change-url="{{ route('admin.services.hosting.changeDomain', $service) }}"
                                         data-domain="{{ $service->domain_name }}">
-                                    <div class="dd-service-option-icon">🌐</div>
+                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
                                     <div class="dd-service-option-label">Change primary domain</div>
                                 </button>
 
@@ -176,9 +176,9 @@
                                     <button type="submit" class="dd-service-option-btn dd-service-option-danger">
                                         <div class="dd-service-option-icon">
                                             @if(property_exists($service, 'is_suspended') && $service->is_suspended)
-                                                ▶️
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                                             @else
-                                                ⏸️
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                                             @endif
                                         </div>
                                         <div class="dd-service-option-label">
@@ -228,7 +228,7 @@
                     id="dd-password-toggle"
                     class="dd-password-toggle"
                     aria-label="Toggle password visibility">
-                👁
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
         </div>
         <div class="dd-password-actions">
@@ -742,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function () {
             passwordInput.type = 'password';
         }
         if (passwordToggle) {
-            passwordToggle.textContent = '👁';
+            passwordToggle.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
         }
         passwordModal.classList.remove('dd-hidden');
         passwordModal.setAttribute('aria-hidden', 'false');
@@ -797,7 +797,9 @@ document.addEventListener('DOMContentLoaded', function () {
             e.stopPropagation();
             const visible = passwordInput.type === 'text';
             passwordInput.type = visible ? 'password' : 'text';
-            passwordToggle.textContent = visible ? '👁' : '👁';
+            passwordToggle.innerHTML = visible
+                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
         });
     }
 

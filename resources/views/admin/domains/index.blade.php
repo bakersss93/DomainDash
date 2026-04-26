@@ -116,7 +116,7 @@
                 <td>
                     <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;font-size:14px;">
                         {{-- Auto-renew icon placeholder --}}
-                        <span title="Auto renew status">🔁</span>
+                        <span title="Auto renew status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
 
                         {{-- Assign / change client icon --}}
                         <button type="button"
@@ -124,13 +124,13 @@
                                 data-domain-name="{{ $domain->name }}"
                                 style="background:none;border:none;padding:0;cursor:pointer;">
                             @if($hasClient)
-                                <span title="Client assigned">👥</span>
+                                <span title="Client assigned"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                             @else
-                                <span title="Assign client">➕</span>
+                                <span title="Assign client"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span>
                             @endif
                         </button>
 
-                        <span title="Toggle details">▾</span>
+                        <span title="Toggle details"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
                     </div>
                 </td>
             </tr>
@@ -157,13 +157,13 @@
                         <div class="dd-domain-options-grid">
                             {{-- Overview --}}
                             <a href="{{ route('admin.domains.show', $domain) }}" class="dd-domain-option">
-                                <div class="dd-domain-option-icon">👁️</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
                                 <div class="dd-domain-option-label">Overview</div>
                             </a>
 
                             {{-- DNS / Nameservers --}}
                             <a href="{{ route('dns.index', $domain->id) }}" class="dd-domain-option">
-                                <div class="dd-domain-option-icon">🧩</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
                                 <div class="dd-domain-option-label">Nameservers &amp; DNS</div>
                             </a>
 
@@ -174,7 +174,7 @@
                                   onsubmit="return confirm('Renew this domain now?');">
                                 @csrf
                                 <button type="submit" class="dd-domain-option-btn">
-                                    <div class="dd-domain-option-icon">🔄</div>
+                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
                                     <div class="dd-domain-option-label">Renew</div>
                                 </button>
                             </form>
@@ -184,37 +184,37 @@
                                     class="dd-domain-option"
                                     data-assign-client="{{ $domain->id }}"
                                     data-domain-name="{{ $domain->name }}">
-                                <div class="dd-domain-option-icon">👥</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                                 <div class="dd-domain-option-label">Assign client</div>
                             </button>
 
                             {{-- Transfer placeholder --}}
                             <a href="#" class="dd-domain-option">
-                                <div class="dd-domain-option-icon">📤</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
                                 <div class="dd-domain-option-label">Initiate transfer</div>
                             </a>
 
                             {{-- Transactions placeholder --}}
                             <a href="#" class="dd-domain-option">
-                                <div class="dd-domain-option-icon">📜</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
                                 <div class="dd-domain-option-label">Transactions</div>
                             </a>
 
                             {{-- Auth code (takes you to overview section) --}}
                             <a href="{{ route('admin.domains.show', $domain) }}#auth-code" class="dd-domain-option">
-                                <div class="dd-domain-option-icon">🔐</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
                                 <div class="dd-domain-option-label">Password / auth code</div>
                             </a>
 
                             {{-- WHOIS sync --}}
                             <button type="button" class="dd-domain-option" onclick="syncDomainWhois({{ $domain->id }}, '{{ $domain->name }}')">
-                                <div class="dd-domain-option-icon">🔍</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
                                 <div class="dd-domain-option-label">WHOIS sync</div>
                             </button>
 
                             {{-- Delete placeholder --}}
                             <a href="#" class="dd-domain-option dd-domain-option-danger">
-                                <div class="dd-domain-option-icon">✖️</div>
+                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
                                 <div class="dd-domain-option-label">Delete domain</div>
                             </a>
                         </div>

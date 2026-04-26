@@ -6,20 +6,18 @@
 
     <div id="app-transfer-domain">
         <!-- Step 1: Enter Domain and EPP Code -->
-        <div id="step-domain-info" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+        <div id="step-domain-info" style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 24px; margin-bottom: 24px;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Domain Transfer Details</h2>
 
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">Domain Name *</label>
-                <input type="text" id="domain-name" placeholder="e.g., example.com"
-                       style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                <input type="text" id="domain-name" class="dd-input" placeholder="e.g., example.com">
             </div>
 
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500;">Domain EPP Code / Authorization Code *</label>
-                <input type="text" id="epp-code" placeholder="Enter EPP/Auth code"
-                       style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
-                <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                <input type="text" id="epp-code" class="dd-input" placeholder="Enter EPP/Auth code">
+                <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                     The EPP code can be obtained from your current domain registrar.
                 </p>
             </div>
@@ -29,7 +27,7 @@
                     <input type="checkbox" id="auto-renew" style="width: 18px; height: 18px; cursor: pointer;">
                     <span style="font-weight: 500;">Enable Auto-Renewal</span>
                 </label>
-                <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                     Automatically renew this domain before it expires.
                 </p>
             </div>
@@ -42,7 +40,7 @@
         </div>
 
         <!-- Step 2: Client Information -->
-        <div id="step-client" style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px; display: none;">
+        <div id="step-client" style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 24px; margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Client Information</h2>
 
             <div style="margin-bottom: 16px;">
@@ -67,7 +65,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                         Contact details will be taken from the client's stored information.
                     </p>
                 </div>
@@ -78,46 +76,46 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">First Name *</label>
-                        <input type="text" id="first-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="first-name" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">Last Name *</label>
-                        <input type="text" id="last-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="last-name" class="dd-input">
                     </div>
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Business Name *</label>
-                    <input type="text" id="business-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="business-name" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email *</label>
-                    <input type="email" id="email" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="email" id="email" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Phone *</label>
-                    <input type="text" id="phone" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="phone" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Address *</label>
-                    <input type="text" id="address" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="address" class="dd-input">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">City *</label>
-                        <input type="text" id="city" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="city" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">State *</label>
-                        <input type="text" id="state" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="state" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">Postcode *</label>
-                        <input type="text" id="postcode" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="postcode" class="dd-input">
                     </div>
                 </div>
 
@@ -175,16 +173,16 @@ function validateTransfer() {
             validatedEppCode = eppCode;
 
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #d1fae5; border: 1px solid #10b981; border-radius: 6px;">
-                    <p style="color: #065f46; font-weight: 600;">${data.message}</p>
+                <div class="dd-alert-box dd-alert-box--success">
+                    <p style="margin: 0; font-weight: 600;">${data.message}</p>
                 </div>
             `;
 
             document.getElementById('step-client').style.display = 'block';
         } else {
             resultDiv.innerHTML = `
-                <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                    <p style="color: #991b1b; font-weight: 600;">${data.message}</p>
+                <div class="dd-alert-box dd-alert-box--danger">
+                    <p style="margin: 0; font-weight: 600;">${data.message}</p>
                 </div>
             `;
             document.getElementById('step-client').style.display = 'none';
@@ -192,8 +190,8 @@ function validateTransfer() {
     })
     .catch(err => {
         resultDiv.innerHTML = `
-            <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px;">
-                <p style="color: #991b1b;">Error validating transfer.</p>
+            <div class="dd-alert-box dd-alert-box--danger">
+                <p style="margin: 0;">Error validating transfer.</p>
             </div>
         `;
     });
