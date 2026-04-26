@@ -15,7 +15,18 @@ class SettingsController extends Controller
     public function index()
     {
         $settings = [
-            'branding' => Setting::get('branding', ['primary'=>'#1f2937','accent'=>'#06b6d4','text'=>'#111827','bg'=>'#ffffff']),
+            'branding' => Setting::get('branding', [
+                'primary'          => '#1f2937',
+                'accent'           => '#06b6d4',
+                'text'             => '#111827',
+                'bg'               => '#ffffff',
+                'button_text'      => '#ffffff',
+                'primary_dark'     => '#0b1220',
+                'accent_dark'      => '#22d3ee',
+                'text_dark'        => '#e2e8f0',
+                'bg_dark'          => '#0f172a',
+                'button_text_dark' => '#0f172a',
+            ]),
             'smtp'     => Setting::get('smtp', []),
             'synergy'  => Setting::get('synergy', []),
             'halo'     => array_merge([

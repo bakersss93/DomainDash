@@ -5,12 +5,12 @@
     <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase SSL Certificate</h1>
 
     @if(isset($error))
-        <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px; margin-bottom: 24px;">
-            <p style="color: #991b1b; font-weight: 600;">{{ $error }}</p>
+        <div class="dd-alert-box dd-alert-box--danger">
+            <p style="margin: 0; font-weight: 600;">{{ $error }}</p>
         </div>
     @endif
 
-    <div style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+    <div style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 24px; margin-bottom: 24px;">
         <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">SSL Certificate Details</h2>
 
         @if(!empty($products))
@@ -29,14 +29,13 @@
                 </div>
             </div>
         @else
-            <p style="color: #6b7280; margin-bottom: 24px;">No SSL products available. Please configure your Synergy API settings.</p>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">No SSL products available. Please configure your Synergy API settings.</p>
         @endif
 
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">Domain Name *</label>
-            <input type="text" id="domain" placeholder="e.g., example.com"
-                   style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
-            <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+            <input type="text" id="domain" class="dd-input" placeholder="e.g., example.com">
+            <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                 The domain name to secure with SSL.
             </p>
         </div>
@@ -67,18 +66,18 @@
 
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">CSR *</label>
-            <textarea id="csr" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"
-                style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; font-family: monospace;"></textarea>
+            <textarea id="csr" class="dd-input" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"
+                style="font-family: monospace; font-size: 13px;"></textarea>
         </div>
 
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">Private Key *</label>
-            <textarea id="private-key" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"
-                style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; font-family: monospace;"></textarea>
+            <textarea id="private-key" class="dd-input" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"
+                style="font-family: monospace; font-size: 13px;"></textarea>
         </div>
 
-        <div style="margin-bottom: 16px; padding: 16px; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 6px;">
-            <p style="color: #1e40af; font-size: 14px;">
+        <div class="dd-alert-box dd-alert-box--info">
+            <p style="margin: 0; font-size: 14px;">
                 <strong>Note:</strong> After purchase, you will need to generate and submit a CSR (Certificate Signing Request) to activate the certificate.
             </p>
         </div>

@@ -229,20 +229,20 @@
     </div>
 
     {{-- Auth code popup --}}
-    <div id="dd-auth-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.75);align-items:center;justify-content:center;z-index:70;">
-        <div style="background:var(--dd-surface);border-radius:12px;padding:16px 18px;border:1px solid var(--dd-border);width:420px;max-width:95%;box-shadow:0 20px 40px rgba(0,0,0,.6);">
+    <div id="dd-auth-overlay" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop, rgba(15,23,42,.75));align-items:center;justify-content:center;z-index:70;">
+        <div style="background:var(--surface-elevated);border-radius:14px;padding:16px 18px;border:1px solid var(--border-subtle);width:420px;max-width:95%;box-shadow:0 20px 40px rgba(0,0,0,.35);">
             <div style="font-weight:600;margin-bottom:8px;">Auth code for {{ $domain->name }}</div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                 <input id="dd-auth-value"
                        type="text"
                        readonly
-                       style="flex:1;padding:6px 10px;border-radius:9999px;border:1px solid var(--dd-border);background:var(--dd-surface);color:var(--dd-text);">
+                       style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--border-subtle);background:var(--bg);color:var(--text);">
                 <button type="button" id="dd-auth-copy" class="btn-accent" style="white-space:nowrap;">
                     Copy
                 </button>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <button type="button" id="dd-auth-close" class="btn-accent" style="background:#4b5563;">
+                <button type="button" id="dd-auth-close" class="btn-accent" style="background:var(--surface-muted);color:var(--text);">
                     Close
                 </button>
             </div>
@@ -388,16 +388,23 @@
 
     <style>
         /* ---------- Searchable combobox styling ---------- */
+        /* Themed via CSS variables so it works in both light and dark modes. */
         .dd-combobox {
             position: relative;
             display: flex;
             align-items: center;
-            background: #0f172a;
-            border-radius: 9999px;
-            border: 1px solid #1f2937;
+            background: var(--bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
             padding: 0 36px 0 14px;
             min-height: 44px;
             cursor: text;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .dd-combobox:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
         }
 
         .dd-combobox-input {
@@ -405,7 +412,7 @@
             background: transparent;
             border: none;
             outline: none;
-            color: #e5e7eb;
+            color: var(--text);
             font-size: 14px;
         }
 
@@ -413,7 +420,7 @@
             position: absolute;
             right: 12px;
             font-size: 12px;
-            color: #9ca3af;
+            color: var(--text-muted);
             pointer-events: none;
         }
 
@@ -422,14 +429,18 @@
             left: 0;
             right: 0;
             top: calc(100% + 4px);
-            background: #020617;
-            border-radius: 8px;
-            border: 1px solid #1f2937;
-            box-shadow: 0 15px 35px rgba(0,0,0,.65);
+            background: var(--surface-elevated);
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 15px 35px rgba(15, 23, 42, 0.18);
             max-height: 260px;
             overflow-y: auto;
             z-index: 80;
             display: none;
+        }
+
+        html.dark .dd-combobox-list {
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.55);
         }
 
         .dd-combobox.open .dd-combobox-list {
@@ -439,12 +450,13 @@
         .dd-combobox-list-item {
             padding: 8px 12px;
             font-size: 14px;
+            color: var(--text);
             cursor: pointer;
         }
 
         .dd-combobox-list-item:hover,
         .dd-combobox-list-item.is-highlighted {
-            background: #111827;
+            background: var(--surface-muted);
         }
 
         /* Hide the real select – it still gets submitted */

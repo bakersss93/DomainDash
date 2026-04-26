@@ -439,34 +439,6 @@
         text-align: right;
     }
 
-    .dd-status-badge {
-        padding: 4px 12px;
-        border-radius: 9999px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .dd-status-active {
-        background: rgba(74, 222, 128, 0.2);
-        color: #22c55e;
-    }
-
-    .dd-status-suspended {
-        background: rgba(251, 191, 36, 0.2);
-        color: #f59e0b;
-    }
-
-    .dd-status-terminated {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-    }
-
-    .dd-status-unknown {
-        background: rgba(148, 163, 184, 0.2);
-        color: var(--dd-text-muted);
-    }
-
     .dd-progress-bar {
         width: 100%;
         height: 8px;
@@ -495,30 +467,6 @@
 
     .dd-link:hover {
         text-decoration: underline;
-    }
-
-    .dd-alert {
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .dd-alert-error {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #ef4444;
-    }
-
-    .dd-alert-warning {
-        background: rgba(251, 191, 36, 0.1);
-        border: 1px solid rgba(251, 191, 36, 0.3);
-        color: #f59e0b;
-    }
-
-    .dd-alert-success {
-        background: rgba(74, 222, 128, 0.1);
-        border: 1px solid rgba(74, 222, 128, 0.3);
-        color: #22c55e;
     }
 
     .dd-password-show-btn {

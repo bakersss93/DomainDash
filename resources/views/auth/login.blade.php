@@ -63,7 +63,6 @@
             color: #6b7280;
         }
 
-        .dd-login-surface .dd-btn,
         .dd-login-submit {
             border-radius: 12px;
         }
