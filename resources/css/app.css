@@ -25,6 +25,29 @@
     --dd-nav-hover: rgba(255, 255, 255, 0.12);
     --dd-nav-active: #0ea5e9;
     --dd-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+
+    /* Design system v2 — radius scale */
+    --dd-radius-sm: 6px;
+    --dd-radius: 10px;
+    --dd-radius-lg: 14px;
+    --dd-radius-pill: 9999px;
+
+    /* Design system v2 — shared tokens */
+    --dd-backdrop: rgba(15, 23, 42, 0.35);
+    --dd-focus-ring: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 28%, transparent);
+    --dd-shadow-overlay: 0 24px 48px rgba(15, 23, 42, 0.18);
+
+    /* Design system v2 — feedback palette (background + foreground per state) */
+    --dd-status-success-bg: #dcfce7;
+    --dd-status-success-fg: #14532d;
+    --dd-status-warning-bg: #fef3c7;
+    --dd-status-warning-fg: #78350f;
+    --dd-status-danger-bg: #fee2e2;
+    --dd-status-danger-fg: #991b1b;
+    --dd-status-info-bg: #dbeafe;
+    --dd-status-info-fg: #1e3a8a;
+    --dd-status-muted-bg: #e2e8f0;
+    --dd-status-muted-fg: #475569;
 }
 
 html.dark {
@@ -46,6 +69,22 @@ html.dark {
     --dd-nav-hover: rgba(148, 163, 184, 0.14);
     --dd-nav-active: #06b6d4;
     --dd-shadow: 0 22px 50px rgba(2, 6, 23, 0.6);
+
+    /* Design system v2 — dark overrides for shared tokens */
+    --dd-backdrop: rgba(2, 6, 23, 0.7);
+    --dd-shadow-overlay: 0 24px 48px rgba(2, 6, 23, 0.55);
+
+    /* Design system v2 — feedback palette tuned for dark surfaces */
+    --dd-status-success-bg: rgba(16, 185, 129, 0.18);
+    --dd-status-success-fg: #6ee7b7;
+    --dd-status-warning-bg: rgba(245, 158, 11, 0.18);
+    --dd-status-warning-fg: #fcd34d;
+    --dd-status-danger-bg: rgba(248, 113, 113, 0.18);
+    --dd-status-danger-fg: #fca5a5;
+    --dd-status-info-bg: rgba(59, 130, 246, 0.18);
+    --dd-status-info-fg: #93c5fd;
+    --dd-status-muted-bg: rgba(148, 163, 184, 0.18);
+    --dd-status-muted-fg: #cbd5e1;
 }
 
 body {
@@ -875,4 +914,130 @@ body {
     .dd-account-actions {
         justify-content: flex-start;
     }
+}
+
+/* ==========================================================================
+   Design system v2 — opt-in primitives.
+
+   Apply these classes from new code instead of hardcoding inline styles. They
+   read from the tokens declared on :root / html.dark above, so a single
+   change in palette propagates everywhere. Existing classes are left intact;
+   future blade refactors will migrate page-local styles onto these.
+   ========================================================================== */
+
+/* Modal scrim + dialog — replaces the various rgba(15,23,42,.x) overlays. */
+.dd-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--dd-backdrop);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 70;
+    padding: 16px;
+}
+
+.dd-modal-backdrop[hidden],
+.dd-modal-backdrop.is-hidden {
+    display: none !important;
+}
+
+.dd-modal-dialog {
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-lg);
+    box-shadow: var(--dd-shadow-overlay);
+    width: min(520px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 18px 20px;
+}
+
+.dd-modal-dialog--lg {
+    width: min(800px, 100%);
+}
+
+.dd-modal-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.dd-modal-dialog__header h2,
+.dd-modal-dialog__header h3 {
+    margin: 0;
+    color: var(--dd-text);
+}
+
+/* Status badges — small inline indicators ("Active", "Suspended", etc.).
+   Naming intentionally avoids .dd-status-* to prevent collision with the
+   per-page rules currently using that name; those will be migrated later. */
+.dd-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.18rem 0.6rem;
+    border-radius: var(--dd-radius-pill);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.4;
+    background: var(--dd-status-muted-bg);
+    color: var(--dd-status-muted-fg);
+    white-space: nowrap;
+}
+
+.dd-badge-success { background: var(--dd-status-success-bg); color: var(--dd-status-success-fg); }
+.dd-badge-warning { background: var(--dd-status-warning-bg); color: var(--dd-status-warning-fg); }
+.dd-badge-danger  { background: var(--dd-status-danger-bg);  color: var(--dd-status-danger-fg); }
+.dd-badge-info    { background: var(--dd-status-info-bg);    color: var(--dd-status-info-fg); }
+.dd-badge-muted   { background: var(--dd-status-muted-bg);   color: var(--dd-status-muted-fg); }
+
+/* Alert blocks — full-width feedback messages. */
+.dd-alert-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.78rem 1rem;
+    border-radius: var(--dd-radius);
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin-bottom: 1rem;
+}
+
+.dd-alert-box--success {
+    background: var(--dd-status-success-bg);
+    color: var(--dd-status-success-fg);
+    border-color: color-mix(in srgb, var(--dd-status-success-fg) 30%, transparent);
+}
+
+.dd-alert-box--warning {
+    background: var(--dd-status-warning-bg);
+    color: var(--dd-status-warning-fg);
+    border-color: color-mix(in srgb, var(--dd-status-warning-fg) 30%, transparent);
+}
+
+.dd-alert-box--danger {
+    background: var(--dd-status-danger-bg);
+    color: var(--dd-status-danger-fg);
+    border-color: color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);
+}
+
+.dd-alert-box--info {
+    background: var(--dd-status-info-bg);
+    color: var(--dd-status-info-fg);
+    border-color: color-mix(in srgb, var(--dd-status-info-fg) 30%, transparent);
+}
+
+/* Optional helper to attach the standard accent focus ring to bespoke
+   widgets (custom selects, comboboxes, file pickers) without retyping it. */
+.dd-focus-ring:focus-visible,
+.dd-focus-ring:focus-within {
+    outline: none;
+    border-color: var(--dd-accent);
+    box-shadow: var(--dd-focus-ring);
 }
