@@ -996,10 +996,10 @@
                     <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
                         💾 Save All Settings
                     </button>
-                    <button type="button" onclick="openHaloSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:var(--dd-success);">
+                    <button type="button" onclick="openHaloSyncModal()" class="btn-success" style="padding:12px 32px;font-size:15px;font-weight:600;">
                         🔄 Sync with Halo
                     </button>
-                    <button type="button" onclick="openItGlueSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:var(--dd-warning);">
+                    <button type="button" onclick="openItGlueSyncModal()" class="btn-warning" style="padding:12px 32px;font-size:15px;font-weight:600;">
                         🔄 Sync IT Glue
                     </button>
                 </div>
