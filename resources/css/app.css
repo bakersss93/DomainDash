@@ -190,6 +190,7 @@ body {
 
     /* Compatibility aliases so existing Blade classes inherit the shared system. */
     .btn-accent,
+    .btn-primary,
     .btn-secondary,
     .btn-danger,
     .btn-success,
@@ -226,6 +227,11 @@ body {
         color: #fff5f5;
     }
 
+    .btn-primary {
+        background: linear-gradient(145deg, var(--primary), color-mix(in srgb, var(--primary) 85%, #000000 15%));
+        color: var(--accent-contrast);
+    }
+
     .btn-success {
         background: linear-gradient(145deg, var(--dd-success), color-mix(in srgb, var(--dd-success) 78%, #000000 22%));
         color: #ffffff;
@@ -237,6 +243,7 @@ body {
     }
 
     .btn-accent:hover,
+    .btn-primary:hover,
     .btn-success:hover,
     .btn-warning:hover,
     .btn-danger:hover {
