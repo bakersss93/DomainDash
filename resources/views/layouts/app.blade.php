@@ -7,12 +7,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name','DomainDash') }}</title>
     @vite(['resources/css/app.css','resources/js/app.js'])
+    @php
+        $branding = \App\Models\Setting::get('branding');
+    @endphp
     <style>
         :root {
-            --primary: {{ data_get(\App\Models\Setting::get('branding'), 'primary', '#1f2937') }};
-            --accent:  {{ data_get(\App\Models\Setting::get('branding'), 'accent', '#06b6d4') }};
-            --bg:      {{ data_get(\App\Models\Setting::get('branding'), 'bg', '#ffffff') }};
-            --text:    {{ data_get(\App\Models\Setting::get('branding'), 'text', '#111827') }};
+            --primary: {{ data_get($branding, 'primary', '#1f2937') }};
+            --accent:  {{ data_get($branding, 'accent', '#06b6d4') }};
+            --bg:      {{ data_get($branding, 'bg', '#ffffff') }};
+            --text:    {{ data_get($branding, 'text', '#111827') }};
             --surface-muted: color-mix(in srgb, var(--bg) 84%, #dbe3ee 16%);
             --surface-elevated: color-mix(in srgb, var(--bg) 92%, #ffffff 8%);
             --border-subtle: color-mix(in srgb, var(--text) 12%, #dbe3ee 88%);
@@ -32,20 +35,22 @@
             --danger-text: #dc2626;
         }
 
-        /* Dark mode: invert background & text colours */
+        /* Dark mode: branding-driven palette with sensible fallbacks. */
         html.dark {
-            --bg: #111827;
-            --text: #f9fafb;
-            --surface-muted: #1f2937;
-            --surface-elevated: #0f172a;
-            --border-subtle: #334155;
-            --text-muted: #94a3b8;
-            --sidebar-bg: #0b1220;
-            --sidebar-bg-soft: #111c31;
+            --primary: {{ data_get($branding, 'primary_dark', '#0b1220') }};
+            --accent:  {{ data_get($branding, 'accent_dark', '#22d3ee') }};
+            --bg:      {{ data_get($branding, 'bg_dark', '#0f172a') }};
+            --text:    {{ data_get($branding, 'text_dark', '#e2e8f0') }};
+            --surface-muted: color-mix(in srgb, var(--bg) 80%, #1e293b 20%);
+            --surface-elevated: color-mix(in srgb, var(--bg) 88%, #0b1220 12%);
+            --border-subtle: color-mix(in srgb, var(--text) 18%, #334155 82%);
+            --text-muted: color-mix(in srgb, var(--text) 60%, #94a3b8 40%);
+            --sidebar-bg: color-mix(in srgb, var(--primary) 88%, #000000 12%);
+            --sidebar-bg-soft: color-mix(in srgb, var(--primary) 76%, #1e293b 24%);
             --sidebar-border: rgba(148, 163, 184, 0.2);
             --nav-hover: rgba(148, 163, 184, 0.14);
-            --nav-active: #06b6d4;
-            --accent-contrast: #ecfeff;
+            --nav-active: var(--accent);
+            --accent-contrast: color-mix(in srgb, var(--accent) 10%, #0f172a 90%);
             --success-bg: rgba(16, 185, 129, 0.2);
             --success-border: rgba(16, 185, 129, 0.55);
             --success-text: #d1fae5;

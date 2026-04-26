@@ -53,36 +53,82 @@
                 </div>
                 <div id="branding-content" class="settings-content" style="padding:20px 24px;display:none;">
 
-                <div style="margin-bottom:12px;">
-                    <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
-                    <input type="color"
-                           name="branding[primary]"
-                           value="{{ $settings['branding']['primary'] ?? '#1f2937' }}"
-                           style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
-                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin-bottom:16px;">
 
-                <div style="margin-bottom:12px;">
-                    <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Accent Color</label>
-                    <input type="color"
-                           name="branding[accent]"
-                           value="{{ $settings['branding']['accent'] ?? '#06b6d4' }}"
-                           style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
-                </div>
+                    {{-- LIGHT MODE COLOURS --}}
+                    <div>
+                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#94a3b8;margin:0 0 12px 0;">Light Mode</h4>
 
-                <div style="margin-bottom:12px;">
-                    <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Background Color</label>
-                    <input type="color"
-                           name="branding[bg]"
-                           value="{{ $settings['branding']['bg'] ?? '#ffffff' }}"
-                           style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
-                </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
+                            <input type="color"
+                                   name="branding[primary]"
+                                   value="{{ $settings['branding']['primary'] ?? '#1f2937' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
 
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Text Color</label>
-                    <input type="color"
-                           name="branding[text]"
-                           value="{{ $settings['branding']['text'] ?? '#111827' }}"
-                           style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Accent Color</label>
+                            <input type="color"
+                                   name="branding[accent]"
+                                   value="{{ $settings['branding']['accent'] ?? '#06b6d4' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Background Color</label>
+                            <input type="color"
+                                   name="branding[bg]"
+                                   value="{{ $settings['branding']['bg'] ?? '#ffffff' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:0;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Text Color</label>
+                            <input type="color"
+                                   name="branding[text]"
+                                   value="{{ $settings['branding']['text'] ?? '#111827' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+                    </div>
+
+                    {{-- DARK MODE COLOURS --}}
+                    <div>
+                        <h4 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#94a3b8;margin:0 0 12px 0;">Dark Mode</h4>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary Color</label>
+                            <input type="color"
+                                   name="branding[primary_dark]"
+                                   value="{{ $settings['branding']['primary_dark'] ?? '#0b1220' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Accent Color</label>
+                            <input type="color"
+                                   name="branding[accent_dark]"
+                                   value="{{ $settings['branding']['accent_dark'] ?? '#22d3ee' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Background Color</label>
+                            <input type="color"
+                                   name="branding[bg_dark]"
+                                   value="{{ $settings['branding']['bg_dark'] ?? '#0f172a' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:0;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Text Color</label>
+                            <input type="color"
+                                   name="branding[text_dark]"
+                                   value="{{ $settings['branding']['text_dark'] ?? '#e2e8f0' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+                    </div>
+
                 </div>
 
                 <div style="margin-bottom:0;">
