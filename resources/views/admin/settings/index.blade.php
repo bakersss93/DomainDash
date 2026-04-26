@@ -166,8 +166,8 @@
                     <input type="file"
                            name="branding_logo"
                            accept="image/png,image/jpeg,image/svg+xml"
-                           style="display:block;width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;background:#0b1120;">
+                           class="dd-input"
+                           style="display:block;">
                     <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
                         PNG preferred, 200px wide, height auto-scales.
                     </small>
@@ -363,7 +363,7 @@
                     </small>
                 </div>
 
-                <div style="margin-top:16px;padding:14px;border:1px solid rgba(148,163,184,0.2);border-radius:10px;background:rgba(15,23,42,0.45);">
+                <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
                     @php
                         $ticketTypeMappings = old('halo.ticket_type_mappings', $settings['halo']['ticket_type_mappings'] ?? []);
                         if (!is_array($ticketTypeMappings)) {
@@ -385,17 +385,17 @@
                     </div>
                     <div id="halo-ticket-type-mapping-list" style="display:grid;gap:10px;margin-top:8px;">
                         @forelse($ticketTypeMappings as $index => $mapping)
-                            <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                            <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:var(--surface-muted);padding:10px;border:1px solid var(--border-subtle);border-radius:8px;">
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
                                     <input type="text"
                                            name="halo[ticket_type_mappings][{{ $index }}][service_category]"
                                            value="{{ $mapping['service_category'] ?? '' }}"
-                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                           class="dd-input">
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Ticket Class</label>
-                                    <select name="halo[ticket_type_mappings][{{ $index }}][ticket_type]" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                    <select name="halo[ticket_type_mappings][{{ $index }}][ticket_type]" class="dd-input">
                                         <option value="Support/Issue" @selected(($mapping['ticket_type'] ?? 'Support/Issue') === 'Support/Issue')>Support/Issue</option>
                                         <option value="Service Request" @selected(($mapping['ticket_type'] ?? '') === 'Service Request')>Service Request</option>
                                     </select>
@@ -409,7 +409,7 @@
                                            name="halo[ticket_type_mappings][{{ $index }}][halo_ticket_type_name]"
                                            value="{{ $mapping['halo_ticket_type_name'] ?? '' }}"
                                            placeholder="Choose ticket type"
-                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                           class="dd-input">
                                 </div>
                                 <button type="button"
                                         onclick="removeHaloTicketTypeMapping(this)"
@@ -434,7 +434,7 @@
                     </div>
                 </div>
 
-                <div style="margin-top:16px;padding:14px;border:1px solid rgba(148,163,184,0.2);border-radius:10px;background:rgba(15,23,42,0.45);">
+                <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
                     @php
                         $statusMappings = old('halo.status_mappings', $settings['halo']['status_mappings'] ?? []);
                         if (!is_array($statusMappings)) {
@@ -455,14 +455,14 @@
                     </div>
                     <div id="halo-status-mapping-list" style="display:grid;gap:10px;margin-top:8px;">
                         @forelse($statusMappings as $index => $mapping)
-                            <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                            <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:var(--surface-muted);padding:10px;border:1px solid var(--border-subtle);border-radius:8px;">
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">DomainDash Status</label>
                                     <input type="text"
                                            name="halo[status_mappings][{{ $index }}][domaindash_status]"
                                            value="{{ $mapping['domaindash_status'] ?? '' }}"
                                            placeholder="e.g. Open, In Progress, Closed"
-                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                           class="dd-input">
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Status</label>
@@ -473,7 +473,7 @@
                                            name="halo[status_mappings][{{ $index }}][halo_status_name]"
                                            value="{{ $mapping['halo_status_name'] ?? '' }}"
                                            placeholder="Choose Halo status"
-                                           style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                           class="dd-input">
                                 </div>
                                 <button type="button"
                                         onclick="removeHaloStatusMapping(this)"
@@ -501,14 +501,14 @@
             </div>
 
             <template id="halo-ticket-type-mapping-template">
-                <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                <div class="halo-ticket-mapping-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;background:var(--surface-muted);padding:10px;border:1px solid var(--border-subtle);border-radius:8px;">
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Service Category</label>
-                        <input type="text" data-field="service_category" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                        <input type="text" data-field="service_category" class="dd-input">
                     </div>
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Ticket Class</label>
-                        <select data-field="ticket_type" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                        <select data-field="ticket_type" class="dd-input">
                             <option value="Support/Issue">Support/Issue</option>
                             <option value="Service Request">Service Request</option>
                         </select>
@@ -516,14 +516,14 @@
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Ticket Type</label>
                         <input type="hidden" data-field="halo_ticket_type_id">
-                        <input type="text" data-field="halo_ticket_type_name" readonly style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Choose ticket type">
+                        <input type="text" data-field="halo_ticket_type_name" readonly class="dd-input" placeholder="Choose ticket type">
                     </div>
                     <button type="button" onclick="removeHaloTicketTypeMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
                 </div>
             </template>
 
-            <div id="haloTicketTypeMappingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;">
-                <div style="width:min(720px,92vw);background:#0f172a;border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:18px;">
+            <div id="haloTicketTypeMappingModal" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop);z-index:10000;align-items:center;justify-content:center;">
+                <div style="width:min(720px,92vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;padding:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="margin:0;font-size:18px;color:#f8fafc;">Add ticket type mapping</h3>
                         <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
@@ -531,16 +531,16 @@
                     <div style="display:grid;gap:12px;">
                         <div>
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Service Category</label>
-                            <select id="haloMappingServiceCategorySelect" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;"></select>
+                            <select id="haloMappingServiceCategorySelect" class="dd-input"></select>
                         </div>
                         <div id="haloMappingCustomServiceWrap" style="display:none;">
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Custom Service Category</label>
-                            <input id="haloMappingCustomServiceInput" type="text" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Enter service category">
+                            <input id="haloMappingCustomServiceInput" type="text" class="dd-input" placeholder="Enter service category">
                         </div>
                         <div>
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Halo Ticket Type</label>
                             <div style="display:flex;gap:8px;">
-                                <select id="haloMappingTicketTypeSelect" style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                <select id="haloMappingTicketTypeSelect" class="dd-input" style="flex:1;">
                                     <option value="">Select Halo ticket type</option>
                                 </select>
                                 <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="loadHaloTicketTypesForMapping()">Load Types</button>
@@ -548,7 +548,7 @@
                         </div>
                         <div>
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Ticket Class</label>
-                            <select id="haloMappingTicketClassSelect" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                            <select id="haloMappingTicketClassSelect" class="dd-input">
                                 <option value="Support/Issue">Support/Issue</option>
                                 <option value="Service Request">Service Request</option>
                             </select>
@@ -562,22 +562,22 @@
             </div>
 
             <template id="halo-status-mapping-template">
-                <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:rgba(15,23,42,0.5);padding:10px;border:1px solid rgba(148,163,184,0.2);border-radius:8px;">
+                <div class="halo-status-mapping-row" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;background:var(--surface-muted);padding:10px;border:1px solid var(--border-subtle);border-radius:8px;">
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">DomainDash Status</label>
-                        <input type="text" data-field="domaindash_status" style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="e.g. Open, In Progress, Closed">
+                        <input type="text" data-field="domaindash_status" class="dd-input" placeholder="e.g. Open, In Progress, Closed">
                     </div>
                     <div>
                         <label style="display:block;font-size:12px;margin-bottom:4px;color:#cbd5e1;font-weight:600;">Halo Status</label>
                         <input type="hidden" data-field="halo_status_id">
-                        <input type="text" data-field="halo_status_name" readonly style="width:100%;padding:8px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="Choose Halo status">
+                        <input type="text" data-field="halo_status_name" readonly class="dd-input" placeholder="Choose Halo status">
                     </div>
                     <button type="button" onclick="removeHaloStatusMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
                 </div>
             </template>
 
-            <div id="haloStatusMappingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;align-items:center;justify-content:center;">
-                <div style="width:min(640px,92vw);background:#0f172a;border:1px solid rgba(148,163,184,0.3);border-radius:12px;padding:18px;">
+            <div id="haloStatusMappingModal" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop);z-index:10000;align-items:center;justify-content:center;">
+                <div style="width:min(640px,92vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;padding:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="margin:0;font-size:18px;color:#f8fafc;">Add status mapping</h3>
                         <button type="button" onclick="closeHaloStatusMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
@@ -585,12 +585,12 @@
                     <div style="display:grid;gap:12px;">
                         <div>
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">DomainDash Status</label>
-                            <input id="haloMappingDomainDashStatusInput" type="text" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;" placeholder="e.g. Open, In Progress, Closed">
+                            <input id="haloMappingDomainDashStatusInput" type="text" class="dd-input" placeholder="e.g. Open, In Progress, Closed">
                         </div>
                         <div>
                             <label style="display:block;font-size:13px;margin-bottom:4px;color:#e2e8f0;font-weight:600;">Halo Status</label>
                             <div style="display:flex;gap:8px;">
-                                <select id="haloMappingStatusSelect" style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #475569;background:#0b1120;color:#f8fafc;">
+                                <select id="haloMappingStatusSelect" class="dd-input" style="flex:1;">
                                     <option value="">Select Halo status</option>
                                 </select>
                                 <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="loadHaloStatusesForMapping()">Load Statuses</button>
@@ -792,8 +792,7 @@
                     </label>
                     <select id="smtp_encryption"
                             name="smtp[encryption]"
-                            style="width:100%;padding:8px 10px;border-radius:4px;
-                                   border:1px solid #e5e7eb;font-size:14px;background:#0b1120;color:#f8fafc;">
+                            class="dd-input">
                         <option value="">None</option>
                         <option value="tls" {{ ($settings['smtp']['encryption'] ?? '') === 'tls' ? 'selected' : '' }}>TLS</option>
                         <option value="ssl" {{ ($settings['smtp']['encryption'] ?? '') === 'ssl' ? 'selected' : '' }}>SSL</option>
@@ -964,7 +963,7 @@
 
                     <div style="margin-bottom:12px;">
                         <label for="mfa_default_method" style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Primary MFA method</label>
-                        <select id="mfa_default_method" name="mfa[default_method]" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;background:#0b1120;color:#f8fafc;">
+                        <select id="mfa_default_method" name="mfa[default_method]" class="dd-input">
                             <option value="authenticator_app" {{ ($mfaSettings['default_method'] ?? 'authenticator_app') === 'authenticator_app' ? 'selected' : '' }}>Authenticator app (TOTP)</option>
                             <option value="email_otp" {{ ($mfaSettings['default_method'] ?? '') === 'email_otp' ? 'selected' : '' }}>Email one-time passcode</option>
                         </select>
@@ -997,10 +996,10 @@
                     <button type="submit" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;">
                         💾 Save All Settings
                     </button>
-                    <button type="button" onclick="openHaloSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#10b981,#059669);">
+                    <button type="button" onclick="openHaloSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:var(--dd-success);">
                         🔄 Sync with Halo
                     </button>
-                    <button type="button" onclick="openItGlueSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:linear-gradient(135deg,#f59e0b,#d97706);">
+                    <button type="button" onclick="openItGlueSyncModal()" class="btn-accent" style="padding:12px 32px;font-size:15px;font-weight:600;background:var(--dd-warning);">
                         🔄 Sync IT Glue
                     </button>
                 </div>
@@ -1046,25 +1045,25 @@
     </div>
 
     {{-- Halo Sync Modal --}}
-    <div id="haloSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
-            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
-                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔄 Sync with HaloPSA</h2>
+    <div id="haloSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);">🔄 Sync with HaloPSA</h2>
                 <button onclick="closeHaloSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
-                    <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#10b981,#059669);border:2px solid #10b981;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                    <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-success);border:2px solid var(--dd-success);border-radius:10px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
                         👥 Sync Clients
                     </button>
-                    <button onclick="showHaloDomainSync()" id="haloDomainsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:#94a3b8;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                    <button onclick="showHaloDomainSync()" id="haloDomainsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;">
                         🌐 Sync Domains
                     </button>
                 </div>
 
                 <div id="haloClientSyncContent" style="display:block;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Client Mapping</h3>
+                        <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Client Mapping</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadHaloClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
                                 🔄 Refresh List
@@ -1074,13 +1073,13 @@
                             </button>
                         </div>
                     </div>
-                    <div id="haloClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
-                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                    <div id="haloClientList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
+                        <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load clients from HaloPSA
                         </div>
                     </div>
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
-                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-danger) 35%, transparent);border-radius:10px;color:var(--dd-danger);cursor:pointer;">
                             Cancel
                         </button>
                     </div>
@@ -1088,7 +1087,7 @@
 
                 <div id="haloDomainSyncContent" style="display:none;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Domain Assets</h3>
+                        <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Domain Assets</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadHaloDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
                                 🔄 Refresh List
@@ -1098,13 +1097,13 @@
                             </button>
                         </div>
                     </div>
-                    <div id="haloDomainList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
-                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                    <div id="haloDomainList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
+                        <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load domains from DomainDash
                         </div>
                     </div>
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
-                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                        <button onclick="closeHaloSyncModal()" style="padding:10px 20px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-danger) 35%, transparent);border-radius:10px;color:var(--dd-danger);cursor:pointer;">
                             Cancel
                         </button>
                     </div>
@@ -1114,10 +1113,10 @@
     </div>
 
     {{-- IT Glue Sync Modal --}}
-    <div id="itglueSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
-            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
-                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔄 Sync with IT Glue</h2>
+    <div id="itglueSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);">🔄 Sync with IT Glue</h2>
                 <button onclick="closeItGlueSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
@@ -1125,14 +1124,14 @@
                     <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #f59e0b;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;">
                         👥 Sync Clients
                     </button>
-                    <button onclick="showItGlueConfigSync()" id="itglueConfigBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:#94a3b8;font-weight:600;cursor:pointer;transition:all 0.2s;">
+                    <button onclick="showItGlueConfigSync()" id="itglueConfigBtn" class="sync-option-btn" style="flex:1;padding:16px;background:rgba(15,23,42,0.4);border:2px solid rgba(148,163,184,0.2);border-radius:8px;color:var(--text-muted);font-weight:600;cursor:pointer;transition:all 0.2s;">
                         ⚙️ Sync Configurations
                     </button>
                 </div>
 
                 <div id="itglueClientSyncContent" style="display:block;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Organization Mapping</h3>
+                        <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Organization Mapping</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadItGlueClients()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
                                 🔄 Refresh List
@@ -1142,13 +1141,13 @@
                             </button>
                         </div>
                     </div>
-                    <div id="itglueClientList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
-                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                    <div id="itglueClientList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
+                        <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load clients from DomainDash
                         </div>
                     </div>
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
-                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-danger) 35%, transparent);border-radius:10px;color:var(--dd-danger);cursor:pointer;">
                             Cancel
                         </button>
                     </div>
@@ -1156,7 +1155,7 @@
 
                 <div id="itglueConfigSyncContent" style="display:none;">
                     <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-                        <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Configuration Items</h3>
+                        <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Configuration Items</h3>
                         <div style="display:flex;gap:8px;">
                             <button onclick="loadItGlueConfigs()" class="btn-accent" style="padding:8px 16px;font-size:14px;">
                                 🔄 Refresh List
@@ -1166,13 +1165,13 @@
                             </button>
                         </div>
                     </div>
-                    <div id="itglueConfigList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
-                        <div style="text-align:center;color:#94a3b8;padding:40px;">
+                    <div id="itglueConfigList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
+                        <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load configuration items
                         </div>
                     </div>
                     <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
-                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:#ef4444;cursor:pointer;">
+                        <button onclick="closeItGlueSyncModal()" style="padding:10px 20px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-danger) 35%, transparent);border-radius:10px;color:var(--dd-danger);cursor:pointer;">
                             Cancel
                         </button>
                     </div>
@@ -1182,22 +1181,22 @@
     </div>
 
     {{-- IP2WHOIS Sync Modal --}}
-    <div id="ip2whoisSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-        <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.2);border-radius:12px;max-width:900px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
-            <div style="padding:20px 24px;border-bottom:1px solid rgba(148,163,184,0.1);display:flex;justify-content:space-between;align-items:center;">
-                <h2 style="font-size:20px;font-weight:700;margin:0;color:#f8fafc;">🔍 Sync WHOIS (IP2WHOIS)</h2>
+    <div id="ip2whoisSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:900px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);">🔍 Sync WHOIS (IP2WHOIS)</h2>
                 <button onclick="closeIp2whoisModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="font-size:16px;font-weight:600;color:#f8fafc;margin:0;">Domains</h3>
+                    <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">Domains</h3>
                     <div style="display:flex;gap:8px;">
                         <button onclick="loadIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">🔄 Refresh List</button>
                         <button onclick="syncIp2whoisDomains()" class="btn-accent" style="padding:8px 16px;font-size:14px;">✓ Sync Selected</button>
                     </div>
                 </div>
-                <div id="ip2whoisDomainList" style="background:rgba(15,23,42,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:8px;padding:16px;">
-                    <div style="text-align:center;color:#94a3b8;padding:40px;">
+                <div id="ip2whoisDomainList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
+                    <div style="text-align:center;color:var(--text-muted);padding:40px;">
                         Click "Refresh List" to load domains
                     </div>
                 </div>
@@ -1275,7 +1274,7 @@
 
         async function loadHaloClients() {
             const listEl = document.getElementById('haloClientList');
-            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients from HaloPSA...</div>';
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients from HaloPSA...</div>';
 
             try {
                 const response = await fetch('/admin/sync/halo/clients');
@@ -1296,7 +1295,7 @@
             const listEl = document.getElementById('haloClientList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
                     <input type="checkbox" id="selectAllHaloClients" onchange="toggleAllHaloClients(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>HaloPSA Client</div>
                     <div>DomainDash Client</div>
@@ -1307,10 +1306,10 @@
 
             clients.forEach((client, index) => {
                 html += `
-                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;">
+                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;">
                         <input type="checkbox" class="halo-client-checkbox" data-client-id="${client.halo_id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:#f8fafc;">${client.halo_name}</div>
-                        <select class="halo-client-mapping" data-halo-id="${client.halo_id}" style="padding:8px;background:#0b1120;border:1px solid rgba(148,163,184,0.2);border-radius:4px;color:#f8fafc;width:100%;">
+                        <div style="color:var(--text);">${client.halo_name}</div>
+                        <select class="halo-client-mapping" data-halo-id="${client.halo_id}" class="dd-input">
                             <option value="">-- Select Client --</option>
                             ${client.suggestions.map(s => `<option value="${s.id}" ${s.id === client.mapped_id ? 'selected' : ''}>${s.name}</option>`).join('')}
                         </select>
@@ -1379,7 +1378,7 @@
 
         async function loadHaloDomains() {
             const listEl = document.getElementById('haloDomainList');
-            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains from DomainDash...</div>';
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains from DomainDash...</div>';
 
             try {
                 const response = await fetch('/admin/sync/halo/domains');
@@ -1400,7 +1399,7 @@
             const listEl = document.getElementById('haloDomainList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
                     <input type="checkbox" id="selectAllHaloDomains" onchange="toggleAllHaloDomains(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Domain Name</div>
                     <div>Client</div>
@@ -1414,9 +1413,9 @@
                 const statusText = domain.exists_in_halo ? 'Exists' : 'Will Create';
 
                 html += `
-                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
+                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${domain.id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:#f8fafc;">${domain.name}</div>
+                        <div style="color:var(--text);">${domain.name}</div>
                         <div style="color:#94a3b8;font-size:13px;">${domain.client || 'No Client'}</div>
                         <div style="text-align:center;color:#94a3b8;font-size:13px;">${domain.expiry || 'N/A'}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
@@ -1509,7 +1508,7 @@
 
         async function loadItGlueClients() {
             const listEl = document.getElementById('itglueClientList');
-            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients...</div>';
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients...</div>';
 
             try {
                 const response = await fetch('/admin/sync/itglue/clients');
@@ -1530,7 +1529,7 @@
             const listEl = document.getElementById('itglueClientList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
                     <div>DomainDash Client</div>
                     <div>IT Glue Organization</div>
                     <div style="text-align:center;">Action</div>
@@ -1539,9 +1538,9 @@
 
             clients.forEach(client => {
                 html += `
-                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
-                        <div style="color:#f8fafc;">${client.dash_name}</div>
-                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" style="padding:8px;background:#0b1120;border:1px solid rgba(148,163,184,0.2);border-radius:4px;color:#f8fafc;width:100%;">
+                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
+                        <div style="color:var(--text);">${client.dash_name}</div>
+                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" class="dd-input">
                             <option value="">-- Select Organization --</option>
                             ${client.organizations.map(org => `<option value="${org.id}" ${org.id === client.mapped_id ? 'selected' : ''}>${org.name}</option>`).join('')}
                         </select>
@@ -1619,7 +1618,7 @@
 
         async function loadIp2whoisDomains() {
             const listEl = document.getElementById('ip2whoisDomainList');
-            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains…</div>';
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading domains…</div>';
 
             try {
                 const response = await fetch('/admin/sync/ip2whois/domains');
@@ -1640,7 +1639,7 @@
             const listEl = document.getElementById('ip2whoisDomainList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
                     <input type="checkbox" id="selectAllIp2whois" onchange="toggleAllIp2whois(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Name</div>
                     <div>Client</div>
@@ -1655,9 +1654,9 @@
                 const syncedAt = item.synced_at ? new Date(item.synced_at).toLocaleString() : '—';
 
                 html += `
-                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
+                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="ip2whois-checkbox" data-item-id="${item.id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:#f8fafc;">${item.name}</div>
+                        <div style="color:var(--text);">${item.name}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.client || 'No client'}</div>
                         <div style="color:#94a3b8;font-size:13px;">${syncedAt}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
@@ -1712,7 +1711,7 @@
 
         async function loadItGlueConfigs() {
             const listEl = document.getElementById('itglueConfigList');
-            listEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading configuration items...</div>';
+            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading configuration items...</div>';
 
             try {
                 const response = await fetch('/admin/sync/itglue/configurations');
@@ -1733,7 +1732,7 @@
             const listEl = document.getElementById('itglueConfigList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:rgba(15,23,42,0.6);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
                     <input type="checkbox" id="selectAllItGlueConfigs" onchange="toggleAllItGlueConfigs(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Name</div>
                     <div>Client</div>
@@ -1747,9 +1746,9 @@
                 const statusText = item.exists_in_itglue ? 'Exists' : 'Will Create';
 
                 html += `
-                    <div style="padding:12px;background:rgba(15,23,42,0.3);border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
+                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="itglue-config-checkbox" data-item-id="${item.id}" data-item-type="${item.type}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:#f8fafc;">${item.name}</div>
+                        <div style="color:var(--text);">${item.name}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.client || 'No Client'}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.type}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>

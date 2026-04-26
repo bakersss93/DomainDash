@@ -10,7 +10,7 @@
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Search for a domain</h2>
 
             <div class="dd-search-row" style="display: flex; gap: 12px; margin-bottom: 16px;">
-                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name" style="flex: 1; padding: 12px; border: 1px solid #e7e7e7; border-radius: 6px; font-size: 14px; color: #e7e7e7;">
+                <input type="text" id="domain-name" class="dd-search-input" placeholder="Enter a Domain Name" style="flex: 1;">
 
                 <div class="fancy-select-wrapper dd-search-extension-wrap" style="min-width: 200px;">
                     <select id="extension" class="fancy-select dd-search-extension">
@@ -47,11 +47,11 @@
         <div id="step-au-validation" class="dd-card" style="margin-bottom: 24px; display: none;">
             <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">.au Automated Registrant Retrieval</h2>
 
-            <p style="margin-bottom: 16px; color: #6b7280; font-size: 14px;">
+            <p style="margin-bottom: 16px; color: var(--text-muted); font-size: 14px;">
                 To streamline the registration process, please inform us if you wish to register this domain as an individual or as a business.
             </p>
 
-            <ul style="margin-bottom: 24px; color: #6b7280; font-size: 14px; margin-left: 20px;">
+            <ul style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px; margin-left: 20px;">
                 <li>If you wish to register as a business you will need to supply us with an ABN/ACN or RBN, and we'll obtain the required details automatically for you.</li>
                 <li>If you wish to register as an individual you will be required to provide us with an ABN.</li>
             </ul>
@@ -77,15 +77,14 @@
                                 <option value="RBN">RBN</option>
                             </select>
                         </div>
-                        <input type="text" id="au-id-number" placeholder="Enter registration number"
-                               style="flex: 2; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="au-id-number" class="dd-input" placeholder="Enter registration number" style="flex: 2;">
                         <button onclick="validateAu()" class="btn-accent" style="padding: 12px 32px;">
                             Lookup Registrant
                         </button>
                     </div>
                 </div>
 
-                <div id="au-registrant-info" style="display: none; padding: 16px; background: #d1fae5; border: 1px solid #10b981; border-radius: 6px; margin-bottom: 16px;">
+                <div id="au-registrant-info" class="dd-alert-box dd-alert-box--success" style="display: none;">
                     <strong>Registrant Name:</strong> <span id="au-registrant-name"></span>
                 </div>
             </div>
@@ -133,7 +132,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                         Contact details will be taken from the client's stored information.
                     </p>
                 </div>
@@ -159,46 +158,46 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">First Name *</label>
-                        <input type="text" id="first-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="first-name" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">Last Name *</label>
-                        <input type="text" id="last-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="last-name" class="dd-input">
                     </div>
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Business Name *</label>
-                    <input type="text" id="business-name" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="business-name" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email *</label>
-                    <input type="email" id="email" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="email" id="email" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Phone *</label>
-                    <input type="text" id="phone" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="phone" class="dd-input">
                 </div>
 
                 <div style="margin-bottom: 16px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Address *</label>
-                    <input type="text" id="address" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                    <input type="text" id="address" class="dd-input">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">City *</label>
-                        <input type="text" id="city" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="city" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">State *</label>
-                        <input type="text" id="state" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="state" class="dd-input">
                     </div>
                     <div>
                         <label style="display: block; margin-bottom: 8px; font-weight: 500;">Postcode *</label>
-                        <input type="text" id="postcode" style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
+                        <input type="text" id="postcode" class="dd-input">
                     </div>
                 </div>
 

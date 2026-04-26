@@ -5,12 +5,12 @@
     <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase Hosting</h1>
 
     @if(isset($error))
-        <div style="padding: 16px; background: #fee2e2; border: 1px solid #dc2626; border-radius: 6px; margin-bottom: 24px;">
-            <p style="color: #991b1b; font-weight: 600;">{{ $error }}</p>
+        <div class="dd-alert-box dd-alert-box--danger">
+            <p style="margin: 0; font-weight: 600;">{{ $error }}</p>
         </div>
     @endif
 
-    <div style="background: var(--bg); border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+    <div style="background: var(--bg); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 24px; margin-bottom: 24px;">
         <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Select Hosting Plan</h2>
 
         @if(isset($packages) && $packages->count() > 0)
@@ -37,36 +37,35 @@
             </div>
 
             <!-- Package Details Section -->
-            <div id="package-details" style="display: none; margin-bottom: 24px; padding: 16px; background: var(--bg-secondary, #f9fafb); border: 1px solid #e5e7eb; border-radius: 6px;">
-                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #6b7280;">Package Resources</h3>
+            <div id="package-details" style="display: none; margin-bottom: 24px; padding: 16px; background: var(--surface-muted); border: 1px solid var(--border-subtle); border-radius: 10px;">
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-muted);">Package Resources</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
                     <div>
-                        <span style="font-size: 12px; color: #6b7280;">Disk Space</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">Disk Space</span>
                         <p id="detail-disk" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
                     </div>
                     <div>
-                        <span style="font-size: 12px; color: #6b7280;">Memory</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">Memory</span>
                         <p id="detail-memory" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
                     </div>
                     <div>
-                        <span style="font-size: 12px; color: #6b7280;">CPU</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">CPU</span>
                         <p id="detail-cpu" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
                     </div>
                     <div>
-                        <span style="font-size: 12px; color: #6b7280;">Bandwidth</span>
+                        <span style="font-size: 12px; color: var(--text-muted);">Bandwidth</span>
                         <p id="detail-bandwidth" style="font-size: 14px; font-weight: 500; margin-top: 2px;">-</p>
                     </div>
                 </div>
             </div>
         @else
-            <p style="color: #6b7280; margin-bottom: 24px;">No hosting packages available. Please <a href="{{ route('admin.services.hosting') }}" style="color: #3b82f6; text-decoration: underline;">sync hosting services</a> first to load available packages.</p>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">No hosting packages available. Please <a href="{{ route('admin.services.hosting') }}" style="color: var(--accent); text-decoration: underline;">sync hosting services</a> first to load available packages.</p>
         @endif
 
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">Primary Domain *</label>
-            <input type="text" id="domain" placeholder="e.g., example.com"
-                   style="width: 100%; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px;">
-            <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+            <input type="text" id="domain" class="dd-input" placeholder="e.g., example.com">
+            <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">
                 The primary domain name for this hosting service.
             </p>
         </div>
@@ -83,8 +82,8 @@
             </div>
         </div>
 
-        <div style="margin-bottom: 16px; padding: 16px; background: #dbeafe; border: 1px solid #3b82f6; border-radius: 6px;">
-            <p style="color: #1e40af; font-size: 14px;">
+        <div class="dd-alert-box dd-alert-box--info">
+            <p style="margin: 0; font-size: 14px;">
                 <strong>Note:</strong> The service email will be set to support@jargonconsulting.com.au
             </p>
         </div>
