@@ -25,7 +25,7 @@
             --sidebar-border: rgba(255, 255, 255, 0.14);
             --nav-hover: rgba(255, 255, 255, 0.12);
             --nav-active: var(--accent);
-            --accent-contrast: color-mix(in srgb, var(--accent) 6%, #ffffff 94%);
+            --accent-contrast: {{ data_get($branding, 'button_text', '#ffffff') }};
             --success-bg: #dcfce7;
             --success-border: #86efac;
             --success-text: #14532d;
@@ -50,7 +50,7 @@
             --sidebar-border: rgba(148, 163, 184, 0.2);
             --nav-hover: rgba(148, 163, 184, 0.14);
             --nav-active: var(--accent);
-            --accent-contrast: color-mix(in srgb, var(--accent) 10%, #0f172a 90%);
+            --accent-contrast: {{ data_get($branding, 'button_text_dark', '#0f172a') }};
             --success-bg: rgba(16, 185, 129, 0.2);
             --success-border: rgba(16, 185, 129, 0.55);
             --success-text: #d1fae5;

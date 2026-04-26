@@ -83,12 +83,21 @@
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
-                        <div style="margin-bottom:0;">
+                        <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Text Color</label>
                             <input type="color"
                                    name="branding[text]"
                                    value="{{ $settings['branding']['text'] ?? '#111827' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:0;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Button Text Color</label>
+                            <input type="color"
+                                   name="branding[button_text]"
+                                   value="{{ $settings['branding']['button_text'] ?? '#ffffff' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                            <small style="display:block;margin-top:4px;font-size:12px;color:#94a3b8;">Text colour used on accent-coloured buttons.</small>
                         </div>
                     </div>
 
@@ -120,12 +129,21 @@
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
-                        <div style="margin-bottom:0;">
+                        <div style="margin-bottom:12px;">
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Text Color</label>
                             <input type="color"
                                    name="branding[text_dark]"
                                    value="{{ $settings['branding']['text_dark'] ?? '#e2e8f0' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                        </div>
+
+                        <div style="margin-bottom:0;">
+                            <label style="display:block;font-size:14px;margin-bottom:4px;color:#e2e8f0;font-weight:500;">Button Text Color</label>
+                            <input type="color"
+                                   name="branding[button_text_dark]"
+                                   value="{{ $settings['branding']['button_text_dark'] ?? '#0f172a' }}"
+                                   style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
+                            <small style="display:block;margin-top:4px;font-size:12px;color:#94a3b8;">Text colour used on accent-coloured buttons in dark mode.</small>
                         </div>
                     </div>
 
