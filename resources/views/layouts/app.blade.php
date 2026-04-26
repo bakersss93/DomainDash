@@ -118,7 +118,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .nav-link .icon svg {
+            display: block;
         }
 
         .nav-link .text {
@@ -824,7 +828,7 @@
                 <!-- Dashboard (no submenu) -->
                 <li class="nav-item">
                     <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <span class="icon">🏠</span>
+                        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg></span>
                         <span class="text">Dashboard</span>
                     </a>
                 </li>
@@ -832,7 +836,7 @@
                 <!-- Domains (with submenu) -->
                 <li class="nav-item nav-section {{ request()->routeIs('admin.domains*') ? 'expanded' : '' }}">
                     <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                        <span class="icon">🌐</span>
+                        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
                         <span class="text">Domains</span>
                         <span class="arrow">▶</span>
                     </div>
@@ -858,14 +862,14 @@
                 <!-- Services (with nested submenus for future expansion) -->
                 <li class="nav-item nav-section {{ request()->routeIs('admin.services.*') ? 'expanded' : '' }}">
                     <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                        <span class="icon">🧰</span>
+                        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
                         <span class="text">Services</span>
                         <span class="arrow">▶</span>
                     </div>
                     <ul class="nav-submenu">
                         <li class="nav-item nav-section {{ request()->routeIs('admin.services.ssl*') || request()->routeIs('admin.services.ssls') ? 'expanded' : '' }}">
                             <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                                <span class="icon">🔒</span>
+                                <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
                                 <span class="text">SSLs</span>
                                 <span class="arrow">▶</span>
                             </div>
@@ -884,7 +888,7 @@
                         </li>
                         <li class="nav-item nav-section {{ request()->routeIs('admin.services.hosting*') ? 'expanded' : '' }}">
                             <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                                <span class="icon">🖥️</span>
+                                <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
                                 <span class="text">Hosting Services</span>
                                 <span class="arrow">▶</span>
                             </div>
@@ -906,7 +910,7 @@
 
                 <li class="nav-item nav-section {{ request()->routeIs('tickets.*') ? 'expanded' : '' }}">
                     <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                        <span class="icon">🎫</span>
+                        <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
                         <span class="text">Support</span>
                         <span class="arrow">▶</span>
                     </div>
@@ -928,7 +932,7 @@
                 @role('Administrator')
                     <li class="nav-item nav-section {{ request()->routeIs('admin.clients*') || request()->routeIs('admin.users*') || request()->routeIs('admin.settings') || request()->routeIs('admin.notifications.templates*') || request()->routeIs('admin.apikeys') || request()->routeIs('admin.dashboard') || request()->routeIs('admin.domains.pricing*') || request()->routeIs('admin.audit.*') ? 'expanded' : '' }}">
                         <div class="nav-link nav-toggle" onclick="toggleNav(this)">
-                            <span class="icon">⚙️</span>
+                            <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
                             <span class="text">Admin</span>
                             <span class="arrow">▶</span>
                         </div>
