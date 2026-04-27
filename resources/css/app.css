@@ -230,7 +230,7 @@ body {
 }
 
 .dd-settings-page .settings-header {
-    background: transparent !important;
+    background: var(--dd-surface-muted) !important;
     border-bottom: 1px solid var(--dd-border) !important;
 }
 
