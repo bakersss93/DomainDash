@@ -1,0 +1,1415 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd"
+    xmlns:tns="https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd"
+    elementFormDefault="qualified">
+
+    <annotation>
+        <documentation>
+            This schema is copyright (c) M2 Group of Companies / Vocus Communications
+            All rights reserved.
+        </documentation>
+    </annotation>
+
+    <!-- // WSM Basic Data Types //-->
+
+    <complexType name="Param">
+        <simpleContent>
+            <extension base="string">
+                <attribute name="id" type="string"></attribute>
+            </extension>
+        </simpleContent>
+    </complexType>
+
+    <complexType name="Parameters">
+        <sequence>
+            <element name="Param" type="tns:Param" maxOccurs="unbounded"
+                minOccurs="1" />
+        </sequence>
+    </complexType>
+
+    <simpleType name="AccessKey">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="AliasKey">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>	
+	
+    <simpleType name="ProductID">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="30"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Profile">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="30"></maxLength>
+        </restriction>
+    </simpleType>
+    
+
+    <simpleType name="PlanID">
+        <restriction base="string">
+            <minLength value="2"></minLength>
+            <maxLength value="30"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="ResponseType">
+        <restriction base="string">
+            <enumeration value="ASYNC"></enumeration>
+            <enumeration value="SYNC"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Scope">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="30"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="TransactionID">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ErrorCode">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+    
+    <simpleType name="ABN">
+    	<restriction base="string">
+    		<length value="11"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ActionAtExpiry">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="ActionAtLimit">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="AnniversaryDay">
+    	<restriction base="int">
+    		<minInclusive value="0"></minInclusive>
+    		<maxInclusive value="31"></maxInclusive>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="AntiSpam">
+    	<restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="AntiVirus">
+    	<restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="AppointmentDate">
+        <restriction base="string">
+            <length value="8"></length>
+        </restriction>
+    </simpleType>	
+	
+    <simpleType name="Attachment">
+    	<restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="AuthResult">
+    	<restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="BundleReference">
+    	<restriction base="string">
+    		<minLength value="2"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>
+    
+    <simpleType name="BlackberryPlan">
+        <restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="CallWait">
+        <restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="CreationDate">
+        <restriction base="string">
+            <length value="8"></length>
+        </restriction>
+    </simpleType>
+    
+    <simpleType name="CADate">
+    	<restriction base="string">
+    		<length value="8"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="CarrierID">
+    	<restriction base="string">
+    		<minLength value="2"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="CCA">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="CompanyName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="CustomerType">
+    	<restriction base="string">
+    		<enumeration value="PERSONAL"></enumeration>
+    		<enumeration value="BUSINESS"></enumeration>
+    		<enumeration value="GOVT"></enumeration>
+    		<enumeration value="CHARITY"></enumeration>
+    		<enumeration value="NA"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="DatabasePassword">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="25"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="RecordDate">
+    	<restriction base="string">
+    		<length value="8"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="DateTime">
+    	<restriction base="string">
+    		<length value="14"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Description">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="DirectoryID">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="DisconnectReason">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="DOB">
+    	<restriction base="string">
+    		<length value="8"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="DomainName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="DownloadSpeed">
+    	<restriction base="unsignedInt"></restriction>
+    </simpleType>
+
+    <simpleType name="DisplayCLI">
+        <restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="ExpiryDate">
+        <restriction base="string">
+            <length value="8"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="EmailAlias">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="100"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Emergency.ContactFirstName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="40"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Emergency.ContactLastName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="40"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Emergency.Phone">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="EndDate">
+    	<restriction base="string">
+    		<length value="8"></length>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Exchange">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="FAILED">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="faultcode">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="faultstring">
+    	<restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="FirstName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="40"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="FNN">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="10"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ForwardAddress">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="100"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="IMEI">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="15"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="IPAddress">
+    	<restriction base="string">
+    		<minLength value="7"></minLength>
+    		<maxLength value="39"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="IPAssignment">
+    	<restriction base="string">
+    		<enumeration value="STATIC"></enumeration>
+    		<enumeration value="DYNAMIC"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="GPRSPlan">
+        <restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="LocationReference">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="MeteredUsage">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="MSNType">
+        <restriction base="string">
+            <enumeration value="POSTPAID"></enumeration>
+            <enumeration value="PREPAID"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Month">
+    	<restriction base="unsignedInt">
+    		<minInclusive value="1"></minInclusive>
+    		<maxInclusive value="12"></maxInclusive>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="MSISDN">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="15"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="MSN">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="10"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="NASIPAddress">
+    	<restriction base="string">
+    		<minLength value="7"></minLength>
+    		<maxLength value="39"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="NASPort">
+    	<restriction base="unsignedInt"></restriction>
+    </simpleType>
+
+    <simpleType name="Normal.ContactFirstName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="40"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Normal.ContactLastName">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="40"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Normal.Phone">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="OperationType">
+    	<restriction base="string">
+    		<enumeration value="CREATE"></enumeration>
+    		<enumeration value="GET"></enumeration>
+    		<enumeration value="SET"></enumeration>
+    		<enumeration value="DELETE"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="OrderType">
+    	<restriction base="string">
+    		<enumeration value="NEW"></enumeration>
+    		<enumeration value="CHURN"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Password">
+    	<restriction base="string">
+    		<minLength value="2"></minLength>
+    		<maxLength value="50"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="PostCode">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="6"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="PeriodLength">
+    	<restriction base="unsignedInt"></restriction>
+    </simpleType>
+
+    <simpleType name="PROCESSING">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="PlanType">
+        <restriction base="string">
+            <enumeration value="3G"></enumeration>
+            <enumeration value="GPRS"></enumeration>
+            <enumeration value="BLACKBERRY"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="PortResult">
+        <restriction base="string">
+            <enumeration value="REJECTED"></enumeration>
+            <enumeration value="SCP-READY"></enumeration>
+            <enumeration value="PISO-READY"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="PortType">
+        <restriction base="string">
+            <enumeration value="PORTIN"></enumeration>
+            <enumeration value="REVERSAL"></enumeration>
+            <enumeration value="WITHDRAWAL"></enumeration>
+            <enumeration value="GIVEBACK"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Reference">
+    	<restriction base="string">
+    		<minLength value="2"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>	
+
+    <simpleType name="QUEUED">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="QuotaAmount">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="QuotaName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="QuotaStatus">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+            <enumeration value="ACTIVE"></enumeration>
+            <enumeration value="CONSUMED"></enumeration>
+            <enumeration value="EXPIRED"></enumeration>
+            <enumeration value="QUEUED"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="QuotaType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+	
+    <simpleType name="QuotaDialect">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="20"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="RadiusTestResult">
+        <restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="ReasonCode">
+        <restriction base="string">
+            <length value="2"></length>
+            <enumeration value="DD"></enumeration>
+            <enumeration value="HC"></enumeration>
+            <enumeration value="FH"></enumeration>
+            <enumeration value="LH"></enumeration>
+            <enumeration value="NE"></enumeration>
+            <enumeration value="NR"></enumeration>
+            <enumeration value="PI"></enumeration>
+            <enumeration value="PO"></enumeration>
+            <enumeration value="PS"></enumeration>
+            <enumeration value="RS"></enumeration>
+            <enumeration value="SD"></enumeration>
+            <enumeration value="SF"></enumeration>
+            <enumeration value="SR"></enumeration>
+            <enumeration value="SS"></enumeration>
+            <enumeration value="ST"></enumeration>
+            <enumeration value="VA"></enumeration>          
+            <enumeration value="XX"></enumeration>            
+        </restriction>
+    </simpleType>
+
+    <simpleType name="RetailAccountNo">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="50"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Roaming">
+        <restriction base="string">
+            <enumeration value="INTERNATIONAL"></enumeration>
+            <enumeration value="HOME"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Realm">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Domain">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="RoutedSubnet">
+    	<restriction base="string">
+    		<minLength value="10"></minLength>
+    		<maxLength value="18"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="RoutedSubnetMask">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="2"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Salutation">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="12"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ServiceID">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="30"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ServiceStatus">
+    	<restriction base="string">
+    		<enumeration value="ACTIVE"></enumeration>
+    		<enumeration value="INACTIVE"></enumeration>
+    		<enumeration value="SUSPEND"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ServiceType">
+    	<restriction base="string">
+    		<enumeration value="ADSL1"></enumeration>
+    		<enumeration value="ADSL2"></enumeration>
+    		<enumeration value="ADSL2+"></enumeration>
+    		<enumeration value="N/A"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="SessionID">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="64"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="ShapeStatus">
+    	<restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="State">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="10"></maxLength>
+    	</restriction>
+    </simpleType>
+    
+    <simpleType name="Serviceable">
+        <restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="SIM">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="22"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="SIMType">
+        <restriction base="string">
+            <enumeration value="2G"></enumeration>
+            <enumeration value="USIM"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="SMS">
+        <restriction base="boolean"></restriction>
+    </simpleType>
+
+    <simpleType name="StatusChangeDate">
+        <restriction base="string">
+            <length value="8"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="SUCCESS">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="TimeZone">
+    	<restriction base="string">
+    		<enumeration value="ACST"></enumeration>
+    		<enumeration value="AEST"></enumeration>
+    		<enumeration value="AWST"></enumeration>
+    		<enumeration value="WCT"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="TransactionState">
+    	<restriction base="string">
+    		<enumeration value="QUEUED"></enumeration>
+    		<enumeration value="PROCESSING"></enumeration>
+    		<enumeration value="SUCCESS"></enumeration>
+    		<enumeration value="FAILED"></enumeration>
+    		<enumeration value="WITHDRAWN"></enumeration>
+    	</restriction>
+    </simpleType>
+    
+    <simpleType name="TraceLevel">
+        <restriction base="int">
+            <minInclusive value="1"></minInclusive>
+            <maxInclusive value="5"></maxInclusive>
+        </restriction>
+    </simpleType>
+    
+    <simpleType name="ThreeGPlan">
+        <restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="UnMeteredUsage">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>    
+
+    <simpleType name="UploadSpeed">
+    	<restriction base="unsignedInt"></restriction>
+    </simpleType>
+
+    <simpleType name="Username">
+    	<restriction base="string">
+    		<minLength value="2"></minLength>
+    		<maxLength value="100"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="VoiceBarOut">
+        <restriction base="string">
+            <enumeration value="ALL"></enumeration>
+            <enumeration value="INTERNATIONAL"></enumeration>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="VoiceDivertBusy">
+        <restriction base="string">
+            <minLength value="5"></minLength>
+            <maxLength value="18"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="VoiceDivertUnreachable">
+        <restriction base="string">
+            <minLength value="5"></minLength>
+            <maxLength value="18"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="VoiceDivertNoAnswer">
+        <restriction base="string">
+            <minLength value="5"></minLength>
+            <maxLength value="18"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="VoiceDivertAlways">
+        <restriction base="string">
+            <minLength value="5"></minLength>
+            <maxLength value="18"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Voicemail">
+        <restriction base="boolean"></restriction>
+    </simpleType>
+    
+    <simpleType name="WITHDRAWN">
+    	<restriction base="string">
+    		<minLength value="1"></minLength>
+    		<maxLength value="20"></maxLength>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Year">
+    	<restriction base="unsignedInt">
+    		<minInclusive value="1000"></minInclusive>
+    		<maxInclusive value="9999"></maxInclusive>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Zone">
+    	<restriction base="string">
+    		<enumeration value="METRO"></enumeration>
+    		<enumeration value="REGIONAL"></enumeration>
+    	</restriction>
+    </simpleType>
+
+    <simpleType name="Reason">
+        <restriction base="string"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakExternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakExternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakInternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakInternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakPeeringDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="OffPeakPeeringUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+    
+    <simpleType name="PeakExternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="PeakExternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="PeakInternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="PeakInternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="PeakPeeringDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="PeakPeeringUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>    
+
+    <simpleType name="StandardExternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="StandardExternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="StandardInternalDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="StandardInternalUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="StandardPeeringDownload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>
+
+    <simpleType name="StandardPeeringUpload">
+        <restriction base="unsignedLong"></restriction>
+    </simpleType>    
+    
+    <simpleType name="StartDate">
+        <restriction base="string">
+            <length value="8"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="StartTime">
+        <restriction base="string">
+            <length value="6"></length>
+        </restriction>
+    </simpleType>    
+    
+    <simpleType name="Main.Country">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.FloorNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="9999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.FloorSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.FloorType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="2"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.PostCode">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.PropertyName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.State">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="10"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Street1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Street1stNumberSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="3"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Street2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Street2ndNumberSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.StreetName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="25"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.StreetSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.StreetType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="8"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Suburb">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Unit1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Unit1stSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Unit2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxExclusive value="99999"></maxExclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Unit2ndSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Main.Addresstype">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Country">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>    
+    
+    <simpleType name="Directory.FloorNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="9999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.FloorSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.FloorType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="2"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.PostCode">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.PropertyName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.State">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="10"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Street1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Street1stNumberSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="3"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Street2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Street2ndNumberSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.StreetName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="25"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.StreetSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.StreetType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="8"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Suburb">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Unit1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Unit1stSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Unit2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxExclusive value="99999"></maxExclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Unit2ndSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Directory.Addresstype">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>    
+
+    <simpleType name="Billing.Country">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+    
+    <simpleType name="Billing.FloorNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="9999"></maxInclusive>
+        </restriction>
+    </simpleType>            
+
+    <simpleType name="Billing.FloorSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.FloorType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="2"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.PostCode">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.PropertyName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.State">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="10"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Street1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Street1stNumberSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="3"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Street2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Street2ndNumberSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.StreetName">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="25"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.StreetSuffix">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.StreetType">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="8"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Suburb">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="40"></maxLength>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Unit1stNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxInclusive value="99999"></maxInclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Unit1stSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Unit2ndNumber">
+        <restriction base="unsignedInt">
+            <minInclusive value="0"></minInclusive>
+            <maxExclusive value="99999"></maxExclusive>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Unit2ndSuffix">
+        <restriction base="string">
+            <length value="1"></length>
+        </restriction>
+    </simpleType>
+
+    <simpleType name="Billing.Addresstype">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="6"></maxLength>
+        </restriction>
+    </simpleType>
+	
+    <simpleType name="Notes">
+        <restriction base="string">
+            <minLength value="1"></minLength>
+            <maxLength value="255"></maxLength>
+        </restriction>
+    </simpleType>	
+	
+    <simpleType name="ReviveAfter">
+    	<restriction base="string">
+    		<length value="14"></length>
+    	</restriction>
+    </simpleType>	
+            
+    <!-- // WSM Complex Data Types //-->
+
+    <complexType name="AuthUsageRecord">
+    	<sequence>
+    		<element name="ServiceID" type="tns:ServiceID"></element>
+    		<element name="DateTime" type="tns:DateTime"></element>
+    		<element name="AuthResult" type="tns:AuthResult"></element>
+    		<element name="Reason" type="tns:Reason"></element>
+    	</sequence>
+    </complexType>
+
+    <complexType name="OnlineSessionRecord">
+    	<sequence>
+    		<element name="ServiceID" type="tns:ServiceID"></element>
+    		<element name="DateTime" type="tns:DateTime"></element>
+    		<element name="IPAddress" type="tns:IPAddress"></element>
+    		<element name="NASIPAddress" type="tns:NASIPAddress"></element>
+    		<element name="NASPort" type="tns:NASPort"></element>
+    		<element name="SessionID" type="tns:SessionID"></element>
+    	</sequence>
+    </complexType>
+
+    <complexType name="SessionLogRecord">
+    	<sequence>
+    		<element name="ServiceID" type="tns:ServiceID"></element>
+    		<element name="DateTime" type="tns:DateTime"></element>
+    		<element name="PeriodLength" type="tns:PeriodLength"></element>
+    		<element name="SessionID" type="tns:SessionID"></element>
+    		<element name="IPAddress" type="tns:IPAddress"></element>
+    		<element name="NASIPAddress" type="tns:NASIPAddress"></element>
+    		<element name="DisconnectReason" type="tns:DisconnectReason"></element>
+    	</sequence>
+    </complexType>
+
+    <complexType name="HourlyUsageRecord">
+    	<sequence>
+    		<element name="ServiceID" type="tns:ServiceID"></element>
+    		<element name="StartTime" type="tns:StartTime"></element>
+    		<element name="PeriodLength" type="tns:PeriodLength"></element>
+    		<element name="StandardExternalDownload" type="tns:StandardExternalDownload" maxOccurs="1" minOccurs="0"></element>
+    		<element name="StandardInternalDownload" type="tns:StandardInternalDownload" maxOccurs="1" minOccurs="0"></element>
+    		<element name="StandardPeeringDownload" type="tns:StandardPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardExternalUpload" type="tns:StandardExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardInternalUpload" type="tns:StandardInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardPeeringUpload" type="tns:StandardPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakExternalDownload" type="tns:OffPeakExternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakInternalDownload" type="tns:OffPeakInternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakPeeringDownload" type="tns:OffPeakPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakExternalUpload" type="tns:OffPeakExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakInternalUpload" type="tns:OffPeakInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakPeeringUpload" type="tns:OffPeakPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakExternalDownload" type="tns:PeakExternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakInternalDownload" type="tns:PeakInternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakPeeringDownload" type="tns:PeakPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakExternalUpload" type="tns:PeakExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakInternalUpload" type="tns:PeakInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakPeeringUpload" type="tns:PeakPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+    	</sequence>
+    </complexType>
+
+    <complexType name="DailyUsageRecord">
+        <sequence>
+            <element name="ServiceID" type="tns:ServiceID"></element>
+            <element name="RecordDate" type="tns:RecordDate"></element>
+            <element name="StandardExternalDownload" type="tns:StandardExternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardInternalDownload" type="tns:StandardInternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardPeeringDownload" type="tns:StandardPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardExternalUpload" type="tns:StandardExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardInternalUpload" type="tns:StandardInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="StandardPeeringUpload" type="tns:StandardPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakExternalDownload" type="tns:OffPeakExternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakInternalDownload" type="tns:OffPeakInternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakPeeringDownload" type="tns:OffPeakPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakExternalUpload" type="tns:OffPeakExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakInternalUpload" type="tns:OffPeakInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="OffPeakPeeringUpload" type="tns:OffPeakPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakExternalDownload" type="tns:PeakExternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakInternalDownload" type="tns:PeakInternalDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakPeeringDownload" type="tns:PeakPeeringDownload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakExternalUpload" type="tns:PeakExternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakInternalUpload" type="tns:PeakInternalUpload" maxOccurs="1" minOccurs="0"></element>
+            <element name="PeakPeeringUpload" type="tns:PeakPeeringUpload" maxOccurs="1" minOccurs="0"></element>
+        </sequence>    
+    </complexType>   
+
+    <complexType name="QuotaRecord">
+    	<sequence>
+    		<element name="PlanID" type="tns:PlanID"></element>
+    		<element name="QuotaType" type="tns:QuotaType"></element>
+    		<element name="QuotaName" type="tns:QuotaName"></element>
+    		<element name="QuotaStatus" type="tns:QuotaStatus"></element>
+    		<element name="QuotaAmount" type="tns:QuotaAmount"></element>
+    		<element name="QuotaDialect" type="tns:QuotaDialect"></element>			
+    		<element name="MeteredUsage" type="tns:MeteredUsage"></element>
+    		<element name="UnMeteredUsage" type="tns:UnMeteredUsage"></element>
+    		<element name="ActonAtLimit" type="tns:ActionAtLimit"></element>
+    		<element name="ActionAtExpiry" type="tns:ActionAtExpiry"></element>
+    		<element name="CreationDate" type="tns:CreationDate"></element>
+    		<element name="StatusChangeDate" type="tns:StatusChangeDate"></element>
+    		<element name="ExpiryDate" type="tns:ExpiryDate"></element>
+    	</sequence>
+    </complexType>
+</schema>

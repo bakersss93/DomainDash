@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:typens="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    name="WholesaleServiceManagement"
+    xmlns:std="https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd"
+    targetNamespace="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/">
+
+    <wsdl:documentation>
+        This schema is copyright (c) M2 Group of Companies / Vocus Communications
+        All rights reserved.
+    </wsdl:documentation>
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+            <xsd:import
+                namespace="https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd"
+                schemaLocation="WholesaleServiceManagement.xsd">
+            </xsd:import>
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="FaultResponse">
+        <wsdl:part element="std:FaultResponse" name="parameters" />
+    </wsdl:message>
+
+    <wsdl:message name="CreateRequest">
+        <wsdl:part element="std:CreateRequest" name="parameters" />
+    </wsdl:message>
+
+    <wsdl:message name="CreateResponse">
+        <wsdl:part element="std:CreateResponse" name="parameters" />
+    </wsdl:message>
+
+    <wsdl:message name="GetRequest">
+        <wsdl:part name="parameters" element="std:GetRequest"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="GetResponse">
+        <wsdl:part name="parameters" element="std:GetResponse"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="SetRequest">
+        <wsdl:part name="parameters" element="std:SetRequest"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="SetResponse">
+        <wsdl:part name="parameters" element="std:SetResponse"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="DeleteRequest">
+        <wsdl:part name="parameters" element="std:DeleteRequest"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="DeleteResponse">
+        <wsdl:part name="parameters" element="std:DeleteResponse"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:portType name="WholesaleServiceManagementPortType">
+
+        <wsdl:operation name="Create">
+            <wsdl:input message="typens:CreateRequest" />
+            <wsdl:output message="typens:CreateResponse" />
+            <wsdl:fault name="fault" message="typens:FaultResponse" />
+        </wsdl:operation>
+
+        <wsdl:operation name="Get">
+            <wsdl:input message="typens:GetRequest"></wsdl:input>
+            <wsdl:output message="typens:GetResponse"></wsdl:output>
+            <wsdl:fault name="fault" message="typens:FaultResponse"></wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="Set">
+            <wsdl:input message="typens:SetRequest"></wsdl:input>
+            <wsdl:output message="typens:SetResponse"></wsdl:output>
+            <wsdl:fault name="fault" message="typens:FaultResponse"></wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="Delete">
+            <wsdl:input message="typens:DeleteRequest"></wsdl:input>
+            <wsdl:output message="typens:DeleteResponse"></wsdl:output>
+            <wsdl:fault name="fault" message="typens:FaultResponse"></wsdl:fault>
+        </wsdl:operation>
+
+    </wsdl:portType>
+
+    <wsdl:binding name="WholesaleServiceManagementBinding"
+        type="typens:WholesaleServiceManagementPortType">
+
+        <soap:binding style="document"
+            transport="http://schemas.xmlsoap.org/soap/http" />
+
+        <wsdl:operation name="Create">
+            <soap:operation
+                soapAction="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/Create" />
+            <wsdl:input>
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal" />
+            </wsdl:output>
+            <wsdl:fault name="fault">
+                <soap:fault use="literal" name="fault" />
+            </wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="Get">
+            <soap:operation
+                soapAction="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/Get" />
+            <wsdl:input>
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal" />
+            </wsdl:output>
+            <wsdl:fault name="fault">
+                <soap:fault use="literal" name="fault" />
+            </wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="Set">
+            <soap:operation
+                soapAction="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/Set" />
+            <wsdl:input>
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal" />
+            </wsdl:output>
+            <wsdl:fault name="fault">
+                <soap:fault use="literal" name="fault" />
+            </wsdl:fault>
+        </wsdl:operation>
+
+        <wsdl:operation name="Delete">
+            <soap:operation
+                soapAction="https://wsm.webservice.m2.com.au/WholesaleServiceManagement/Delete" />
+            <wsdl:input>
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal" />
+            </wsdl:output>
+            <wsdl:fault name="fault">
+                <soap:fault use="literal" name="fault" />
+            </wsdl:fault>
+        </wsdl:operation>
+
+    </wsdl:binding>
+
+    <wsdl:service name="WholesaleServiceManagement">
+        <wsdl:port binding="typens:WholesaleServiceManagementBinding"
+            name="WholesaleServiceManagementPort">
+            <soap:address
+                location="https://wsm.webservice.m2.com.au/WholesaleServiceManagement" />
+        </wsdl:port>
+    </wsdl:service>
+
+</wsdl:definitions>

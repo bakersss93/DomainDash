@@ -1,0 +1,70 @@
+=================================================================
+ Wholesale Service Management (WSM) v8.x.x Standard Dev Kit
+=================================================================
+
+ This documentation kit provides you with set of APIs for
+ ordering and managing your Vocus Wholesale services.
+
+
+=================================================================
+ HOW TO READ THIS DOCUMENTATION
+=================================================================
+
+ Below is the suggested sequence for reading these 
+ specifications:
+
+ 1. Vocus Wholesale Service Management.pdf
+ 2. Vocus Wholesale Service Management Examples.pdf
+ 3. Vocus Wholesale Service Management Sandbox.pdf
+ 4. Product Catalogue TCAS.pdf
+ 5. Continue reading the ProductID you interested with
+
+ Definition of data types is available at:
+
+ Vocus Data Types Definition.pdf
+
+
+=================================================================
+ REQUESTING ACCESS
+=================================================================
+
+ Please fill the included application form and email them to your  
+ account manager.  Processing time is about 10 business days.
+
+
+=================================================================
+ REQUESTING ASSISTANCE
+=================================================================
+
+ Vocus happy to help with you API integration journey. Please 
+ contact your account manager to get you connected with one of
+ our WSM API team members.
+
+ Order related queries should be sent via our Assurance or
+ Delivery team following the standard support channels.
+
+
+=================================================================
+ DISCLAIMER
+=================================================================
+ 
+ This system  is provided by Vocus on the basis that  you  will
+ treat it as confidential. No part of this information  may  be
+ reproduced or copied in any form  by any   means  without  the 
+ written permission of Vocus  Communications. Unless  otherwise 
+ expressly agreed in writing, the information contained in this
+ document  is  subject  to  change  without  notice  and  Vocus 
+ Communications assumes no responsibility for any alteration to,
+ or any error or other deficiency, in this document.
+
+
+ Copyright   2009 - 2025 Vocus Communications Ltd.  
+ All rights Reserved. 
+
+
+=================================================================
+ Vocus Communications
+ Level 10 / 452 Flinders Street, Melbourne
+ Victoria 3000, AUSTRALIA
+=================================================================
+                                                  #SDKv2025-01-01
