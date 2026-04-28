@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd"
+    xmlns:tns="https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd"
+    elementFormDefault="qualified"
+    xmlns:std="https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd">
+
+    <annotation>
+        <documentation>
+            This schema is copyright (c) M2 Group of Companies / Vocus Communications
+            All rights reserved.
+        </documentation>
+    </annotation>
+
+    <import
+        namespace="https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd"
+        schemaLocation="StandardDataTypes.xsd"></import>
+
+    <element name="CreateRequest" type="tns:CreateRequest"></element>
+    <element name="CreateResponse" type="tns:DefaultResponse"></element>
+
+    <element name="DeleteRequest" type="tns:DeleteRequest"></element>
+    <element name="DeleteResponse" type="tns:DefaultResponse"></element>
+
+    <element name="GetRequest" type="tns:GetRequest"></element>
+    <element name="GetResponse" type="tns:DefaultResponse"></element>
+
+    <element name="SetRequest" type="tns:SetRequest"></element>
+    <element name="SetResponse" type="tns:DefaultResponse"></element>
+
+    <element name="FaultResponse" type="tns:FaultResponse"></element>
+
+    <complexType name="CreateRequest">
+        <sequence>
+            <element name="AccessKey" type="std:AccessKey"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="AliasKey" type="std:AliasKey"
+                maxOccurs="1" minOccurs="0">
+            </element>			
+            <element name="ProductID" type="std:ProductID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="PlanID" type="std:PlanID" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Scope" type="std:Scope" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Profile" type="std:Profile" 
+            	maxOccurs="1" minOccurs="0">
+            </element>
+            <element name="ReviveAfter" type="std:ReviveAfter" 
+            	maxOccurs="1" minOccurs="0">
+            </element>			
+            <element name="Parameters" type="std:Parameters"
+                maxOccurs="1" minOccurs="0">
+            </element>
+        </sequence>
+    </complexType>
+
+    <complexType name="GetRequest">
+        <sequence>
+            <element name="AccessKey" type="std:AccessKey"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="AliasKey" type="std:AliasKey"
+                maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="ProductID" type="std:ProductID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="PlanID" type="std:PlanID" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Scope" type="std:Scope" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Profile" type="std:Profile" 
+            	maxOccurs="1" minOccurs="0">
+            </element>
+            <element name="ReviveAfter" type="std:ReviveAfter" 
+            	maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="Parameters" type="std:Parameters"
+                maxOccurs="1" minOccurs="0">
+            </element>
+        </sequence>
+    </complexType>
+
+    <complexType name="SetRequest">
+        <sequence>
+            <element name="AccessKey" type="std:AccessKey"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="AliasKey" type="std:AliasKey"
+                maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="ProductID" type="std:ProductID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="PlanID" type="std:PlanID" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Scope" type="std:Scope" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Profile" type="std:Profile" 
+            	maxOccurs="1" minOccurs="0">
+            </element>
+            <element name="ReviveAfter" type="std:ReviveAfter" 
+            	maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="Parameters" type="std:Parameters"
+                maxOccurs="1" minOccurs="0">
+            </element>
+        </sequence>
+    </complexType>
+
+    <complexType name="DeleteRequest">
+        <sequence>
+            <element name="AccessKey" type="std:AccessKey"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="AliasKey" type="std:AliasKey"
+                maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="ProductID" type="std:ProductID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="PlanID" type="std:PlanID" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Scope" type="std:Scope" maxOccurs="1"
+                minOccurs="0">
+            </element>
+            <element name="Profile" type="std:Profile" 
+            	maxOccurs="1" minOccurs="0">
+            </element>
+            <element name="ReviveAfter" type="std:ReviveAfter" 
+            	maxOccurs="1" minOccurs="0">
+            </element>				
+            <element name="Parameters" type="std:Parameters"
+                maxOccurs="1" minOccurs="0">
+            </element>
+        </sequence>
+    </complexType>
+
+    <complexType name="DefaultResponse">
+        <sequence>
+            <element name="TransactionID" type="std:TransactionID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="ResponseType" type="std:ResponseType"
+                maxOccurs="1" minOccurs="0">
+            </element>
+            <element name="Parameters" type="std:Parameters"
+                maxOccurs="1" minOccurs="0">
+            </element>
+        </sequence>
+    </complexType>
+
+    <complexType name="FaultResponse">
+        <sequence>
+            <element name="TransactionID" type="std:TransactionID"
+                maxOccurs="1" minOccurs="1">
+            </element>
+            <element name="ErrorCode" type="std:ErrorCode"
+                maxOccurs="1" minOccurs="1">
+            </element>
+        </sequence>
+    </complexType>
+
+</schema>

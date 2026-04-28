@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="WholesaleServiceManagementCallBack"
+    targetNamespace="https://wsm.webservice.m2.com.au/WholesaleServiceManagementCallBack/"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:tns="https://wsm.webservice.m2.com.au/WholesaleServiceManagementCallBack/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/">
+
+    <wsdl:documentation>
+        This schema is copyright (c) M2 Group of Companies / Vocus Communications
+        All rights reserved.
+    </wsdl:documentation>
+
+    <wsdl:types>
+        <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="https://wsm.webservice.m2.com.au/WholesaleServiceManagementCallBack/">
+
+            <xsd:element name="CallBackRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="AccessKey">
+                            <xsd:simpleType>
+                                <xsd:restriction base="xsd:string">
+                                    <xsd:length value="16"></xsd:length>
+                                </xsd:restriction>
+                            </xsd:simpleType>
+                        </xsd:element>
+                        <xsd:element name="Parameters" type="tns:Parameters">
+                        </xsd:element>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="CallBackResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="TransactionID">
+                            <xsd:simpleType>
+                                <xsd:restriction base="xsd:string">
+                                    <xsd:minLength value="2"></xsd:minLength>
+                                    <xsd:maxLength value="20"></xsd:maxLength>
+                                </xsd:restriction>
+                            </xsd:simpleType>
+                        </xsd:element>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="FaultResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="TransactionID">
+                            <xsd:simpleType>
+                                <xsd:restriction base="xsd:string">
+                                    <xsd:minLength value="2"></xsd:minLength>
+                                    <xsd:maxLength value="20"></xsd:maxLength>
+                                </xsd:restriction>
+                            </xsd:simpleType>
+                        </xsd:element>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:complexType name="Parameters">
+                <xsd:sequence>
+                    <xsd:element name="Param" type="tns:Param"
+                        maxOccurs="unbounded" minOccurs="1" />
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="Param">
+                <xsd:simpleContent>
+                    <xsd:extension base="xsd:string">
+                        <xsd:attribute name="id" type="xsd:string"></xsd:attribute>
+                    </xsd:extension>
+                </xsd:simpleContent>
+            </xsd:complexType>
+
+        </xsd:schema>
+    </wsdl:types>
+
+    <wsdl:message name="CallBackRequest">
+        <wsdl:part name="parameters" element="tns:CallBackRequest"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="CallBackResponse">
+        <wsdl:part name="parameters" element="tns:CallBackResponse"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:message name="FaultResponse">
+        <wsdl:part name="parameters" element="tns:FaultResponse"></wsdl:part>
+    </wsdl:message>
+
+    <wsdl:portType name="WholesaleServiceManagementCallBackPortType">
+        <wsdl:operation name="CallBack">
+            <wsdl:input message="tns:CallBackRequest"></wsdl:input>
+            <wsdl:output message="tns:CallBackResponse"></wsdl:output>
+            <wsdl:fault name="fault" message="tns:FaultResponse"></wsdl:fault>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="WholesaleServiceManagementBinding"
+        type="tns:WholesaleServiceManagementCallBackPortType">
+        <soap:binding style="document"
+            transport="http://schemas.xmlsoap.org/soap/http" />
+        <wsdl:operation name="CallBack">
+            <soap:operation
+                soapAction="https://wsm.webservice.m2.com.au/WholesaleServiceManagementCallBack/CallBack" />
+            <wsdl:input>
+                <soap:body use="literal" />
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal" />
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="WholesaleServiceManagementCallBack">
+        <wsdl:port name="WholesaleServiceManagementCallBackPort"
+            binding="tns:WholesaleServiceManagementBinding">
+            <soap:address location="https://please.update.with.your.address" />
+        </wsdl:port>
+    </wsdl:service>
+
+</wsdl:definitions>
