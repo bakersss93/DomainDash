@@ -4,6 +4,7 @@ namespace App\Console;
 
 use App\Models\Setting;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Schema;
 
 class ScheduleRegistrar
 {
@@ -15,7 +16,7 @@ class ScheduleRegistrar
             ->name('scheduled-synergy-domain-job')
             ->description('Queue job: Sync Synergy domains');
 
-        $syncSchedule = Setting::get('sync_schedule', []);
+        $syncSchedule = Schema::hasTable('settings') ? Setting::get('sync_schedule', []) : [];
         $timezone = date_default_timezone_get();
 
         self::scheduleSyncTask($schedule, $syncSchedule['sync_domains'] ?? [], 'sync-domains', 'sync-domains', $timezone);

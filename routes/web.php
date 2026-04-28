@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\ClientsController;
 use App\Http\Controllers\Admin\DomainPricingController;
 use App\Http\Controllers\Admin\EmailNotificationTemplatesController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\InternetController;
 use App\Http\Controllers\UserNotificationController;
 
 
@@ -192,6 +193,24 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/api-keys', [ApiKeysController::class,'index'])->name('admin.apikeys');
         Route::post('/api-keys', [ApiKeysController::class,'store'])->name('admin.apikeys.store');
         Route::post('/api-keys/{key}/deactivate', [ApiKeysController::class,'deactivate'])->name('admin.apikeys.deactivate');
+
+        // ============================================================================
+        // INTERNET SERVICES ROUTES (Vocus WSM)
+        // ============================================================================
+        Route::get('/services/internet', [InternetController::class, 'index'])->name('admin.services.internet');
+        Route::post('/services/internet/sync', [InternetController::class, 'sync'])->name('admin.services.internet.sync');
+        Route::get('/services/internet/qualify', [InternetController::class, 'qualify'])->name('admin.services.internet.qualify');
+        Route::post('/services/internet/qualify/lookup', [InternetController::class, 'qualifyLookup'])->name('admin.services.internet.qualify.lookup');
+        Route::post('/services/internet/qualify/check', [InternetController::class, 'qualifyCheck'])->name('admin.services.internet.qualify.check');
+        Route::get('/services/internet/order', [InternetController::class, 'order'])->name('admin.services.internet.order');
+        Route::post('/services/internet/order', [InternetController::class, 'orderStore'])->name('admin.services.internet.order.store');
+        Route::get('/services/internet/transfer', [InternetController::class, 'transfer'])->name('admin.services.internet.transfer');
+        Route::post('/services/internet/transfer', [InternetController::class, 'transferStore'])->name('admin.services.internet.transfer.store');
+        Route::get('/services/internet/{service}', [InternetController::class, 'show'])->name('admin.services.internet.show');
+        Route::post('/services/internet/{service}/poll', [InternetController::class, 'pollStatus'])->name('admin.services.internet.poll');
+        Route::post('/services/internet/{service}/assign-client', [InternetController::class, 'assignClient'])->name('admin.services.internet.assignClient');
+        Route::post('/services/internet/{service}/status', [InternetController::class, 'setStatus'])->name('admin.services.internet.setStatus');
+        Route::post('/services/internet/{service}/diagnostic', [InternetController::class, 'diagnostic'])->name('admin.services.internet.diagnostic');
 
         // ============================================================================
         // HOSTING SERVICES ROUTES
