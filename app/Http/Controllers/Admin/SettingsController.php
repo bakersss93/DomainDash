@@ -35,6 +35,7 @@ class SettingsController extends Controller
             ], Setting::get('halo', [])),
             'itglue'   => Setting::get('itglue', []),
             'ip2whois' => Setting::get('ip2whois', []),
+            'vocus'    => Setting::get('vocus', []),
             'sync_schedule' => Setting::get('sync_schedule', [
                 'sync_domains' => ['enabled' => false, 'frequency' => 'daily', 'time' => '01:30'],
                 'sync_hosting_services' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:00'],
@@ -82,6 +83,13 @@ class SettingsController extends Controller
             'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
             'ip2whois'      => 'array',
+            'vocus'                   => 'array',
+            'vocus.access_key'        => 'nullable|string|max:64',
+            'vocus.alias_key'         => 'nullable|string|max:64',
+            'vocus.wsdl_url'          => 'nullable|url|max:255',
+            'vocus.login_url'         => 'nullable|url|max:255',
+            'vocus.cert_password'     => 'nullable|string|max:255',
+            'vocus_cert'              => 'nullable|file|mimes:p12,pfx|max:512',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
             'sync_schedule.*.enabled' => 'nullable|boolean',
@@ -138,6 +146,28 @@ class SettingsController extends Controller
             }
         }
 
+        // Vocus: sentinel for cert_password and handle certificate upload.
+        if (isset($data['vocus']) && is_array($data['vocus'])) {
+            $currentVocus = Setting::get('vocus', []);
+            if (!is_array($currentVocus)) {
+                $currentVocus = [];
+            }
+
+            $data['vocus'] = array_merge($currentVocus, $data['vocus']);
+
+            if (array_key_exists('cert_password', $data['vocus']) && $data['vocus']['cert_password'] === '********') {
+                $data['vocus']['cert_password'] = $currentVocus['cert_password'] ?? null;
+            }
+        }
+
+        if ($request->hasFile('vocus_cert')) {
+            $file = $request->file('vocus_cert');
+            $file->storeAs('vocus', 'client.p12');
+            $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), [
+                'cert_path' => 'vocus/client.p12',
+            ]);
+        }
+
         // Handle logo upload if provided.
         if ($request->hasFile('branding_logo')) {
             $file = $request->file('branding_logo');
@@ -156,7 +186,7 @@ class SettingsController extends Controller
 
         // Persist only values that actually changed and capture a precise audit diff.
         foreach ($data as $key => $value) {
-            if ($key === 'branding_logo') {
+            if (in_array($key, ['branding_logo', 'vocus_cert'])) {
                 continue;
             }
 

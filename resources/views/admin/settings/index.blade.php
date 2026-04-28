@@ -253,6 +253,126 @@
                 </div>
             </div>
 
+            {{-- VOCUS WHOLESALE SECTION --}}
+            <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div class="settings-header" onclick="toggleSection('vocus')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                        </div>
+                        <div>
+                            <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Vocus Wholesale</h3>
+                            <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">NBN internet service management API</p>
+                        </div>
+                    </div>
+                    <svg id="vocus-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+                <div id="vocus-content" class="settings-content" style="padding:20px 24px;display:none;">
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_access_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Access Key
+                    </label>
+                    <input id="vocus_access_key"
+                           type="text"
+                           name="vocus[access_key]"
+                           value="{{ $settings['vocus']['access_key'] ?? '' }}"
+                           placeholder="Provided by Vocus during onboarding"
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_alias_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Alias Key <span style="font-weight:400;color:#9ca3af;">(optional)</span>
+                    </label>
+                    <input id="vocus_alias_key"
+                           type="text"
+                           name="vocus[alias_key]"
+                           value="{{ $settings['vocus']['alias_key'] ?? '' }}"
+                           placeholder="Optional secondary access key"
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_wsdl_url" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        SOAP Endpoint URL
+                    </label>
+                    <input id="vocus_wsdl_url"
+                           type="url"
+                           name="vocus[wsdl_url]"
+                           value="{{ $settings['vocus']['wsdl_url'] ?? 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement' }}"
+                           placeholder="https://wsm.webservice.m2.com.au/WholesaleServiceManagement"
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Change to the sandbox URL during testing. Leave blank to use the production default.
+                    </small>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_login_url" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Certificate Login URL
+                    </label>
+                    <input id="vocus_login_url"
+                           type="url"
+                           name="vocus[login_url]"
+                           value="{{ $settings['vocus']['login_url'] ?? 'https://wsm.webservice.m2.com.au:9443/login/' }}"
+                           placeholder="https://wsm.webservice.m2.com.au:9443/login/"
+                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_cert" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Client Certificate (.p12 / .pfx)
+                    </label>
+                    @if(!empty($settings['vocus']['cert_path']))
+                        <p style="font-size:13px;color:#16a34a;margin:0 0 6px;">
+                            <svg style="display:inline;width:14px;height:14px;vertical-align:-2px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Certificate on file. Upload a new file to replace it.
+                        </p>
+                    @endif
+                    <input id="vocus_cert"
+                           type="file"
+                           name="vocus_cert"
+                           accept=".p12,.pfx"
+                           style="width:100%;padding:6px 0;font-size:14px;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Vocus issues a new certificate annually. Upload the PKCS#12 (.p12) keystore file they provide.
+                    </small>
+                </div>
+
+                <div style="margin-bottom:0;">
+                    <label for="vocus_cert_password" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Certificate Password
+                    </label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input id="vocus_cert_password"
+                               type="password"
+                               name="vocus[cert_password]"
+                               autocomplete="new-password"
+                               @if(!empty($settings['vocus']['cert_password']))
+                                   value="********"
+                               @else
+                                   value=""
+                               @endif
+                               placeholder="Set or update certificate password"
+                               style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                        <button type="button"
+                                class="btn-accent"
+                                style="white-space:nowrap;padding:8px 12px;"
+                                onclick="(function(){const input=document.getElementById('vocus_cert_password');if(input && input.value==='********'){input.value='';}if(input){input.focus();}})();">
+                            Update
+                        </button>
+                    </div>
+                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        Stored securely; value is not displayed.
+                    </small>
+                </div>
+
+                </div>
+            </div>
+
             {{-- HALO PSA SECTION --}}
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('halo')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
