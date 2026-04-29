@@ -23,7 +23,7 @@ class MailSettings
 
     public static function applyFromDatabase(): bool
     {
-        $smtp = Setting::get('smtp', []);
+        $smtp = Setting::getSensitive('smtp');
 
         if (! self::isConfigured($smtp)) {
             return false;

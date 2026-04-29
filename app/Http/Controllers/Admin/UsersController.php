@@ -214,8 +214,18 @@ class UsersController extends Controller
     /**
      * Start impersonation.
      */
-    public function impersonate(User $user)
+    public function impersonate(Request $request, User $user)
     {
+        // Prevent privilege escalation: admins may not impersonate other admins.
+        if ($user->hasRole('Administrator')) {
+            abort(403, 'You cannot impersonate another Administrator.');
+        }
+
+        // Prevent impersonating a disabled account.
+        if (! $user->is_active) {
+            return back()->withErrors(['user' => 'Cannot impersonate a disabled user.']);
+        }
+
         session(['impersonate_as' => $user->id]);
 
         return redirect()

@@ -23,7 +23,7 @@ class HaloPsaClient
 
     public function __construct()
     {
-        $halo = Setting::get('halo', []);
+        $halo = Setting::getSensitive('halo');
 
         // Resource server URL
         $baseUrl = rtrim($halo['base_url'] ?? '', '/');

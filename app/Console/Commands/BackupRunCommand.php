@@ -14,7 +14,7 @@ class BackupRunCommand extends Command
 
     public function handle(): int
     {
-        $backup = Setting::get('backup');
+        $backup = Setting::getSensitive('backup');
         if (!$backup || empty($backup['host'])) {
             $this->warn('Backup settings not configured.');
             return 0;

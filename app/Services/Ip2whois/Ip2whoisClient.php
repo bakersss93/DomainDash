@@ -13,7 +13,7 @@ class Ip2whoisClient
 
     public function __construct()
     {
-        $cfg = Setting::get('ip2whois', []);
+        $cfg = Setting::getSensitive('ip2whois');
         $this->apiKey = $cfg['api_key'] ?? null;
     }
 

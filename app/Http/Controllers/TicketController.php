@@ -488,7 +488,7 @@ class TicketController extends Controller
 
     private function haloSettings(): array
     {
-        $haloSettings = Setting::get('halo', []);
+        $haloSettings = Setting::getSensitive('halo');
         return is_array($haloSettings) ? $haloSettings : [];
     }
 

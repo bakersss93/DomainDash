@@ -19,7 +19,7 @@ class ItGlueClient
 
     public function __construct()
     {
-        $cfg = Setting::get('itglue', []);
+        $cfg = Setting::getSensitive('itglue');
 
         // Base URL – default to official ITGlue API if not configured
         $base = trim($cfg['base_url'] ?? '');
