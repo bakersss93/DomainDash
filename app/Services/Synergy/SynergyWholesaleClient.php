@@ -12,11 +12,7 @@ class SynergyWholesaleClient
     public function __construct(?string $wsdlPath = null)
     {
         // All Synergy config is stored under a single "synergy" setting.
-        $synergy = Setting::get('synergy', [
-            'reseller_id' => null,
-            'api_key'     => null,
-            'wsdl_path'   => null,
-        ]);
+        $synergy = Setting::getSensitive('synergy');
 
         $wsdl = $wsdlPath
             ?: ($synergy['wsdl_path'] ?? storage_path('app/wsdl/synergy.wsdl'));
@@ -32,10 +28,7 @@ class SynergyWholesaleClient
 
     protected function creds(): array
     {
-        $synergy = Setting::get('synergy', [
-            'reseller_id' => null,
-            'api_key'     => null,
-        ]);
+        $synergy = Setting::getSensitive('synergy');
 
         return [
             'resellerID' => $synergy['reseller_id'] ?? null,

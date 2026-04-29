@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Setting;
+use App\Rules\SafeExternalUrl;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
@@ -27,21 +28,21 @@ class SettingsController extends Controller
                 'bg_dark'          => '#0f172a',
                 'button_text_dark' => '#0f172a',
             ]),
-            'smtp'     => Setting::get('smtp', []),
-            'synergy'  => Setting::get('synergy', []),
+            'smtp'     => Setting::getSensitive('smtp'),
+            'synergy'  => Setting::getSensitive('synergy'),
             'halo'     => array_merge([
                 'ticket_type_mappings' => [],
                 'status_mappings' => [],
-            ], Setting::get('halo', [])),
-            'itglue'   => Setting::get('itglue', []),
-            'ip2whois' => Setting::get('ip2whois', []),
+            ], Setting::getSensitive('halo')),
+            'itglue'   => Setting::getSensitive('itglue'),
+            'ip2whois' => Setting::getSensitive('ip2whois'),
             'sync_schedule' => Setting::get('sync_schedule', [
                 'sync_domains' => ['enabled' => false, 'frequency' => 'daily', 'time' => '01:30'],
                 'sync_hosting_services' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:00'],
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
             ]),
-            'backup'   => Setting::get('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
+            'backup'   => Setting::getSensitive('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
             'mfa' => Setting::get('mfa', [
                 'persistence_days' => 30,
@@ -64,8 +65,8 @@ class SettingsController extends Controller
             'smtp'          => 'array',
             'synergy'       => 'array',
             'halo'          => 'array',
-            'halo.base_url' => 'nullable|string|max:255',
-            'halo.auth_server' => 'nullable|string|max:255',
+            'halo.base_url' => ['nullable', 'string', 'max:255', new SafeExternalUrl()],
+            'halo.auth_server' => ['nullable', 'string', 'max:255', new SafeExternalUrl()],
             'halo.tenant' => 'nullable|string|max:120',
             'halo.client_id' => 'nullable|string|max:120',
             'halo.api_key' => 'nullable|string|max:255',
@@ -80,8 +81,9 @@ class SettingsController extends Controller
             'halo.status_mappings.*.domaindash_status' => 'nullable|string|max:120',
             'halo.status_mappings.*.halo_status_id' => 'nullable|integer|min:1',
             'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
-            'itglue'        => 'array',
-            'ip2whois'      => 'array',
+            'itglue'          => 'array',
+            'itglue.base_url' => ['nullable', 'string', 'max:255', new SafeExternalUrl()],
+            'ip2whois'        => 'array',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
             'sync_schedule.*.enabled' => 'nullable|boolean',
@@ -105,10 +107,7 @@ class SettingsController extends Controller
          * If the form posts "********" we keep the existing secret.
          */
         if (isset($data['halo']) && is_array($data['halo'])) {
-            $currentHalo = Setting::get('halo', []);
-            if (!is_array($currentHalo)) {
-                $currentHalo = [];
-            }
+            $currentHalo = Setting::getSensitive('halo');
 
             // Merge with existing settings so missing posted keys do not erase
             // previously saved Halo credentials.
@@ -129,7 +128,7 @@ class SettingsController extends Controller
          */
         if (isset($data['synergy']) && is_array($data['synergy'])) {
             if (array_key_exists('api_key', $data['synergy']) && $data['synergy']['api_key'] === '********') {
-                $currentSynergy = Setting::get('synergy', []);
+                $currentSynergy = Setting::getSensitive('synergy');
                 if (isset($currentSynergy['api_key'])) {
                     $data['synergy']['api_key'] = $currentSynergy['api_key'];
                 } else {
@@ -160,15 +159,21 @@ class SettingsController extends Controller
                 continue;
             }
 
-            $currentValue = Setting::get($key, null);
+            $isSensitive = in_array($key, Setting::SENSITIVE_GROUPS, true);
+            $currentValue = $isSensitive ? Setting::getSensitive($key) : Setting::get($key, null);
             $diff = $this->extractChangedValues($currentValue, $value);
             if ($diff === null) {
                 continue;
             }
 
-            Setting::put($key, $value);
-            $oldValues[$key] = $diff['old'];
-            $newValues[$key] = $diff['new'];
+            if ($isSensitive) {
+                Setting::putSensitive($key, is_array($value) ? $value : []);
+            } else {
+                Setting::put($key, $value);
+            }
+
+            $oldValues[$key] = $this->redactForAudit($key, $diff['old']);
+            $newValues[$key] = $this->redactForAudit($key, $diff['new']);
         }
 
         if (!empty($newValues)) {
@@ -279,7 +284,7 @@ class SettingsController extends Controller
         $request->validate(['to' => 'required|email']);
 
         // Load SMTP settings from database
-        $smtp = Setting::get('smtp', []);
+        $smtp = Setting::getSensitive('smtp');
 
         // Validate that SMTP settings are configured
         if (! MailSettings::isConfigured($smtp)) {
@@ -294,5 +299,30 @@ class SettingsController extends Controller
         });
 
         return back()->with('status', 'Test email sent successfully to ' . $request->to);
+    }
+
+    /**
+     * Replace sensitive sub-key values with [REDACTED] before writing to the
+     * audit log.  Operates recursively so nested arrays are also covered.
+     */
+    private function redactForAudit(string $groupKey, mixed $value): mixed
+    {
+        if (! in_array($groupKey, Setting::SENSITIVE_GROUPS, true)) {
+            return $value;
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $k => &$v) {
+            if (in_array($k, Setting::SENSITIVE_SUBKEYS, true) && $v !== null && $v !== '') {
+                $v = '[REDACTED]';
+            } elseif (is_array($v)) {
+                $v = $this->redactForAudit($groupKey, $v);
+            }
+        }
+
+        return $value;
     }
 }

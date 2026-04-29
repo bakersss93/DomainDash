@@ -144,7 +144,9 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Self-registration is disabled. All users are provisioned by an
+        // Administrator via the admin user management panel (/admin/users/create).
+        // Features::registration(),
         Features::resetPasswords(),
         // Features::emailVerification(),
         Features::updateProfileInformation(),

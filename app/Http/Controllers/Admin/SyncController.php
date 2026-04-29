@@ -22,7 +22,7 @@ class SyncController extends Controller
     public function getHaloClients()
     {
         try {
-            $haloConfig = Setting::get('halo', []);
+            $haloConfig = Setting::getSensitive('halo');
 
             if (empty($haloConfig['base_url']) || empty($haloConfig['client_id']) || empty($haloConfig['api_key'])) {
                 return response()->json(['error' => 'HaloPSA is not configured. Please configure it in Settings.'], 400);
@@ -96,7 +96,7 @@ class SyncController extends Controller
         ]);
 
         try {
-            $haloConfig = Setting::get('halo', []);
+            $haloConfig = Setting::getSensitive('halo');
             $token = $this->getHaloAccessToken($haloConfig);
 
             $syncedCount = 0;
@@ -206,7 +206,7 @@ class SyncController extends Controller
     public function getHaloDomains()
     {
         try {
-            $haloConfig = Setting::get('halo', []);
+            $haloConfig = Setting::getSensitive('halo');
 
             if (empty($haloConfig['base_url'])) {
                 return response()->json(['error' => 'HaloPSA is not configured'], 400);
@@ -269,7 +269,7 @@ class SyncController extends Controller
 
         try {
             $halo = new \App\Services\Halo\HaloPsaClient();
-            $haloConfig = Setting::get('halo', []);
+            $haloConfig = Setting::getSensitive('halo');
             $token = $this->getHaloAccessToken($haloConfig);
 
             $syncedCount = 0;
@@ -595,7 +595,7 @@ class SyncController extends Controller
     public function getItGlueClients()
     {
         try {
-            $itglueConfig = Setting::get('itglue', []);
+            $itglueConfig = Setting::getSensitive('itglue');
 
             if (empty($itglueConfig['base_url']) || empty($itglueConfig['api_key'])) {
                 return response()->json(['error' => 'IT Glue is not configured'], 400);
@@ -709,7 +709,7 @@ class SyncController extends Controller
     {
         try {
             $client = Client::findOrFail($clientId);
-            $itglueConfig = Setting::get('itglue', []);
+            $itglueConfig = Setting::getSensitive('itglue');
 
             // Fetch ALL organizations with pagination
             $itglueOrgs = $this->fetchAllItGlueOrganizations($itglueConfig);
@@ -1280,7 +1280,7 @@ class SyncController extends Controller
     private function fetchDnsRecordsFromSynergy($domainName)
     {
         try {
-            $synergySettings = Setting::get('synergy', []);
+            $synergySettings = Setting::getSensitive('synergy');
             $wsdlPath = $synergySettings['wsdl_path'] ?? null;
             $resellerId = $synergySettings['reseller_id'] ?? null;
             $apiKey = $synergySettings['api_key'] ?? null;
@@ -1321,7 +1321,7 @@ class SyncController extends Controller
     private function fetchWhoisFromSynergy($domainName)
     {
         try {
-            $synergySettings = Setting::get('synergy', []);
+            $synergySettings = Setting::getSensitive('synergy');
             $wsdlPath = $synergySettings['wsdl_path'] ?? null;
             $resellerId = $synergySettings['reseller_id'] ?? null;
             $apiKey = $synergySettings['api_key'] ?? null;

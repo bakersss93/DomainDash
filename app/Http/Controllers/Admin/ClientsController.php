@@ -218,7 +218,7 @@ class ClientsController extends Controller
                 ], 500);
             }
 
-            $haloSettings = Setting::get('halo', []);
+            $haloSettings = Setting::getSensitive('halo');
             $baseUrl = rtrim($haloSettings['base_url'] ?? '', '/');
 
             if (empty($baseUrl)) {
@@ -340,7 +340,7 @@ class ClientsController extends Controller
                 ], 500);
             }
 
-            $haloSettings = Setting::get('halo', []);
+            $haloSettings = Setting::getSensitive('halo');
             $baseUrl = rtrim($haloSettings['base_url'] ?? '', '/');
             
             if (!str_ends_with($baseUrl, '/api')) {
@@ -798,7 +798,7 @@ class ClientsController extends Controller
     private function getHaloAccessToken()
     {
         try {
-            $haloSettings = Setting::get('halo', []);
+            $haloSettings = Setting::getSensitive('halo');
             
             $authUrl = rtrim($haloSettings['auth_server'] ?? '', '/');
             $clientId = $haloSettings['client_id'] ?? null;
@@ -874,7 +874,7 @@ class ClientsController extends Controller
     private function fetchDnsRecordsFromSynergy($domainName)
     {
         try {
-            $synergySettings = Setting::get('synergy', []);
+            $synergySettings = Setting::getSensitive('synergy');
             $wsdlPath = $synergySettings['wsdl_path'] ?? null;
             $resellerId = $synergySettings['reseller_id'] ?? null;
             $apiKey = $synergySettings['api_key'] ?? null;
