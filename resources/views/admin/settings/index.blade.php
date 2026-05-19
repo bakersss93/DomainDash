@@ -1484,32 +1484,60 @@
                 alert('Please select at least one client to sync');
                 return;
             }
-            showGlobalSpinner('Syncing selected Halo clients…');
+
+            const total = selectedClients.length;
+            window.holdGlobalLoader();
+            window.showGlobalLoaderWithProgress(total, 'Syncing clients to HaloPSA…');
+
+            let syncedCount = 0;
+            let errorCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/halo/clients/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ clients: selectedClients })
-                });
+                for (let i = 0; i < selectedClients.length; i++) {
+                    const client = selectedClients[i];
+                    window.updateGlobalLoaderProgress(i, total, `Syncing client ${i + 1} of ${total}…`);
 
-                const data = await response.json();
+                    try {
+                        const response = await fetch('/admin/sync/halo/clients/sync', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                            },
+                            body: JSON.stringify({ clients: [client] })
+                        });
 
-                if (data.success) {
-                    alert(`Successfully synced ${data.synced_count} client(s)`);
-                    closeHaloSyncModal();
-                    location.reload();
-                } else {
-                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                        const data = await response.json();
+
+                        if (data.success) {
+                            syncedCount += data.synced_count ?? 1;
+                        } else {
+                            errorCount++;
+                            errors.push(data.error || `Client ${client.halo_id}: Unknown error`);
+                        }
+                    } catch (err) {
+                        errorCount++;
+                        errors.push(`Client ${client.halo_id}: ${err.message}`);
+                    }
                 }
-            } catch (error) {
-                alert('Sync failed: ' + error.message);
+
+                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} client(s)`);
             } finally {
-                hideGlobalSpinner();
+                window.releaseGlobalLoader();
             }
+
+            let message = `Successfully synced ${syncedCount} client(s)`;
+            if (errorCount > 0) {
+                message += ` (${errorCount} failed)`;
+            }
+            if (errors.length > 0) {
+                message += '\n\nErrors:\n' + errors.join('\n');
+            }
+
+            alert(message);
+            closeHaloSyncModal();
+            location.reload();
         }
 
         async function loadHaloDomains() {
@@ -1749,32 +1777,60 @@
                 alert('Please map at least one client');
                 return;
             }
-            showGlobalSpinner('Saving IT Glue organization mappings…');
+
+            const total = mappings.length;
+            window.holdGlobalLoader();
+            window.showGlobalLoaderWithProgress(total, 'Saving IT Glue organisation mappings…');
+
+            let mappedCount = 0;
+            let errorCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/itglue/clients/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ mappings: mappings })
-                });
+                for (let i = 0; i < mappings.length; i++) {
+                    const mapping = mappings[i];
+                    window.updateGlobalLoaderProgress(i, total, `Saving mapping ${i + 1} of ${total}…`);
 
-                const data = await response.json();
+                    try {
+                        const response = await fetch('/admin/sync/itglue/clients/sync', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                            },
+                            body: JSON.stringify({ mappings: [mapping] })
+                        });
 
-                if (data.success) {
-                    alert(`Successfully saved ${data.mapped_count} mapping(s)`);
-                    closeItGlueSyncModal();
-                    location.reload();
-                } else {
-                    alert('Save failed: ' + (data.error || 'Unknown error'));
+                        const data = await response.json();
+
+                        if (data.success) {
+                            mappedCount += data.mapped_count ?? 1;
+                        } else {
+                            errorCount++;
+                            errors.push(data.error || `Client ${mapping.dash_client_id}: Unknown error`);
+                        }
+                    } catch (err) {
+                        errorCount++;
+                        errors.push(`Client ${mapping.dash_client_id}: ${err.message}`);
+                    }
                 }
-            } catch (error) {
-                alert('Save failed: ' + error.message);
+
+                window.updateGlobalLoaderProgress(total, total, `Saved ${mappedCount} of ${total} mapping(s)`);
             } finally {
-                hideGlobalSpinner();
+                window.releaseGlobalLoader();
             }
+
+            let message = `Successfully saved ${mappedCount} mapping(s)`;
+            if (errorCount > 0) {
+                message += ` (${errorCount} failed)`;
+            }
+            if (errors.length > 0) {
+                message += '\n\nErrors:\n' + errors.join('\n');
+            }
+
+            alert(message);
+            closeItGlueSyncModal();
+            location.reload();
         }
 
         async function loadIp2whoisDomains() {
@@ -1843,31 +1899,58 @@
                 return;
             }
 
-            showGlobalSpinner('Syncing WHOIS data…');
+            const total = selected.length;
+            window.holdGlobalLoader();
+            window.showGlobalLoaderWithProgress(total, 'Syncing WHOIS data…');
+
+            let syncedCount = 0;
+            let errorCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/ip2whois/domains/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ items: selected })
-                });
+                for (let i = 0; i < selected.length; i++) {
+                    const item = selected[i];
+                    window.updateGlobalLoaderProgress(i, total, `Fetching WHOIS for domain ${i + 1} of ${total}…`);
 
-                const data = await response.json();
+                    try {
+                        const response = await fetch('/admin/sync/ip2whois/domains/sync', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                            },
+                            body: JSON.stringify({ items: [item] })
+                        });
 
-                if (data.success) {
-                    alert(`Synced ${data.synced_count} domain(s)`);
-                    loadIp2whoisDomains();
-                } else {
-                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                        const data = await response.json();
+
+                        if (data.success) {
+                            syncedCount += data.synced_count ?? 1;
+                        } else {
+                            errorCount++;
+                            errors.push(data.error || `Domain ${item.id}: Unknown error`);
+                        }
+                    } catch (err) {
+                        errorCount++;
+                        errors.push(`Domain ${item.id}: ${err.message}`);
+                    }
                 }
-            } catch (error) {
-                alert('Sync failed: ' + error.message);
+
+                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} domain(s)`);
             } finally {
-                hideGlobalSpinner();
+                window.releaseGlobalLoader();
             }
+
+            let message = `Synced ${syncedCount} domain(s)`;
+            if (errorCount > 0) {
+                message += ` (${errorCount} failed)`;
+            }
+            if (errors.length > 0) {
+                message += '\n\nErrors:\n' + errors.join('\n');
+            }
+
+            alert(message);
+            loadIp2whoisDomains();
         }
 
         async function loadItGlueConfigs() {
