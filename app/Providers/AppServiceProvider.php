@@ -78,6 +78,9 @@ class AppServiceProvider extends ServiceProvider
             if (! $this->shouldAuditConsoleCommand($event->command)) {
                 return;
             }
+            if (! Schema::hasTable('audit_logs')) {
+                return;
+            }
 
             AuditLogger::logSystem(
                 'console.command_started',
@@ -98,6 +101,9 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(CommandFinished::class, function (CommandFinished $event): void {
             if (! $this->shouldAuditConsoleCommand($event->command)) {
+                return;
+            }
+            if (! Schema::hasTable('audit_logs')) {
                 return;
             }
 
