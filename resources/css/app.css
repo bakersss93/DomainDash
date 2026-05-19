@@ -368,6 +368,33 @@ body {
     font-size: 0.9rem;
 }
 
+.dd-global-loader__progress-wrap {
+    margin-top: 16px;
+}
+
+.dd-global-loader__progress-track {
+    height: 8px;
+    background: color-mix(in srgb, var(--dd-accent) 18%, var(--dd-surface-muted) 82%);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 7px;
+}
+
+.dd-global-loader__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--dd-accent), var(--dd-accent-strong));
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    width: 0%;
+}
+
+.dd-global-loader__progress-label {
+    font-size: 0.82rem;
+    color: var(--dd-text-soft);
+    margin: 0;
+    text-align: center;
+}
+
 @keyframes dd-spin {
     to {
         transform: rotate(360deg);
