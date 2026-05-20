@@ -28,16 +28,11 @@
             </button>
         </form>
 
-        <form method="POST"
-              action="{{ route('admin.services.hosting.sync') }}"
-              class="dd-services-sync">
-            @csrf
-            <button type="submit"
-                    class="btn-accent dd-pill-btn"
-                    onclick="return confirm('Sync hosting services from Synergy now?');">
-                Sync services
-            </button>
-        </form>
+        <button type="button"
+                class="btn-accent dd-pill-btn"
+                onclick="ddSyncHosting()">
+            Sync services
+        </button>
     </div>
 
     {{-- Services table --}}
@@ -98,4 +93,27 @@
         {{ $services->links() }}
 </div>
 </div>
+
+<script>
+async function ddSyncHosting() {
+    if (!confirm('Sync hosting services from Synergy now?')) {
+        return;
+    }
+    window.showGlobalLoader('Syncing hosting services from Synergy…');
+    try {
+        await fetch('{{ route('admin.services.hosting.sync') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                'Accept': 'application/json',
+            },
+        });
+    } catch (e) {
+        window.hideGlobalLoader();
+        alert('Sync failed: ' + e.message);
+        return;
+    }
+    window.location.reload();
+}
+</script>
 @endsection

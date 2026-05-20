@@ -23,10 +23,7 @@
             <button type="submit" class="btn-accent">Filter</button>
         </form>
 
-        <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;">
-            @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">Sync from Synergy</button>
-        </form>
+        <button type="button" class="btn-accent" style="white-space:nowrap;" onclick="ddSyncSsls()">Sync from Synergy</button>
     </div>
 
     <div class="dd-card">
@@ -582,4 +579,24 @@
         }
     </style>
 </div>
+
+<script>
+async function ddSyncSsls() {
+    window.showGlobalLoader('Syncing SSL certificates from Synergy…');
+    try {
+        await fetch('{{ route('admin.services.ssl.sync') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                'Accept': 'application/json',
+            },
+        });
+    } catch (e) {
+        window.hideGlobalLoader();
+        alert('Sync failed: ' + e.message);
+        return;
+    }
+    window.location.reload();
+}
+</script>
 @endsection

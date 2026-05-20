@@ -54,12 +54,9 @@
             <button type="submit" class="btn-accent">Search</button>
         </form>
 
-        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;">
-            @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">
-                Bulk domain sync
-            </button>
-        </form>
+        <button type="button" class="btn-accent" style="white-space:nowrap;" onclick="ddBulkSyncDomains()">
+            Bulk domain sync
+        </button>
     </div>
 
     <div class="dd-card">
@@ -713,4 +710,27 @@
         }
     </style>
     </div>
+
+<script>
+async function ddBulkSyncDomains() {
+    if (!confirm('Sync all domains from Synergy now? This may take a few minutes.')) {
+        return;
+    }
+    window.showGlobalLoader('Syncing domains from Synergy…');
+    try {
+        await fetch('{{ route('admin.domains.bulkSync') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                'Accept': 'application/json',
+            },
+        });
+    } catch (e) {
+        window.hideGlobalLoader();
+        alert('Sync failed: ' + e.message);
+        return;
+    }
+    window.location.reload();
+}
+</script>
 @endsection
