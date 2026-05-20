@@ -1473,10 +1473,7 @@
                 const dashClientId = mappingSelect.value;
 
                 if (dashClientId) {
-                    selectedClients.push({
-                        halo_id: haloId,
-                        dash_client_id: dashClientId
-                    });
+                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId });
                 }
             });
 
@@ -1485,59 +1482,29 @@
                 return;
             }
 
-            const total = selectedClients.length;
-            window.holdGlobalLoader();
-            window.showGlobalLoaderWithProgress(total, 'Syncing clients to HaloPSA…');
-
-            let syncedCount = 0;
-            let errorCount = 0;
-            const errors = [];
-
+            showGlobalSpinner('Syncing selected Halo clients…');
             try {
-                for (let i = 0; i < selectedClients.length; i++) {
-                    const client = selectedClients[i];
-                    window.updateGlobalLoaderProgress(i, total, `Syncing client ${i + 1} of ${total}…`);
-
-                    try {
-                        const response = await fetch('/admin/sync/halo/clients/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                            },
-                            body: JSON.stringify({ clients: [client] })
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            syncedCount += data.synced_count ?? 1;
-                        } else {
-                            errorCount++;
-                            errors.push(data.error || `Client ${client.halo_id}: Unknown error`);
-                        }
-                    } catch (err) {
-                        errorCount++;
-                        errors.push(`Client ${client.halo_id}: ${err.message}`);
-                    }
+                const response = await fetch('/admin/sync/halo/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ clients: selectedClients })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Successfully synced ${data.synced_count} client(s)`);
+                    closeHaloSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
                 }
-
-                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} client(s)`);
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
             } finally {
-                window.releaseGlobalLoader();
+                hideGlobalSpinner();
             }
-
-            let message = `Successfully synced ${syncedCount} client(s)`;
-            if (errorCount > 0) {
-                message += ` (${errorCount} failed)`;
-            }
-            if (errors.length > 0) {
-                message += '\n\nErrors:\n' + errors.join('\n');
-            }
-
-            alert(message);
-            closeHaloSyncModal();
-            location.reload();
         }
 
         async function loadHaloDomains() {
@@ -1607,57 +1574,59 @@
             }
 
             const total = selectedDomains.length;
-            window.holdGlobalLoader();
-            window.showGlobalLoaderWithProgress(total, 'Syncing domains to HaloPSA…');
-
             const warnings = [];
             let syncedCount = 0;
             let errorCount = 0;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-            try {
-                for (let i = 0; i < selectedDomains.length; i++) {
-                    const domainId = selectedDomains[i];
-                    window.updateGlobalLoaderProgress(i, total, `Syncing domain ${i + 1} of ${total}…`);
+            function setHaloDomainProgress(current, label) {
+                const wrap = document.getElementById('dd-global-loader-progress');
+                if (wrap) wrap.hidden = false;
+                const fill = document.getElementById('dd-global-loader-fill');
+                if (fill) fill.style.width = (total > 0 ? Math.round(current / total * 100) : 0) + '%';
+                const lbl = document.getElementById('dd-global-loader-progress-label');
+                if (lbl) lbl.textContent = label;
+                const overlay = document.getElementById('dd-global-loader');
+                if (overlay) overlay.classList.add('is-visible');
+            }
 
-                    try {
-                        const response = await fetch('/admin/sync/halo/domains/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                            },
-                            body: JSON.stringify({ domain_ids: [domainId] })
-                        });
+            showGlobalSpinner('Syncing domains to HaloPSA…');
+            setHaloDomainProgress(0, `0 of ${total} synced`);
 
-                        const data = await response.json();
+            for (let i = 0; i < selectedDomains.length; i++) {
+                setHaloDomainProgress(i, `Syncing domain ${i + 1} of ${total}…`);
 
-                        if (data.success) {
-                            syncedCount += data.synced_count ?? 1;
-                            if (data.warnings?.length) {
-                                warnings.push(...data.warnings);
-                            }
-                        } else {
-                            errorCount++;
-                            warnings.push(data.error || `Domain ID ${domainId}: Unknown error`);
-                        }
-                    } catch (err) {
+                try {
+                    const response = await fetch('/admin/sync/halo/domains/sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                        body: JSON.stringify({ domain_ids: [selectedDomains[i]] })
+                    });
+                    // Re-show overlay synchronously before response.json() yields
+                    const overlay = document.getElementById('dd-global-loader');
+                    if (overlay) overlay.classList.add('is-visible');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        syncedCount += data.synced_count ?? 1;
+                        if (data.warnings?.length) warnings.push(...data.warnings);
+                    } else {
                         errorCount++;
-                        warnings.push(`Domain ID ${domainId}: ${err.message}`);
+                        warnings.push(data.error || `Domain ID ${selectedDomains[i]}: Unknown error`);
                     }
+                } catch (err) {
+                    errorCount++;
+                    warnings.push(`Domain ID ${selectedDomains[i]}: ${err.message}`);
                 }
 
-                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} domain(s)`);
-            } finally {
-                window.releaseGlobalLoader();
+                setHaloDomainProgress(i + 1, `${i + 1} of ${total} synced`);
             }
 
+            hideGlobalSpinner();
+
             let message = `Successfully synced ${syncedCount} domain(s)`;
-            if (errorCount > 0) {
-                message += ` (${errorCount} failed)`;
-            }
-            if (warnings.length > 0) {
-                message += '\n\nWarnings:\n' + warnings.join('\n');
-            }
+            if (errorCount > 0) message += ` (${errorCount} failed)`;
+            if (warnings.length > 0) message += '\n\nWarnings:\n' + warnings.join('\n');
 
             alert(message);
             closeHaloSyncModal();
@@ -1764,12 +1733,8 @@
             document.querySelectorAll('.itglue-client-mapping').forEach(select => {
                 const dashId = select.dataset.dashId;
                 const orgId = select.value;
-
                 if (orgId) {
-                    mappings.push({
-                        dash_client_id: dashId,
-                        itglue_org_id: orgId
-                    });
+                    mappings.push({ dash_client_id: dashId, itglue_org_id: orgId });
                 }
             });
 
@@ -1778,59 +1743,29 @@
                 return;
             }
 
-            const total = mappings.length;
-            window.holdGlobalLoader();
-            window.showGlobalLoaderWithProgress(total, 'Saving IT Glue organisation mappings…');
-
-            let mappedCount = 0;
-            let errorCount = 0;
-            const errors = [];
-
+            showGlobalSpinner('Saving IT Glue organisation mappings…');
             try {
-                for (let i = 0; i < mappings.length; i++) {
-                    const mapping = mappings[i];
-                    window.updateGlobalLoaderProgress(i, total, `Saving mapping ${i + 1} of ${total}…`);
-
-                    try {
-                        const response = await fetch('/admin/sync/itglue/clients/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                            },
-                            body: JSON.stringify({ mappings: [mapping] })
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            mappedCount += data.mapped_count ?? 1;
-                        } else {
-                            errorCount++;
-                            errors.push(data.error || `Client ${mapping.dash_client_id}: Unknown error`);
-                        }
-                    } catch (err) {
-                        errorCount++;
-                        errors.push(`Client ${mapping.dash_client_id}: ${err.message}`);
-                    }
+                const response = await fetch('/admin/sync/itglue/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ mappings: mappings })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Successfully saved ${data.mapped_count} mapping(s)`);
+                    closeItGlueSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
                 }
-
-                window.updateGlobalLoaderProgress(total, total, `Saved ${mappedCount} of ${total} mapping(s)`);
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
             } finally {
-                window.releaseGlobalLoader();
+                hideGlobalSpinner();
             }
-
-            let message = `Successfully saved ${mappedCount} mapping(s)`;
-            if (errorCount > 0) {
-                message += ` (${errorCount} failed)`;
-            }
-            if (errors.length > 0) {
-                message += '\n\nErrors:\n' + errors.join('\n');
-            }
-
-            alert(message);
-            closeItGlueSyncModal();
-            location.reload();
         }
 
         async function loadIp2whoisDomains() {
@@ -1899,58 +1834,28 @@
                 return;
             }
 
-            const total = selected.length;
-            window.holdGlobalLoader();
-            window.showGlobalLoaderWithProgress(total, 'Syncing WHOIS data…');
-
-            let syncedCount = 0;
-            let errorCount = 0;
-            const errors = [];
-
+            showGlobalSpinner('Syncing WHOIS data…');
             try {
-                for (let i = 0; i < selected.length; i++) {
-                    const item = selected[i];
-                    window.updateGlobalLoaderProgress(i, total, `Fetching WHOIS for domain ${i + 1} of ${total}…`);
-
-                    try {
-                        const response = await fetch('/admin/sync/ip2whois/domains/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                            },
-                            body: JSON.stringify({ items: [item] })
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            syncedCount += data.synced_count ?? 1;
-                        } else {
-                            errorCount++;
-                            errors.push(data.error || `Domain ${item.id}: Unknown error`);
-                        }
-                    } catch (err) {
-                        errorCount++;
-                        errors.push(`Domain ${item.id}: ${err.message}`);
-                    }
+                const response = await fetch('/admin/sync/ip2whois/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ items: selected })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Synced ${data.synced_count} domain(s)`);
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
                 }
-
-                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} domain(s)`);
+            } catch (error) {
+                alert('Sync failed: ' + error.message);
             } finally {
-                window.releaseGlobalLoader();
+                hideGlobalSpinner();
+                loadIp2whoisDomains();
             }
-
-            let message = `Synced ${syncedCount} domain(s)`;
-            if (errorCount > 0) {
-                message += ` (${errorCount} failed)`;
-            }
-            if (errors.length > 0) {
-                message += '\n\nErrors:\n' + errors.join('\n');
-            }
-
-            alert(message);
-            loadIp2whoisDomains();
         }
 
         async function loadItGlueConfigs() {
@@ -2011,10 +1916,7 @@
         async function syncItGlueConfigs() {
             const selectedItems = [];
             document.querySelectorAll('.itglue-config-checkbox:checked').forEach(checkbox => {
-                selectedItems.push({
-                    id: checkbox.dataset.itemId,
-                    type: checkbox.dataset.itemType
-                });
+                selectedItems.push({ id: checkbox.dataset.itemId, type: checkbox.dataset.itemType });
             });
 
             if (selectedItems.length === 0) {
@@ -2023,54 +1925,58 @@
             }
 
             const total = selectedItems.length;
-            window.holdGlobalLoader();
-            window.showGlobalLoaderWithProgress(total, 'Syncing configurations to IT Glue…');
-
             let syncedCount = 0;
             let errorCount = 0;
             const errors = [];
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-            try {
-                for (let i = 0; i < selectedItems.length; i++) {
-                    const item = selectedItems[i];
-                    window.updateGlobalLoaderProgress(i, total, `Syncing item ${i + 1} of ${total}…`);
+            function setItGlueConfigProgress(current, label) {
+                const wrap = document.getElementById('dd-global-loader-progress');
+                if (wrap) wrap.hidden = false;
+                const fill = document.getElementById('dd-global-loader-fill');
+                if (fill) fill.style.width = (total > 0 ? Math.round(current / total * 100) : 0) + '%';
+                const lbl = document.getElementById('dd-global-loader-progress-label');
+                if (lbl) lbl.textContent = label;
+                const overlay = document.getElementById('dd-global-loader');
+                if (overlay) overlay.classList.add('is-visible');
+            }
 
-                    try {
-                        const response = await fetch('/admin/sync/itglue/configurations/sync', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                            },
-                            body: JSON.stringify({ items: [item] })
-                        });
+            showGlobalSpinner('Syncing configurations to IT Glue…');
+            setItGlueConfigProgress(0, `0 of ${total} synced`);
 
-                        const data = await response.json();
+            for (let i = 0; i < selectedItems.length; i++) {
+                setItGlueConfigProgress(i, `Syncing item ${i + 1} of ${total}…`);
 
-                        if (data.success) {
-                            syncedCount += data.synced_count ?? 1;
-                        } else {
-                            errorCount++;
-                            errors.push(data.error || `Item ${item.id}: Unknown error`);
-                        }
-                    } catch (err) {
+                try {
+                    const response = await fetch('/admin/sync/itglue/configurations/sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                        body: JSON.stringify({ items: [selectedItems[i]] })
+                    });
+                    // Re-show overlay synchronously before response.json() yields
+                    const overlay = document.getElementById('dd-global-loader');
+                    if (overlay) overlay.classList.add('is-visible');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        syncedCount += data.synced_count ?? 1;
+                    } else {
                         errorCount++;
-                        errors.push(`Item ${item.id}: ${err.message}`);
+                        errors.push(data.error || `Item ${selectedItems[i].id}: Unknown error`);
                     }
+                } catch (err) {
+                    errorCount++;
+                    errors.push(`Item ${selectedItems[i].id}: ${err.message}`);
                 }
 
-                window.updateGlobalLoaderProgress(total, total, `Synced ${syncedCount} of ${total} item(s)`);
-            } finally {
-                window.releaseGlobalLoader();
+                setItGlueConfigProgress(i + 1, `${i + 1} of ${total} synced`);
             }
 
+            hideGlobalSpinner();
+
             let message = `Successfully synced ${syncedCount} item(s)`;
-            if (errorCount > 0) {
-                message += ` (${errorCount} failed)`;
-            }
-            if (errors.length > 0) {
-                message += '\n\nErrors:\n' + errors.join('\n');
-            }
+            if (errorCount > 0) message += ` (${errorCount} failed)`;
+            if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
 
             alert(message);
             closeItGlueSyncModal();

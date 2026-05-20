@@ -712,25 +712,28 @@
     </div>
 
 <script>
-async function ddBulkSyncDomains() {
-    if (!confirm('Sync all domains from Synergy now? This may take a few minutes.')) {
-        return;
+    function showGlobalSpinner(msg) {
+        if (typeof window.showGlobalLoader === 'function') window.showGlobalLoader(msg);
     }
-    window.holdGlobalLoader();
-    window.showGlobalLoader('Syncing domains from Synergy…');
-    try {
-        await fetch('{{ route('admin.domains.bulkSync') }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                'Accept': 'application/json',
-            },
-        });
-        window.location.reload();
-    } catch (e) {
-        window.releaseGlobalLoader();
-        alert('Sync failed: ' + e.message);
+    function hideGlobalSpinner() {
+        if (typeof window.hideGlobalLoader === 'function') window.hideGlobalLoader();
     }
-}
+
+    async function ddBulkSyncDomains() {
+        showGlobalSpinner('Syncing domains from Synergy…');
+        try {
+            await fetch('{{ route('admin.domains.bulkSync') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    'Accept': 'application/json',
+                },
+            });
+            window.location.reload();
+        } catch (e) {
+            hideGlobalSpinner();
+            alert('Sync failed: ' + e.message);
+        }
+    }
 </script>
 @endsection

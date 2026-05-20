@@ -581,22 +581,23 @@
 </div>
 
 <script>
-async function ddSyncSsls() {
-    window.holdGlobalLoader();
-    window.showGlobalLoader('Syncing SSL certificates from Synergy…');
-    try {
-        await fetch('{{ route('admin.services.ssl.sync') }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                'Accept': 'application/json',
-            },
-        });
-        window.location.reload();
-    } catch (e) {
-        window.releaseGlobalLoader();
-        alert('Sync failed: ' + e.message);
+    async function ddSyncSsls() {
+        if (typeof window.showGlobalLoader === 'function') {
+            window.showGlobalLoader('Syncing SSL certificates from Synergy…');
+        }
+        try {
+            await fetch('{{ route('admin.services.ssl.sync') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    'Accept': 'application/json',
+                },
+            });
+            window.location.reload();
+        } catch (e) {
+            if (typeof window.hideGlobalLoader === 'function') window.hideGlobalLoader();
+            alert('Sync failed: ' + e.message);
+        }
     }
-}
 </script>
 @endsection

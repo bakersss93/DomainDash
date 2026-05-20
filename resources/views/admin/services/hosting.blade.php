@@ -95,25 +95,23 @@
 </div>
 
 <script>
-async function ddSyncHosting() {
-    if (!confirm('Sync hosting services from Synergy now?')) {
-        return;
+    async function ddSyncHosting() {
+        if (typeof window.showGlobalLoader === 'function') {
+            window.showGlobalLoader('Syncing hosting services from Synergy…');
+        }
+        try {
+            await fetch('{{ route('admin.services.hosting.sync') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    'Accept': 'application/json',
+                },
+            });
+            window.location.reload();
+        } catch (e) {
+            if (typeof window.hideGlobalLoader === 'function') window.hideGlobalLoader();
+            alert('Sync failed: ' + e.message);
+        }
     }
-    window.holdGlobalLoader();
-    window.showGlobalLoader('Syncing hosting services from Synergy…');
-    try {
-        await fetch('{{ route('admin.services.hosting.sync') }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                'Accept': 'application/json',
-            },
-        });
-        window.location.reload();
-    } catch (e) {
-        window.releaseGlobalLoader();
-        alert('Sync failed: ' + e.message);
-    }
-}
 </script>
 @endsection
