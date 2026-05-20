@@ -582,6 +582,7 @@
 
 <script>
 async function ddSyncSsls() {
+    window.holdGlobalLoader();
     window.showGlobalLoader('Syncing SSL certificates from Synergy…');
     try {
         await fetch('{{ route('admin.services.ssl.sync') }}', {
@@ -591,12 +592,11 @@ async function ddSyncSsls() {
                 'Accept': 'application/json',
             },
         });
+        window.location.reload();
     } catch (e) {
-        window.hideGlobalLoader();
+        window.releaseGlobalLoader();
         alert('Sync failed: ' + e.message);
-        return;
     }
-    window.location.reload();
 }
 </script>
 @endsection

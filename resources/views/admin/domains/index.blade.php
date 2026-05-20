@@ -716,6 +716,7 @@ async function ddBulkSyncDomains() {
     if (!confirm('Sync all domains from Synergy now? This may take a few minutes.')) {
         return;
     }
+    window.holdGlobalLoader();
     window.showGlobalLoader('Syncing domains from Synergy…');
     try {
         await fetch('{{ route('admin.domains.bulkSync') }}', {
@@ -725,12 +726,11 @@ async function ddBulkSyncDomains() {
                 'Accept': 'application/json',
             },
         });
+        window.location.reload();
     } catch (e) {
-        window.hideGlobalLoader();
+        window.releaseGlobalLoader();
         alert('Sync failed: ' + e.message);
-        return;
     }
-    window.location.reload();
 }
 </script>
 @endsection

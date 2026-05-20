@@ -99,6 +99,7 @@ async function ddSyncHosting() {
     if (!confirm('Sync hosting services from Synergy now?')) {
         return;
     }
+    window.holdGlobalLoader();
     window.showGlobalLoader('Syncing hosting services from Synergy…');
     try {
         await fetch('{{ route('admin.services.hosting.sync') }}', {
@@ -108,12 +109,11 @@ async function ddSyncHosting() {
                 'Accept': 'application/json',
             },
         });
+        window.location.reload();
     } catch (e) {
-        window.hideGlobalLoader();
+        window.releaseGlobalLoader();
         alert('Sync failed: ' + e.message);
-        return;
     }
-    window.location.reload();
 }
 </script>
 @endsection
