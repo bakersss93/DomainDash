@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+<div id="hosting-sync-loading-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
+    <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
+        <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:hosting-sync-spin 0.7s linear infinite;"></span>
+        <span>Syncing hosting services...</span>
+    </div>
+</div>
 <div style="max-width: 1200px; margin: 0 auto;">
     <div class="dd-services-card">
         <h1 class="dd-services-title">
@@ -664,10 +670,22 @@
     .dd-password-modal.dd-hidden {
     display: none !important;
     }
+
+    @keyframes hosting-sync-spin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var hostingSyncForm = document.querySelector('.dd-services-sync');
+    var hostingSyncOverlay = document.getElementById('hosting-sync-loading-overlay');
+    if (hostingSyncForm && hostingSyncOverlay) {
+        hostingSyncForm.addEventListener('submit', function () {
+            hostingSyncOverlay.style.display = 'flex';
+        });
+    }
+
     // Modal elements (must be outside forEach to be accessible later)
     const assignModal  = document.getElementById('dd-assign-modal');
     const assignForm   = document.getElementById('dd-assign-form');
