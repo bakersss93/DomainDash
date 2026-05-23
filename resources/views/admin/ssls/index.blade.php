@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+<div id="ssl-sync-loading-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
+    <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
+        <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:ssl-sync-spin 0.7s linear infinite;"></span>
+        <span>Syncing SSL certificates...</span>
+    </div>
+</div>
 <div class="dd-page">
     <h1 class="dd-page-title" style="font-size:1.45rem;">SSL Certificates</h1>
 
@@ -227,6 +233,14 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            var sslSyncForm = document.querySelector('form[action*="ssl/sync"]');
+            var sslSyncOverlay = document.getElementById('ssl-sync-loading-overlay');
+            if (sslSyncForm && sslSyncOverlay) {
+                sslSyncForm.addEventListener('submit', function () {
+                    sslSyncOverlay.style.display = 'flex';
+                });
+            }
+
             document.querySelectorAll('[data-ssl-toggle]').forEach(function (row) {
                 row.addEventListener('click', function (e) {
                     if (e.target.closest('a,button,form,input,select,textarea')) return;
@@ -457,6 +471,10 @@
     </script>
 
     <style>
+        @keyframes ssl-sync-spin {
+            to { transform: rotate(360deg); }
+        }
+
         tr[data-ssl-panel] {
             display: none;
             height: 0;
