@@ -91,8 +91,13 @@ document.addEventListener('submit', (event) => {
         return;
     }
 
-    if (form.dataset.loaderMessage) {
-        showGlobalLoader(form.dataset.loaderMessage);
+    const message = form.dataset.loaderMessage;
+
+    if (message) {
+        event.preventDefault();
+        showGlobalLoader(message);
+        // Double rAF ensures the overlay is painted before the browser navigates.
+        requestAnimationFrame(() => requestAnimationFrame(() => form.submit()));
         return;
     }
 
