@@ -11,7 +11,8 @@
     </div>
 
     @if($clients->isNotEmpty())
-        <form method="GET" action="{{ route('tickets.index') }}" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end;">
+        <form method="GET" action="{{ route('tickets.index') }}" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end;"
+              data-loader-message="Loading tickets…">
             <div>
                 <label for="client_id" style="display:block;font-weight:600;margin-bottom:6px;">Client</label>
                 <select id="client_id" name="client_id" style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:9px 11px;background:var(--bg);color:var(--text);">

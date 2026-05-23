@@ -1627,5 +1627,13 @@
     })();
 </script>
 
+<div id="dd-global-loader" aria-live="polite">
+    <div class="dd-global-loader__panel" role="status" aria-atomic="true">
+        <div class="dd-global-loader__spinner" aria-hidden="true"></div>
+        <p id="dd-global-loader-message" class="dd-global-loader__message">Sync in progress…</p>
+        <p class="dd-global-loader__hint">Large syncs can take a few minutes. Please keep this tab open.</p>
+    </div>
+</div>
+
 </body>
 </html>

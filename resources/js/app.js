@@ -91,13 +91,13 @@ document.addEventListener('submit', (event) => {
         return;
     }
 
-    const action = form.getAttribute('action') ?? '';
-    if (!action) {
+    if (form.dataset.loaderMessage) {
+        showGlobalLoader(form.dataset.loaderMessage);
         return;
     }
 
-    if (trackedFormHints.some((hint) => action.includes(hint))) {
-        const message = form.dataset.loaderMessage || 'Sync in progress…';
-        showGlobalLoader(message);
+    const action = form.getAttribute('action') ?? '';
+    if (action && trackedFormHints.some((hint) => action.includes(hint))) {
+        showGlobalLoader('Sync in progress…');
     }
 });
