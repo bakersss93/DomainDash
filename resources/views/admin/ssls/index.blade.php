@@ -23,7 +23,8 @@
             <button type="submit" class="btn-accent">Filter</button>
         </form>
 
-        <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;">
+        <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;"
+              data-loader-message="Syncing SSL certificates from Synergy…">
             @csrf
             <button type="submit" class="btn-accent" style="white-space:nowrap;">Sync from Synergy</button>
         </form>

@@ -30,7 +30,8 @@
 
         <form method="POST"
               action="{{ route('admin.services.hosting.sync') }}"
-              class="dd-services-sync">
+              class="dd-services-sync"
+              data-loader-message="Syncing hosting services from Synergy…">
             @csrf
             <button type="submit"
                     class="btn-accent dd-pill-btn"

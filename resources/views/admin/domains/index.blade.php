@@ -54,7 +54,8 @@
             <button type="submit" class="btn-accent">Search</button>
         </form>
 
-        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;">
+        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;"
+              data-loader-message="Syncing domains from Synergy…">
             @csrf
             <button type="submit" class="btn-accent" style="white-space:nowrap;">
                 Bulk domain sync
@@ -354,7 +355,7 @@
                 return;
             }
 
-            showGlobalSpinner('Syncing WHOIS…');
+            window.showGlobalLoader && window.showGlobalLoader('Syncing WHOIS records…');
 
             try {
                 const response = await fetch('/admin/sync/ip2whois/domains/sync', {
@@ -376,7 +377,7 @@
             } catch (error) {
                 alert('WHOIS sync failed: ' + error.message);
             } finally {
-                hideGlobalSpinner();
+                window.hideGlobalLoader && window.hideGlobalLoader();
             }
         }
 

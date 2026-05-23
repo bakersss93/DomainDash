@@ -97,6 +97,7 @@ document.addEventListener('submit', (event) => {
     }
 
     if (trackedFormHints.some((hint) => action.includes(hint))) {
-        showGlobalLoader('Sync in progress…');
+        const message = form.dataset.loaderMessage || 'Sync in progress…';
+        showGlobalLoader(message);
     }
 });
