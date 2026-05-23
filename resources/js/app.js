@@ -94,16 +94,15 @@ document.addEventListener('submit', (event) => {
     const message = form.dataset.loaderMessage;
 
     if (message) {
-        event.preventDefault();
+        // Show overlay immediately without preventing the native form submit.
+        // form.submit() clears the viewport before the browser has a chance to
+        // paint; the native submission keeps the current page visible while the
+        // POST is in flight, so the overlay stays on screen throughout the sync.
         const overlay = ensureGlobalLoader();
         updateLoaderMessage(message);
-        // Bypass the CSS opacity transition so the overlay appears immediately —
-        // the transition is frozen by the browser once navigation begins.
         overlay.style.transition = 'none';
         overlay.style.opacity = '1';
         overlay.style.pointerEvents = 'all';
-        // 80 ms gives the browser a guaranteed render window before we hand off.
-        setTimeout(() => form.submit(), 80);
         return;
     }
 

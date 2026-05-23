@@ -720,17 +720,14 @@
     var form = document.querySelector('form[data-loader-message]');
     if (!form) return;
     form.addEventListener('submit', function (e) {
-        e.preventDefault();
         e.stopImmediatePropagation();
         var overlay = document.getElementById('dd-global-loader');
-        if (overlay) {
-            var msg = document.getElementById('dd-global-loader-message');
-            if (msg) msg.textContent = form.dataset.loaderMessage;
-            overlay.style.transition = 'none';
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'all';
-        }
-        setTimeout(function () { form.submit(); }, 80);
+        if (!overlay) return;
+        var msg = document.getElementById('dd-global-loader-message');
+        if (msg) msg.textContent = form.dataset.loaderMessage;
+        overlay.style.transition = 'none';
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'all';
     });
 }());
 </script>
