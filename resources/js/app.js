@@ -95,9 +95,15 @@ document.addEventListener('submit', (event) => {
 
     if (message) {
         event.preventDefault();
-        showGlobalLoader(message);
-        // Double rAF ensures the overlay is painted before the browser navigates.
-        requestAnimationFrame(() => requestAnimationFrame(() => form.submit()));
+        const overlay = ensureGlobalLoader();
+        updateLoaderMessage(message);
+        // Bypass the CSS opacity transition so the overlay appears immediately —
+        // the transition is frozen by the browser once navigation begins.
+        overlay.style.transition = 'none';
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'all';
+        // 80 ms gives the browser a guaranteed render window before we hand off.
+        setTimeout(() => form.submit(), 80);
         return;
     }
 
