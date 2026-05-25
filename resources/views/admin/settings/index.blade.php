@@ -1243,10 +1243,11 @@
     </div>
 
     {{-- HaloPSA Sync Progress Modal --}}
-    <div id="haloSyncProgressModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:13000;background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.45),0 2px 12px rgba(0,0,0,0.25);padding:28px 32px;text-align:center;min-width:260px;max-width:360px;width:calc(100vw - 40px);">
-        <div style="width:44px;height:44px;margin:0 auto 16px;border:4px solid color-mix(in srgb,var(--dd-accent) 25%,transparent);border-top-color:var(--dd-accent-strong);border-radius:999px;animation:dd-spin 0.95s linear infinite;"></div>
-        <p id="haloSyncProgressTitle" style="font-size:0.95rem;font-weight:700;color:var(--dd-text);margin:0 0 8px;"></p>
-        <p style="font-size:0.8rem;color:var(--dd-text-soft);margin:0;">Please keep this tab open.</p>
+    <div id="haloSyncProgressModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:13000;align-items:center;justify-content:center;padding:20px;">
+        <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
+            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:dd-spin 0.7s linear infinite;flex-shrink:0;"></span>
+            <span id="haloSyncProgressTitle"></span>
+        </div>
     </div>
 
     {{-- IT Glue Sync Modal --}}
@@ -1957,7 +1958,7 @@
 
         function showHaloSyncProgress(message) {
             document.getElementById('haloSyncProgressTitle').textContent = message;
-            document.getElementById('haloSyncProgressModal').style.display = 'block';
+            document.getElementById('haloSyncProgressModal').style.display = 'flex';
         }
 
         function hideHaloSyncProgress() {
