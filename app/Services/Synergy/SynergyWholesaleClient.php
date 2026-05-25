@@ -288,7 +288,13 @@ class SynergyWholesaleClient
         }
 
         $res = $this->soap->__soapCall('listHosting', [$params]);
-        return (array) $res;
+        $payload = (array) $res;
+
+        if (isset($payload['items'])) {
+            $payload['items'] = $this->normalizeSoapEntries($payload['items']);
+        }
+
+        return $payload;
     }
 
     /**
