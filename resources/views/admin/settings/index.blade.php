@@ -1250,6 +1250,26 @@
         </div>
     </div>
 
+    {{-- Sync Result Modal --}}
+    <div id="syncResultModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:14000;align-items:center;justify-content:center;padding:20px;">
+        <div style="width:min(90vw,480px);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;">
+            <div style="padding:18px 22px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:12px;">
+                <span id="syncResultIcon" style="flex-shrink:0;display:flex;"></span>
+                <h3 id="syncResultTitle" style="font-size:16px;font-weight:700;color:var(--text);margin:0;"></h3>
+            </div>
+            <div style="padding:18px 22px;">
+                <p id="syncResultMessage" style="margin:0;color:var(--text);font-size:14px;line-height:1.5;"></p>
+                <div id="syncResultErrors" style="display:none;margin-top:16px;">
+                    <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;">Failed Items</p>
+                    <div id="syncResultErrorList" style="border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto;"></div>
+                </div>
+            </div>
+            <div style="padding:0 22px 18px;display:flex;justify-content:flex-end;">
+                <button onclick="closeSyncResultModal()" class="btn-accent" style="padding:9px 22px;">Done</button>
+            </div>
+        </div>
+    </div>
+
     {{-- IT Glue Sync Modal --}}
     <div id="itglueSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
         <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
@@ -1480,7 +1500,7 @@
                 const mappingSelect = document.querySelector(`.halo-client-mapping[data-halo-id="${haloId}"]`);
                 const dashClientId = mappingSelect ? mappingSelect.value : '';
                 if (dashClientId) {
-                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId });
+                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId, _name: checkbox.dataset.clientName || `Client ${haloId}` });
                 }
             });
 
@@ -1510,20 +1530,21 @@
                     if (data.success) {
                         syncedCount += data.synced_count;
                     } else {
-                        errors.push(data.error || 'Unknown error');
+                        errors.push({ label: selectedClients[i]._name, message: data.error || 'Unknown error' });
                     }
                 }
 
                 hideHaloSyncProgress();
-
-                let message = `Successfully synced ${syncedCount} client(s)`;
-                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
-                alert(message);
                 closeHaloSyncModal();
-                location.reload();
+                showSyncResult(
+                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
+                    `Successfully synced ${syncedCount} client${syncedCount !== 1 ? 's' : ''}.`,
+                    errors,
+                    () => location.reload()
+                );
             } catch (error) {
                 hideHaloSyncProgress();
-                alert('Sync failed: ' + error.message);
+                showSyncResult('Sync Failed', error.message, [], () => location.reload());
             }
         }
 
@@ -1583,23 +1604,23 @@
         }
 
         async function syncHaloDomains() {
-            const selectedDomainIds = [];
+            const selectedDomains = [];
             document.querySelectorAll('.halo-domain-checkbox:checked').forEach(checkbox => {
-                selectedDomainIds.push(checkbox.dataset.domainId);
+                selectedDomains.push({ id: checkbox.dataset.domainId, _name: checkbox.dataset.domainName || `Domain ${checkbox.dataset.domainId}` });
             });
 
-            if (selectedDomainIds.length === 0) {
+            if (selectedDomains.length === 0) {
                 alert('Please select at least one domain to sync');
                 return;
             }
 
-            const total = selectedDomainIds.length;
+            const total = selectedDomains.length;
             let syncedCount = 0;
             const allWarnings = [];
             const errors = [];
 
             try {
-                for (let i = 0; i < selectedDomainIds.length; i++) {
+                for (let i = 0; i < selectedDomains.length; i++) {
                     showHaloSyncProgress(`Syncing ${i + 1} / ${total} domain${total !== 1 ? 's' : ''}…`);
 
                     const response = await fetch('/admin/sync/halo/domains/sync', {
@@ -1608,7 +1629,7 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                         },
-                        body: JSON.stringify({ domain_ids: [selectedDomainIds[i]] })
+                        body: JSON.stringify({ domain_ids: [selectedDomains[i].id] })
                     });
 
                     const data = await response.json();
@@ -1616,21 +1637,24 @@
                         syncedCount += data.synced_count;
                         if (data.warnings?.length) allWarnings.push(...data.warnings);
                     } else {
-                        errors.push(data.error || 'Unknown error');
+                        errors.push({ label: selectedDomains[i]._name, message: data.error || 'Unknown error' });
                     }
                 }
 
                 hideHaloSyncProgress();
-
-                let message = `Successfully synced ${syncedCount} domain(s)`;
-                if (allWarnings.length > 0) message += '\n\nWarnings:\n' + allWarnings.join('\n');
-                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
-                alert(message);
                 closeHaloSyncModal();
-                location.reload();
+
+                let summaryMsg = `Successfully synced ${syncedCount} domain${syncedCount !== 1 ? 's' : ''}.`;
+                if (allWarnings.length > 0) summaryMsg += ` ${allWarnings.length} warning${allWarnings.length !== 1 ? 's' : ''} noted.`;
+                showSyncResult(
+                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
+                    summaryMsg,
+                    errors,
+                    () => location.reload()
+                );
             } catch (error) {
                 hideHaloSyncProgress();
-                alert('Sync failed: ' + error.message);
+                showSyncResult('Sync Failed', error.message, [], () => location.reload());
             }
         }
 
@@ -1699,7 +1723,7 @@
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
                         <div style="color:var(--text);">${client.dash_name}</div>
-                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" class="dd-input">
+                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" data-dash-name="${client.dash_name}" class="dd-input">
                             <option value="">-- Select Organization --</option>
                             ${client.organizations.map(org => `<option value="${org.id}" ${org.id === client.mapped_id ? 'selected' : ''}>${org.name}</option>`).join('')}
                         </select>
@@ -1735,7 +1759,7 @@
                 const dashId = select.dataset.dashId;
                 const orgId = select.value;
                 if (orgId) {
-                    mappings.push({ dash_client_id: dashId, itglue_org_id: orgId });
+                    mappings.push({ dash_client_id: dashId, itglue_org_id: orgId, _name: select.dataset.dashName || `Client ${dashId}` });
                 }
             });
 
@@ -1765,20 +1789,21 @@
                     if (data.success) {
                         mappedCount += data.mapped_count;
                     } else {
-                        errors.push(data.error || 'Unknown error');
+                        errors.push({ label: mappings[i]._name, message: data.error || 'Unknown error' });
                     }
                 }
 
                 hideHaloSyncProgress();
-
-                let message = `Successfully saved ${mappedCount} mapping(s)`;
-                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
-                alert(message);
                 closeItGlueSyncModal();
-                location.reload();
+                showSyncResult(
+                    errors.length === 0 ? 'Mappings Saved' : 'Saved with Errors',
+                    `Successfully saved ${mappedCount} mapping${mappedCount !== 1 ? 's' : ''}.`,
+                    errors,
+                    () => location.reload()
+                );
             } catch (error) {
                 hideHaloSyncProgress();
-                alert('Save failed: ' + error.message);
+                showSyncResult('Save Failed', error.message, [], () => location.reload());
             }
         }
 
@@ -1913,7 +1938,7 @@
 
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${item.id}" data-item-type="${item.type}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${item.id}" data-item-type="${item.type}" data-item-name="${item.name}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                         <div style="color:var(--text);">${item.name}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.client || 'No Client'}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.type}</div>
@@ -1933,7 +1958,7 @@
         async function syncItGlueConfigs() {
             const selectedItems = [];
             document.querySelectorAll('.itglue-config-checkbox:checked').forEach(checkbox => {
-                selectedItems.push({ id: checkbox.dataset.itemId, type: checkbox.dataset.itemType });
+                selectedItems.push({ id: checkbox.dataset.itemId, type: checkbox.dataset.itemType, _name: checkbox.dataset.itemName || `Item ${checkbox.dataset.itemId}` });
             });
 
             if (selectedItems.length === 0) {
@@ -1962,20 +1987,21 @@
                     if (data.success) {
                         syncedCount += data.synced_count;
                     } else {
-                        errors.push(data.error || 'Unknown error');
+                        errors.push({ label: selectedItems[i]._name, message: data.error || 'Unknown error' });
                     }
                 }
 
                 hideHaloSyncProgress();
-
-                let message = `Successfully synced ${syncedCount} item(s)`;
-                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
-                alert(message);
                 closeItGlueSyncModal();
-                location.reload();
+                showSyncResult(
+                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
+                    `Successfully synced ${syncedCount} configuration${syncedCount !== 1 ? 's' : ''}.`,
+                    errors,
+                    () => location.reload()
+                );
             } catch (error) {
                 hideHaloSyncProgress();
-                alert('Sync failed: ' + error.message);
+                showSyncResult('Sync Failed', error.message, [], () => location.reload());
             }
         }
 
@@ -1986,6 +2012,43 @@
 
         function hideHaloSyncProgress() {
             document.getElementById('haloSyncProgressModal').style.display = 'none';
+        }
+
+        let _syncResultOnClose = null;
+
+        function showSyncResult(title, message, errors, onClose) {
+            _syncResultOnClose = onClose || null;
+
+            document.getElementById('syncResultTitle').textContent = title;
+            document.getElementById('syncResultMessage').textContent = message;
+
+            const hasErrors = errors && errors.length > 0;
+            const iconEl = document.getElementById('syncResultIcon');
+
+            if (hasErrors) {
+                iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+                const list = document.getElementById('syncResultErrorList');
+                list.innerHTML = errors.map((e, idx) => `
+                    <div style="padding:10px 12px;${idx < errors.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : ''}display:flex;flex-direction:column;gap:3px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--text);">${e.label}</span>
+                        <span style="font-size:13px;color:#ef4444;">${e.message}</span>
+                    </div>`).join('');
+                document.getElementById('syncResultErrors').style.display = 'block';
+            } else {
+                iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                document.getElementById('syncResultErrors').style.display = 'none';
+            }
+
+            document.getElementById('syncResultModal').style.display = 'flex';
+        }
+
+        function closeSyncResultModal() {
+            document.getElementById('syncResultModal').style.display = 'none';
+            if (_syncResultOnClose) {
+                const cb = _syncResultOnClose;
+                _syncResultOnClose = null;
+                cb();
+            }
         }
 
         function showGlobalSpinner(message = 'Working…') {
