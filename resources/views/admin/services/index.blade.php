@@ -362,33 +362,40 @@
         overflow-x: auto;
     }
 
+    /* Table — mirrors the layout's "main table" rules exactly so the
+       appearance matches the Domains page in all themes. */
     .dd-services-table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         font-size: 14px;
+        background: var(--surface-elevated);
+        color: var(--text);
+        border-radius: 6px;
+        overflow: hidden;
     }
 
-    .dd-services-table thead tr {
-        background: var(--dd-surface-muted);
-    }
-
-    .dd-services-table th {
-        padding: 8px 10px;
-        text-align: left;
+    .dd-services-table thead th {
+        background: var(--surface-muted);
         font-weight: 600;
-        border-bottom: 1px solid var(--dd-border);
-        color: var(--dd-text);
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-subtle);
+        color: var(--text);
     }
 
-    .dd-services-table td {
-        padding: 8px 10px;
-        text-align: left;
-        border-bottom: 1px solid var(--dd-border);
-        color: var(--dd-text);
+    .dd-services-table tbody td {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border-subtle);
+        color: var(--text);
+    }
+
+    .dd-services-table tbody tr:last-child td {
+        border-bottom: none;
     }
 
     .dd-services-table tbody tr:nth-child(even) {
-        background: color-mix(in srgb, var(--dd-surface-muted) 40%, var(--dd-surface-soft) 60%);
+        background: color-mix(in srgb, var(--surface-muted) 70%, var(--surface-elevated) 30%);
     }
 
     .dd-services-pagination {
@@ -400,7 +407,7 @@
     }
 
     .dd-service-row:hover {
-        background-color: var(--dd-surface-muted) !important;
+        background: var(--surface-muted) !important;
     }
 
     .dd-service-domain-cell {
@@ -449,8 +456,8 @@
         padding: 16px 18px 18px;
         margin-top: 0;
         border-radius: 8px;
-        border: 1px solid var(--dd-border);
-        background: var(--dd-surface);
+        border: 1px solid var(--border-subtle);
+        background: var(--surface-elevated);
     }
 
     .dd-service-panel-header {
@@ -459,8 +466,8 @@
         align-items: center;
         padding: 8px 12px;
         border-radius: 6px;
-        background: var(--dd-surface-muted);
-        border: 1px solid var(--dd-border);
+        background: var(--surface-muted);
+        border: 1px solid var(--border-subtle);
         margin-bottom: 14px;
     }
 
@@ -476,22 +483,22 @@
         align-items: center;
         padding: 10px 14px;
         border-radius: 9999px;
-        background: var(--dd-surface-soft);
-        border: 1px solid var(--dd-border);
+        background: var(--surface-muted);
+        border: 1px solid var(--border-subtle);
         text-decoration: none;
         font-size: 14px;
         cursor: pointer;
         width: 100%;
         min-height: 54px;
         box-sizing: border-box;
-        color: var(--dd-text);
+        color: var(--text);
         transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
     }
 
     .dd-service-option:hover,
     .dd-service-option-btn:hover {
-        background: var(--dd-surface-muted);
-        border-color: var(--dd-accent);
+        background: color-mix(in srgb, var(--surface-muted) 70%, var(--accent) 30%);
+        border-color: var(--accent);
         transform: translateY(-1px);
     }
 
@@ -533,7 +540,7 @@
     .dd-service-form {
         border-radius: 12px;
         padding: 10px;
-        border: 1px solid var(--dd-border);
+        border: 1px solid var(--border-subtle);
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -544,22 +551,22 @@
         font-weight: 500;
         margin-bottom: 2px;
         display: block;
-        color: var(--dd-text);
+        color: var(--text);
     }
 
     .dd-pill-input {
         border-radius: 12px !important;
-        border: 1px solid var(--dd-border) !important;
+        border: 1px solid var(--border-subtle) !important;
         padding: 8px 14px !important;
         font-size: 14px;
         outline: none;
-        background: var(--dd-surface-soft) !important;
-        color: var(--dd-text) !important;
+        background: var(--surface-elevated) !important;
+        color: var(--text) !important;
     }
 
     .dd-pill-input:focus {
-        border-color: var(--dd-accent) !important;
-        box-shadow: var(--dd-focus-ring) !important;
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent) !important;
     }
 
     .dd-pill-select {
@@ -584,7 +591,7 @@
     .dd-password-backdrop {
         position: absolute;
         inset: 0;
-        background: var(--dd-backdrop);
+        background: rgba(15, 23, 42, 0.65);
         backdrop-filter: blur(2px);
     }
 
@@ -595,16 +602,16 @@
         width: 100%;
         border-radius: 18px;
         padding: 20px;
-        background: var(--dd-surface);
-        border: 1px solid var(--dd-border);
-        box-shadow: var(--dd-shadow-overlay);
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.35);
     }
 
     .dd-password-title {
         font-size: 18px;
         font-weight: 600;
         margin-bottom: 10px;
-        color: var(--dd-text);
+        color: var(--text);
     }
 
     .dd-password-input-wrapper {
@@ -626,7 +633,7 @@
         background: transparent;
         cursor: pointer;
         font-size: 18px;
-        color: var(--dd-text);
+        color: var(--text);
         opacity: 0.7;
         padding: 4px 8px;
         border-radius: 4px;
@@ -635,7 +642,7 @@
 
     .dd-password-toggle:hover {
         opacity: 1;
-        background: var(--dd-surface-soft);
+        background: var(--surface-muted);
     }
 
     .dd-password-actions {
