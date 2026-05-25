@@ -1644,7 +1644,7 @@
 
         async function loadItGlueClients() {
             const listEl = document.getElementById('itglueClientList');
-            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading clients...</div>';
+            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading clients...</span></div></div>';
 
             try {
                 const response = await fetch('/admin/sync/itglue/clients');
@@ -1847,7 +1847,7 @@
 
         async function loadItGlueConfigs() {
             const listEl = document.getElementById('itglueConfigList');
-            listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>Loading configuration items...</div>';
+            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading configuration items...</span></div></div>';
 
             try {
                 const response = await fetch('/admin/sync/itglue/configurations');
