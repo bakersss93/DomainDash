@@ -1734,12 +1734,8 @@
             document.querySelectorAll('.itglue-client-mapping').forEach(select => {
                 const dashId = select.dataset.dashId;
                 const orgId = select.value;
-
                 if (orgId) {
-                    mappings.push({
-                        dash_client_id: dashId,
-                        itglue_org_id: orgId
-                    });
+                    mappings.push({ dash_client_id: dashId, itglue_org_id: orgId });
                 }
             });
 
@@ -1747,31 +1743,42 @@
                 alert('Please map at least one client');
                 return;
             }
-            showGlobalSpinner('Saving IT Glue organization mappings…');
+
+            const total = mappings.length;
+            let mappedCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/itglue/clients/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ mappings: mappings })
-                });
+                for (let i = 0; i < mappings.length; i++) {
+                    showHaloSyncProgress(`Saving ${i + 1} / ${total} mapping${total !== 1 ? 's' : ''}…`);
 
-                const data = await response.json();
+                    const response = await fetch('/admin/sync/itglue/clients/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({ mappings: [mappings[i]] })
+                    });
 
-                if (data.success) {
-                    alert(`Successfully saved ${data.mapped_count} mapping(s)`);
-                    closeItGlueSyncModal();
-                    location.reload();
-                } else {
-                    alert('Save failed: ' + (data.error || 'Unknown error'));
+                    const data = await response.json();
+                    if (data.success) {
+                        mappedCount += data.mapped_count;
+                    } else {
+                        errors.push(data.error || 'Unknown error');
+                    }
                 }
+
+                hideHaloSyncProgress();
+
+                let message = `Successfully saved ${mappedCount} mapping(s)`;
+                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
+                alert(message);
+                closeItGlueSyncModal();
+                location.reload();
             } catch (error) {
+                hideHaloSyncProgress();
                 alert('Save failed: ' + error.message);
-            } finally {
-                hideGlobalSpinner();
             }
         }
 
@@ -1926,10 +1933,7 @@
         async function syncItGlueConfigs() {
             const selectedItems = [];
             document.querySelectorAll('.itglue-config-checkbox:checked').forEach(checkbox => {
-                selectedItems.push({
-                    id: checkbox.dataset.itemId,
-                    type: checkbox.dataset.itemType
-                });
+                selectedItems.push({ id: checkbox.dataset.itemId, type: checkbox.dataset.itemType });
             });
 
             if (selectedItems.length === 0) {
@@ -1937,40 +1941,42 @@
                 return;
             }
 
-            showItGlueSyncProgress();
+            const total = selectedItems.length;
+            let syncedCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/itglue/configurations/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ items: selectedItems })
-                });
+                for (let i = 0; i < selectedItems.length; i++) {
+                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} configuration${total !== 1 ? 's' : ''}…`);
 
-                const data = await response.json();
+                    const response = await fetch('/admin/sync/itglue/configurations/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({ items: [selectedItems[i]] })
+                    });
 
-                if (data.success) {
-                    alert(`Successfully synced ${data.synced_count} item(s)`);
-                    closeItGlueSyncModal();
-                    location.reload();
-                } else {
-                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                    const data = await response.json();
+                    if (data.success) {
+                        syncedCount += data.synced_count;
+                    } else {
+                        errors.push(data.error || 'Unknown error');
+                    }
                 }
+
+                hideHaloSyncProgress();
+
+                let message = `Successfully synced ${syncedCount} item(s)`;
+                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
+                alert(message);
+                closeItGlueSyncModal();
+                location.reload();
             } catch (error) {
+                hideHaloSyncProgress();
                 alert('Sync failed: ' + error.message);
-            } finally {
-                hideItGlueSyncProgress();
             }
-        }
-
-        function showItGlueSyncProgress() {
-            showGlobalSpinner('Syncing to IT Glue…');
-        }
-
-        function hideItGlueSyncProgress() {
-            hideGlobalSpinner();
         }
 
         function showHaloSyncProgress(message) {
