@@ -7,7 +7,7 @@
         <span>Syncing hosting services...</span>
     </div>
 </div>
-<div style="max-width: 1200px; margin: 0 auto;">
+<div class="dd-page">
     <div class="dd-services-card">
         <h1 class="dd-services-title">
             Hosting Services
@@ -320,19 +320,19 @@
     }
 
     .dd-services-card {
-        border-radius: 18px;
+        border-radius: 16px;
         padding: 18px 20px;
-        margin-top: 24px;
+        margin-top: 0;
         border: 1px solid var(--dd-border);
-        background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
+        background: var(--dd-surface-soft);
         color: var(--dd-text);
         box-shadow: var(--dd-shadow);
     }
 
     .dd-services-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 12px;
+        font-size: 1.45rem;
+        font-weight: 700;
+        margin: 0 0 1rem;
         color: var(--dd-text);
     }
 
@@ -369,11 +369,17 @@
     }
 
     .dd-services-table thead tr {
-        background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+        background: var(--dd-surface-muted);
+    }
+
+    .dd-services-table th {
+        padding: 8px 10px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 1px solid var(--dd-border);
         color: var(--dd-text);
     }
 
-    .dd-services-table th,
     .dd-services-table td {
         padding: 8px 10px;
         text-align: left;
@@ -382,7 +388,7 @@
     }
 
     .dd-services-table tbody tr:nth-child(even) {
-        background: var(--dd-surface-soft);
+        background: color-mix(in srgb, var(--dd-surface-muted) 40%, var(--dd-surface-soft) 60%);
     }
 
     .dd-services-pagination {
@@ -394,7 +400,7 @@
     }
 
     .dd-service-row:hover {
-        background-color: var(--dd-surface-muted);
+        background-color: var(--dd-surface-muted) !important;
     }
 
     .dd-service-domain-cell {
@@ -444,7 +450,7 @@
         margin-top: 0;
         border-radius: 8px;
         border: 1px solid var(--dd-border);
-        background: var(--dd-surface-soft);
+        background: var(--dd-surface);
     }
 
     .dd-service-panel-header {
@@ -453,7 +459,7 @@
         align-items: center;
         padding: 8px 12px;
         border-radius: 6px;
-        background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+        background: var(--dd-surface-muted);
         border: 1px solid var(--dd-border);
         margin-bottom: 14px;
     }
