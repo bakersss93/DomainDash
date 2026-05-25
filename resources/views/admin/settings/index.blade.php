@@ -1242,17 +1242,11 @@
         </div>
     </div>
 
-    {{-- HaloPSA Sync Progress Overlay --}}
-    <div id="haloSyncProgressOverlay" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.78);backdrop-filter:blur(4px);z-index:13000;align-items:center;justify-content:center;padding:20px;">
-        <div style="width:min(90vw,400px);background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:18px;box-shadow:var(--dd-shadow,0 8px 32px rgba(0,0,0,0.35));padding:32px 28px 26px;text-align:center;">
-            <div style="width:52px;height:52px;margin:0 auto 18px;border:5px solid color-mix(in srgb,var(--dd-accent) 25%,transparent);border-top-color:var(--dd-accent-strong);border-radius:999px;animation:dd-spin 0.95s linear infinite;"></div>
-            <p id="haloSyncProgressTitle" style="font-size:1rem;font-weight:700;color:var(--dd-text);margin:0 0 6px;"></p>
-            <p id="haloSyncProgressName" style="font-size:0.875rem;color:var(--dd-text-soft);margin:0 0 20px;min-height:1.3em;word-break:break-word;"></p>
-            <div style="background:color-mix(in srgb,var(--dd-border) 60%,transparent);border-radius:999px;height:6px;overflow:hidden;margin-bottom:10px;">
-                <div id="haloSyncProgressBar" style="height:100%;background:linear-gradient(90deg,var(--dd-accent),var(--dd-accent-strong));border-radius:999px;width:0%;transition:width 0.35s ease;"></div>
-            </div>
-            <p style="font-size:0.8rem;color:var(--dd-text-soft);margin:0;">Please keep this tab open.</p>
-        </div>
+    {{-- HaloPSA Sync Progress Modal --}}
+    <div id="haloSyncProgressModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:13000;background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.45),0 2px 12px rgba(0,0,0,0.25);padding:28px 32px;text-align:center;min-width:260px;max-width:360px;width:calc(100vw - 40px);">
+        <div style="width:44px;height:44px;margin:0 auto 16px;border:4px solid color-mix(in srgb,var(--dd-accent) 25%,transparent);border-top-color:var(--dd-accent-strong);border-radius:999px;animation:dd-spin 0.95s linear infinite;"></div>
+        <p id="haloSyncProgressTitle" style="font-size:0.95rem;font-weight:700;color:var(--dd-text);margin:0 0 8px;"></p>
+        <p style="font-size:0.8rem;color:var(--dd-text-soft);margin:0;">Please keep this tab open.</p>
     </div>
 
     {{-- IT Glue Sync Modal --}}
@@ -1482,12 +1476,10 @@
             const selectedClients = [];
             document.querySelectorAll('.halo-client-checkbox:checked').forEach(checkbox => {
                 const haloId = checkbox.dataset.clientId;
-                const clientName = checkbox.dataset.clientName || `Client ${haloId}`;
                 const mappingSelect = document.querySelector(`.halo-client-mapping[data-halo-id="${haloId}"]`);
                 const dashClientId = mappingSelect ? mappingSelect.value : '';
-
                 if (dashClientId) {
-                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId, _name: clientName });
+                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId });
                 }
             });
 
@@ -1496,43 +1488,29 @@
                 return;
             }
 
-            const total = selectedClients.length;
-            let syncedCount = 0;
-            const errors = [];
+            const n = selectedClients.length;
+            showHaloSyncProgress(`Syncing ${n} client${n !== 1 ? 's' : ''} to HaloPSA…`);
 
             try {
-                for (let i = 0; i < selectedClients.length; i++) {
-                    const client = selectedClients[i];
-                    showHaloSyncProgress(i + 1, total, client._name, 'client');
+                const response = await fetch('/admin/sync/halo/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ clients: selectedClients })
+                });
 
-                    const response = await fetch('/admin/sync/halo/clients/sync', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({ clients: [{ halo_id: client.halo_id, dash_client_id: client.dash_client_id }] })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        syncedCount += data.synced_count;
-                    } else {
-                        errors.push(`${client._name}: ${data.error || 'Unknown error'}`);
-                    }
-                }
-
-                completeHaloSyncProgress();
-                await new Promise(r => setTimeout(r, 400));
+                const data = await response.json();
                 hideHaloSyncProgress();
 
-                let message = `Successfully synced ${syncedCount} client(s)`;
-                if (errors.length > 0) {
-                    message += '\n\nErrors:\n' + errors.join('\n');
+                if (data.success) {
+                    alert(`Successfully synced ${data.synced_count} client(s)`);
+                    closeHaloSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
                 }
-                alert(message);
-                closeHaloSyncModal();
-                location.reload();
             } catch (error) {
                 hideHaloSyncProgress();
                 alert('Sync failed: ' + error.message);
@@ -1595,63 +1573,43 @@
         }
 
         async function syncHaloDomains() {
-            const selectedDomains = [];
+            const selectedDomainIds = [];
             document.querySelectorAll('.halo-domain-checkbox:checked').forEach(checkbox => {
-                selectedDomains.push({
-                    id: checkbox.dataset.domainId,
-                    name: checkbox.dataset.domainName || `Domain ${checkbox.dataset.domainId}`
-                });
+                selectedDomainIds.push(checkbox.dataset.domainId);
             });
 
-            if (selectedDomains.length === 0) {
+            if (selectedDomainIds.length === 0) {
                 alert('Please select at least one domain to sync');
                 return;
             }
 
-            const total = selectedDomains.length;
-            let syncedCount = 0;
-            const allWarnings = [];
-            const errors = [];
+            const n = selectedDomainIds.length;
+            showHaloSyncProgress(`Syncing ${n} domain${n !== 1 ? 's' : ''} to HaloPSA…`);
 
             try {
-                for (let i = 0; i < selectedDomains.length; i++) {
-                    const domain = selectedDomains[i];
-                    showHaloSyncProgress(i + 1, total, domain.name, 'domain');
+                const response = await fetch('/admin/sync/halo/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ domain_ids: selectedDomainIds })
+                });
 
-                    const response = await fetch('/admin/sync/halo/domains/sync', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({ domain_ids: [domain.id] })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        syncedCount += data.synced_count;
-                        if (data.warnings && data.warnings.length > 0) {
-                            allWarnings.push(...data.warnings);
-                        }
-                    } else {
-                        errors.push(`${domain.name}: ${data.error || 'Unknown error'}`);
-                    }
-                }
-
-                completeHaloSyncProgress();
-                await new Promise(r => setTimeout(r, 400));
+                const data = await response.json();
                 hideHaloSyncProgress();
 
-                let message = `Successfully synced ${syncedCount} domain(s)`;
-                if (allWarnings.length > 0) {
-                    message += '\n\nWarnings:\n' + allWarnings.join('\n');
+                if (data.success) {
+                    let message = `Successfully synced ${data.synced_count} domain(s)`;
+                    if (data.warnings && data.warnings.length > 0) {
+                        message += '\n\nWarnings:\n' + data.warnings.join('\n');
+                    }
+                    alert(message);
+                    closeHaloSyncModal();
+                    location.reload();
+                } else {
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
                 }
-                if (errors.length > 0) {
-                    message += '\n\nErrors:\n' + errors.join('\n');
-                }
-                alert(message);
-                closeHaloSyncModal();
-                location.reload();
             } catch (error) {
                 hideHaloSyncProgress();
                 alert('Sync failed: ' + error.message);
@@ -1997,22 +1955,13 @@
             hideGlobalSpinner();
         }
 
-        function showHaloSyncProgress(current, total, itemName, itemType) {
-            const overlay = document.getElementById('haloSyncProgressOverlay');
-            document.getElementById('haloSyncProgressTitle').textContent =
-                `Syncing ${itemType} ${current} of ${total}`;
-            document.getElementById('haloSyncProgressName').textContent = itemName;
-            const pct = total > 1 ? ((current - 1) / total) * 100 : 0;
-            document.getElementById('haloSyncProgressBar').style.width = pct + '%';
-            overlay.style.display = 'flex';
-        }
-
-        function completeHaloSyncProgress() {
-            document.getElementById('haloSyncProgressBar').style.width = '100%';
+        function showHaloSyncProgress(message) {
+            document.getElementById('haloSyncProgressTitle').textContent = message;
+            document.getElementById('haloSyncProgressModal').style.display = 'block';
         }
 
         function hideHaloSyncProgress() {
-            document.getElementById('haloSyncProgressOverlay').style.display = 'none';
+            document.getElementById('haloSyncProgressModal').style.display = 'none';
         }
 
         function showGlobalSpinner(message = 'Working…') {
