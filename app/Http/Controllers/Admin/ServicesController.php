@@ -149,7 +149,7 @@ class ServicesController extends Controller
                     ->with('status', 'Synergy listHosting failed: ' . $message);
             }
 
-            $items = $res['items'] ?? [];
+            $items = $res['hoidList'] ?? [];
             if (!is_array($items) || empty($items)) {
                 break;
             }
@@ -221,7 +221,7 @@ class ServicesController extends Controller
             }
 
             $page++;
-        } while (!empty($res['items']) && count($res['items']) === $limit);
+        } while (!empty($res['hoidList']) && count($res['hoidList']) === $limit);
 
         AuditLogger::logSystem('sync.completed', "Hosting service sync from Synergy completed ({$totalImported} records).", [
             'service' => 'synergy',

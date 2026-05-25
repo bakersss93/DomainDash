@@ -290,8 +290,9 @@ class SynergyWholesaleClient
         $res = $this->soap->__soapCall('listHosting', [$params]);
         $payload = (array) $res;
 
-        if (isset($payload['items'])) {
-            $payload['items'] = $this->normalizeSoapEntries($payload['items']);
+        // WSDL: response field is 'hoidList' (bulkHostingInfoResponseArray)
+        if (isset($payload['hoidList'])) {
+            $payload['hoidList'] = $this->normalizeSoapEntries($payload['hoidList']);
         }
 
         return $payload;
