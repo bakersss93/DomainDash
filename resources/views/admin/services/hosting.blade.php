@@ -39,8 +39,7 @@
               class="dd-services-sync">
             @csrf
             <button type="submit"
-                    class="btn-accent dd-pill-btn"
-                    onclick="return confirm('Sync hosting services from Synergy now?');">
+                    class="btn-accent dd-pill-btn">
                 Sync services
             </button>
         </form>
