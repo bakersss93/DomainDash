@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div id="hosting-sync-loading-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
-    <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
-        <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:hosting-sync-spin 0.7s linear infinite;"></span>
+<div id="hosting-sync-loading-overlay" style="position:fixed;inset:0;background:var(--dd-backdrop);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
+    <div style="min-width:220px;background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--dd-text);">
+        <span style="width:18px;height:18px;border:2px solid color-mix(in srgb,var(--dd-text) 30%,transparent);border-top-color:var(--dd-text);border-radius:999px;display:inline-block;animation:hosting-sync-spin 0.7s linear infinite;"></span>
         <span>Syncing hosting services...</span>
     </div>
 </div>
@@ -315,58 +315,25 @@
 </div>
 
 <style>
-    :root {
-        --dd-card-radius: 18px;
-        --dd-card-padding: 18px 20px;
-
-        --dd-pill-radius: 12px;
-        --dd-pill-padding: 8px 14px;
-
-        --dd-card-bg: #ffffff;
-        --dd-card-border: #d1d5db;
-        --dd-pill-bg: #f3f4f6;
-        --dd-pill-border: #d1d5db;
-        --dd-text-color: #111827;
-        --dd-header-bg: #f9fafb;
-        --dd-header-text: #111827;
-        --dd-row-alt-bg: #f9f9fb;
-        --dd-hover-bg: rgba(148,163,184,0.12);
-        --dd-overlay-bg: rgba(15,23,42,0.65);
-    }
-
-    body.dark-mode,
-    body[data-theme="dark"],
-    html.dark,
-    html[data-theme="dark"] {
-        --dd-card-bg: #020617;
-        --dd-card-border: #1f2937;
-        --dd-pill-bg: #0f172a;
-        --dd-pill-border: #374151;
-        --dd-text-color: #e5e7eb;
-        --dd-header-bg: #020617;
-        --dd-header-text: #f9fafb;
-        --dd-row-alt-bg: #111827;
-        --dd-hover-bg: rgba(148,163,184,0.18);
-        --dd-overlay-bg: rgba(15,23,42,0.85);
-    }
-
     .dd-hidden {
         display: none;
     }
 
     .dd-services-card {
-        border-radius: var(--dd-card-radius);
-        padding: var(--dd-card-padding);
+        border-radius: 18px;
+        padding: 18px 20px;
         margin-top: 24px;
-        border: 1px solid var(--dd-card-border);
-        background: var(--dd-card-bg);
-        color: var(--dd-text-color);
+        border: 1px solid var(--dd-border);
+        background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
+        color: var(--dd-text);
+        box-shadow: var(--dd-shadow);
     }
 
     .dd-services-title {
         font-size: 20px;
         font-weight: 600;
         margin-bottom: 12px;
+        color: var(--dd-text);
     }
 
     .dd-services-toolbar {
@@ -402,19 +369,20 @@
     }
 
     .dd-services-table thead tr {
-        background: var(--dd-header-bg);
-        color: var(--dd-header-text);
+        background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+        color: var(--dd-text);
     }
 
     .dd-services-table th,
     .dd-services-table td {
         padding: 8px 10px;
         text-align: left;
-        border-bottom: 1px solid rgba(148,163,184,0.4);
+        border-bottom: 1px solid var(--dd-border);
+        color: var(--dd-text);
     }
 
     .dd-services-table tbody tr:nth-child(even) {
-        background: var(--dd-row-alt-bg);
+        background: var(--dd-surface-soft);
     }
 
     .dd-services-pagination {
@@ -426,7 +394,7 @@
     }
 
     .dd-service-row:hover {
-        background-color: rgba(148,163,184,0.18);
+        background-color: var(--dd-surface-muted);
     }
 
     .dd-service-domain-cell {
@@ -437,7 +405,7 @@
         text-decoration: none;
     }
 
-    /* Expandable panel with smooth transitions */
+    /* Expandable panel */
     tr[data-service-panel] {
         display: none;
         height: 0;
@@ -475,8 +443,8 @@
         padding: 16px 18px 18px;
         margin-top: 0;
         border-radius: 8px;
-        border: 1px solid var(--dd-card-border);
-        background: var(--dd-card-bg);
+        border: 1px solid var(--dd-border);
+        background: var(--dd-surface-soft);
     }
 
     .dd-service-panel-header {
@@ -485,8 +453,8 @@
         align-items: center;
         padding: 8px 12px;
         border-radius: 6px;
-        background: var(--dd-header-bg);
-        border: 1px solid var(--dd-card-border);
+        background: color-mix(in srgb, var(--dd-accent) 10%, transparent);
+        border: 1px solid var(--dd-border);
         margin-bottom: 14px;
     }
 
@@ -502,22 +470,22 @@
         align-items: center;
         padding: 10px 14px;
         border-radius: 9999px;
-        background: var(--dd-pill-bg);
-        border: 1px solid var(--dd-pill-border);
+        background: var(--dd-surface-soft);
+        border: 1px solid var(--dd-border);
         text-decoration: none;
         font-size: 14px;
         cursor: pointer;
         width: 100%;
         min-height: 54px;
         box-sizing: border-box;
-        color: var(--dd-text-color);
+        color: var(--dd-text);
         transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
     }
 
     .dd-service-option:hover,
     .dd-service-option-btn:hover {
-        background: var(--dd-hover-bg, rgba(148,163,184,0.18));
-        border-color: var(--accent);
+        background: var(--dd-surface-muted);
+        border-color: var(--dd-accent);
         transform: translateY(-1px);
     }
 
@@ -547,19 +515,19 @@
 
     .dd-service-option-danger,
     .dd-service-option-btn.dd-service-option-danger {
-        border-color: #ef4444;
+        border-color: var(--dd-danger);
     }
 
     .dd-service-option-danger:hover,
     .dd-service-option-btn.dd-service-option-danger:hover {
-        background: rgba(239, 68, 68, 0.1);
-        border-color: #dc2626;
+        background: color-mix(in srgb, var(--dd-danger) 12%, transparent);
+        border-color: var(--dd-danger);
     }
 
     .dd-service-form {
         border-radius: 12px;
         padding: 10px;
-        border: 1px solid var(--dd-card-border);
+        border: 1px solid var(--dd-border);
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -570,20 +538,22 @@
         font-weight: 500;
         margin-bottom: 2px;
         display: block;
+        color: var(--dd-text);
     }
 
     .dd-pill-input {
-        border-radius: var(--dd-pill-radius) !important;
-        border: 1px solid var(--dd-pill-border) !important;
-        padding: var(--dd-pill-padding) !important;
+        border-radius: 12px !important;
+        border: 1px solid var(--dd-border) !important;
+        padding: 8px 14px !important;
         font-size: 14px;
         outline: none;
-        background: var(--dd-pill-bg) !important;
-        color: var(--dd-text-color) !important;
+        background: var(--dd-surface-soft) !important;
+        color: var(--dd-text) !important;
     }
 
     .dd-pill-input:focus {
-        border-color: var(--accent, #4ade80) !important;
+        border-color: var(--dd-accent) !important;
+        box-shadow: var(--dd-focus-ring) !important;
     }
 
     .dd-pill-select {
@@ -591,11 +561,11 @@
     }
 
     .dd-pill-btn {
-        border-radius: var(--dd-pill-radius) !important;
+        border-radius: 12px !important;
         padding: 8px 16px !important;
     }
 
-    /* Password modal */
+    /* Modals */
     .dd-password-modal {
         position: fixed;
         inset: 0;
@@ -608,7 +578,8 @@
     .dd-password-backdrop {
         position: absolute;
         inset: 0;
-        background: var(--dd-overlay-bg);
+        background: var(--dd-backdrop);
+        backdrop-filter: blur(2px);
     }
 
     .dd-password-panel {
@@ -616,17 +587,18 @@
         z-index: 1000;
         max-width: 420px;
         width: 100%;
-        border-radius: var(--dd-card-radius);
+        border-radius: 18px;
         padding: 20px;
-        background: var(--dd-card-bg);
-        border: 1px solid var(--dd-card-border);
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
+        box-shadow: var(--dd-shadow-overlay);
     }
 
     .dd-password-title {
         font-size: 18px;
         font-weight: 600;
         margin-bottom: 10px;
-        color: var(--dd-text-color);
+        color: var(--dd-text);
     }
 
     .dd-password-input-wrapper {
@@ -648,7 +620,7 @@
         background: transparent;
         cursor: pointer;
         font-size: 18px;
-        color: var(--dd-text-color);
+        color: var(--dd-text);
         opacity: 0.7;
         padding: 4px 8px;
         border-radius: 4px;
@@ -657,7 +629,7 @@
 
     .dd-password-toggle:hover {
         opacity: 1;
-        background: var(--dd-pill-bg);
+        background: var(--dd-surface-soft);
     }
 
     .dd-password-actions {
@@ -667,7 +639,7 @@
     }
 
     .dd-password-modal.dd-hidden {
-    display: none !important;
+        display: none !important;
     }
 
     @keyframes hosting-sync-spin {
