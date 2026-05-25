@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use App\Models\Client;
 use App\Models\Domain;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\AuditLogger;
@@ -1141,25 +1142,29 @@ class SyncController extends Controller
 
     private function getHaloAccessToken($config)
     {
-        try {
-            $authServer = $config['auth_server'] ?? str_replace('/api', '/auth', $config['base_url']);
+        $cacheKey = 'halo_access_token_' . md5(($config['client_id'] ?? '') . ($config['base_url'] ?? ''));
 
-            $response = Http::asForm()->post($authServer . '/token', [
-                'grant_type' => 'client_credentials',
-                'client_id' => $config['client_id'],
-                'client_secret' => $config['api_key'],
-                'scope' => 'all',
-            ]);
+        return Cache::remember($cacheKey, 50 * 60, function () use ($config) {
+            try {
+                $authServer = $config['auth_server'] ?? str_replace('/api', '/auth', $config['base_url']);
 
-            if ($response->successful()) {
-                return $response->json('access_token');
+                $response = Http::asForm()->post($authServer . '/token', [
+                    'grant_type' => 'client_credentials',
+                    'client_id' => $config['client_id'],
+                    'client_secret' => $config['api_key'],
+                    'scope' => 'all',
+                ]);
+
+                if ($response->successful()) {
+                    return $response->json('access_token');
+                }
+
+                return null;
+            } catch (\Exception $e) {
+                Log::error('Halo auth error: ' . $e->getMessage());
+                return null;
             }
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Halo auth error: ' . $e->getMessage());
-            return null;
-        }
+        });
     }
 
     private function findClientMatches($haloClientName, $dashClients)

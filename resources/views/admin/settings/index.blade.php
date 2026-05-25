@@ -1489,29 +1489,38 @@
                 return;
             }
 
-            const n = selectedClients.length;
-            showHaloSyncProgress(`Syncing ${n} client${n !== 1 ? 's' : ''} to HaloPSA…`);
+            const total = selectedClients.length;
+            let syncedCount = 0;
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/halo/clients/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ clients: selectedClients })
-                });
+                for (let i = 0; i < selectedClients.length; i++) {
+                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} client${total !== 1 ? 's' : ''}…`);
 
-                const data = await response.json();
+                    const response = await fetch('/admin/sync/halo/clients/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({ clients: [selectedClients[i]] })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        syncedCount += data.synced_count;
+                    } else {
+                        errors.push(data.error || 'Unknown error');
+                    }
+                }
+
                 hideHaloSyncProgress();
 
-                if (data.success) {
-                    alert(`Successfully synced ${data.synced_count} client(s)`);
-                    closeHaloSyncModal();
-                    location.reload();
-                } else {
-                    alert('Sync failed: ' + (data.error || 'Unknown error'));
-                }
+                let message = `Successfully synced ${syncedCount} client(s)`;
+                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
+                alert(message);
+                closeHaloSyncModal();
+                location.reload();
             } catch (error) {
                 hideHaloSyncProgress();
                 alert('Sync failed: ' + error.message);
@@ -1584,33 +1593,41 @@
                 return;
             }
 
-            const n = selectedDomainIds.length;
-            showHaloSyncProgress(`Syncing ${n} domain${n !== 1 ? 's' : ''} to HaloPSA…`);
+            const total = selectedDomainIds.length;
+            let syncedCount = 0;
+            const allWarnings = [];
+            const errors = [];
 
             try {
-                const response = await fetch('/admin/sync/halo/domains/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ domain_ids: selectedDomainIds })
-                });
+                for (let i = 0; i < selectedDomainIds.length; i++) {
+                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} domain${total !== 1 ? 's' : ''}…`);
 
-                const data = await response.json();
+                    const response = await fetch('/admin/sync/halo/domains/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({ domain_ids: [selectedDomainIds[i]] })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        syncedCount += data.synced_count;
+                        if (data.warnings?.length) allWarnings.push(...data.warnings);
+                    } else {
+                        errors.push(data.error || 'Unknown error');
+                    }
+                }
+
                 hideHaloSyncProgress();
 
-                if (data.success) {
-                    let message = `Successfully synced ${data.synced_count} domain(s)`;
-                    if (data.warnings && data.warnings.length > 0) {
-                        message += '\n\nWarnings:\n' + data.warnings.join('\n');
-                    }
-                    alert(message);
-                    closeHaloSyncModal();
-                    location.reload();
-                } else {
-                    alert('Sync failed: ' + (data.error || 'Unknown error'));
-                }
+                let message = `Successfully synced ${syncedCount} domain(s)`;
+                if (allWarnings.length > 0) message += '\n\nWarnings:\n' + allWarnings.join('\n');
+                if (errors.length > 0) message += '\n\nErrors:\n' + errors.join('\n');
+                alert(message);
+                closeHaloSyncModal();
+                location.reload();
             } catch (error) {
                 hideHaloSyncProgress();
                 alert('Sync failed: ' + error.message);
