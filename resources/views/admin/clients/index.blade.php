@@ -1171,6 +1171,7 @@
     .dd-sync-btn {
         font-size: 13px;
         width: 100%;
+        margin-bottom: 6px;
     }
 
     .dd-sync-status {
