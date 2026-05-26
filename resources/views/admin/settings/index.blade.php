@@ -1245,7 +1245,7 @@
     {{-- HaloPSA Sync Progress Modal --}}
     <div id="haloSyncProgressModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:13000;align-items:center;justify-content:center;padding:20px;">
         <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
-            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:dd-spin 0.7s linear infinite;flex-shrink:0;"></span>
+            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;flex-shrink:0;"></span>
             <span id="haloSyncProgressTitle"></span>
         </div>
     </div>
