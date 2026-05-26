@@ -188,7 +188,6 @@
                                                         class="btn-accent dd-pill-btn dd-sync-btn">
                                                     📘 Sync Domains to ITGlue
                                                 </button>
-                                                <div id="itglue-status-{{ $client->id }}" class="dd-sync-status"></div>
                                             @else
                                                 <div class="dd-status-muted dd-no-integration">
                                                     Link ITGlue organization first
@@ -208,7 +207,6 @@
                                                         class="btn-accent dd-pill-btn dd-sync-btn">
                                                     🔗 Link Domains from Halo
                                                 </button>
-                                                <div id="halo-link-status-{{ $client->id }}" class="dd-sync-status"></div>
 
                                                 {{-- Sync DNS to HaloPSA --}}
                                                 @if($domainsWithAssets > 0)
@@ -217,7 +215,6 @@
                                                             class="btn-accent dd-pill-btn dd-sync-btn">
                                                         🔧 Sync DNS to HaloPSA ({{ $domainsWithAssets }})
                                                     </button>
-                                                    <div id="halo-status-{{ $client->id }}" class="dd-sync-status"></div>
                                                 @else
                                                     <div class="dd-status-muted dd-no-integration">
                                                         No domains with HaloPSA assets yet
@@ -314,6 +311,51 @@
         </div>
     </div>
 </div>
+
+    {{-- Client Sync Confirm Modal --}}
+    <div id="clientSyncConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:13000;align-items:center;justify-content:center;padding:20px;">
+        <div style="width:min(90vw,440px);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;">
+            <div style="padding:18px 22px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:12px;">
+                <span id="clientSyncConfirmIcon" style="flex-shrink:0;display:flex;color:var(--text);"></span>
+                <h3 id="clientSyncConfirmTitle" style="font-size:16px;font-weight:700;color:var(--text);margin:0;"></h3>
+            </div>
+            <div style="padding:18px 22px;">
+                <p id="clientSyncConfirmMessage" style="margin:0;color:var(--text);font-size:14px;line-height:1.5;"></p>
+            </div>
+            <div style="padding:0 22px 18px;display:flex;justify-content:flex-end;gap:12px;">
+                <button onclick="closeClientSyncConfirmModal()" style="padding:9px 22px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-danger) 35%, transparent);border-radius:10px;color:var(--dd-danger);cursor:pointer;font-size:14px;">Cancel</button>
+                <button id="clientSyncConfirmBtn" class="btn-accent" style="padding:9px 22px;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Client Sync Progress Modal --}}
+    <div id="clientSyncProgressModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:13000;align-items:center;justify-content:center;padding:20px;">
+        <div style="min-width:240px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
+            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:dd-spin 0.7s linear infinite;flex-shrink:0;"></span>
+            <span id="clientSyncProgressTitle"></span>
+        </div>
+    </div>
+
+    {{-- Client Sync Result Modal --}}
+    <div id="clientSyncResultModal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:14000;align-items:center;justify-content:center;padding:20px;">
+        <div style="width:min(90vw,480px);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;overflow:hidden;">
+            <div style="padding:18px 22px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:12px;">
+                <span id="clientSyncResultIcon" style="flex-shrink:0;display:flex;"></span>
+                <h3 id="clientSyncResultTitle" style="font-size:16px;font-weight:700;color:var(--text);margin:0;"></h3>
+            </div>
+            <div style="padding:18px 22px;">
+                <p id="clientSyncResultMessage" style="margin:0;color:var(--text);font-size:14px;line-height:1.5;"></p>
+                <div id="clientSyncResultDetails" style="display:none;margin-top:16px;">
+                    <p style="font-size:12px;font-weight:600;color:var(--text-muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;">Details</p>
+                    <div id="clientSyncResultDetailList" style="border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden;max-height:220px;overflow-y:auto;"></div>
+                </div>
+            </div>
+            <div style="padding:0 22px 18px;display:flex;justify-content:flex-end;">
+                <button onclick="closeClientSyncResultModal()" class="btn-accent" style="padding:9px 22px;">Done</button>
+            </div>
+        </div>
+    </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -580,152 +622,235 @@
         });
     });
     
+    // Client sync modal helpers
+    let _clientSyncConfirmCallback = null;
+    let _clientSyncResultOnClose = null;
+
+    function openClientSyncConfirmModal(title, message, iconSvg, onConfirm) {
+        _clientSyncConfirmCallback = onConfirm;
+        document.getElementById('clientSyncConfirmTitle').textContent = title;
+        document.getElementById('clientSyncConfirmMessage').textContent = message;
+        document.getElementById('clientSyncConfirmIcon').innerHTML = iconSvg;
+        document.getElementById('clientSyncConfirmBtn').onclick = function () {
+            closeClientSyncConfirmModal();
+            if (_clientSyncConfirmCallback) _clientSyncConfirmCallback();
+        };
+        document.getElementById('clientSyncConfirmModal').style.display = 'flex';
+    }
+
+    function closeClientSyncConfirmModal() {
+        document.getElementById('clientSyncConfirmModal').style.display = 'none';
+    }
+
+    function showClientSyncProgress(message) {
+        document.getElementById('clientSyncProgressTitle').textContent = message;
+        document.getElementById('clientSyncProgressModal').style.display = 'flex';
+    }
+
+    function hideClientSyncProgress() {
+        document.getElementById('clientSyncProgressModal').style.display = 'none';
+    }
+
+    function showClientSyncResult(title, message, details, onClose) {
+        _clientSyncResultOnClose = onClose || null;
+        document.getElementById('clientSyncResultTitle').textContent = title;
+        document.getElementById('clientSyncResultMessage').textContent = message;
+
+        const iconEl = document.getElementById('clientSyncResultIcon');
+        const hasErrors = details && details.some(d => !d.success);
+
+        if (hasErrors) {
+            iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+        } else {
+            iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        }
+
+        if (details && details.length > 0) {
+            const list = document.getElementById('clientSyncResultDetailList');
+            list.innerHTML = details.map((d, idx) => `
+                <div style="padding:10px 12px;${idx < details.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : ''}display:flex;flex-direction:column;gap:3px;">
+                    <span style="font-size:13px;font-weight:600;color:var(--text);">${d.label}</span>
+                    <span style="font-size:13px;color:${d.success ? '#10b981' : '#ef4444'};">${d.message}</span>
+                </div>`).join('');
+            document.getElementById('clientSyncResultDetails').style.display = 'block';
+        } else {
+            document.getElementById('clientSyncResultDetails').style.display = 'none';
+        }
+
+        document.getElementById('clientSyncResultModal').style.display = 'flex';
+    }
+
+    function closeClientSyncResultModal() {
+        document.getElementById('clientSyncResultModal').style.display = 'none';
+        if (_clientSyncResultOnClose) {
+            const cb = _clientSyncResultOnClose;
+            _clientSyncResultOnClose = null;
+            cb();
+        }
+    }
+
     // Sync functions
     function syncClientToItglue(clientId, event) {
         event.stopPropagation();
 
-        if (!confirm('Sync all domains to ITGlue with DNS records from Synergy?')) {
-            return;
-        }
+        const syncIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
 
-        const statusDiv = document.getElementById(`itglue-status-${clientId}`);
-        statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+        openClientSyncConfirmModal(
+            'Sync Domains to ITGlue',
+            'This will sync all client domains to ITGlue with DNS records from Synergy. Continue?',
+            syncIcon,
+            function () {
+                showClientSyncProgress('Syncing domains to ITGlue…');
 
-        fetch(`/admin/clients/${clientId}/itglue/sync-domains`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                fetch(`/admin/clients/${clientId}/itglue/sync-domains`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    signal: controller.signal
+                })
+                .then(async r => {
+                    clearTimeout(timeoutId);
+                    const contentType = r.headers.get('content-type');
+                    let data;
+                    if (contentType && contentType.includes('application/json')) {
+                        data = await r.json();
+                    } else {
+                        const text = await r.text();
+                        console.error('Non-JSON response:', text.substring(0, 500));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                    if (!r.ok) throw new Error(data.error || data.message || 'HTTP ' + r.status);
+                    return data;
+                })
+                .then(data => {
+                    hideClientSyncProgress();
+                    if (data.success) {
+                        const details = (data.results || []).map(r => ({
+                            label: r.domain,
+                            message: r.message,
+                            success: r.success
+                        }));
+                        showClientSyncResult('Sync Complete', data.message, details, null);
+                    } else {
+                        showClientSyncResult('Sync Failed', data.error || data.message, [], null);
+                    }
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    hideClientSyncProgress();
+                    const msg = err.name === 'AbortError'
+                        ? 'Sync timed out after 2 minutes. Check server logs for details.'
+                        : (err.message || 'Sync failed');
+                    showClientSyncResult('Sync Failed', msg, [], null);
+                });
             }
-        })
-        .then(async r => {
-            const contentType = r.headers.get('content-type');
-            let data;
-
-            if (contentType && contentType.includes('application/json')) {
-                data = await r.json();
-            } else {
-                const text = await r.text();
-                console.error('Non-JSON response:', text.substring(0, 500));
-                throw new Error('Server returned non-JSON response');
-            }
-
-            if (!r.ok) {
-                console.error('ITGlue sync failed:', data);
-                throw new Error(data.error || data.message || 'HTTP ' + r.status);
-            }
-
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
-            } else {
-                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
-            }
-        })
-        .catch(err => {
-            console.error('Sync error:', err);
-            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
-        });
+        );
     }
-    
+
     function syncClientDnsToHalo(clientId, event) {
         event.stopPropagation();
 
-        if (!confirm('Sync DNS records to HaloPSA asset notes?')) {
-            return;
-        }
+        const syncIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
 
-        const statusDiv = document.getElementById(`halo-status-${clientId}`);
-        statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+        openClientSyncConfirmModal(
+            'Sync DNS to HaloPSA',
+            'This will sync DNS records from Synergy to HaloPSA asset notes. Continue?',
+            syncIcon,
+            function () {
+                showClientSyncProgress('Syncing DNS records to HaloPSA…');
 
-        fetch(`/admin/clients/${clientId}/halo/sync-dns`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
+                fetch(`/admin/clients/${clientId}/halo/sync-dns`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(async r => {
+                    const contentType = r.headers.get('content-type');
+                    let data;
+                    if (contentType && contentType.includes('application/json')) {
+                        data = await r.json();
+                    } else {
+                        const text = await r.text();
+                        console.error('Non-JSON response:', text.substring(0, 500));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                    if (!r.ok) throw new Error(data.error || data.message || 'HTTP ' + r.status);
+                    return data;
+                })
+                .then(data => {
+                    hideClientSyncProgress();
+                    if (data.success) {
+                        showClientSyncResult('Sync Complete', data.message, [], null);
+                    } else {
+                        showClientSyncResult('Sync Failed', data.error || data.message, [], null);
+                    }
+                })
+                .catch(err => {
+                    hideClientSyncProgress();
+                    showClientSyncResult('Sync Failed', err.message || 'Sync failed', [], null);
+                });
             }
-        })
-        .then(async r => {
-            const contentType = r.headers.get('content-type');
-            let data;
-
-            if (contentType && contentType.includes('application/json')) {
-                data = await r.json();
-            } else {
-                const text = await r.text();
-                console.error('Non-JSON response:', text.substring(0, 500));
-                throw new Error('Server returned non-JSON response');
-            }
-
-            if (!r.ok) {
-                console.error('HaloPSA sync failed:', data);
-                throw new Error(data.error || data.message || 'HTTP ' + r.status);
-            }
-
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
-            } else {
-                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
-            }
-        })
-        .catch(err => {
-            console.error('Sync error:', err);
-            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Sync failed'}</span>`;
-        });
+        );
     }
 
     function linkDomainsFromHalo(clientId, event) {
         event.stopPropagation();
 
-        const statusDiv = document.getElementById(`halo-link-status-${clientId}`);
-        statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Linking...</span>';
+        const linkIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
 
-        fetch(`/admin/clients/${clientId}/halo/link-domains`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        })
-        .then(async r => {
-            const contentType = r.headers.get('content-type');
-            let data;
+        openClientSyncConfirmModal(
+            'Link Domains from HaloPSA',
+            'This will link HaloPSA domain assets to matching DomainDash domains. Continue?',
+            linkIcon,
+            function () {
+                showClientSyncProgress('Linking domains from HaloPSA…');
 
-            if (contentType && contentType.includes('application/json')) {
-                data = await r.json();
-            } else {
-                const text = await r.text();
-                console.error('Non-JSON response:', text.substring(0, 500));
-                throw new Error('Server returned non-JSON response');
+                fetch(`/admin/clients/${clientId}/halo/link-domains`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(async r => {
+                    const contentType = r.headers.get('content-type');
+                    let data;
+                    if (contentType && contentType.includes('application/json')) {
+                        data = await r.json();
+                    } else {
+                        const text = await r.text();
+                        console.error('Non-JSON response:', text.substring(0, 500));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                    if (!r.ok) throw new Error(data.error || data.message || 'HTTP ' + r.status);
+                    return data;
+                })
+                .then(data => {
+                    hideClientSyncProgress();
+                    if (data.success) {
+                        showClientSyncResult(
+                            'Link Complete',
+                            data.message,
+                            [],
+                            data.linked > 0 ? () => window.location.reload() : null
+                        );
+                    } else {
+                        showClientSyncResult('Link Failed', data.error || data.message, [], null);
+                    }
+                })
+                .catch(err => {
+                    hideClientSyncProgress();
+                    showClientSyncResult('Link Failed', err.message || 'Link failed', [], null);
+                });
             }
-
-            if (!r.ok) {
-                console.error('Link domains failed:', data);
-                throw new Error(data.error || data.message || 'HTTP ' + r.status);
-            }
-
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                statusDiv.innerHTML = `<span style="color:#34d399;">✓ ${data.message}</span>`;
-                // Reload after a short delay if new domains were linked
-                if (data.linked > 0) {
-                    setTimeout(() => window.location.reload(), 1500);
-                }
-            } else {
-                statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${data.error || data.message}</span>`;
-            }
-        })
-        .catch(err => {
-            console.error('Link error:', err);
-            statusDiv.innerHTML = `<span style="color:#f87171;">✗ ${err.message || 'Link failed'}</span>`;
-        });
+        );
     }
     </script>
 
@@ -1046,6 +1171,7 @@
     .dd-sync-btn {
         font-size: 13px;
         width: 100%;
+        margin-bottom: 6px;
     }
 
     .dd-sync-status {
@@ -1208,6 +1334,10 @@
     .dd-modal-btn-secondary:hover {
         background: var(--dd-hover-bg);
         border-color: var(--accent, #4ade80);
+    }
+
+    @keyframes dd-spin {
+        to { transform: rotate(360deg); }
     }
 </style>
 @endsection
