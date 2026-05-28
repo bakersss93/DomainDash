@@ -1,0 +1,2567 @@
+openapi: 3.1.0
+
+info:
+  title: DomainDash API
+  version: 1.0.0
+  description: |
+    DomainDash is a managed domain, hosting, SSL and internet-services portal backed by
+    Synergy Wholesale, HaloPSA, IT Glue, IP2Whois and Vocus WSM.
+
+    ## Authentication
+
+    All API requests must include an `x-api-key` header containing a valid API key.
+    Keys are created and managed by an Administrator in **Admin → API Keys**.
+
+    Each key carries:
+    - **Scopes** – `read` (GET endpoints) and/or `write` (mutation endpoints)
+    - **IP allowlist** – comma-separated IPs or CIDR ranges; `*` allows any IP
+    - **Rate limit** – configurable requests per hour (default 360)
+
+    All requests are logged (method, path, IP, user-agent, response status).
+
+    ## Base URL
+
+    ```
+    https://your-domaindash-instance.example/api
+    ```
+
+    ## Pagination
+
+    List endpoints return a standard Laravel pagination envelope:
+
+    ```json
+    {
+      "data": [...],
+      "current_page": 1,
+      "last_page": 3,
+      "per_page": 100,
+      "total": 250,
+      "from": 1,
+      "to": 100,
+      "links": { "first": "...", "last": "...", "prev": null, "next": "..." }
+    }
+    ```
+
+    ## Error responses
+
+    | Status | Meaning |
+    |--------|---------|
+    | 401 | Missing or invalid API key |
+    | 403 | IP not in allowlist, or scope not granted |
+    | 404 | Resource not found |
+    | 422 | Validation error |
+    | 429 | Hourly rate limit exceeded |
+    | 500 | Internal server error |
+
+  contact:
+    name: DomainDash Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: /api
+    description: Current instance
+
+tags:
+  - name: Domains
+    description: Domain name records synced from Synergy Wholesale
+  - name: DNS Records
+    description: DNS zone records managed via Synergy Wholesale
+  - name: Hosting Services
+    description: Web hosting services synced from Synergy Wholesale
+  - name: SSL Certificates
+    description: SSL/TLS certificates synced from Synergy Wholesale
+  - name: Internet Services
+    description: Broadband/internet services managed via Vocus WSM
+  - name: Clients
+    description: Client (organisation) records
+  - name: Tickets
+    description: Support tickets surfaced from HaloPSA
+  - name: Domain Pricing
+    description: TLD pricing catalogue
+  - name: Users
+    description: Portal user accounts
+  - name: Audit Logs
+    description: Immutable audit trail
+
+# ---------------------------------------------------------------------------
+# Security schemes
+# ---------------------------------------------------------------------------
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: >
+        Obtain a key from Admin → API Keys. Supply it in the `x-api-key` request
+        header. Keys must have the `read` scope for GET endpoints and the `write`
+        scope for POST/PUT/PATCH/DELETE endpoints.
+
+  # -------------------------------------------------------------------------
+  # Reusable schemas
+  # -------------------------------------------------------------------------
+  schemas:
+
+    # --- Pagination wrapper ---------------------------------------------------
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        last_page:
+          type: integer
+          example: 5
+        per_page:
+          type: integer
+          example: 100
+        total:
+          type: integer
+          example: 450
+        from:
+          type: integer
+          example: 1
+        to:
+          type: integer
+          example: 100
+        links:
+          type: object
+          properties:
+            first:
+              type: string
+              nullable: true
+            last:
+              type: string
+              nullable: true
+            prev:
+              type: string
+              nullable: true
+            next:
+              type: string
+              nullable: true
+
+    # --- Domain ---------------------------------------------------------------
+    DomainSummary:
+      type: object
+      description: Lightweight domain record returned by list endpoints.
+      properties:
+        id:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: example.com.au
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-12-31"
+        client_id:
+          type: integer
+          nullable: true
+          example: 7
+
+    Domain:
+      allOf:
+        - $ref: '#/components/schemas/DomainSummary'
+        - type: object
+          properties:
+            status:
+              type: string
+              nullable: true
+              description: Synergy Wholesale domain status
+              example: Active
+            auto_renew:
+              type: boolean
+              example: false
+            name_servers:
+              type: array
+              nullable: true
+              items:
+                type: string
+              example:
+                - ns1.synergywholesale.com
+                - ns2.synergywholesale.com
+            dns_config:
+              type: integer
+              nullable: true
+              enum: [1, 2, 3, 4]
+              description: |
+                1 = Custom nameservers
+                2 = URL / email forwarding
+                3 = Parking
+                4 = DNS hosting (Synergy zone)
+            registry_id:
+              type: string
+              nullable: true
+              example: "SW-12345"
+            transfer_status:
+              type: string
+              nullable: true
+              example: Pending
+            halo_asset_id:
+              type: string
+              nullable: true
+              description: HaloPSA asset link
+            itglue_id:
+              type: string
+              nullable: true
+              description: IT Glue configuration link
+            whois_data:
+              type: object
+              nullable: true
+              description: Raw WHOIS response cached from IP2Whois
+            whois_synced_at:
+              type: string
+              format: date-time
+              nullable: true
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    DomainWrite:
+      type: object
+      description: Fields accepted when creating or updating a domain assignment.
+      properties:
+        client_id:
+          type: integer
+          nullable: true
+          description: Set to null to unassign the domain from any client.
+          example: 7
+
+    # --- DNS Record -----------------------------------------------------------
+    DnsRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        domain_id:
+          type: integer
+          example: 42
+        record_id:
+          type: string
+          nullable: true
+          description: Synergy Wholesale DNS record ID
+          example: "syn-dns-9988"
+        host:
+          type: string
+          nullable: true
+          description: Subdomain or blank for the zone apex (@)
+          example: mail
+        type:
+          type: string
+          enum: [A, AAAA, CNAME, MX, TXT, NS, SRV, CAA, PTR]
+          example: MX
+        content:
+          type: string
+          description: Record value (IP address, hostname, TXT string, etc.)
+          example: mail.example.com.au
+        ttl:
+          type: integer
+          description: Time-to-live in seconds (60–604800)
+          default: 3600
+          example: 3600
+        prio:
+          type: integer
+          description: Priority — relevant for MX and SRV records
+          default: 0
+          example: 10
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DnsRecordWrite:
+      type: object
+      required:
+        - type
+        - content
+      properties:
+        host:
+          type: string
+          nullable: true
+          description: Leave blank or omit for the zone apex.
+          example: mail
+        type:
+          type: string
+          enum: [A, AAAA, CNAME, MX, TXT, NS, SRV, CAA, PTR]
+          example: MX
+        content:
+          type: string
+          example: mail.example.com.au
+        ttl:
+          type: integer
+          minimum: 60
+          maximum: 604800
+          default: 3600
+          example: 3600
+        prio:
+          type: integer
+          minimum: 0
+          maximum: 65535
+          default: 0
+          example: 10
+
+    DnsOptions:
+      type: object
+      required:
+        - dns_mode
+      properties:
+        dns_mode:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: |
+            1 = Custom nameservers
+            2 = URL / email forwarding
+            3 = Parking
+            4 = DNS hosting (Synergy zone)
+        nameservers:
+          type: array
+          items:
+            type: string
+          description: Required when dns_mode is 1.
+          example:
+            - ns1.myregistrar.com
+            - ns2.myregistrar.com
+
+    # --- Hosting Service ------------------------------------------------------
+    HostingServiceSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 15
+        domain_id:
+          type: integer
+          nullable: true
+          example: 42
+        plan:
+          type: string
+          nullable: true
+          example: Business Hosting
+        username:
+          type: string
+          nullable: true
+          example: user@example.com.au
+        ip_address:
+          type: string
+          nullable: true
+          example: "203.0.113.10"
+        disk_limit_mb:
+          type: integer
+          nullable: true
+          example: 51200
+        disk_usage_mb:
+          type: integer
+          nullable: true
+          example: 12340
+
+    HostingService:
+      allOf:
+        - $ref: '#/components/schemas/HostingServiceSummary'
+        - type: object
+          properties:
+            client_id:
+              type: integer
+              nullable: true
+              example: 7
+            hoid:
+              type: string
+              nullable: true
+              description: Synergy Wholesale hosting order ID
+            server:
+              type: string
+              nullable: true
+              example: "cpanel01.synergywholesale.com"
+            domain_name:
+              type: string
+              nullable: true
+              example: example.com.au
+            bandwidth_limit_mb:
+              type: integer
+              nullable: true
+              example: 500000
+            bandwidth_used_mb:
+              type: integer
+              nullable: true
+              example: 78000
+            service_status:
+              type: string
+              nullable: true
+              enum: [ACTIVE, SUSPEND, INACTIVE]
+              example: ACTIVE
+            next_renewal_due:
+              type: string
+              format: date
+              nullable: true
+              example: "2026-07-15"
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    # --- SSL Certificate -------------------------------------------------------
+    SslCertificateSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 9
+        domain_id:
+          type: integer
+          nullable: true
+          example: 42
+        common_name:
+          type: string
+          nullable: true
+          example: example.com.au
+        product_name:
+          type: string
+          nullable: true
+          example: Sectigo PositiveSSL
+        expire_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2026-08-01"
+        status:
+          type: string
+          nullable: true
+          example: Active
+
+    SslCertificate:
+      allOf:
+        - $ref: '#/components/schemas/SslCertificateSummary'
+        - type: object
+          properties:
+            client_id:
+              type: integer
+              nullable: true
+              example: 7
+            cert_id:
+              type: string
+              nullable: true
+              description: Synergy Wholesale certificate ID
+            start_date:
+              type: string
+              format: date
+              nullable: true
+              example: "2025-08-01"
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    # --- Internet Service -----------------------------------------------------
+    InternetService:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        vocus_service_id:
+          type: string
+          nullable: true
+          description: Vocus WSM service identifier
+          example: "VOCUS-SVC-12345"
+        client_id:
+          type: integer
+          nullable: true
+          example: 7
+        plan_id:
+          type: string
+          nullable: true
+          example: "NBN-50-20"
+        service_scope:
+          type: string
+          nullable: true
+        service_status:
+          type: string
+          nullable: true
+          enum: [ACTIVE, SUSPEND, INACTIVE]
+          example: ACTIVE
+        service_type:
+          type: string
+          nullable: true
+          example: NBN
+        order_type:
+          type: string
+          nullable: true
+        customer_name:
+          type: string
+          nullable: true
+          example: Acme Pty Ltd
+        phone:
+          type: string
+          nullable: true
+          example: "+61290001234"
+        address_long:
+          type: string
+          nullable: true
+          example: "1 Main St, Sydney NSW 2000"
+        nbn_instance_id:
+          type: string
+          nullable: true
+        avc_id:
+          type: string
+          nullable: true
+        cvc_id:
+          type: string
+          nullable: true
+        realm:
+          type: string
+          nullable: true
+        service_level:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        synced_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # --- Client ---------------------------------------------------------------
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 7
+        business_name:
+          type: string
+          example: Acme Pty Ltd
+        primary_contact_name:
+          type: string
+          nullable: true
+          example: Jane Smith
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: jane@acme.com.au
+        phone:
+          type: string
+          nullable: true
+          example: "+61290001234"
+        address:
+          type: string
+          nullable: true
+          example: "1 Main Street"
+        city:
+          type: string
+          nullable: true
+          example: Sydney
+        state:
+          type: string
+          nullable: true
+          example: NSW
+        postcode:
+          type: string
+          nullable: true
+          example: "2000"
+        country:
+          type: string
+          nullable: true
+          default: AU
+          example: AU
+        abn:
+          type: string
+          nullable: true
+          example: "12 345 678 901"
+        halopsa_reference:
+          type: string
+          nullable: true
+          description: HaloPSA client/company identifier
+          example: "HALO-99"
+        itglue_org_id:
+          type: string
+          nullable: true
+          description: IT Glue organisation ID
+          example: "itg-org-123456"
+        itglue_org_name:
+          type: string
+          nullable: true
+          example: Acme Pty Ltd
+        active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ClientWrite:
+      type: object
+      required:
+        - business_name
+      properties:
+        business_name:
+          type: string
+          example: Acme Pty Ltd
+        primary_contact_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        postcode:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+          default: AU
+        abn:
+          type: string
+          nullable: true
+        halopsa_reference:
+          type: string
+          nullable: true
+        itglue_org_id:
+          type: string
+          nullable: true
+        itglue_org_name:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+          nullable: true
+          default: true
+
+    # --- Ticket ---------------------------------------------------------------
+    Ticket:
+      type: object
+      description: Ticket record from HaloPSA
+      properties:
+        id:
+          type: integer
+          description: HaloPSA ticket ID
+          example: 1024
+        subject:
+          type: string
+          example: Domain renewal assistance
+        client_id:
+          type: integer
+          nullable: true
+          description: DomainDash client ID
+          example: 7
+        status:
+          type: string
+          example: Open
+        ticket_type:
+          type: string
+          example: Support/Issue
+        domain_id:
+          type: integer
+          nullable: true
+        service_id:
+          type: integer
+          nullable: true
+        ssl_id:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    TicketWrite:
+      type: object
+      required:
+        - client_id
+        - subject
+        - details
+        - ticket_type
+      properties:
+        client_id:
+          type: integer
+          example: 7
+        subject:
+          type: string
+          example: Cannot renew domain
+        details:
+          type: string
+          example: "Attempting to renew example.com.au but receiving an error from Synergy."
+        ticket_type:
+          type: string
+          enum:
+            - Support/Issue
+            - Service Request
+          example: Support/Issue
+        domain_id:
+          type: integer
+          nullable: true
+          example: 42
+        service_id:
+          type: integer
+          nullable: true
+        ssl_id:
+          type: integer
+          nullable: true
+
+    TicketReply:
+      type: object
+      required:
+        - action_description
+      properties:
+        action_description:
+          type: string
+          example: "I have checked the EPP lock and it is now disabled. Please retry the transfer."
+
+    # --- Domain Pricing -------------------------------------------------------
+    DomainPricing:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        tld:
+          type: string
+          example: com.au
+        registration_price:
+          type: number
+          format: float
+          nullable: true
+          example: 9.90
+        renewal_price:
+          type: number
+          format: float
+          nullable: true
+          example: 9.90
+        restore_price:
+          type: number
+          format: float
+          nullable: true
+          example: 99.00
+        transfer_price:
+          type: number
+          format: float
+          nullable: true
+          example: 9.90
+        minimum_years:
+          type: integer
+          nullable: true
+          example: 1
+        maximum_years:
+          type: integer
+          nullable: true
+          example: 5
+        id_protection:
+          type: boolean
+          example: false
+        dnssec:
+          type: boolean
+          example: false
+        sell_price:
+          type: number
+          format: float
+          nullable: true
+          description: Retail / customer-facing sell price
+          example: 14.95
+        is_common:
+          type: boolean
+          description: Featured/common TLD flag
+          example: true
+        sale_end_date:
+          type: string
+          format: date
+          nullable: true
+
+    # --- User -----------------------------------------------------------------
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Alice Admin
+        email:
+          type: string
+          format: email
+          example: alice@example.com.au
+        is_active:
+          type: boolean
+          example: true
+        mfa_preference:
+          type: string
+          nullable: true
+          example: totp
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - Administrator
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserWrite:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - password_confirmation
+      properties:
+        name:
+          type: string
+          example: Bob Technician
+        email:
+          type: string
+          format: email
+          example: bob@example.com.au
+        password:
+          type: string
+          format: password
+          example: "s3cur3P@ssw0rd!"
+        password_confirmation:
+          type: string
+          format: password
+          example: "s3cur3P@ssw0rd!"
+        is_active:
+          type: boolean
+          default: true
+        role:
+          type: string
+          nullable: true
+          description: Role name to assign (e.g. Administrator, Technician, Customer)
+          example: Technician
+
+    # --- Audit Log ------------------------------------------------------------
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 500
+        user_id:
+          type: integer
+          nullable: true
+          example: 1
+        user_email:
+          type: string
+          nullable: true
+          example: alice@example.com.au
+        action:
+          type: string
+          example: domain.dns.record_added
+        auditable_type:
+          type: string
+          example: App\Models\Domain
+        auditable_id:
+          type: integer
+          example: 42
+        description:
+          type: string
+          example: Added MX record for example.com.au
+        old_values:
+          type: object
+          nullable: true
+        new_values:
+          type: object
+          nullable: true
+        context:
+          type: object
+          nullable: true
+          description: Extra contextual metadata (service, function, client_id, etc.)
+        ip_address:
+          type: string
+          nullable: true
+          example: "203.0.113.5"
+        user_agent:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    # --- Domain Transfer ------------------------------------------------------
+    DomainTransferRequest:
+      type: object
+      required:
+        - domainName
+        - authInfo
+        - organisation
+        - firstname
+        - lastname
+        - address
+        - suburb
+        - state
+        - country
+        - postcode
+        - phone
+        - email
+        - doRenewal
+        - idProtect
+      properties:
+        domainName:
+          type: string
+          example: example.com.au
+        authInfo:
+          type: string
+          description: EPP / auth code provided by the current registrar
+          example: "Auth-12345-XYZ"
+        organisation:
+          type: string
+          example: Acme Pty Ltd
+        firstname:
+          type: string
+          example: Jane
+        lastname:
+          type: string
+          example: Smith
+        address:
+          type: array
+          items:
+            type: string
+          description: Street address lines
+          example:
+            - "1 Main Street"
+        suburb:
+          type: string
+          example: Sydney
+        state:
+          type: string
+          example: NSW
+        country:
+          type: string
+          example: AU
+        postcode:
+          type: string
+          example: "2000"
+        phone:
+          type: string
+          example: "+61290001234"
+        email:
+          type: string
+          format: email
+          example: jane@acme.com.au
+        doRenewal:
+          type: boolean
+          description: Also renew the domain for one year at transfer time
+          example: true
+        idProtect:
+          type: boolean
+          description: Enable WHOIS privacy / ID protection
+          example: false
+
+    # --- Generic responses ----------------------------------------------------
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Operation completed successfully.
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Success
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Resource not found.
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The given data was invalid.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - "The email field is required."
+
+  # -------------------------------------------------------------------------
+  # Reusable parameters
+  # -------------------------------------------------------------------------
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number for pagination.
+
+    PerPageParam:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+      description: Number of results per page.
+
+    DomainId:
+      name: domain
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: DomainDash domain ID.
+
+    ClientId:
+      name: client
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: DomainDash client ID.
+
+  # -------------------------------------------------------------------------
+  # Reusable responses
+  # -------------------------------------------------------------------------
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: API key required
+
+    Forbidden:
+      description: IP not in allowlist or required scope not granted.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: Scope denied
+
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnprocessableEntity:
+      description: Validation error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    TooManyRequests:
+      description: Hourly rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageResponse'
+          example:
+            message: Rate limit exceeded
+
+# ---------------------------------------------------------------------------
+# Global security
+# ---------------------------------------------------------------------------
+security:
+  - ApiKeyAuth: []
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ==========================================================================
+  # Domains
+  # ==========================================================================
+
+  /v1/domains:
+    get:
+      tags:
+        - Domains
+      operationId: listDomains
+      summary: List all domains
+      description: |
+        Returns a paginated list of every domain record synced from Synergy Wholesale.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Paginated domain list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DomainSummary'
+              example:
+                current_page: 1
+                last_page: 1
+                per_page: 100
+                total: 2
+                data:
+                  - id: 42
+                    name: example.com.au
+                    expiry_date: "2026-12-31"
+                    client_id: 7
+                  - id: 43
+                    name: another.net.au
+                    expiry_date: "2027-03-15"
+                    client_id: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/clients/{client}/domains:
+    get:
+      tags:
+        - Domains
+        - Clients
+      operationId: listClientDomains
+      summary: List domains for a client
+      description: |
+        Returns all domains assigned to the specified client.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          description: Array of domains belonging to the client
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DomainSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/{domain}:
+    get:
+      tags:
+        - Domains
+      operationId: getDomain
+      summary: Get a domain
+      description: Returns full details for a single domain. Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      responses:
+        '200':
+          description: Domain detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    patch:
+      tags:
+        - Domains
+      operationId: assignDomain
+      summary: Assign a domain to a client
+      description: |
+        Updates the `client_id` on a domain record, assigning it to a client or
+        clearing the assignment. Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainWrite'
+      responses:
+        '200':
+          description: Updated domain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/sync:
+    post:
+      tags:
+        - Domains
+      operationId: syncDomains
+      summary: Trigger a Synergy Wholesale domain sync
+      description: |
+        Queues a background job that pulls all domains from Synergy Wholesale and
+        upserts them into DomainDash. Requires `write` scope.
+      responses:
+        '202':
+          description: Sync job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Domain sync queued.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/availability:
+    post:
+      tags:
+        - Domains
+      operationId: checkDomainAvailability
+      summary: Check domain availability
+      description: |
+        Queries Synergy Wholesale to check whether a domain name is available for
+        registration. Requires `write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - domain
+              properties:
+                domain:
+                  type: string
+                  example: mycoolbrand.com.au
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  available:
+                    type: boolean
+                  domain:
+                    type: string
+                  message:
+                    type: string
+              example:
+                ok: true
+                available: true
+                domain: mycoolbrand.com.au
+                message: Domain is available.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/{domain}/renew:
+    post:
+      tags:
+        - Domains
+      operationId: renewDomain
+      summary: Renew a domain
+      description: |
+        Submits a renewal request to Synergy Wholesale for the specified domain.
+        Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - years
+              properties:
+                years:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  example: 1
+      responses:
+        '200':
+          description: Renewal submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/{domain}/auth-code:
+    get:
+      tags:
+        - Domains
+      operationId: getDomainAuthCode
+      summary: Retrieve EPP / auth code
+      description: |
+        Fetches the EPP auth code for the domain from Synergy Wholesale — required
+        to initiate a transfer out. Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      responses:
+        '200':
+          description: Auth code returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  code:
+                    type: string
+                    example: "AuthCode-ABCDE12345"
+                  message:
+                    type: string
+                    example: Auth code retrieved successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/transfer:
+    post:
+      tags:
+        - Domains
+      operationId: transferDomain
+      summary: Initiate a domain transfer in
+      description: |
+        Submits a domain transfer request to Synergy Wholesale. Requires `write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainTransferRequest'
+      responses:
+        '200':
+          description: Transfer initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # DNS Records
+  # ==========================================================================
+
+  /v1/domains/{domain}/dns:
+    get:
+      tags:
+        - DNS Records
+      operationId: listDnsRecords
+      summary: List DNS records for a domain
+      description: |
+        Returns all DNS records for the domain from the Synergy Wholesale zone.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      responses:
+        '200':
+          description: DNS records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DnsRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags:
+        - DNS Records
+      operationId: createDnsRecord
+      summary: Add a DNS record
+      description: |
+        Creates a new DNS record in the Synergy Wholesale zone for this domain.
+        Requires `write` scope and the domain must be in DNS Hosting mode (dns_config = 4).
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DnsRecordWrite'
+      responses:
+        '201':
+          description: DNS record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DnsRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/{domain}/dns/{recordId}:
+    put:
+      tags:
+        - DNS Records
+      operationId: updateDnsRecord
+      summary: Update a DNS record
+      description: |
+        Replaces an existing DNS record (delete + re-add at Synergy).
+        Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Synergy DNS record ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DnsRecordWrite'
+      responses:
+        '200':
+          description: DNS record updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DnsRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags:
+        - DNS Records
+      operationId: deleteDnsRecord
+      summary: Delete a DNS record
+      description: Removes a DNS record from the Synergy Wholesale zone. Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Synergy DNS record ID
+      responses:
+        '204':
+          description: Record deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domains/{domain}/dns/options:
+    put:
+      tags:
+        - DNS Records
+      operationId: updateDnsOptions
+      summary: Update nameserver / DNS mode
+      description: |
+        Switches the DNS configuration mode for a domain and optionally updates
+        its nameservers at Synergy Wholesale. Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/DomainId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DnsOptions'
+      responses:
+        '200':
+          description: DNS options updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Hosting Services
+  # ==========================================================================
+
+  /v1/services/hosting:
+    get:
+      tags:
+        - Hosting Services
+      operationId: listHostingServices
+      summary: List hosting services
+      description: |
+        Returns a paginated list of all hosting services synced from Synergy Wholesale.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: client_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by DomainDash client ID.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, SUSPEND, INACTIVE]
+          description: Filter by service status.
+      responses:
+        '200':
+          description: Paginated hosting service list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/HostingServiceSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/hosting/{service}:
+    get:
+      tags:
+        - Hosting Services
+      operationId: getHostingService
+      summary: Get a hosting service
+      description: Returns full details for a single hosting service. Requires `read` scope.
+      parameters:
+        - name: service
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: DomainDash hosting service ID
+      responses:
+        '200':
+          description: Hosting service detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostingService'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/hosting/sync:
+    post:
+      tags:
+        - Hosting Services
+      operationId: syncHostingServices
+      summary: Sync hosting services from Synergy Wholesale
+      description: Pulls all hosting services from Synergy and upserts them. Requires `write` scope.
+      responses:
+        '202':
+          description: Sync accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # SSL Certificates
+  # ==========================================================================
+
+  /v1/services/ssl:
+    get:
+      tags:
+        - SSL Certificates
+      operationId: listSslCertificates
+      summary: List SSL certificates
+      description: |
+        Returns a paginated list of all SSL certificates synced from Synergy Wholesale.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: client_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by DomainDash client ID.
+      responses:
+        '200':
+          description: Paginated SSL certificate list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SslCertificateSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/ssl/{ssl}:
+    get:
+      tags:
+        - SSL Certificates
+      operationId: getSslCertificate
+      summary: Get an SSL certificate
+      description: Returns full details for a single SSL certificate. Requires `read` scope.
+      parameters:
+        - name: ssl
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: DomainDash SSL certificate ID
+      responses:
+        '200':
+          description: SSL certificate detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SslCertificate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/ssl/sync:
+    post:
+      tags:
+        - SSL Certificates
+      operationId: syncSslCertificates
+      summary: Sync SSL certificates from Synergy Wholesale
+      description: Pulls all SSL certificates from Synergy and upserts them. Requires `write` scope.
+      responses:
+        '202':
+          description: Sync accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Internet Services
+  # ==========================================================================
+
+  /v1/services/internet:
+    get:
+      tags:
+        - Internet Services
+      operationId: listInternetServices
+      summary: List internet services
+      description: |
+        Returns a paginated list of all Vocus WSM internet services.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: client_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by DomainDash client ID.
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, SUSPEND, INACTIVE]
+          description: Filter by service status.
+        - name: service_type
+          in: query
+          schema:
+            type: string
+          description: Filter by service type (e.g. NBN, FTTP, Fibre).
+      responses:
+        '200':
+          description: Paginated internet service list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InternetService'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/internet/{service}:
+    get:
+      tags:
+        - Internet Services
+      operationId: getInternetService
+      summary: Get an internet service
+      description: Returns full details for a single internet service. Requires `read` scope.
+      parameters:
+        - name: service
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: DomainDash internet service ID
+      responses:
+        '200':
+          description: Internet service detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternetService'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/services/internet/sync:
+    post:
+      tags:
+        - Internet Services
+      operationId: syncInternetServices
+      summary: Sync internet services from Vocus WSM
+      description: Pulls all internet services from Vocus and upserts them. Requires `write` scope.
+      responses:
+        '202':
+          description: Sync accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Clients
+  # ==========================================================================
+
+  /v1/clients:
+    get:
+      tags:
+        - Clients
+      operationId: listClients
+      summary: List clients
+      description: |
+        Returns a paginated list of all client organisations.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by business name, ABN or HaloPSA reference.
+        - name: active
+          in: query
+          schema:
+            type: boolean
+          description: Filter by active status.
+      responses:
+        '200':
+          description: Paginated client list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags:
+        - Clients
+      operationId: createClient
+      summary: Create a client
+      description: Creates a new client organisation. Requires `write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientWrite'
+      responses:
+        '201':
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/clients/{client}:
+    get:
+      tags:
+        - Clients
+      operationId: getClient
+      summary: Get a client
+      description: Returns full details for a single client. Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          description: Client detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    put:
+      tags:
+        - Clients
+      operationId: updateClient
+      summary: Update a client
+      description: Replaces all mutable fields on a client record. Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientWrite'
+      responses:
+        '200':
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags:
+        - Clients
+      operationId: deleteClient
+      summary: Delete a client
+      description: |
+        Permanently removes a client record. Any domain/service assignments are
+        cleared but the records themselves are not deleted. Requires `write` scope.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '204':
+          description: Client deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Tickets
+  # ==========================================================================
+
+  /v1/tickets:
+    get:
+      tags:
+        - Tickets
+      operationId: listTickets
+      summary: List tickets
+      description: |
+        Returns a paginated list of HaloPSA tickets visible to the authenticated API key.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: client_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by DomainDash client ID.
+        - name: ticket_type
+          in: query
+          schema:
+            type: string
+            enum:
+              - Support/Issue
+              - Service Request
+          description: Filter by ticket type.
+        - name: service_category
+          in: query
+          schema:
+            type: string
+          description: Filter by service category string.
+      responses:
+        '200':
+          description: Paginated ticket list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags:
+        - Tickets
+      operationId: createTicket
+      summary: Create a ticket
+      description: |
+        Opens a new support ticket in HaloPSA, optionally linked to a domain,
+        hosting service or SSL certificate. Requires `write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketWrite'
+      responses:
+        '201':
+          description: Ticket created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/tickets/{ticketId}:
+    get:
+      tags:
+        - Tickets
+      operationId: getTicket
+      summary: Get a ticket
+      description: Returns a ticket and its action/reply history from HaloPSA. Requires `read` scope.
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: HaloPSA ticket ID
+      responses:
+        '200':
+          description: Ticket detail with actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/tickets/{ticketId}/reply:
+    post:
+      tags:
+        - Tickets
+      operationId: replyToTicket
+      summary: Reply to a ticket
+      description: Adds a reply / action to a HaloPSA ticket. Requires `write` scope.
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: HaloPSA ticket ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketReply'
+      responses:
+        '200':
+          description: Reply added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/tickets/{ticketId}/close:
+    post:
+      tags:
+        - Tickets
+      operationId: closeTicket
+      summary: Close a ticket
+      description: Closes a HaloPSA ticket. Requires `write` scope.
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: HaloPSA ticket ID
+      responses:
+        '200':
+          description: Ticket closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Domain Pricing
+  # ==========================================================================
+
+  /v1/domain-pricing:
+    get:
+      tags:
+        - Domain Pricing
+      operationId: listDomainPricing
+      summary: List TLD pricing
+      description: |
+        Returns the full domain pricing catalogue with cost and sell prices per TLD.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: tld
+          in: query
+          schema:
+            type: string
+          description: Filter by TLD (e.g. com.au).
+        - name: is_common
+          in: query
+          schema:
+            type: boolean
+          description: Return only featured / common TLDs.
+      responses:
+        '200':
+          description: Paginated pricing list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DomainPricing'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/domain-pricing/{tld}:
+    get:
+      tags:
+        - Domain Pricing
+      operationId: getDomainPricing
+      summary: Get pricing for a TLD
+      description: Returns pricing for a specific TLD. Requires `read` scope.
+      parameters:
+        - name: tld
+          in: path
+          required: true
+          schema:
+            type: string
+          description: TLD string (e.g. com.au)
+          example: com.au
+      responses:
+        '200':
+          description: TLD pricing record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainPricing'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Users
+  # ==========================================================================
+
+  /v1/users:
+    get:
+      tags:
+        - Users
+      operationId: listUsers
+      summary: List users
+      description: |
+        Returns all portal user accounts. Administrator-only endpoint.
+        Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Filter by name or email.
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags:
+        - Users
+      operationId: createUser
+      summary: Create a user
+      description: Creates a new portal user account. Administrator-only. Requires `write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserWrite'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/users/{user}:
+    get:
+      tags:
+        - Users
+      operationId: getUser
+      summary: Get a user
+      description: Returns a single user account. Requires `read` scope.
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        '200':
+          description: User detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    put:
+      tags:
+        - Users
+      operationId: updateUser
+      summary: Update a user
+      description: Updates a user account. Administrator-only. Requires `write` scope.
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                is_active:
+                  type: boolean
+                role:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags:
+        - Users
+      operationId: deleteUser
+      summary: Delete a user
+      description: Permanently deletes a user account. Administrator-only. Requires `write` scope.
+      parameters:
+        - name: user
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ==========================================================================
+  # Audit Logs
+  # ==========================================================================
+
+  /v1/audit-logs:
+    get:
+      tags:
+        - Audit Logs
+      operationId: listAuditLogs
+      summary: List audit log entries
+      description: |
+        Returns a paginated, immutable audit trail of all significant actions performed
+        in DomainDash. Administrator-only. Requires `read` scope.
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by user ID.
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: Filter by action key (e.g. domain.dns.record_added).
+        - name: auditable_type
+          in: query
+          schema:
+            type: string
+          description: Filter by model type (e.g. App\Models\Domain).
+        - name: auditable_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by model ID.
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return entries created at or after this datetime (ISO 8601).
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Return entries created before or at this datetime (ISO 8601).
+      responses:
+        '200':
+          description: Paginated audit log entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AuditLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
