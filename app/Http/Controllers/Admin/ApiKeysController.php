@@ -34,7 +34,7 @@ class ApiKeysController extends Controller
             'scopes'=>$data['scopes'] ?? null,
             'active'=>true
         ]);
-        return back()->with('status','API key created: '.$plain);
+        return back()->with('new_api_key', $plain);
     }
 
     public function deactivate(ApiKey $key)
