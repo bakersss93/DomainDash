@@ -166,18 +166,21 @@
         border-color: color-mix(in srgb, var(--border-subtle) 60%, var(--text) 40%);
     }
 
-    /* ── Inline action buttons ── */
+    /* ── Inline action icon buttons ── */
     .ak-action-btn {
-        padding: 4px 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
         border-radius: 6px;
         border: 1px solid var(--border-subtle);
         background: transparent;
         color: var(--text);
-        font-size: 12px;
         cursor: pointer;
-        white-space: nowrap;
+        flex-shrink: 0;
         transition: background 0.15s, border-color 0.15s, color 0.15s;
-        line-height: 1.5;
     }
     .ak-action-btn:hover { background: var(--surface-muted); }
 
@@ -371,19 +374,29 @@
                                   onsubmit="return confirm('Regenerate this key? The current key will stop working immediately.');"
                                   style="display:inline;">
                                 @csrf
-                                <button type="submit" class="ak-action-btn">Regenerate</button>
+                                <button type="submit" class="ak-action-btn" title="Regenerate key">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <polyline points="1 20 1 14 7 14"/>
+                                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                    </svg>
+                                </button>
                             </form>
 
                             {{-- Edit --}}
                             <button type="button"
                                     class="ak-action-btn ak-edit-btn"
+                                    title="Edit key"
                                     data-key-id="{{ $key->id }}"
                                     data-key-name="{{ $key->name }}"
                                     data-allowed-ips="{{ $key->allowed_ips }}"
                                     data-rate-limit="{{ $key->rate_limit_per_hour }}"
                                     data-scopes="{{ json_encode($scopes) }}"
                                     data-update-url="{{ route('admin.apikeys.update', $key) }}">
-                                Edit
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
                             </button>
 
                             {{-- Deactivate / Reactivate --}}
@@ -392,13 +405,24 @@
                                       onsubmit="return confirm('Deactivate this API key? It will stop working immediately.');"
                                       style="display:inline;">
                                     @csrf
-                                    <button type="submit" class="ak-action-btn ak-action-btn-warning">Deactivate</button>
+                                    <button type="submit" class="ak-action-btn ak-action-btn-warning" title="Deactivate key">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="10" y1="15" x2="10" y2="9"/>
+                                            <line x1="14" y1="15" x2="14" y2="9"/>
+                                        </svg>
+                                    </button>
                                 </form>
                             @else
                                 <form method="POST" action="{{ route('admin.apikeys.reactivate', $key) }}"
                                       style="display:inline;">
                                     @csrf
-                                    <button type="submit" class="ak-action-btn ak-action-btn-success">Reactivate</button>
+                                    <button type="submit" class="ak-action-btn ak-action-btn-success" title="Reactivate key">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <polygon points="10 8 16 12 10 16 10 8"/>
+                                        </svg>
+                                    </button>
                                 </form>
                             @endif
 
@@ -408,7 +432,12 @@
                                   style="display:inline;">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="ak-action-btn ak-action-btn-danger">Delete</button>
+                                <button type="submit" class="ak-action-btn ak-action-btn-danger" title="Delete key">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                </button>
                             </form>
 
                         </div>
