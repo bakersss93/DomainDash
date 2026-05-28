@@ -72,49 +72,60 @@
                     <label style="display:block;font-size:14px;margin-bottom:4px;">
                         Scopes (optional)
                     </label>
-                    <p style="font-size:12px;color:#9ca3af;margin-bottom:4px;">
-                        Choose what this key is allowed to do. Leave blank for full access.
+                    <p style="font-size:12px;color:#9ca3af;margin-bottom:8px;">
+                        Choose what this key is allowed to access. Leave all unchecked for full access.
                     </p>
 
-                    <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:14px;">
-                        @php
-                            $selectedScopes = old('scopes', []);
-                        @endphp
-                        <label style="display:inline-flex;align-items:center;gap:6px;
-                                      padding:6px 10px;border-radius:9999px;
-                                      border:1px solid #e5e7eb;background:#0b1120;">
-                            <input type="checkbox" name="scopes[]" value="domains.read"
-                                   {{ in_array('domains.read', $selectedScopes, true) ? 'checked' : '' }}>
-                            <span>Domains: read</span>
-                        </label>
+                    @php
+                        $selectedScopes = old('scopes', []);
+                        $scopeGroups = [
+                            'Domains'         => ['domains.read', 'domains.write'],
+                            'DNS Records'     => ['dns.read', 'dns.write'],
+                            'Clients'         => ['clients.read', 'clients.write'],
+                            'Services'        => ['services.read', 'services.write'],
+                            'Tickets'         => ['tickets.read', 'tickets.write'],
+                            'Domain Pricing'  => ['pricing.read'],
+                            'Users'           => ['users.read', 'users.write'],
+                            'Audit Log'       => ['audit.read'],
+                        ];
+                        $allScopes = \App\Models\ApiKey::SCOPES;
+                    @endphp
 
-                        <label style="display:inline-flex;align-items:center;gap:6px;
-                                      padding:6px 10px;border-radius:9999px;
-                                      border:1px solid #e5e7eb;background:#0b1120;">
-                            <input type="checkbox" name="scopes[]" value="domains.write"
-                                   {{ in_array('domains.write', $selectedScopes, true) ? 'checked' : '' }}>
-                            <span>Domains: write</span>
-                        </label>
-
-                        <label style="display:inline-flex;align-items:center;gap:6px;
-                                      padding:6px 10px;border-radius:9999px;
-                                      border:1px solid #e5e7eb;background:#0b1120;">
-                            <input type="checkbox" name="scopes[]" value="services.read"
-                                   {{ in_array('services.read', $selectedScopes, true) ? 'checked' : '' }}>
-                            <span>Services: read</span>
-                        </label>
-
-                        <label style="display:inline-flex;align-items:center;gap:6px;
-                                      padding:6px 10px;border-radius:9999px;
-                                      border:1px solid #e5e7eb;background:#0b1120;">
-                            <input type="checkbox" name="scopes[]" value="services.write"
-                                   {{ in_array('services.write', $selectedScopes, true) ? 'checked' : '' }}>
-                            <span>Services: write</span>
-                        </label>
+                    <div style="display:grid;gap:10px;">
+                        @foreach($scopeGroups as $groupLabel => $groupScopes)
+                            <div>
+                                <div style="font-size:12px;font-weight:600;color:#6b7280;
+                                            text-transform:uppercase;letter-spacing:0.05em;
+                                            margin-bottom:4px;">
+                                    {{ $groupLabel }}
+                                </div>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                    @foreach($groupScopes as $scope)
+                                        @php
+                                            $suffix = str_contains($scope, '.') ? substr($scope, strrpos($scope, '.') + 1) : $scope;
+                                            $description = $allScopes[$scope] ?? $scope;
+                                        @endphp
+                                        <label title="{{ $description }}"
+                                               style="display:inline-flex;align-items:center;gap:6px;
+                                                      padding:5px 10px;border-radius:9999px;cursor:pointer;
+                                                      border:1px solid #374151;background:#0b1120;font-size:13px;">
+                                            <input type="checkbox" name="scopes[]" value="{{ $scope }}"
+                                                   {{ in_array($scope, $selectedScopes, true) ? 'checked' : '' }}>
+                                            <span style="color:{{ $suffix === 'write' ? '#fbbf24' : '#93c5fd' }};">
+                                                {{ $suffix }}
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
 
                     @error('scopes')
-                        <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
+                        <div style="color:#f87171;font-size:12px;margin-top:4px;">{{ $message }}</div>
+                    @enderror
+                    @error('scopes.*')
+                        <div style="color:#f87171;font-size:12px;margin-top:4px;">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -135,7 +146,7 @@
                     <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Allowed IPs</th>
                     <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Rate limit</th>
                     <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Scopes</th>
-                    <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Last used</th>
+                    <th style="text-align:left;padding:8px 6px;border-bottom:1px solid #1f2937;">Created</th>
                     <th style="text-align:right;padding:8px 6px;border-bottom:1px solid #1f2937;">Actions</th>
                 </tr>
                 </thead>
@@ -162,7 +173,7 @@
                             {{ $scopes ? implode(', ', $scopes) : 'All' }}
                         </td>
                         <td style="padding:8px 6px;border-bottom:1px solid #111827;">
-                            {{ optional($key->last_used_at)->diffForHumans() ?? 'Never' }}
+                            {{ $key->created_at->diffForHumans() }}
                         </td>
                         <td style="padding:8px 6px;border-bottom:1px solid #111827;text-align:right;">
                             @if(method_exists($key, 'isActive') ? $key->isActive() : true)

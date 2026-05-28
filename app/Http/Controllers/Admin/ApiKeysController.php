@@ -16,11 +16,14 @@ class ApiKeysController extends Controller
 
     public function store(Request $request)
     {
+        $validScopes = array_keys(\App\Models\ApiKey::SCOPES);
+
         $data = $request->validate([
-            'name'=>'required',
-            'allowed_ips'=>'nullable|string',
-            'rate_limit_per_hour'=>'required|integer|min:1|max:100000',
-            'scopes'=>'nullable|array',
+            'name'                => 'required|string|max:255',
+            'allowed_ips'         => 'nullable|string',
+            'rate_limit_per_hour' => 'required|integer|min:1|max:100000',
+            'scopes'              => 'nullable|array',
+            'scopes.*'            => 'string|in:' . implode(',', $validScopes),
         ]);
         $plain = bin2hex(random_bytes(24));
         ApiKey::create([
