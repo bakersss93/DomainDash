@@ -60,20 +60,38 @@ Route::middleware([ApiKeyAuth::class . ':clients.write'])->group(function () {
 });
 
 // ---------------------------------------------------------------------------
-// Services — Hosting, SSL, Internet  (scope: services.read / services.write)
+// Hosting Services  (scope: hosting.read / hosting.write)
 // ---------------------------------------------------------------------------
-Route::middleware([ApiKeyAuth::class . ':services.read'])->group(function () {
+Route::middleware([ApiKeyAuth::class . ':hosting.read'])->group(function () {
     Route::get('/v1/services/hosting', [HostingController::class, 'index']);
     Route::get('/v1/services/hosting/{service}', [HostingController::class, 'show']);
+});
+
+Route::middleware([ApiKeyAuth::class . ':hosting.write'])->group(function () {
+    Route::post('/v1/services/hosting/sync', [HostingController::class, 'sync']);
+});
+
+// ---------------------------------------------------------------------------
+// SSL Certificates  (scope: ssl.read / ssl.write)
+// ---------------------------------------------------------------------------
+Route::middleware([ApiKeyAuth::class . ':ssl.read'])->group(function () {
     Route::get('/v1/services/ssl', [SslController::class, 'index']);
     Route::get('/v1/services/ssl/{ssl}', [SslController::class, 'show']);
+});
+
+Route::middleware([ApiKeyAuth::class . ':ssl.write'])->group(function () {
+    Route::post('/v1/services/ssl/sync', [SslController::class, 'sync']);
+});
+
+// ---------------------------------------------------------------------------
+// Internet Services  (scope: internet.read / internet.write)
+// ---------------------------------------------------------------------------
+Route::middleware([ApiKeyAuth::class . ':internet.read'])->group(function () {
     Route::get('/v1/services/internet', [InternetController::class, 'index']);
     Route::get('/v1/services/internet/{service}', [InternetController::class, 'show']);
 });
 
-Route::middleware([ApiKeyAuth::class . ':services.write'])->group(function () {
-    Route::post('/v1/services/hosting/sync', [HostingController::class, 'sync']);
-    Route::post('/v1/services/ssl/sync', [SslController::class, 'sync']);
+Route::middleware([ApiKeyAuth::class . ':internet.write'])->group(function () {
     Route::post('/v1/services/internet/sync', [InternetController::class, 'sync']);
 });
 

@@ -17,8 +17,12 @@ class ApiKey extends Model
         'dns.write'      => 'Add, update and delete DNS records; change nameservers / DNS mode',
         'clients.read'   => 'View client organisations and their domain list',
         'clients.write'  => 'Create, update and delete client organisations',
-        'services.read'  => 'View hosting services, SSL certificates and internet services',
-        'services.write' => 'Trigger sync of hosting, SSL and internet services',
+        'hosting.read'   => 'View hosting services and their usage statistics',
+        'hosting.write'  => 'Trigger hosting service sync from Synergy Wholesale',
+        'ssl.read'       => 'View SSL certificates and their status',
+        'ssl.write'      => 'Trigger SSL certificate sync from Synergy Wholesale',
+        'internet.read'  => 'View internet / broadband services',
+        'internet.write' => 'Trigger internet service sync from Vocus WSM',
         'tickets.read'   => 'View HaloPSA support tickets and their replies',
         'tickets.write'  => 'Create tickets and post replies; close tickets',
         'pricing.read'   => 'View the domain pricing catalogue',
@@ -53,6 +57,17 @@ class ApiKey extends Model
         $suffix = str_contains($scope, '.') ? substr($scope, strrpos($scope, '.') + 1) : null;
         if ($suffix && in_array($suffix, $this->scopes, true)) {
             return true;
+        }
+
+        // Legacy services.* fallback: keys created before hosting/ssl/internet were
+        // split out still carry services.read or services.write and should continue
+        // to satisfy the new granular service scopes.
+        $serviceScopes = ['hosting', 'ssl', 'internet'];
+        $prefix = str_contains($scope, '.') ? substr($scope, 0, strrpos($scope, '.')) : null;
+        if ($prefix && in_array($prefix, $serviceScopes, true) && $suffix) {
+            if (in_array("services.{$suffix}", $this->scopes, true)) {
+                return true;
+            }
         }
 
         return false;
