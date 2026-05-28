@@ -33,7 +33,7 @@ class ApiKey extends Model
 
     protected $fillable = ['name','key_hash','allowed_ips','rate_limit_per_hour','scopes','active'];
 
-    protected $casts = ['scopes' => 'array'];
+    protected $casts = ['scopes' => 'array', 'active' => 'boolean'];
 
     /**
      * Check whether this key is permitted to use the given scope.

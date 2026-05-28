@@ -82,7 +82,6 @@
 
     /* ── Form controls ── */
     .ak-field { margin-bottom: 14px; }
-    .ak-field:last-of-type { margin-bottom: 0; }
 
     .ak-label {
         display: block;
@@ -108,17 +107,12 @@
     .ak-input:focus { border-color: var(--accent); }
     .ak-input[readonly] { cursor: default; opacity: 0.9; }
 
-    .ak-hint {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 4px;
-    }
+    .ak-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
     .ak-error { font-size: 12px; color: var(--danger-text, #f87171); margin-top: 3px; }
 
     /* ── Scope grid ── */
     .ak-scope-group { margin-bottom: 10px; }
     .ak-scope-group:last-child { margin-bottom: 0; }
-
     .ak-scope-group-label {
         font-size: 11px;
         font-weight: 600;
@@ -128,7 +122,6 @@
         margin-bottom: 5px;
     }
     .ak-scope-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-
     .ak-scope-pill {
         display: inline-flex;
         align-items: center;
@@ -157,7 +150,7 @@
     .ak-scope-read  { color: #93c5fd; }
     .ak-scope-write { color: #fbbf24; }
 
-    /* ── Secondary button ── */
+    /* ── Buttons ── */
     .ak-btn-secondary {
         padding: 8px 16px;
         border-radius: 8px;
@@ -173,7 +166,90 @@
         border-color: color-mix(in srgb, var(--border-subtle) 60%, var(--text) 40%);
     }
 
-    /* ── Warning notice ── */
+    /* ── Inline action buttons ── */
+    .ak-action-btn {
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
+        background: transparent;
+        color: var(--text);
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        line-height: 1.5;
+    }
+    .ak-action-btn:hover { background: var(--surface-muted); }
+
+    .ak-action-btn-warning {
+        color: var(--warning-text, #78350f);
+        border-color: var(--warning-border, #fcd34d);
+        background: var(--warning-bg, #fef3c7);
+    }
+    html.dark .ak-action-btn-warning {
+        color: #fde68a;
+        border-color: rgba(245,158,11,0.45);
+        background: rgba(245,158,11,0.1);
+    }
+    .ak-action-btn-warning:hover { filter: brightness(1.1); }
+
+    .ak-action-btn-success {
+        color: var(--success-text, #14532d);
+        border-color: var(--success-border, #86efac);
+        background: var(--success-bg, #dcfce7);
+    }
+    html.dark .ak-action-btn-success {
+        color: #d1fae5;
+        border-color: rgba(16,185,129,0.45);
+        background: rgba(16,185,129,0.12);
+    }
+    .ak-action-btn-success:hover { filter: brightness(1.1); }
+
+    .ak-action-btn-danger {
+        color: var(--danger-text, #dc2626);
+        border-color: color-mix(in srgb, var(--danger-text, #dc2626) 40%, transparent);
+        background: color-mix(in srgb, var(--danger-text, #dc2626) 8%, transparent);
+    }
+    .ak-action-btn-danger:hover { filter: brightness(1.1); }
+
+    /* ── Status badges ── */
+    .ak-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .ak-badge::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .ak-badge-active {
+        color: var(--success-text, #14532d);
+        background: var(--success-bg, #dcfce7);
+        border: 1px solid var(--success-border, #86efac);
+    }
+    html.dark .ak-badge-active {
+        color: #d1fae5;
+        background: rgba(16,185,129,0.12);
+        border-color: rgba(16,185,129,0.4);
+    }
+    .ak-badge-active::before { background: currentColor; }
+
+    .ak-badge-inactive {
+        color: var(--text-muted);
+        background: var(--surface-muted);
+        border: 1px solid var(--border-subtle);
+    }
+    .ak-badge-inactive::before { background: var(--text-muted); opacity: 0.5; }
+
+    /* ── Warning notice in reveal modal ── */
     .ak-warn {
         display: flex;
         align-items: flex-start;
@@ -194,20 +270,11 @@
     }
 
     /* ── Key copy row ── */
-    .ak-key-row {
-        display: flex;
-        gap: 8px;
-        align-items: stretch;
-    }
+    .ak-key-row { display: flex; gap: 8px; align-items: stretch; }
     .ak-key-row .ak-input {
         font-family: ui-monospace, "Fira Code", monospace;
         font-size: 13px;
         letter-spacing: 0.02em;
-    }
-    .ak-copy-btn {
-        flex-shrink: 0;
-        padding: 9px 14px;
-        white-space: nowrap;
     }
 
     /* ── Table ── */
@@ -231,7 +298,7 @@
     }
     .ak-table td:last-child { text-align: right; }
     .ak-table tbody tr:last-child td { border-bottom: none; }
-    .ak-table .ak-muted { color: var(--text-muted); font-size: 13px; }
+    .ak-muted { color: var(--text-muted); font-size: 13px; }
 </style>
 
 <div style="max-width:960px;margin:0 auto;">
@@ -244,6 +311,14 @@
         </button>
     </div>
 
+    @if(session('status'))
+        <div style="margin-bottom:14px;padding:10px 14px;border-radius:8px;
+                    background:var(--success-bg);border:1px solid var(--success-border);
+                    color:var(--success-text);font-size:13px;">
+            {{ session('status') }}
+        </div>
+    @endif
+
     {{-- Existing keys card --}}
     <div class="ak-card">
         <h2 style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 14px;">Existing API keys</h2>
@@ -252,6 +327,7 @@
             <thead>
                 <tr>
                     <th>Name</th>
+                    <th>Status</th>
                     <th>Allowed IPs</th>
                     <th>Rate limit</th>
                     <th>Scopes</th>
@@ -261,41 +337,86 @@
             </thead>
             <tbody>
             @forelse($keys as $key)
+                @php
+                    $scopes = $key->scopes ?? [];
+                    $isActive = (bool) $key->active;
+                @endphp
                 <tr>
                     <td style="font-weight:500;">{{ $key->name }}</td>
+
+                    <td>
+                        @if($isActive)
+                            <span class="ak-badge ak-badge-active">Active</span>
+                        @else
+                            <span class="ak-badge ak-badge-inactive">Inactive</span>
+                        @endif
+                    </td>
+
                     <td class="ak-muted">{{ $key->allowed_ips ?: 'Any' }}</td>
+
                     <td class="ak-muted">{{ $key->rate_limit_per_hour ?? '—' }}&thinsp;/&thinsp;hr</td>
-                    <td class="ak-muted">
-                        @php
-                            $scopes = $key->scopes ?? [];
-                            if (is_string($scopes)) {
-                                $decoded = json_decode($scopes, true);
-                                if (is_array($decoded)) $scopes = $decoded;
-                            }
-                        @endphp
+
+                    <td class="ak-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                        title="{{ $scopes ? implode(', ', $scopes) : 'All' }}">
                         {{ $scopes ? implode(', ', $scopes) : 'All' }}
                     </td>
+
                     <td class="ak-muted">{{ $key->created_at->diffForHumans() }}</td>
+
                     <td>
-                        @if(method_exists($key, 'isActive') ? $key->isActive() : true)
-                            <form method="POST"
-                                  action="{{ route('admin.apikeys.deactivate', $key) }}"
-                                  onsubmit="return confirm('Deactivate this API key? It will stop working immediately.');"
+                        <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+
+                            {{-- Regenerate --}}
+                            <form method="POST" action="{{ route('admin.apikeys.regenerate', $key) }}"
+                                  onsubmit="return confirm('Regenerate this key? The current key will stop working immediately.');"
                                   style="display:inline;">
                                 @csrf
-                                <button type="submit" class="ak-btn-secondary"
-                                        style="padding:5px 12px;font-size:13px;">
-                                    Deactivate
-                                </button>
+                                <button type="submit" class="ak-action-btn">Regenerate</button>
                             </form>
-                        @else
-                            <span class="ak-muted">Deactivated</span>
-                        @endif
+
+                            {{-- Edit --}}
+                            <button type="button"
+                                    class="ak-action-btn ak-edit-btn"
+                                    data-key-id="{{ $key->id }}"
+                                    data-key-name="{{ $key->name }}"
+                                    data-allowed-ips="{{ $key->allowed_ips }}"
+                                    data-rate-limit="{{ $key->rate_limit_per_hour }}"
+                                    data-scopes="{{ json_encode($scopes) }}"
+                                    data-update-url="{{ route('admin.apikeys.update', $key) }}">
+                                Edit
+                            </button>
+
+                            {{-- Deactivate / Reactivate --}}
+                            @if($isActive)
+                                <form method="POST" action="{{ route('admin.apikeys.deactivate', $key) }}"
+                                      onsubmit="return confirm('Deactivate this API key? It will stop working immediately.');"
+                                      style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="ak-action-btn ak-action-btn-warning">Deactivate</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('admin.apikeys.reactivate', $key) }}"
+                                      style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="ak-action-btn ak-action-btn-success">Reactivate</button>
+                                </form>
+                            @endif
+
+                            {{-- Delete --}}
+                            <form method="POST" action="{{ route('admin.apikeys.destroy', $key) }}"
+                                  onsubmit="return confirm('Permanently delete this API key? This cannot be undone.');"
+                                  style="display:inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ak-action-btn ak-action-btn-danger">Delete</button>
+                            </form>
+
+                        </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" style="padding:20px 8px;text-align:center;color:var(--text-muted);">
+                    <td colspan="7" style="padding:20px 8px;text-align:center;color:var(--text-muted);">
                         No API keys created yet.
                     </td>
                 </tr>
@@ -382,9 +503,8 @@
                                     @foreach($groupScopes as $scope)
                                         @php
                                             $suffix = str_contains($scope, '.') ? substr($scope, strrpos($scope, '.') + 1) : $scope;
-                                            $description = $allScopes[$scope] ?? $scope;
                                         @endphp
-                                        <label class="ak-scope-pill" title="{{ $description }}">
+                                        <label class="ak-scope-pill" title="{{ $allScopes[$scope] ?? $scope }}">
                                             <input type="checkbox" name="scopes[]" value="{{ $scope }}"
                                                    {{ in_array($scope, $selectedScopes, true) ? 'checked' : '' }}>
                                             <span class="ak-scope-{{ $suffix }}">{{ $suffix }}</span>
@@ -395,12 +515,8 @@
                         @endforeach
                     </div>
 
-                    @error('scopes')
-                        <p class="ak-error">{{ $message }}</p>
-                    @enderror
-                    @error('scopes.*')
-                        <p class="ak-error">{{ $message }}</p>
-                    @enderror
+                    @error('scopes') <p class="ak-error">{{ $message }}</p> @enderror
+                    @error('scopes.*') <p class="ak-error">{{ $message }}</p> @enderror
                 </div>
 
             </form>
@@ -417,14 +533,85 @@
 </div>
 
 {{-- ══════════════════════════════════════════════════════════
-     Key reveal modal (single-display — shown once after creation)
+     Edit key modal  (populated by JS)
+════════════════════════════════════════════════════════════ --}}
+<div id="modal-edit" class="ak-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+    <div class="ak-dialog">
+
+        <div class="ak-dialog-header">
+            <h2 id="modal-edit-title" class="ak-dialog-title">Edit API key</h2>
+            <button class="ak-dialog-close" id="modal-edit-close" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="ak-dialog-body">
+            <form method="POST" id="form-edit-key" action="">
+                @csrf
+                @method('PUT')
+
+                <p id="edit-key-name"
+                   style="font-size:13px;color:var(--text-muted);margin:0 0 14px;"></p>
+
+                <div class="ak-field">
+                    <label class="ak-label" for="edit_allowed_ips">
+                        Allowed IPs <span>(optional)</span>
+                    </label>
+                    <input id="edit_allowed_ips" class="ak-input" name="allowed_ips" type="text"
+                           placeholder="Comma-separated — e.g. 1.2.3.4, 10.0.0.0/8">
+                    <p class="ak-hint">Leave blank to allow requests from any IP address.</p>
+                </div>
+
+                <div class="ak-field">
+                    <label class="ak-label" for="edit_rate_limit">Rate limit per hour</label>
+                    <input id="edit_rate_limit" class="ak-input" name="rate_limit_per_hour"
+                           type="number" min="1">
+                </div>
+
+                <div class="ak-field" style="margin-bottom:0;">
+                    <label class="ak-label">Scopes <span>(leave all unchecked for full access)</span></label>
+                    <div style="margin-top:6px;" id="edit-scopes-container">
+                        @foreach($scopeGroups as $groupLabel => $groupScopes)
+                            <div class="ak-scope-group">
+                                <div class="ak-scope-group-label">{{ $groupLabel }}</div>
+                                <div class="ak-scope-pills">
+                                    @foreach($groupScopes as $scope)
+                                        @php
+                                            $suffix = str_contains($scope, '.') ? substr($scope, strrpos($scope, '.') + 1) : $scope;
+                                        @endphp
+                                        <label class="ak-scope-pill" title="{{ $allScopes[$scope] ?? $scope }}">
+                                            <input type="checkbox" name="scopes[]"
+                                                   value="{{ $scope }}"
+                                                   class="edit-scope-cb">
+                                            <span class="ak-scope-{{ $suffix }}">{{ $suffix }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+        <div class="ak-dialog-footer">
+            <button type="button" class="ak-btn-secondary" id="modal-edit-cancel">Cancel</button>
+            <button type="submit" form="form-edit-key" class="btn-accent" style="padding:8px 16px;">
+                Save changes
+            </button>
+        </div>
+
+    </div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════
+     Key reveal modal (single-display — shown once after create/regenerate)
 ════════════════════════════════════════════════════════════ --}}
 @if(session('new_api_key'))
 <div id="modal-reveal" class="ak-overlay is-open" role="dialog" aria-modal="true" aria-labelledby="modal-reveal-title">
     <div class="ak-dialog ak-dialog-sm">
 
         <div class="ak-dialog-header">
-            <h2 id="modal-reveal-title" class="ak-dialog-title">API key created</h2>
+            <h2 id="modal-reveal-title" class="ak-dialog-title">API key ready</h2>
             <button class="ak-dialog-close" id="modal-reveal-close" aria-label="Close">&times;</button>
         </div>
 
@@ -439,14 +626,12 @@
                 <span>Copy this key now. For security, it <strong>will not be shown again</strong> after you close this dialog.</span>
             </div>
 
-            <label class="ak-label" for="reveal-key-value">Your new API key</label>
+            <label class="ak-label" for="reveal-key-value">Your API key</label>
             <div class="ak-key-row">
-                <input id="reveal-key-value"
-                       class="ak-input"
-                       type="text"
-                       readonly
+                <input id="reveal-key-value" class="ak-input" type="text" readonly
                        value="{{ session('new_api_key') }}">
-                <button id="btn-copy-key" type="button" class="btn-accent ak-copy-btn">
+                <button id="btn-copy-key" type="button" class="btn-accent"
+                        style="flex-shrink:0;padding:9px 14px;white-space:nowrap;">
                     Copy
                 </button>
             </div>
@@ -465,63 +650,85 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── Create key modal ──────────────────────────────────────────────
-    var createModal  = document.getElementById('modal-create');
-    var btnNewKey    = document.getElementById('btn-new-key');
+    // ── Helpers ──────────────────────────────────────────────────────────
+    function openModal(el)  { if (el) el.classList.add('is-open'); }
+    function closeModal(el) { if (el) el.classList.remove('is-open'); }
 
-    function openCreate()  { if (createModal) createModal.classList.add('is-open'); }
-    function closeCreate() { if (createModal) createModal.classList.remove('is-open'); }
-
-    if (btnNewKey) btnNewKey.addEventListener('click', openCreate);
-
-    ['modal-create-close', 'modal-create-cancel'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('click', closeCreate);
-    });
-
-    if (createModal) {
-        createModal.addEventListener('click', function (e) {
-            if (e.target === createModal) closeCreate();
+    function wireClose(modalEl, ...ids) {
+        ids.forEach(function (id) {
+            var btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', function () { closeModal(modalEl); });
         });
+        if (modalEl) {
+            modalEl.addEventListener('click', function (e) {
+                if (e.target === modalEl) closeModal(modalEl);
+            });
+        }
     }
 
+    // ── Create modal ─────────────────────────────────────────────────────
+    var createModal = document.getElementById('modal-create');
+    var btnNewKey   = document.getElementById('btn-new-key');
+
+    if (btnNewKey) btnNewKey.addEventListener('click', function () { openModal(createModal); });
+    wireClose(createModal, 'modal-create-close', 'modal-create-cancel');
+
     @if($errors->any())
-    openCreate();
+    openModal(createModal);
     @endif
 
-    // ── Reveal modal ──────────────────────────────────────────────────
-    var revealModal  = document.getElementById('modal-reveal');
+    // ── Edit modal ───────────────────────────────────────────────────────
+    var editModal      = document.getElementById('modal-edit');
+    var editForm       = document.getElementById('form-edit-key');
+    var editKeyName    = document.getElementById('edit-key-name');
+    var editAllowedIps = document.getElementById('edit_allowed_ips');
+    var editRateLimit  = document.getElementById('edit_rate_limit');
+    var editScopeCbs   = document.querySelectorAll('.edit-scope-cb');
 
-    function closeReveal() { if (revealModal) revealModal.classList.remove('is-open'); }
+    wireClose(editModal, 'modal-edit-close', 'modal-edit-cancel');
 
-    ['modal-reveal-close', 'modal-reveal-done'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('click', closeReveal);
+    document.querySelectorAll('.ak-edit-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var name       = btn.dataset.keyName || '';
+            var allowedIps = btn.dataset.allowedIps || '';
+            var rateLimit  = btn.dataset.rateLimit  || '1000';
+            var scopes     = JSON.parse(btn.dataset.scopes || '[]');
+            var url        = btn.dataset.updateUrl;
+
+            if (editKeyName)    editKeyName.textContent  = 'Editing: ' + name;
+            if (editAllowedIps) editAllowedIps.value     = allowedIps;
+            if (editRateLimit)  editRateLimit.value       = rateLimit;
+            if (editForm)       editForm.action           = url;
+
+            editScopeCbs.forEach(function (cb) {
+                cb.checked = scopes.indexOf(cb.value) !== -1;
+            });
+
+            openModal(editModal);
+        });
     });
 
-    // Copy to clipboard
-    var btnCopy   = document.getElementById('btn-copy-key');
-    var keyInput  = document.getElementById('reveal-key-value');
+    // ── Reveal modal ─────────────────────────────────────────────────────
+    var revealModal = document.getElementById('modal-reveal');
+    var btnCopy     = document.getElementById('btn-copy-key');
+    var keyInput    = document.getElementById('reveal-key-value');
+
+    wireClose(revealModal, 'modal-reveal-close', 'modal-reveal-done');
 
     if (btnCopy && keyInput) {
         btnCopy.addEventListener('click', function () {
-            var value = keyInput.value;
-            var original = btnCopy.textContent;
-
-            navigator.clipboard.writeText(value).then(function () {
+            var orig = btnCopy.textContent;
+            navigator.clipboard.writeText(keyInput.value).then(function () {
                 btnCopy.textContent = 'Copied!';
-                setTimeout(function () { btnCopy.textContent = original; }, 2000);
+                setTimeout(function () { btnCopy.textContent = orig; }, 2000);
             }).catch(function () {
                 keyInput.select();
                 document.execCommand('copy');
                 btnCopy.textContent = 'Copied!';
-                setTimeout(function () { btnCopy.textContent = original; }, 2000);
+                setTimeout(function () { btnCopy.textContent = orig; }, 2000);
             });
         });
-    }
 
-    // Select all on click for easy manual copy
-    if (keyInput) {
         keyInput.addEventListener('click', function () { this.select(); });
     }
 });
