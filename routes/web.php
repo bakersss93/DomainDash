@@ -192,7 +192,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // ============================================================================
         Route::get('/api-keys', [ApiKeysController::class,'index'])->name('admin.apikeys');
         Route::post('/api-keys', [ApiKeysController::class,'store'])->name('admin.apikeys.store');
+        Route::put('/api-keys/{key}', [ApiKeysController::class,'update'])->name('admin.apikeys.update');
+        Route::delete('/api-keys/{key}', [ApiKeysController::class,'destroy'])->name('admin.apikeys.destroy');
         Route::post('/api-keys/{key}/deactivate', [ApiKeysController::class,'deactivate'])->name('admin.apikeys.deactivate');
+        Route::post('/api-keys/{key}/reactivate', [ApiKeysController::class,'reactivate'])->name('admin.apikeys.reactivate');
+        Route::post('/api-keys/{key}/regenerate', [ApiKeysController::class,'regenerate'])->name('admin.apikeys.regenerate');
 
         // ============================================================================
         // INTERNET SERVICES ROUTES (Vocus WSM)
