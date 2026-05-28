@@ -81,8 +81,6 @@ tags:
     description: TLD pricing catalogue
   - name: Users
     description: Portal user accounts
-  - name: API Keys
-    description: API key management (Administrator only)
   - name: Audit Logs
     description: Immutable audit trail
 
@@ -867,65 +865,6 @@ components:
           nullable: true
           description: Role name to assign (e.g. Administrator, Technician, Customer)
           example: Technician
-
-    # --- API Key --------------------------------------------------------------
-    ApiKey:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 3
-        name:
-          type: string
-          example: Zapier Integration
-        allowed_ips:
-          type: string
-          nullable: true
-          description: Comma-separated IPs or CIDR ranges. Use * to allow all.
-          example: "203.0.113.0/24,198.51.100.5"
-        rate_limit_per_hour:
-          type: integer
-          example: 360
-        scopes:
-          type: array
-          items:
-            type: string
-            enum: [read, write]
-          example:
-            - read
-        active:
-          type: boolean
-          example: true
-        created_at:
-          type: string
-          format: date-time
-
-    ApiKeyWrite:
-      type: object
-      required:
-        - name
-        - rate_limit_per_hour
-      properties:
-        name:
-          type: string
-          example: Zapier Integration
-        allowed_ips:
-          type: string
-          nullable: true
-          description: Comma-separated IPs or CIDR ranges. Use * to allow all.
-          example: "203.0.113.0/24"
-        rate_limit_per_hour:
-          type: integer
-          minimum: 1
-          maximum: 100000
-          example: 360
-        scopes:
-          type: array
-          items:
-            type: string
-            enum: [read, write]
-          example:
-            - read
 
     # --- Audit Log ------------------------------------------------------------
     AuditLog:
@@ -2549,105 +2488,6 @@ paths:
       responses:
         '204':
           description: User deleted
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-
-  # ==========================================================================
-  # API Keys
-  # ==========================================================================
-
-  /v1/api-keys:
-    get:
-      tags:
-        - API Keys
-      operationId: listApiKeys
-      summary: List API keys
-      description: |
-        Returns all API keys (metadata only — raw key values are never returned after creation).
-        Administrator-only. Requires `read` scope.
-      responses:
-        '200':
-          description: API key list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ApiKey'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-
-    post:
-      tags:
-        - API Keys
-      operationId: createApiKey
-      summary: Create an API key
-      description: |
-        Creates a new API key. The raw key value is returned **once** in the response
-        and cannot be retrieved again — store it securely immediately.
-        Administrator-only. Requires `write` scope.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ApiKeyWrite'
-      responses:
-        '201':
-          description: API key created — raw key included once
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiKey'
-                  - type: object
-                    properties:
-                      raw_key:
-                        type: string
-                        description: >
-                          The plaintext API key. This value is shown exactly once and
-                          is not stored — save it now.
-                        example: "dd_live_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-
-  /v1/api-keys/{key}/deactivate:
-    post:
-      tags:
-        - API Keys
-      operationId: deactivateApiKey
-      summary: Deactivate an API key
-      description: Marks an API key as inactive. All subsequent requests using it will be rejected. Administrator-only. Requires `write` scope.
-      parameters:
-        - name: key
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: API key ID
-      responses:
-        '200':
-          description: Key deactivated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiKey'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
