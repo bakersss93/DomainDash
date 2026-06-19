@@ -8,6 +8,7 @@ use SoapFault;
 use SoapVar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VocusWsmClient
 {
@@ -92,13 +93,12 @@ class VocusWsmClient
             throw new \RuntimeException('Vocus client certificate path is not configured. Please upload a certificate in Settings.');
         }
 
-        $full = storage_path('app/' . $certPath);
-
-        if (!file_exists($full)) {
+        if (!Storage::disk('local')->exists($certPath)) {
+            $full = Storage::disk('local')->path($certPath);
             throw new \RuntimeException("Vocus client certificate not found at: {$full}");
         }
 
-        return $full;
+        return Storage::disk('local')->path($certPath);
     }
 
     protected function resolveCertType(string $certPath): string
