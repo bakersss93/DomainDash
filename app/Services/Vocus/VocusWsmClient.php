@@ -445,6 +445,48 @@ class VocusWsmClient
         return $this->call('Get', 'FIBRE', ['StartDateTime' => $startDateTime], null, 'NOTIFICATIONS');
     }
 
+    /**
+     * Discover all ServiceIDs known to Vocus by walking historical notifications.
+     * Returns a unique list of service ID strings.
+     */
+    public function discoverServiceIds(string $startDateTime = '20150101000000'): array
+    {
+        $result = $this->getNotifications($startDateTime);
+        $params = $result['params'] ?? [];
+
+        $ids = [];
+
+        // ServiceID may appear directly as a flat param or inside CDATA record wrappers.
+        // Check both patterns.
+        foreach ($params as $key => $value) {
+            $values = is_array($value) ? $value : [$value];
+
+            foreach ($values as $item) {
+                if (!$item) {
+                    continue;
+                }
+
+                // If the param itself is a ServiceID key
+                if (strtoupper($key) === 'SERVICEID' && $item) {
+                    $ids[] = trim($item);
+                    continue;
+                }
+
+                // Try to parse CDATA-wrapped XML records (e.g. FibreNotificationRecord)
+                $stripped = preg_replace('/^<!\[CDATA\[|\]\]>$/', '', trim($item));
+                $xml = @simplexml_load_string($stripped);
+                if ($xml) {
+                    $sid = (string) ($xml->ServiceID ?? '');
+                    if ($sid !== '') {
+                        $ids[] = $sid;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     // -------------------------------------------------------------------------
     // TCAS polling
     // -------------------------------------------------------------------------
