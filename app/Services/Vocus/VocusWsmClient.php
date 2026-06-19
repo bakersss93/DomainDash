@@ -49,6 +49,8 @@ class VocusWsmClient
         $certPassword = $this->config['cert_password'] ?? '';
         $loginUrl = $this->config['login_url'] ?? self::DEFAULT_LOGIN_URL;
 
+        $certType = $this->resolveCertType($certPath);
+
         $ch = curl_init($loginUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -56,7 +58,7 @@ class VocusWsmClient
             CURLOPT_NOBODY         => false,
             CURLOPT_SSLCERT        => $certPath,
             CURLOPT_SSLCERTPASSWD  => $certPassword,
-            CURLOPT_SSLCERTTYPE    => 'P12',
+            CURLOPT_SSLCERTTYPE    => $certType,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT        => 30,
@@ -97,6 +99,35 @@ class VocusWsmClient
         }
 
         return $full;
+    }
+
+    protected function resolveCertType(string $certPath): string
+    {
+        $ext = strtolower(pathinfo($certPath, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['pem', 'crt', 'cer', 'key'])) {
+            return 'PEM';
+        }
+
+        // .keystore may be JKS or PKCS12 — detect by magic bytes.
+        // JKS starts with 0xFEEDFEED; PKCS12 starts with 0x3082 (ASN.1 SEQUENCE).
+        if ($ext === 'keystore') {
+            $handle = fopen($certPath, 'rb');
+            $magic  = $handle ? bin2hex(fread($handle, 4)) : '';
+            if ($handle) {
+                fclose($handle);
+            }
+            if ($magic === 'feedfeed') {
+                throw new \RuntimeException(
+                    'The uploaded certificate is in Java JKS format, which is not supported by cURL. ' .
+                    'Please convert it to PKCS#12 (.p12) format using: ' .
+                    'keytool -importkeystore -srckeystore client.keystore -destkeystore client.p12 -deststoretype PKCS12'
+                );
+            }
+            // Modern Java keystores default to PKCS12 — treat as P12.
+        }
+
+        return 'P12';
     }
 
     protected function buildSoapClient(string $sessionId): SoapClient

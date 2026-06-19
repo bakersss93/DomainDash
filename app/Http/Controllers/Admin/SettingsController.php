@@ -162,9 +162,11 @@ class SettingsController extends Controller
 
         if ($request->hasFile('vocus_cert')) {
             $file = $request->file('vocus_cert');
-            $file->storeAs('vocus', 'client.p12');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'p12');
+            $filename = 'client.' . $ext;
+            $file->storeAs('vocus', $filename);
             $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), [
-                'cert_path' => 'vocus/client.p12',
+                'cert_path' => 'vocus/' . $filename,
             ]);
         }
 
