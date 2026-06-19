@@ -89,7 +89,7 @@ class SettingsController extends Controller
             'vocus.wsdl_url'          => 'nullable|url|max:255',
             'vocus.login_url'         => 'nullable|url|max:255',
             'vocus.cert_password'     => 'nullable|string|max:255',
-            'vocus_cert'              => 'nullable|file|mimes:p12,pfx|max:512',
+            'vocus_cert'              => 'nullable|file|extensions:p12,pfx,keystone|max:512',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
             'sync_schedule.*.enabled' => 'nullable|boolean',
