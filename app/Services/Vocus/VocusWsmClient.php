@@ -101,6 +101,22 @@ class VocusWsmClient
         return Storage::disk('local')->path($certPath);
     }
 
+    protected function resolveWsdlPath(): string
+    {
+        // Prefer a WSDL stored in the local disk (uploaded or overridden).
+        if (Storage::disk('local')->exists('wsdl/vocus.wsdl')) {
+            return Storage::disk('local')->path('wsdl/vocus.wsdl');
+        }
+
+        // Fall back to the bundled WSDL shipped with the application.
+        $bundled = base_path('vocus-api/Vocus-Wholesale/Schemas/WholesaleServiceManagement.wsdl');
+        if (file_exists($bundled)) {
+            return $bundled;
+        }
+
+        throw new \RuntimeException('Vocus WSDL not found. Expected at: ' . Storage::disk('local')->path('wsdl/vocus.wsdl'));
+    }
+
     protected function resolveCertType(string $certPath): string
     {
         $ext = strtolower(pathinfo($certPath, PATHINFO_EXTENSION));
@@ -132,7 +148,7 @@ class VocusWsmClient
 
     protected function buildSoapClient(string $sessionId): SoapClient
     {
-        $wsdlPath = storage_path('app/wsdl/vocus.wsdl');
+        $wsdlPath = $this->resolveWsdlPath();
         $endpoint = $this->config['wsdl_url'] ?? self::DEFAULT_WSDL_URL;
 
         $context = stream_context_create([
