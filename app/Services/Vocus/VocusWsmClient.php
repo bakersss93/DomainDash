@@ -17,6 +17,7 @@ class VocusWsmClient
 
     // Namespace constants
     const NS_WSM = 'https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd';
+    const NS_STD = 'https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd';
     const DEFAULT_WSDL_URL = 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement';
     const DEFAULT_LOGIN_URL = 'https://wsm.webservice.m2.com.au:9443/login/';
 
@@ -223,9 +224,15 @@ class VocusWsmClient
     protected function buildRequestXml(string $operation, string $productId, array $params, ?string $planId, ?string $scope): string
     {
         $elementName = ucfirst(strtolower($operation)) . 'Request';
-        $ns = self::NS_WSM;
 
-        $xml = "<{$elementName} xmlns=\"{$ns}\">";
+        // Declare both namespaces at the root. The WSM namespace covers the
+        // request envelope and its direct children (AccessKey, ProductID, etc.).
+        // Parameters/Param are defined in StandardDataTypes (std:) and must
+        // carry that namespace — otherwise the server rejects with an
+        // "unexpected element" unmarshalling error.
+        $xml  = "<{$elementName} xmlns=\"" . self::NS_WSM . '"';
+        $xml .= ' xmlns:std="' . self::NS_STD . '">';
+
         $xml .= '<AccessKey>' . $this->e($this->config['access_key'] ?? '') . '</AccessKey>';
 
         if (!empty($this->config['alias_key'])) {
@@ -243,11 +250,11 @@ class VocusWsmClient
         }
 
         if (!empty($params)) {
-            $xml .= '<Parameters>';
+            $xml .= '<std:Parameters>';
             foreach ($params as $id => $value) {
-                $xml .= '<Param id="' . $this->e($id) . '">' . $this->e((string) $value) . '</Param>';
+                $xml .= '<std:Param id="' . $this->e($id) . '">' . $this->e((string) $value) . '</std:Param>';
             }
-            $xml .= '</Parameters>';
+            $xml .= '</std:Parameters>';
         }
 
         $xml .= "</{$elementName}>";
