@@ -250,11 +250,11 @@ class VocusWsmClient
         }
 
         if (!empty($params)) {
-            $xml .= '<std:Parameters>';
+            $xml .= '<Parameters>';
             foreach ($params as $id => $value) {
                 $xml .= '<std:Param id="' . $this->e($id) . '">' . $this->e((string) $value) . '</std:Param>';
             }
-            $xml .= '</std:Parameters>';
+            $xml .= '</Parameters>';
         }
 
         $xml .= "</{$elementName}>";
