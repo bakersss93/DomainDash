@@ -445,20 +445,21 @@ class VocusWsmClient
     }
 
     /**
-     * Retrieve NBN event notifications since a given datetime (YYYYMMDDHHMMSS).
+     * Retrieve NBN event notifications starting from a record cursor.
+     * StartRecordID=0 returns from the beginning of the notification log.
      */
-    public function getNotifications(string $startDateTime): array
+    public function getNotifications(int $startRecordId = 0): array
     {
-        return $this->call('Get', 'FIBRE', ['StartDateTime' => $startDateTime], null, 'NOTIFICATIONS');
+        return $this->call('Get', 'FIBRE', ['StartRecordID' => (string) $startRecordId], null, 'NOTIFICATIONS');
     }
 
     /**
      * Discover all ServiceIDs known to Vocus by walking historical notifications.
      * Returns a unique list of service ID strings.
      */
-    public function discoverServiceIds(string $startDateTime = '20150101000000'): array
+    public function discoverServiceIds(): array
     {
-        $result = $this->getNotifications($startDateTime);
+        $result = $this->getNotifications(0);
         $params = $result['params'] ?? [];
 
         $ids = [];
