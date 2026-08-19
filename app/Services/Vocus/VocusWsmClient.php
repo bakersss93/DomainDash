@@ -184,17 +184,7 @@ class VocusWsmClient
             $result = $this->soap->__soapCall($operation, [$soapVar]);
             return $this->parseResponse($result);
         } catch (SoapFault $e) {
-            $errorCode = null;
-            if (isset($e->detail->ErrorCode)) {
-                $errorCode = $e->detail->ErrorCode;
-            } elseif (isset($e->detail)) {
-                // Try parsing detail as XML
-                if (is_string($e->detail)) {
-                    if (preg_match('/<ErrorCode>([^<]+)<\/ErrorCode>/i', $e->detail, $m)) {
-                        $errorCode = $m[1];
-                    }
-                }
-            }
+            $errorCode = $this->extractSoapFaultCode($e);
 
             // Session expired — clear cache and retry once
             if ($errorCode === 'WSM-4005') {
@@ -219,6 +209,23 @@ class VocusWsmClient
                 $e
             );
         }
+    }
+
+    protected function extractSoapFaultCode(SoapFault $fault): ?string
+    {
+        $detail = $fault->detail ?? null;
+        if (is_object($detail)) {
+            $faultResponse = $detail->FaultResponse ?? $detail;
+            if (is_object($faultResponse) && isset($faultResponse->ErrorCode)) {
+                return (string) $faultResponse->ErrorCode;
+            }
+        }
+
+        if (is_string($detail) && preg_match('/<ErrorCode>([^<]+)<\/ErrorCode>/i', $detail, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     protected function buildRequestXml(string $operation, string $productId, array $params, ?string $planId, ?string $scope): string
@@ -445,12 +452,16 @@ class VocusWsmClient
     }
 
     /**
-     * Retrieve NBN event notifications starting from a record cursor.
-     * StartRecordID=0 returns from the beginning of the notification log.
+     * Retrieve NBN order and appointment notifications for a requested timeframe.
+     * The timestamp must use Vocus' YYYYMMDDHHMMSS format.
      */
-    public function getNotifications(int $startRecordId = 0): array
+    public function getNotifications(string $startDateTime): array
     {
-        return $this->call('Get', 'FIBRE', ['StartRecordID' => (string) $startRecordId], null, 'NOTIFICATIONS');
+        if (!preg_match('/^\d{14}$/', $startDateTime)) {
+            throw new \InvalidArgumentException('Vocus notification start time must use YYYYMMDDHHMMSS format.');
+        }
+
+        return $this->call('Get', 'FIBRE', ['StartDateTime' => $startDateTime], null, 'NOTIFICATIONS');
     }
 
     // -------------------------------------------------------------------------
@@ -473,12 +484,12 @@ class VocusWsmClient
     /**
      * Retrieve authentication log for a service (last 48 hours).
      */
-    public function getAuthLog(string $serviceId, string $planId): array
+    public function getAuthLog(string $serviceId, string $serviceProductId = 'FIBRE'): array
     {
         $result = $this->call('Get', 'OPER', [
             'ServiceID' => $serviceId,
-            'ProductID' => 'FIBRE',
-        ], $planId, 'AUTH-LOG');
+            'ProductID' => $serviceProductId,
+        ], 'AUTH-LOG', 'USAGE-DAILY');
 
         // Parse AuthUsageRecord CDATA entries
         $records = [];
