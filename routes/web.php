@@ -203,6 +203,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // ============================================================================
         Route::get('/services/internet', [InternetController::class, 'index'])->name('admin.services.internet');
         Route::post('/services/internet/sync', [InternetController::class, 'sync'])->name('admin.services.internet.sync');
+        Route::post('/services/internet/import', [InternetController::class, 'importByIds'])->name('admin.services.internet.import');
         Route::get('/services/internet/qualify', [InternetController::class, 'qualify'])->name('admin.services.internet.qualify');
         Route::post('/services/internet/qualify/lookup', [InternetController::class, 'qualifyLookup'])->name('admin.services.internet.qualify.lookup');
         Route::post('/services/internet/qualify/check', [InternetController::class, 'qualifyCheck'])->name('admin.services.internet.qualify.check');

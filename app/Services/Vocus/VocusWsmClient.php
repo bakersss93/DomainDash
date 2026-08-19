@@ -8,6 +8,7 @@ use SoapFault;
 use SoapVar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VocusWsmClient
 {
@@ -16,6 +17,7 @@ class VocusWsmClient
 
     // Namespace constants
     const NS_WSM = 'https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd';
+    const NS_STD = 'https://wsm.webservice.m2.com.au/schemas/StandardDataTypes.xsd';
     const DEFAULT_WSDL_URL = 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement';
     const DEFAULT_LOGIN_URL = 'https://wsm.webservice.m2.com.au:9443/login/';
 
@@ -49,6 +51,8 @@ class VocusWsmClient
         $certPassword = $this->config['cert_password'] ?? '';
         $loginUrl = $this->config['login_url'] ?? self::DEFAULT_LOGIN_URL;
 
+        $certType = $this->resolveCertType($certPath);
+
         $ch = curl_init($loginUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -56,7 +60,7 @@ class VocusWsmClient
             CURLOPT_NOBODY         => false,
             CURLOPT_SSLCERT        => $certPath,
             CURLOPT_SSLCERTPASSWD  => $certPassword,
-            CURLOPT_SSLCERTTYPE    => 'P12',
+            CURLOPT_SSLCERTTYPE    => $certType,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_TIMEOUT        => 30,
@@ -90,18 +94,62 @@ class VocusWsmClient
             throw new \RuntimeException('Vocus client certificate path is not configured. Please upload a certificate in Settings.');
         }
 
-        $full = storage_path('app/' . $certPath);
-
-        if (!file_exists($full)) {
+        if (!Storage::disk('local')->exists($certPath)) {
+            $full = Storage::disk('local')->path($certPath);
             throw new \RuntimeException("Vocus client certificate not found at: {$full}");
         }
 
-        return $full;
+        return Storage::disk('local')->path($certPath);
+    }
+
+    protected function resolveWsdlPath(): string
+    {
+        // Prefer a WSDL stored in the local disk (uploaded or overridden).
+        if (Storage::disk('local')->exists('wsdl/vocus.wsdl')) {
+            return Storage::disk('local')->path('wsdl/vocus.wsdl');
+        }
+
+        // Fall back to the bundled WSDL shipped with the application.
+        $bundled = base_path('vocus-api/Vocus-Wholesale/Schemas/WholesaleServiceManagement.wsdl');
+        if (file_exists($bundled)) {
+            return $bundled;
+        }
+
+        throw new \RuntimeException('Vocus WSDL not found. Expected at: ' . Storage::disk('local')->path('wsdl/vocus.wsdl'));
+    }
+
+    protected function resolveCertType(string $certPath): string
+    {
+        $ext = strtolower(pathinfo($certPath, PATHINFO_EXTENSION));
+
+        if (in_array($ext, ['pem', 'crt', 'cer', 'key'])) {
+            return 'PEM';
+        }
+
+        // .keystore may be JKS or PKCS12 — detect by magic bytes.
+        // JKS starts with 0xFEEDFEED; PKCS12 starts with 0x3082 (ASN.1 SEQUENCE).
+        if ($ext === 'keystore') {
+            $handle = fopen($certPath, 'rb');
+            $magic  = $handle ? bin2hex(fread($handle, 4)) : '';
+            if ($handle) {
+                fclose($handle);
+            }
+            if ($magic === 'feedfeed') {
+                throw new \RuntimeException(
+                    'The uploaded certificate is in Java JKS format, which is not supported by cURL. ' .
+                    'Please convert it to PKCS#12 (.p12) format using: ' .
+                    'keytool -importkeystore -srckeystore client.keystore -destkeystore client.p12 -deststoretype PKCS12'
+                );
+            }
+            // Modern Java keystores default to PKCS12 — treat as P12.
+        }
+
+        return 'P12';
     }
 
     protected function buildSoapClient(string $sessionId): SoapClient
     {
-        $wsdlPath = storage_path('app/wsdl/vocus.wsdl');
+        $wsdlPath = $this->resolveWsdlPath();
         $endpoint = $this->config['wsdl_url'] ?? self::DEFAULT_WSDL_URL;
 
         $context = stream_context_create([
@@ -176,9 +224,15 @@ class VocusWsmClient
     protected function buildRequestXml(string $operation, string $productId, array $params, ?string $planId, ?string $scope): string
     {
         $elementName = ucfirst(strtolower($operation)) . 'Request';
-        $ns = self::NS_WSM;
 
-        $xml = "<{$elementName} xmlns=\"{$ns}\">";
+        // Declare both namespaces at the root. The WSM namespace covers the
+        // request envelope and its direct children (AccessKey, ProductID, etc.).
+        // Parameters/Param are defined in StandardDataTypes (std:) and must
+        // carry that namespace — otherwise the server rejects with an
+        // "unexpected element" unmarshalling error.
+        $xml  = "<{$elementName} xmlns=\"" . self::NS_WSM . '"';
+        $xml .= ' xmlns:std="' . self::NS_STD . '">';
+
         $xml .= '<AccessKey>' . $this->e($this->config['access_key'] ?? '') . '</AccessKey>';
 
         if (!empty($this->config['alias_key'])) {
@@ -198,7 +252,7 @@ class VocusWsmClient
         if (!empty($params)) {
             $xml .= '<Parameters>';
             foreach ($params as $id => $value) {
-                $xml .= '<Param id="' . $this->e($id) . '">' . $this->e((string) $value) . '</Param>';
+                $xml .= '<std:Param id="' . $this->e($id) . '">' . $this->e((string) $value) . '</std:Param>';
             }
             $xml .= '</Parameters>';
         }
@@ -391,11 +445,12 @@ class VocusWsmClient
     }
 
     /**
-     * Retrieve NBN event notifications since a given datetime (YYYYMMDDHHMMSS).
+     * Retrieve NBN event notifications starting from a record cursor.
+     * StartRecordID=0 returns from the beginning of the notification log.
      */
-    public function getNotifications(string $startDateTime): array
+    public function getNotifications(int $startRecordId = 0): array
     {
-        return $this->call('Get', 'FIBRE', ['StartDateTime' => $startDateTime], null, 'NOTIFICATIONS');
+        return $this->call('Get', 'FIBRE', ['StartRecordID' => (string) $startRecordId], null, 'NOTIFICATIONS');
     }
 
     // -------------------------------------------------------------------------

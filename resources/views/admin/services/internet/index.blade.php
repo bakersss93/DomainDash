@@ -37,7 +37,7 @@
             <button type="submit" class="btn-accent dd-pill-btn">Filter</button>
         </form>
 
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <a href="{{ route('admin.services.internet.qualify') }}" class="btn-accent dd-pill-btn">Qualify Address</a>
             <a href="{{ route('admin.services.internet.order') }}" class="btn-accent dd-pill-btn">New Order</a>
             <form method="POST" action="{{ route('admin.services.internet.sync') }}">
@@ -47,8 +47,32 @@
                     Sync
                 </button>
             </form>
+            <button type="button" class="btn-accent dd-pill-btn"
+                    onclick="document.getElementById('import-ids-panel').style.display = document.getElementById('import-ids-panel').style.display === 'none' ? 'block' : 'none';">
+                Import Service IDs
+            </button>
         </div>
     </div>
+
+    {{-- Import by Service ID panel --}}
+    <div id="import-ids-panel" style="display:none;margin-bottom:16px;padding:14px 16px;background:var(--card-bg,#1e293b);border:1px solid var(--border,#334155);border-radius:8px;">
+        <p style="margin:0 0 8px;font-size:13px;color:var(--text-muted,#94a3b8);">
+            Enter one or more Vocus Service IDs (comma, space, or newline separated). Each ID will be imported and its details fetched from Vocus.
+        </p>
+        <form method="POST" action="{{ route('admin.services.internet.import') }}">
+            @csrf
+            <textarea name="service_ids" rows="3"
+                      placeholder="e.g. NBN-12345, NBN-67890"
+                      style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid var(--border,#334155);background:var(--input-bg,#0f172a);color:inherit;font-size:13px;font-family:monospace;resize:vertical;box-sizing:border-box;"></textarea>
+            <div style="margin-top:8px;display:flex;gap:8px;">
+                <button type="submit" class="btn-accent dd-pill-btn">Import &amp; Fetch from Vocus</button>
+                <button type="button" class="dd-pill-btn"
+                        onclick="document.getElementById('import-ids-panel').style.display='none';"
+                        style="background:transparent;border:1px solid var(--border,#334155);">Cancel</button>
+            </div>
+        </form>
+    </div>
+
 
     {{-- Table --}}
     <div class="dd-services-table-wrapper">

@@ -94,16 +94,15 @@ class InternetController extends Controller
     public function sync(Request $request)
     {
         try {
-            $vocus    = app(VocusWsmClient::class);
-            $imported = 0;
+            $vocus   = app(VocusWsmClient::class);
+            $created = 0;
+            $updated = 0;
 
-            // Vocus doesn't expose a "list all services" operation — we query
-            // our own known service IDs and refresh them, or import new ones
-            // discovered via TCAS or provided as a seed list.
-            // For existing records, refresh their live status.
-            $existing = InternetService::whereNotNull('vocus_service_id')->get();
+            // Refresh all locally-known services from Vocus.
+            // Use the "Import Service IDs" button to seed new services first.
+            $all = InternetService::whereNotNull('vocus_service_id')->get();
 
-            foreach ($existing as $service) {
+            foreach ($all as $service) {
                 try {
                     $response = $vocus->getService($service->vocus_service_id);
                     $p        = $response['params'] ?? [];
@@ -112,36 +111,120 @@ class InternetController extends Controller
                         continue;
                     }
 
-                    $service->service_status = $p['ServiceStatus'] ?? $service->service_status;
-                    $service->plan_id        = $p['PlanID']        ?? $service->plan_id;
-                    $service->service_type   = $p['ServiceType']   ?? $service->service_type;
-                    $service->service_scope  = $p['ServiceScope']  ?? $service->service_scope;
-                    $service->customer_name  = $p['CustomerName']  ?? $service->customer_name;
-                    $service->phone          = $p['Phone']         ?? $service->phone;
-                    $service->nbn_instance_id = $p['NBNInstanceID'] ?? $service->nbn_instance_id;
-                    $service->avc_id         = $p['AVCID']         ?? $service->avc_id;
-                    $service->cvc_id         = $p['CVCID']         ?? $service->cvc_id;
-                    $service->realm          = $p['Username']      ?? $service->realm;
+                    $isNew = $service->wasRecentlyCreated || $service->synced_at === null;
+
+                    $service->service_status      = $p['ServiceStatus']     ?? $service->service_status;
+                    $service->plan_id             = $p['PlanID']            ?? $service->plan_id;
+                    $service->service_type        = $p['ServiceType']       ?? $service->service_type;
+                    $service->service_scope       = $p['ServiceScope']      ?? $service->service_scope;
+                    $service->customer_name       = $p['CustomerName']      ?? $service->customer_name;
+                    $service->phone               = $p['Phone']             ?? $service->phone;
+                    $service->nbn_instance_id     = $p['NBNInstanceID']     ?? $service->nbn_instance_id;
+                    $service->avc_id              = $p['AVCID']             ?? $service->avc_id;
+                    $service->cvc_id              = $p['CVCID']             ?? $service->cvc_id;
+                    $service->directory_id        = $p['DirectoryID']       ?? $service->directory_id;
+                    $service->address_long        = $p['AddressLong']       ?? $service->address_long;
+                    $service->copper_pair_id      = $p['CopperPairID']      ?? $service->copper_pair_id;
+                    $service->realm               = $p['Username']          ?? $service->realm;
                     $service->billing_provider_id = $p['BillingProviderID'] ?? $service->billing_provider_id;
-                    $service->synced_at      = now();
+                    $service->synced_at           = now();
                     $service->save();
-                    $imported++;
+
+                    $isNew ? $created++ : $updated++;
                 } catch (\Throwable) {
                     // Skip individual failures and continue
                 }
             }
 
-            AuditLogger::logSystem('sync.completed', "Internet service sync completed ({$imported} records refreshed).", [
+            $total = $created + $updated;
+            $msg   = "Internet services synced ({$total} records refreshed";
+            if ($created > 0) {
+                $msg .= ", {$created} newly imported";
+            }
+            $msg .= ').';
+
+            AuditLogger::logSystem('sync.completed', $msg, [
                 'service'  => 'vocus',
                 'function' => 'internet-sync',
-            ], ['new_values' => ['refreshed' => $imported]]);
+            ], ['new_values' => ['refreshed' => $total, 'created' => $created, 'updated' => $updated]]);
 
-            return redirect()->route('admin.services.internet')
-                ->with('status', "Internet services synced ({$imported} records refreshed).");
+            return redirect()->route('admin.services.internet')->with('status', $msg);
         } catch (\Throwable $e) {
             return redirect()->route('admin.services.internet')
                 ->with('status', 'Sync failed: ' . $e->getMessage());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Manual service ID import
+    // -------------------------------------------------------------------------
+
+    public function importByIds(Request $request)
+    {
+        $request->validate([
+            'service_ids' => 'required|string',
+        ]);
+
+        $raw = preg_split('/[\s,;]+/', trim($request->input('service_ids')));
+        $ids = array_values(array_unique(array_filter($raw)));
+
+        if (empty($ids)) {
+            return redirect()->route('admin.services.internet')
+                ->with('status', 'No service IDs provided.');
+        }
+
+        $seeded = 0;
+        foreach ($ids as $sid) {
+            $service = InternetService::firstOrCreate(['vocus_service_id' => $sid]);
+            if ($service->wasRecentlyCreated) {
+                $seeded++;
+            }
+        }
+
+        try {
+            $vocus   = app(VocusWsmClient::class);
+            $updated = 0;
+
+            foreach (InternetService::whereIn('vocus_service_id', $ids)->get() as $service) {
+                try {
+                    $response = $vocus->getService($service->vocus_service_id);
+                    $p        = $response['params'] ?? [];
+                    if (empty($p)) {
+                        continue;
+                    }
+                    $service->service_status      = $p['ServiceStatus']     ?? $service->service_status;
+                    $service->plan_id             = $p['PlanID']            ?? $service->plan_id;
+                    $service->service_type        = $p['ServiceType']       ?? $service->service_type;
+                    $service->service_scope       = $p['ServiceScope']      ?? $service->service_scope;
+                    $service->customer_name       = $p['CustomerName']      ?? $service->customer_name;
+                    $service->phone               = $p['Phone']             ?? $service->phone;
+                    $service->nbn_instance_id     = $p['NBNInstanceID']     ?? $service->nbn_instance_id;
+                    $service->avc_id              = $p['AVCID']             ?? $service->avc_id;
+                    $service->cvc_id              = $p['CVCID']             ?? $service->cvc_id;
+                    $service->directory_id        = $p['DirectoryID']       ?? $service->directory_id;
+                    $service->address_long        = $p['AddressLong']       ?? $service->address_long;
+                    $service->copper_pair_id      = $p['CopperPairID']      ?? $service->copper_pair_id;
+                    $service->realm               = $p['Username']          ?? $service->realm;
+                    $service->billing_provider_id = $p['BillingProviderID'] ?? $service->billing_provider_id;
+                    $service->synced_at           = now();
+                    $service->save();
+                    $updated++;
+                } catch (\Throwable) {
+                    // Skip individual failures
+                }
+            }
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.services.internet')
+                ->with('status', "Seeded {$seeded} service(s) but Vocus refresh failed: " . $e->getMessage());
+        }
+
+        AuditLogger::logSystem('import.completed', "Manual Vocus service import: {$seeded} seeded, {$updated} refreshed.", [
+            'service'  => 'vocus',
+            'function' => 'internet-import',
+        ], ['new_values' => ['seeded' => $seeded, 'updated' => $updated, 'ids' => $ids]]);
+
+        return redirect()->route('admin.services.internet')
+            ->with('status', "Imported {$seeded} new service(s), refreshed {$updated} from Vocus.");
     }
 
     // -------------------------------------------------------------------------

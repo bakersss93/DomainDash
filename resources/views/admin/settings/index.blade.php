@@ -324,7 +324,7 @@
 
                 <div style="margin-bottom:12px;">
                     <label for="vocus_cert" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
-                        Client Certificate (.p12 / .pfx)
+                        Client Certificate (.p12 / .pfx / .keystore)
                     </label>
                     @if(!empty($settings['vocus']['cert_path']))
                         <p style="font-size:13px;color:#16a34a;margin:0 0 6px;">
@@ -335,10 +335,10 @@
                     <input id="vocus_cert"
                            type="file"
                            name="vocus_cert"
-                           accept=".p12,.pfx"
+                           accept=".p12,.pfx,.keystore"
                            style="width:100%;padding:6px 0;font-size:14px;">
                     <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
-                        Vocus issues a new certificate annually. Upload the PKCS#12 (.p12) keystore file they provide.
+                        Vocus issues a new certificate annually. Upload the PKCS#12 keystore file they provide (.p12, .pfx, or .keystore).
                     </small>
                 </div>
 

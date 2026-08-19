@@ -89,7 +89,7 @@ class SettingsController extends Controller
             'vocus.wsdl_url'          => 'nullable|url|max:255',
             'vocus.login_url'         => 'nullable|url|max:255',
             'vocus.cert_password'     => 'nullable|string|max:255',
-            'vocus_cert'              => 'nullable|file|mimes:p12,pfx|max:512',
+            'vocus_cert'              => 'nullable|file|extensions:p12,pfx,keystore|max:512',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
             'sync_schedule.*.enabled' => 'nullable|boolean',
@@ -162,9 +162,11 @@ class SettingsController extends Controller
 
         if ($request->hasFile('vocus_cert')) {
             $file = $request->file('vocus_cert');
-            $file->storeAs('vocus', 'client.p12');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'p12');
+            $filename = 'client.' . $ext;
+            $file->storeAs('vocus', $filename);
             $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), [
-                'cert_path' => 'vocus/client.p12',
+                'cert_path' => 'vocus/' . $filename,
             ]);
         }
 
