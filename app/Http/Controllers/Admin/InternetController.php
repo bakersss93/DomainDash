@@ -449,7 +449,7 @@ class InternetController extends Controller
 
             $params = [
                 'ServiceID'        => $validated['vocus_service_id'],
-                'OrderType'        => 'CHURN',
+                'OrderType'        => 'TRANSFER',
                 'CustomerName'     => $validated['customer_name'],
                 'Phone'            => $validated['phone'],
                 'DirectoryID'      => $validated['directory_id'],
@@ -479,7 +479,7 @@ class InternetController extends Controller
                 'service_scope'        => $validated['scope'],
                 'service_status'       => 'INACTIVE',
                 'service_type'         => $validated['service_type'],
-                'order_type'           => 'CHURN',
+                'order_type'           => 'TRANSFER',
                 'customer_name'        => $validated['customer_name'],
                 'phone'                => $validated['phone'],
                 'directory_id'         => $validated['directory_id'],
@@ -605,7 +605,7 @@ class InternetController extends Controller
             $planId = $service->plan_id ?? 'STANDARD';
 
             $response = match ($request->type) {
-                'AUTH-LOG'   => $vocus->getAuthLog($service->vocus_service_id, $planId),
+                'AUTH-LOG'   => $vocus->getAuthLog($service->vocus_service_id),
                 'DISCONNECT' => $vocus->disconnectSession($service->vocus_service_id, $planId),
             };
 

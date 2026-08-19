@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
@@ -201,6 +202,10 @@ class SettingsController extends Controller
             Setting::put($key, $value);
             $oldValues[$key] = $diff['old'];
             $newValues[$key] = $diff['new'];
+        }
+
+        if (array_key_exists('vocus', $newValues)) {
+            Cache::forget('vocus_wsm_session');
         }
 
         if (!empty($newValues)) {
