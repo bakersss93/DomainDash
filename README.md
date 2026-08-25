@@ -136,3 +136,13 @@ From the **DNS records** page for each domain:
   - Green for primary actions (Save, Renew, Add record, Bulk sync).
   - Red for destructive actions (Delete).
   - Neutral pills for secondary navigation and filters.
+
+---
+
+## 🔒 HTTPS and auto SSL
+
+Production-ready Nginx and Certbot helpers live in `docs/https.md`. They include:
+
+- An Nginx site config with HTTP→HTTPS redirects and PHP-FPM routing.
+- A script to request a Let’s Encrypt certificate via webroot.
+- A renewal script suitable for a daily cron job that reloads Nginx after deployment.
