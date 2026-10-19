@@ -114,6 +114,10 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::get('/settings/halo/ticket-statuses', [SettingsController::class,'haloTicketStatuses'])->name('admin.settings.halo.ticket-statuses');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
+        Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
+        Route::post('/https/upload', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'upload'])->name('admin.https.upload');
+        Route::post('/https/force', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'force'])->name('admin.https.force');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
         Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');

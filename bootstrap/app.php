@@ -24,6 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
             'mfa.policy'        => \App\Http\Middleware\EnsureMfaPolicy::class,
         ]);
 
+        // Trusted proxies (SEC-16): TRUSTED_PROXIES env -> config/trustedproxy.php, which
+        // Laravel's global TrustProxies middleware reads (cache-safe). Empty = trust nobody.
+        $middleware->trustProxies(headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO);
+
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ForceHttps::class,
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\ApplyImpersonation::class,

@@ -49,7 +49,14 @@ class AuditRequestActions
 
     private function sanitizedPayload(Request $request): array
     {
-        $payload = \App\Support\Redactor::redact($request->except(['_token']));
+        // Uploaded files (certificates, PFX, logos) are logged as a descriptor, never their content.
+        $input = $request->except(['_token']);
+        array_walk_recursive($input, function (&$v) {
+            if ($v instanceof \Illuminate\Http\UploadedFile) {
+                $v = '[file ' . $v->getClientOriginalName() . ', ' . $v->getSize() . ' bytes]';
+            }
+        });
+        $payload = \App\Support\Redactor::redact($input);
 
         return is_array($payload) ? $payload : [];
     }

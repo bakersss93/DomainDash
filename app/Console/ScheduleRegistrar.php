@@ -53,6 +53,12 @@ class ScheduleRegistrar
             ->name('scheduled-audit-prune')
             ->description('Command: prune audit logs');
 
+        // Platform HTTPS certificate expiry (30/14/7/1 days) + failed renewals
+        $schedule->command('domaindash:https-check')
+            ->dailyAt('07:10')
+            ->name('scheduled-https-check')
+            ->description('Command: platform certificate expiry check');
+
         // Expiry notifications
         $schedule->command('domaindash:notify-expiring')
             ->hourly()

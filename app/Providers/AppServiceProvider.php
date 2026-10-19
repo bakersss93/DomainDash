@@ -32,6 +32,14 @@ class AppServiceProvider extends ServiceProvider
         // queue job; scoped instances are flushed between queued jobs.
         $this->app->scoped(\App\Services\Synergy\SynergyWholesaleClient::class);
         $this->app->scoped(\App\Services\Vocus\VocusWsmClient::class);
+        $this->app->bind(\App\Services\Https\TxtResolver::class, \App\Services\Https\PhpTxtResolver::class);
+        $this->app->bind(\App\Services\Https\AcmeDnsHook::class, fn ($app) => new \App\Services\Https\AcmeDnsHook(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class),
+            $app->make(\App\Services\Https\TxtResolver::class),
+        ));
+        $this->app->bind(\App\Services\Https\ZoneFinder::class, fn ($app) => new \App\Services\Https\ZoneFinder(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class)
+        ));
     }
 
     /**

@@ -17,6 +17,11 @@
                 </ul></x-ui.alert>
         @endif
 
+        {{-- PLATFORM HTTPS (own page: it has its own forms, which cannot nest inside the settings form) --}}
+        <x-ui.card title="Platform HTTPS" description="Let's Encrypt (DNS-01 via Synergy) or uploaded certificate, force HTTPS, renewal status." class="mb-4">
+            <x-ui.button variant="secondary" :href="route('admin.https')">Manage Platform HTTPS</x-ui.button>
+        </x-ui.card>
+
         <form method="POST"
               action="{{ route('admin.settings.update') }}"
               enctype="multipart/form-data">
