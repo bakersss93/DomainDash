@@ -12,6 +12,6 @@ Roles: researcher, builder, verifier. Budget: 1 run, 30 units, 10 tasks.
 | 5 | Queued sync + local cache redesign | builder | in progress | |
 | 6 | Security audit | researcher | done (1 Critical, 9 High) | docs/review/06-security-audit.md |
 | 7 | Remediate High/Critical security findings | builder | in progress | |
-| 8 | OpenAPI 3.1 spec + download on API page | builder | pending | |
+| 8 | OpenAPI 3.1 spec + download on API page | builder | done (41 ops, redocly valid; PHP test not run — no vendor) | |
 | 9 | UI consistency pass | builder | pending | |
 | 10 | Final verification | verifier | blocked on all | |

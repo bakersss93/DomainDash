@@ -248,3 +248,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/services/ssl/decode-csr', [\App\Http\Controllers\Admin\SslController::class,'decodeCsr'])->name('admin.services.ssl.decodeCsr');
     });
 });
+
+// ---------------------------------------------------------------------------
+// OpenAPI document downloads (same audience as the API Keys page)
+// ---------------------------------------------------------------------------
+Route::middleware(['auth', 'verified', 'mfa.policy', 'role:Administrator'])->group(function () {
+    Route::get('/api-docs/openapi.yaml', [\App\Http\Controllers\Admin\ApiDocsController::class, 'yaml'])->name('admin.apidocs.yaml');
+    Route::get('/api-docs/openapi.json', [\App\Http\Controllers\Admin\ApiDocsController::class, 'json'])->name('admin.apidocs.json');
+});

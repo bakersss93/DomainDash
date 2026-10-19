@@ -1,0 +1,4434 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DomainDash API",
+    "version": "1.0.0",
+    "description": "REST API for DomainDash: domains, DNS, clients, hosting, SSL, internet services, HaloPSA tickets, domain pricing, portal users and audit logs.\n\n**Authentication.** Every request must carry an API key in the `x-api-key` header (raw key value, NOT `Authorization: Bearer`). Keys are created by an administrator on the API Keys page. Each key has optional scopes (`<resource>.read` / `<resource>.write`; a key with no scopes may call everything), an optional IP allow-list and an hourly rate limit.\n\n**Send `Accept: application/json`.** Without it Laravel may answer validation errors with an HTML redirect instead of a 422 JSON body.\n\n**Base URL.** All paths below are relative to `{baseUrl}/api`.\n\n**Pagination.** List endpoints use Laravel pagination: `?page=` and `?per_page=` (default 100); results are in `data` with `current_page`, `last_page`, `total`, `next_page_url`, etc. Ticket listing uses its own simpler envelope.\n\n**Scopes required per operation** are listed in the `x-required-scope` extension on each operation.",
+    "contact": {
+      "name": "DomainDash administrator"
+    }
+  },
+  "servers": [
+    {
+      "url": "{baseUrl}/api",
+      "description": "DomainDash instance",
+      "variables": {
+        "baseUrl": {
+          "default": "https://domaindash.example.com",
+          "description": "Root URL of your DomainDash installation, without a trailing slash and without /api."
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Domains",
+      "description": "Domain registrations (Synergy Wholesale)."
+    },
+    {
+      "name": "DNS",
+      "description": "DNS zone records and nameserver settings."
+    },
+    {
+      "name": "Clients",
+      "description": "Client organisations."
+    },
+    {
+      "name": "Hosting",
+      "description": "Hosting services."
+    },
+    {
+      "name": "SSL",
+      "description": "SSL certificates."
+    },
+    {
+      "name": "Internet",
+      "description": "Internet / NBN services (Vocus)."
+    },
+    {
+      "name": "Tickets",
+      "description": "HaloPSA tickets."
+    },
+    {
+      "name": "Domain Pricing",
+      "description": "TLD pricing catalogue."
+    },
+    {
+      "name": "Users",
+      "description": "Portal user accounts."
+    },
+    {
+      "name": "Audit Logs",
+      "description": "System audit trail."
+    }
+  ],
+  "paths": {
+    "/v1/domains": {
+      "get": {
+        "operationId": "listDomains",
+        "summary": "List domains",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.read",
+        "description": "Paginated list ordered by name. Only id, name, expiry_date and client_id are returned; use getDomain for the full record.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by exact registrar status.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of domains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DomainSummary"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}": {
+      "get": {
+        "operationId": "getDomain",
+        "summary": "Get a domain",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domain.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "assignDomainClient",
+        "summary": "Assign a domain to a client",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.write",
+        "description": "Sets (or clears, with null/omitted) the owning client of the domain.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignClientInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated domain.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}/auth-code": {
+      "get": {
+        "operationId": "getDomainAuthCode",
+        "summary": "Get a domain's EPP auth code",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.read",
+        "description": "Fetches the transfer/EPP auth code live from the registrar. Sensitive.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Auth code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthCodeResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/sync": {
+      "post": {
+        "operationId": "syncDomains",
+        "summary": "Sync domains from Synergy Wholesale",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.write",
+        "description": "Runs a synchronous full import of all domains from the registrar. Responds 202 with the number of domains imported once finished. Can be slow.",
+        "responses": {
+          "202": {
+            "description": "Sync finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/availability": {
+      "post": {
+        "operationId": "checkDomainAvailability",
+        "summary": "Check domain availability",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.write",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Availability result (ok=false if the registrar call failed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailabilityResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/transfer": {
+      "post": {
+        "operationId": "transferDomain",
+        "summary": "Initiate a domain transfer in",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.write",
+        "description": "Submits a transfer request to the registrar. Returns 200 with ok=false (not an HTTP error) if the registrar rejects it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}/renew": {
+      "post": {
+        "operationId": "renewDomain",
+        "summary": "Renew a domain",
+        "tags": [
+          "Domains"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "domains.write",
+        "description": "Returns 200 with ok=false (not an HTTP error) if the registrar rejects the renewal.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renewal result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}/dns": {
+      "get": {
+        "operationId": "listDnsRecords",
+        "summary": "List DNS records for a domain",
+        "tags": [
+          "DNS"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "dns.read",
+        "description": "Live read of the DNS zone from the registrar (not paginated).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DNS zone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsZone"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDnsRecord",
+        "summary": "Add a DNS record",
+        "tags": [
+          "DNS"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "dns.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsRecordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Record added.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}/dns/options": {
+      "put": {
+        "operationId": "updateDomainDnsOptions",
+        "summary": "Update DNS mode / nameservers",
+        "tags": [
+          "DNS"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "dns.write",
+        "description": "Changes the registrar DNS mode and, for mode 1, the delegated nameservers.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsOptionsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Options updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domains/{domain}/dns/{recordId}": {
+      "put": {
+        "operationId": "updateDnsRecord",
+        "summary": "Replace a DNS record",
+        "tags": [
+          "DNS"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "dns.write",
+        "description": "Implemented as delete-then-add at the registrar (not atomic); the record gets a new record_id.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          },
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsRecordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Record updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkMessage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDnsRecord",
+        "summary": "Delete a DNS record",
+        "tags": [
+          "DNS"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "dns.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DomainId"
+          },
+          {
+            "$ref": "#/components/parameters/RecordId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; no content."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/clients": {
+      "get": {
+        "operationId": "listClients",
+        "summary": "List clients",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.read",
+        "description": "Paginated, ordered by business name.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Substring match on business_name, abn, halopsa_reference or itglue_org_id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "description": "Filter by active flag.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of clients.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Client"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createClient",
+        "summary": "Create a client",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.write",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/clients/{client}": {
+      "get": {
+        "operationId": "getClient",
+        "summary": "Get a client",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateClient",
+        "summary": "Update a client",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.write",
+        "description": "Partial update; only supplied fields are changed.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated client.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteClient",
+        "summary": "Delete a client",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; no content."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/clients/{client}/domains": {
+      "get": {
+        "operationId": "listClientDomains",
+        "summary": "List domains (client-scoped route)",
+        "tags": [
+          "Clients"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "clients.read",
+        "description": "Routed to the same handler as listDomains. NOTE: the {client} path value is currently NOT applied as a filter; pass `client_id` as a query parameter to filter by client.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "$ref": "#/components/parameters/ClientId"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by exact registrar status.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of domains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DomainSummary"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/hosting": {
+      "get": {
+        "operationId": "listHostingServices",
+        "summary": "List hosting services",
+        "tags": [
+          "Hosting"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "hosting.read",
+        "description": "Paginated, ordered by domain_name.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by service_status (e.g. ACTIVE).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of hosting services.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HostingService"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/hosting/{service}": {
+      "get": {
+        "operationId": "getHostingService",
+        "summary": "Get a hosting service",
+        "tags": [
+          "Hosting"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "hosting.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/HostingId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hosting service with client and domain relations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostingServiceDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/hosting/sync": {
+      "post": {
+        "operationId": "syncHostingServices",
+        "summary": "Sync hosting services from Synergy Wholesale",
+        "tags": [
+          "Hosting"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "hosting.write",
+        "description": "Synchronous full import; responds 202 when finished.",
+        "responses": {
+          "202": {
+            "description": "Sync finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/ssl": {
+      "get": {
+        "operationId": "listSslCertificates",
+        "summary": "List SSL certificates",
+        "tags": [
+          "SSL"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "ssl.read",
+        "description": "Paginated, ordered by common_name.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by certificate status.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of certificates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/SslCertificate"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/ssl/{ssl}": {
+      "get": {
+        "operationId": "getSslCertificate",
+        "summary": "Get an SSL certificate",
+        "tags": [
+          "SSL"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "ssl.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/SslId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Certificate with client and domain relations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SslCertificateDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/ssl/sync": {
+      "post": {
+        "operationId": "syncSslCertificates",
+        "summary": "Sync SSL certificates from Synergy Wholesale",
+        "tags": [
+          "SSL"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "ssl.write",
+        "description": "Synchronous import; responds 202 when finished.",
+        "responses": {
+          "202": {
+            "description": "Sync finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/BadGateway"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/internet": {
+      "get": {
+        "operationId": "listInternetServices",
+        "summary": "List internet services",
+        "tags": [
+          "Internet"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "internet.read",
+        "description": "Paginated, ordered by customer_name.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by service_status (ACTIVE / INACTIVE / SUSPEND).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "service_type",
+            "in": "query",
+            "required": false,
+            "description": "Filter by service_type (e.g. FTTP).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of internet services.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/InternetService"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/internet/{service}": {
+      "get": {
+        "operationId": "getInternetService",
+        "summary": "Get an internet service",
+        "tags": [
+          "Internet"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "internet.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/InternetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Internet service with client relation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternetServiceDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/services/internet/sync": {
+      "post": {
+        "operationId": "syncInternetServices",
+        "summary": "Refresh internet services from Vocus WSM",
+        "tags": [
+          "Internet"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "internet.write",
+        "description": "Refreshes existing services that have a vocus_service_id; individual failures are skipped silently. Responds 202 when finished.",
+        "responses": {
+          "202": {
+            "description": "Sync finished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/tickets": {
+      "get": {
+        "operationId": "listTickets",
+        "summary": "List HaloPSA tickets",
+        "tags": [
+          "Tickets"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "tickets.read",
+        "description": "Without client_id, tickets are fetched per client with a HaloPSA reference (page 1 only, per_page each), so `page` only applies when client_id is given. If client_id is unknown or has no HaloPSA reference the response is 200 with an empty data array and a message.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page (only honoured with client_id).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "description": "Items per page (clamped 1-100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "$ref": "#/components/parameters/ClientIdQuery"
+          },
+          {
+            "name": "ticket_type",
+            "in": "query",
+            "required": false,
+            "description": "Filter by ticket type name (post-filter).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "service_category",
+            "in": "query",
+            "required": false,
+            "description": "Filter by service category (post-filter).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tickets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTicket",
+        "summary": "Create a ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "tickets.write",
+        "description": "The client must have a halopsa_reference, otherwise 422.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "HaloPSA's created ticket.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/tickets/{ticketId}": {
+      "get": {
+        "operationId": "getTicket",
+        "summary": "Get a ticket with its actions",
+        "tags": [
+          "Tickets"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "tickets.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket with `actions`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/tickets/{ticketId}/reply": {
+      "post": {
+        "operationId": "replyToTicket",
+        "summary": "Reply to a ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "tickets.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketReplyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reply added.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketReplyResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/tickets/{ticketId}/close": {
+      "post": {
+        "operationId": "closeTicket",
+        "summary": "Close a ticket",
+        "tags": [
+          "Tickets"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "tickets.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket closed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketCloseResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domain-pricing": {
+      "get": {
+        "operationId": "listDomainPricing",
+        "summary": "List domain pricing",
+        "tags": [
+          "Domain Pricing"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "pricing.read",
+        "description": "Paginated, ordered by TLD.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "name": "tld",
+            "in": "query",
+            "required": false,
+            "description": "Exact TLD match.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_common",
+            "in": "query",
+            "required": false,
+            "description": "Only commonly used TLDs.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of pricing rows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/DomainPricing"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/domain-pricing/{tld}": {
+      "get": {
+        "operationId": "getDomainPricingByTld",
+        "summary": "Get pricing for a TLD",
+        "tags": [
+          "Domain Pricing"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "pricing.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Tld"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pricing row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainPricing"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List portal users",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "users.read",
+        "description": "Paginated, ordered by name.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Substring match on name or email.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create a user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "users.write",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/users/{user}": {
+      "get": {
+        "operationId": "getUser",
+        "summary": "Get a user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "users.read",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateUser",
+        "summary": "Update a user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "users.write",
+        "description": "Partial update. Password cannot be changed through the API.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteUser",
+        "summary": "Delete a user",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "users.write",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; no content."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/audit-logs": {
+      "get": {
+        "operationId": "listAuditLogs",
+        "summary": "List audit log entries",
+        "tags": [
+          "Audit Logs"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "x-required-scope": "audit.read",
+        "description": "Paginated, newest first.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PerPage"
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "description": "Acting user id.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "description": "Exact action name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auditable_type",
+            "in": "query",
+            "required": false,
+            "description": "Exact model class name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auditable_id",
+            "in": "query",
+            "required": false,
+            "description": "Model id.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "created_at >= this value (e.g. 2026-01-01 or ISO 8601).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "created_at <= this value.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of audit entries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginationEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AuditLog"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "DomainDash API key. Required scopes: domains.read; domains.write; dns.read; dns.write; clients.read; clients.write; hosting.read; hosting.write; ssl.read; ssl.write; internet.read; internet.write; tickets.read; tickets.write; pricing.read; users.read; users.write; audit.read. Keys with no scopes are unrestricted."
+      }
+    },
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Page number.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PerPage": {
+        "name": "per_page",
+        "in": "query",
+        "required": false,
+        "description": "Items per page (default 100). No server-side maximum is enforced on most list endpoints.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100
+        }
+      },
+      "ClientIdQuery": {
+        "name": "client_id",
+        "in": "query",
+        "required": false,
+        "description": "Only return records belonging to this client id.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "DomainId": {
+        "name": "domain",
+        "in": "path",
+        "required": true,
+        "description": "DomainDash domain id (numeric primary key, not the domain name).",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "ClientId": {
+        "name": "client",
+        "in": "path",
+        "required": true,
+        "description": "DomainDash client id.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RecordId": {
+        "name": "recordId",
+        "in": "path",
+        "required": true,
+        "description": "Registrar DNS record id (`record_id` from the DNS list).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "HostingId": {
+        "name": "service",
+        "in": "path",
+        "required": true,
+        "description": "Hosting service id.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "SslId": {
+        "name": "ssl",
+        "in": "path",
+        "required": true,
+        "description": "SSL certificate id.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "InternetId": {
+        "name": "service",
+        "in": "path",
+        "required": true,
+        "description": "Internet service id.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "TicketId": {
+        "name": "ticketId",
+        "in": "path",
+        "required": true,
+        "description": "HaloPSA ticket id (integer).",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "Tld": {
+        "name": "tld",
+        "in": "path",
+        "required": true,
+        "description": "TLD exactly as stored, e.g. `com.au`. May contain dots.",
+        "schema": {
+          "type": "string"
+        },
+        "allowReserved": true
+      },
+      "UserId": {
+        "name": "user",
+        "in": "path",
+        "required": true,
+        "description": "Portal user id.",
+        "schema": {
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid API key (`API key required` / `Invalid API key`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Caller IP not in the key's allow-list (`IP not allowed`) or the key lacks the required scope (`Scope denied`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found (route-model binding miss). Body is Laravel's standard JSON 404 when `Accept: application/json` is sent.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation failed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Per-key hourly rate limit exceeded (`Rate limit exceeded`). Counted per key and client IP per clock hour.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Unexpected server error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "BadGateway": {
+        "description": "Upstream provider (Synergy Wholesale / HaloPSA / Vocus) returned an error.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "HaloPSA is not configured on this DomainDash instance.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Message": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "message",
+          "errors"
+        ],
+        "description": "Laravel validation error. Only returned as JSON when the request sends Accept: application/json."
+      },
+      "OkMessage": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ]
+      },
+      "PaginationLink": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PaginationEnvelope": {
+        "type": "object",
+        "properties": {
+          "current_page": {
+            "type": "integer"
+          },
+          "first_page_url": {
+            "type": "string"
+          },
+          "from": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_page": {
+            "type": "integer"
+          },
+          "last_page_url": {
+            "type": "string"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaginationLink"
+            }
+          },
+          "next_page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "per_page": {
+            "type": "integer"
+          },
+          "prev_page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "to": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "description": "Standard Laravel length-aware paginator fields (the items are in `data`)."
+      },
+      "SyncResult": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of records imported/updated."
+          }
+        },
+        "required": [
+          "message",
+          "count"
+        ]
+      },
+      "DomainSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "expiry_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "Domain": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiry_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "auto_renew": {
+            "type": "boolean"
+          },
+          "name_servers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "dns_config": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "DNS mode (1 = custom nameservers; see updateDomainDnsOptions)."
+          },
+          "registry_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transfer_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "halo_asset_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "itglue_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "whois_data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "whois_synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "Client": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "business_name": {
+            "type": "string"
+          },
+          "primary_contact_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postcode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 3166-1 alpha-2, defaults to AU."
+          },
+          "abn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "halopsa_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "itglue_org_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "itglue_org_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "business_name"
+        ]
+      },
+      "ClientInput": {
+        "type": "object",
+        "properties": {
+          "business_name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "primary_contact_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 50
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "postcode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2,
+            "description": "Two-letter country code."
+          },
+          "abn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "halopsa_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "itglue_org_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "itglue_org_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "active": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "ClientCreate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ClientInput"
+          }
+        ],
+        "required": [
+          "business_name"
+        ]
+      },
+      "DnsRecord": {
+        "type": "object",
+        "properties": {
+          "record_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Registrar record id; use as {recordId}."
+          },
+          "host": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "ttl": {
+            "type": "integer"
+          },
+          "prio": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "host",
+          "type",
+          "content",
+          "ttl",
+          "prio"
+        ]
+      },
+      "DnsZone": {
+        "type": "object",
+        "properties": {
+          "domain_id": {
+            "type": "integer"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DnsRecord"
+            }
+          }
+        },
+        "required": [
+          "domain_id",
+          "domain",
+          "records"
+        ]
+      },
+      "DnsRecordInput": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255,
+            "description": "Host name; empty/omitted for the zone apex."
+          },
+          "type": {
+            "type": "string",
+            "maxLength": 10,
+            "examples": [
+              "A",
+              "CNAME",
+              "MX",
+              "TXT"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "ttl": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 604800
+          },
+          "prio": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "Defaults to 0."
+          }
+        },
+        "required": [
+          "type",
+          "content",
+          "ttl"
+        ]
+      },
+      "DnsOptionsInput": {
+        "type": "object",
+        "properties": {
+          "dns_mode": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "description": "Registrar DNS mode. 1 = custom nameservers (nameservers are stored)."
+          },
+          "nameservers": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 255
+            }
+          }
+        },
+        "required": [
+          "dns_mode"
+        ]
+      },
+      "AvailabilityInput": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      },
+      "AvailabilityResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "available",
+          "domain",
+          "message"
+        ]
+      },
+      "RenewInput": {
+        "type": "object",
+        "properties": {
+          "years": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "years"
+        ]
+      },
+      "AssignClientInput": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Existing client id, or null to unassign. Omitting the field also unassigns."
+          }
+        }
+      },
+      "AuthCodeResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string",
+            "description": "EPP/auth code. Sensitive."
+          }
+        },
+        "required": [
+          "ok",
+          "code"
+        ]
+      },
+      "TransferInput": {
+        "type": "object",
+        "properties": {
+          "domainName": {
+            "type": "string"
+          },
+          "authInfo": {
+            "type": "string",
+            "description": "EPP/auth code from the losing registrar."
+          },
+          "organisation": {
+            "type": "string"
+          },
+          "firstname": {
+            "type": "string"
+          },
+          "lastname": {
+            "type": "string"
+          },
+          "address": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Address lines (validated only as an array)."
+          },
+          "suburb": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "postcode": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "doRenewal": {
+            "type": "boolean"
+          },
+          "idProtect": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "domainName",
+          "authInfo",
+          "organisation",
+          "firstname",
+          "lastname",
+          "address",
+          "suburb",
+          "state",
+          "country",
+          "postcode",
+          "phone",
+          "email",
+          "doRenewal",
+          "idProtect"
+        ]
+      },
+      "HostingService": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "domain_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "hoid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "server": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "domain_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "service_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "ACTIVE"
+            ]
+          },
+          "ip_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disk_limit_mb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "disk_usage_mb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bandwidth_limit_mb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bandwidth_used_mb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "next_renewal_due": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "HostingServiceDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/HostingService"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "client": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Client"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "domain": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Domain"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "SslCertificate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "domain_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cert_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "common_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expire_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "SslCertificateDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SslCertificate"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "client": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Client"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "domain": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Domain"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "InternetService": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "vocus_service_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "plan_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "service_scope": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "RESELLER-CONNECT / NETWORK-CONNECT"
+          },
+          "service_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ACTIVE / INACTIVE / SUSPEND"
+          },
+          "service_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "FTTC / FTTP / FTTB / FTTN / HFC / FIXED-WIRELESS"
+          },
+          "order_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customer_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "directory_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location_reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "address_long": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nbn_instance_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avc_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cvc_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "copper_pair_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "realm": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "service_level": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billing_provider_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_transaction_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_transaction_state": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "synced_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "InternetServiceDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InternetService"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "client": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Client"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Ticket": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": true,
+        "description": "Ticket object as returned by HaloPSA (pass-through; fields depend on the HaloPSA instance). Typically includes id, summary, details, tickettype_name, service_category and status."
+      },
+      "TicketList": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ticket"
+            }
+          },
+          "current_page": {
+            "type": "integer"
+          },
+          "per_page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Number of tickets in this response (not a global count)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Only present when client_id is given but unusable."
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TicketDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Ticket"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TicketCreateInput": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "integer",
+            "description": "DomainDash client id; the client must have a halopsa_reference."
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "details": {
+            "type": "string"
+          },
+          "ticket_type": {
+            "type": "string",
+            "enum": [
+              "Support/Issue",
+              "Service Request"
+            ]
+          },
+          "domain_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Validated (must exist) but currently not used when creating the ticket."
+          },
+          "service_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Hosting service id. Validated but currently not used."
+          },
+          "ssl_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "SSL certificate id. Validated but currently not used."
+          }
+        },
+        "required": [
+          "client_id",
+          "subject",
+          "details",
+          "ticket_type"
+        ]
+      },
+      "TicketReplyInput": {
+        "type": "object",
+        "properties": {
+          "action_description": {
+            "type": "string",
+            "description": "Reply text (added as a public/non-hidden action)."
+          }
+        },
+        "required": [
+          "action_description"
+        ]
+      },
+      "TicketReplyResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "action": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ]
+      },
+      "TicketCloseResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "ok",
+          "message"
+        ]
+      },
+      "DomainPricing": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "tld": {
+            "type": "string"
+          },
+          "registration_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "renewal_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "restore_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "transfer_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "minimum_years": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maximum_years": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id_protection": {
+            "type": "boolean"
+          },
+          "dnssec": {
+            "type": "boolean"
+          },
+          "sale_registration_1_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_2_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_3_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_4_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_5_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_6_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_7_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_8_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_9_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_registration_10_year_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_renew_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_transfer_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "sale_end_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sell_price": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "is_common": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tld"
+        ],
+        "description": "Decimal columns may serialise as strings or numbers depending on the database driver."
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "mfa_preference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "is_active",
+          "roles"
+        ]
+      },
+      "UserCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "format": "password"
+          },
+          "password_confirmation": {
+            "type": "string",
+            "format": "password",
+            "description": "Must equal password."
+          },
+          "is_active": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Defaults to true."
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Existing role name (Spatie permission role)."
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password",
+          "password_confirmation"
+        ]
+      },
+      "UserUpdateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "is_active": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Replaces the user's roles with this role; empty/null removes all roles."
+          }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "user_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "action": {
+            "type": "string"
+          },
+          "auditable_type": {
+            "type": "string"
+          },
+          "auditable_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "old_values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "new_values": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "context": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "ip_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_agent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "auditable_type"
+        ]
+      }
+    }
+  },
+  "x-scopes": {
+    "domains.read": "View domains, expiry dates and EPP auth codes",
+    "domains.write": "Sync from Synergy, renew, transfer and assign domains to clients",
+    "dns.read": "View DNS zone records for a domain",
+    "dns.write": "Add, update and delete DNS records; change nameservers / DNS mode",
+    "clients.read": "View client organisations and their domain list",
+    "clients.write": "Create, update and delete client organisations",
+    "hosting.read": "View hosting services and their usage statistics",
+    "hosting.write": "Trigger hosting service sync from Synergy Wholesale",
+    "ssl.read": "View SSL certificates and their status",
+    "ssl.write": "Trigger SSL certificate sync from Synergy Wholesale",
+    "internet.read": "View internet / broadband services",
+    "internet.write": "Trigger internet service sync from Vocus WSM",
+    "tickets.read": "View HaloPSA support tickets and their replies",
+    "tickets.write": "Create tickets and post replies; close tickets",
+    "pricing.read": "View the domain pricing catalogue",
+    "users.read": "View portal user accounts",
+    "users.write": "Create, update and delete portal users",
+    "audit.read": "View the system audit log"
+  }
+}

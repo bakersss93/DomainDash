@@ -322,6 +322,32 @@
         </div>
     @endif
 
+    {{-- OpenAPI / Rewst integration card --}}
+    <div class="ak-card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1 1 320px;min-width:0;">
+                <h2 style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px;">API documentation (OpenAPI)</h2>
+                <p style="font-size:13px;color:var(--text-muted);margin:0;">
+                    Download the OpenAPI 3.1 document describing every DomainDash API endpoint, for importing into Rewst or any other API client.
+                </p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="{{ route('admin.apidocs.yaml') }}" class="btn-accent" style="padding:8px 16px;">Download OpenAPI (YAML)</a>
+                <a href="{{ route('admin.apidocs.json') }}" class="btn-secondary" style="padding:8px 16px;">Download OpenAPI (JSON)</a>
+            </div>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle);font-size:13px;color:var(--text);">
+            <div style="font-weight:600;margin-bottom:6px;">Rewst setup</div>
+            <ol style="margin:0;padding-left:20px;color:var(--text-muted);line-height:1.7;">
+                <li>In Rewst, create a custom integration and import the downloaded OpenAPI file.</li>
+                <li>Set the base URL to <code>{{ rtrim(config('app.url'), '/') }}/api</code> (the document's <code>baseUrl</code> variable is pre-filled with <code>{{ rtrim(config('app.url'), '/') }}</code>).</li>
+                <li>Authenticate with an API key sent in the <code>x-api-key</code> header (not a Bearer token). Create a key below and grant only the scopes your workflows need.</li>
+                <li>Send <code>Accept: application/json</code> on requests so errors come back as JSON.</li>
+            </ol>
+        </div>
+    </div>
+
     {{-- Existing keys card --}}
     <div class="ak-card">
         <h2 style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 14px;">Existing API keys</h2>
