@@ -137,6 +137,18 @@ From the **DNS records** page for each domain:
   - Red for destructive actions (Delete).
   - Neutral pills for secondary navigation and filters.
 
+## Deployment notes: front-end assets
+
+All styling lives in `resources/css/app.css` and is compiled by Vite into `public/build` (gitignored). The layout no longer carries inline CSS, so **every deploy must rebuild the assets** or pages render unstyled:
+
+```bash
+npm ci
+npm run build
+php artisan optimize:clear
+```
+
+If Node is not available on the server, run `npm run build` on a build machine/CI and copy `public/build/` to the server. Make sure no stale `public/hot` file exists in production.
+
 ## Deployment notes: background sync (Halo / IT Glue)
 
 Halo and IT Glue data is synced by queued jobs into local tables (`halo_clients`, `halo_assets`, `itglue_organizations`, `sync_runs`); pages read those tables and never call the vendors. Admin "Sync" / "Refresh now" buttons and `php artisan domaindash:sync-task ...` only dispatch jobs and return immediately.
