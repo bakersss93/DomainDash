@@ -73,7 +73,7 @@ class SyncRun extends Model
         $this->forceFill([
             'status' => self::RUNNING,
             'started_at' => $this->started_at ?? now(),
-            'total' => $total ?? $this->total,
+            'total' => $total ?? $this->total ?? 0,
         ])->save();
 
         return $this;

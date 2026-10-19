@@ -16,7 +16,11 @@ class OpenApiDocumentTest extends TestCase
     private function admin(): User
     {
         Role::findOrCreate('Administrator', 'web');
-        $user = User::factory()->create();
+        // Administrators must have MFA configured (SEC-08), otherwise they are redirected to setup.
+        $user = User::factory()->create([
+            'two_factor_secret' => encrypt('SECRET'),
+            'two_factor_confirmed_at' => now(),
+        ]);
         $user->assignRole('Administrator');
 
         return $user;
@@ -102,7 +106,7 @@ class OpenApiDocumentTest extends TestCase
         $this->assertNotEmpty($actual);
         $this->assertSame($actual, $documented);
 
-        $ids = array_merge(...array_map(fn ($m) => array_column($m, 'operationId'), $spec['paths']));
+        $ids = array_merge(...array_values(array_map(fn ($m) => array_column($m, 'operationId'), $spec['paths'])));
         $this->assertSame(count($ids), count(array_unique($ids)), 'operationIds must be unique');
     }
 }

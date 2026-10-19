@@ -14,6 +14,8 @@ class DnsController extends Controller
      */
     public function index(Domain $domain, SynergyWholesaleClient $synergy)
     {
+        $this->authorize('view', $domain);
+
         $dnsMode     = (int) ($domain->dns_config ?? 0);
         $nameservers = [];
 
@@ -71,6 +73,8 @@ class DnsController extends Controller
      */
     public function store(Request $request, Domain $domain, SynergyWholesaleClient $synergy)
     {
+        $this->authorize('manageDns', $domain);
+
         $data = $request->validate([
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
@@ -100,10 +104,12 @@ class DnsController extends Controller
     }
 
     /**
-     * Update a DNS record (delete + add).
+     * Update a DNS record (Synergy updateDNSRecord).
      */
     public function update(Request $request, Domain $domain, $recordId, SynergyWholesaleClient $synergy)
     {
+        $this->authorize('manageDns', $domain);
+
         $data = $request->validate([
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
@@ -112,10 +118,10 @@ class DnsController extends Controller
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 
-        $synergy->deleteDNSRecord($domain->name, $recordId);
-
-        $synergy->addDNSRecord(
+        // Native single-call update (no delete-then-add window).
+        $synergy->updateDNSRecord(
             $domain->name,
+            (string) $recordId,
             $data['host'] ?? '',
             $data['type'],
             $data['content'],
@@ -139,6 +145,8 @@ class DnsController extends Controller
      */
     public function destroy(Domain $domain, $recordId, SynergyWholesaleClient $synergy)
     {
+        $this->authorize('manageDns', $domain);
+
         $synergy->deleteDNSRecord($domain->name, $recordId);
 
         AuditLogger::logSystem('dns.delete', "DNS record deleted for {$domain->name}.", [
@@ -160,9 +168,11 @@ class DnsController extends Controller
         Domain $domain,
         SynergyWholesaleClient $synergy
     ) {
+        $this->authorize('manageDns', $domain);
+
         $data = $request->validate([
             // 1 = Custom NS, 2 = URL & Email Forwarding, 3 = Parking, 4 = DNS Hosting
-            'dns_mode'      => 'required|integer|in:1,2,3,4',
+            'dns_mode'      => 'required|integer|in:1,2,3,4,5,7',
             'nameservers'   => 'array',
             'nameservers.*' => 'nullable|string|max:255',
         ]);

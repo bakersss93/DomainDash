@@ -40,12 +40,26 @@ class UserSettingsController extends Controller
         $data = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'current_password' => ['nullable', 'string'],
         ])->validate();
+
+        $emailChanged = strcasecmp($data['email'], (string) $user->email) !== 0;
+
+        if ($emailChanged) {
+            // Changing the sign-in/reset address requires re-proving the password.
+            if (empty($data['current_password']) || ! Hash::check($data['current_password'], $user->password)) {
+                return response()->json(['message' => 'Enter your current password to change your email address.'], 422);
+            }
+        }
 
         $user->forceFill([
             'name' => $data['name'],
             'email' => $data['email'],
         ])->save();
+
+        if ($emailChanged) {
+            \App\Support\SessionRevoker::revoke($user, $request->session()->getId());
+        }
 
         return response()->json(['updated' => true]);
     }
@@ -56,7 +70,7 @@ class UserSettingsController extends Controller
 
         $data = Validator::make($request->all(), [
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::defaults(), 'confirmed'],
             'mfa_code' => ['nullable', 'string'],
         ])->validate();
 
@@ -76,6 +90,8 @@ class UserSettingsController extends Controller
             'password' => Hash::make($data['password']),
         ])->save();
 
+        \App\Support\SessionRevoker::revoke($user, $request->session()->getId());
+
         return response()->json(['updated' => true]);
     }
 
@@ -83,7 +99,7 @@ class UserSettingsController extends Controller
     {
         $user = $request->user();
 
-        if ($user->mfa_preference === 'disabled') {
+        if ($user->mfa_preference === 'disabled' && ! $user->requiresMfa()) {
             return response()->json(['message' => 'MFA is disabled for this account.'], 422);
         }
 
@@ -143,7 +159,7 @@ class UserSettingsController extends Controller
     {
         $user = $request->user();
 
-        if ($user->mfa_preference === 'disabled') {
+        if ($user->mfa_preference === 'disabled' && ! $user->requiresMfa()) {
             return response()->json(['message' => 'MFA is disabled for this account.'], 422);
         }
 
@@ -204,7 +220,7 @@ class UserSettingsController extends Controller
     {
         $user = $request->user();
 
-        if ($user->mfa_preference !== 'enabled') {
+        if ($user->mfa_preference !== 'enabled' || $user->requiresMfa()) {
             return response()->json(['message' => 'This prompt cannot be dismissed.'], 422);
         }
 

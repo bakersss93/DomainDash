@@ -22,16 +22,18 @@ class ApiKeysController extends Controller
             'name'                => 'required|string|max:255',
             'allowed_ips'         => 'nullable|string',
             'rate_limit_per_hour' => 'required|integer|min:1|max:100000',
-            'scopes'              => 'nullable|array',
+            'scopes'              => 'required|array|min:1',
             'scopes.*'            => 'string|in:' . implode(',', $validScopes),
         ]);
-        $plain = bin2hex(random_bytes(24));
+        $gen = ApiKey::generate();
+        $plain = $gen['plain'];
         ApiKey::create([
             'name'=>$data['name'],
-            'key_hash'=>password_hash($plain, PASSWORD_BCRYPT),
+            'key_prefix'=>$gen['prefix'],
+            'key_hash'=>$gen['hash'],
             'allowed_ips'=>$data['allowed_ips'] ?? null,
             'rate_limit_per_hour'=>$data['rate_limit_per_hour'],
-            'scopes'=>$data['scopes'] ?? null,
+            'scopes'=>$data['scopes'],
             'active'=>true
         ]);
         return back()->with('new_api_key', $plain);
@@ -44,14 +46,14 @@ class ApiKeysController extends Controller
         $data = $request->validate([
             'allowed_ips'         => 'nullable|string',
             'rate_limit_per_hour' => 'required|integer|min:1|max:100000',
-            'scopes'              => 'nullable|array',
+            'scopes'              => 'required|array|min:1',
             'scopes.*'            => 'string|in:' . implode(',', $validScopes),
         ]);
 
         $key->update([
             'allowed_ips'         => $data['allowed_ips'] ?? null,
             'rate_limit_per_hour' => $data['rate_limit_per_hour'],
-            'scopes'              => $data['scopes'] ?? null,
+            'scopes'              => $data['scopes'],
         ]);
 
         return back()->with('status', 'API key updated.');
@@ -77,8 +79,9 @@ class ApiKeysController extends Controller
 
     public function regenerate(ApiKey $key)
     {
-        $plain = bin2hex(random_bytes(24));
-        $key->update(['key_hash' => password_hash($plain, PASSWORD_BCRYPT)]);
+        $gen = ApiKey::generate();
+        $plain = $gen['plain'];
+        $key->update(['key_prefix' => $gen['prefix'], 'key_hash' => $gen['hash']]);
         return back()->with('new_api_key', $plain);
     }
 }

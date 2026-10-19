@@ -168,7 +168,11 @@ function doLookup(params) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.style = 'text-align:left;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;background:white;font-size:13px;cursor:pointer;transition:border-color 0.15s;';
-            btn.innerHTML = `<strong style="font-size:12px;color:#6b7280;display:block;">${addr.directory_id}</strong>${addr.address_long}`;
+            const strong = document.createElement('strong');
+            strong.style = 'font-size:12px;color:#6b7280;display:block;';
+            strong.textContent = addr.directory_id;
+            btn.appendChild(strong);
+            btn.appendChild(document.createTextNode(String(addr.address_long ?? '')));
             btn.onmouseenter = () => btn.style.borderColor = 'var(--accent)';
             btn.onmouseleave = () => btn.style.borderColor = '#d1d5db';
             btn.onclick = () => selectAddress(addr);
@@ -238,6 +242,10 @@ function runQualify(directoryId, addressLong) {
     });
 }
 
+function qEsc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function renderQualifyResult(data, directoryId, addressLong) {
     const el = document.getElementById('qualify-result');
     const passed = data.result === 'PASS';
@@ -249,8 +257,8 @@ function renderQualifyResult(data, directoryId, addressLong) {
             const upSpeeds = pair.UploadSpeed || pair.uploadSpeed || '';
             const pairId = pair.CopperPairID || pair.copperPairId || '';
             copperPairs += `<div style="margin-top:8px;padding:10px;background:white;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;">
-                <strong>${pairId}</strong>
-                ${speeds ? `<span style="color:#6b7280;margin-left:8px;">↓ ${speeds} Mbps / ↑ ${upSpeeds} Mbps</span>` : ''}
+                <strong>${qEsc(pairId)}</strong>
+                ${speeds ? `<span style="color:#6b7280;margin-left:8px;">↓ ${qEsc(speeds)} Mbps / ↑ ${qEsc(upSpeeds)} Mbps</span>` : ''}
             </div>`;
         });
     }
@@ -280,9 +288,9 @@ function renderQualifyResult(data, directoryId, addressLong) {
             <span style="padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:${passed ? '#dcfce7' : '#fee2e2'};color:${passed ? '#15803d' : '#b91c1c'};">
                 ${passed ? '✓ PASS' : '✗ FAIL'}
             </span>
-            ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:#dbeafe;color:#1e40af;">${data.service_type}</span>` : ''}
-            ${data.zone ? `<span style="font-size:13px;color:#6b7280;">Zone: ${data.zone}</span>` : ''}
-            ${data.service_class ? `<span style="font-size:13px;color:#6b7280;">Class ${data.service_class}</span>` : ''}
+            ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:#dbeafe;color:#1e40af;">${qEsc(data.service_type)}</span>` : ''}
+            ${data.zone ? `<span style="font-size:13px;color:#6b7280;">Zone: ${qEsc(data.zone)}</span>` : ''}
+            ${data.service_class ? `<span style="font-size:13px;color:#6b7280;">Class ${qEsc(data.service_class)}</span>` : ''}
         </div>
         ${copperPairs}
         ${orderButtons}

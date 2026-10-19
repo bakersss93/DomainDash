@@ -86,7 +86,6 @@ class ServicesController extends Controller
                 'data_keys' => array_keys($serviceData),
                 'has_diskUsage' => isset($serviceData['diskUsage']),
                 'has_bandwidth' => isset($serviceData['bandwidth']),
-                'full_response' => json_encode($serviceData)
             ]);
 
             // Check if the API call was successful (status can be 'OK', 'Active', etc.)
@@ -286,13 +285,18 @@ class ServicesController extends Controller
                 'errorMessage' => $result['errorMessage'] ?? 'no error message',
                 'has_password' => isset($result['password']),
                 'result_keys' => array_keys($result),
-                'full_response' => json_encode($result)
             ]);
 
             // Check if password exists (status can be 'OK', 'Active', etc.)
             $password = $result['password'] ?? null;
 
             if ($password) {
+                \App\Services\AuditLogger::logSystem('hosting.password-reveal', "Hosting password revealed for service {$service->id}.", [
+                    'service' => 'hosting',
+                    'function' => 'password-reveal',
+                    'client_id' => $service->client_id ?? null,
+                ]);
+
                 return response()->json([
                     'ok'       => true,
                     'password' => $password,
@@ -313,7 +317,7 @@ class ServicesController extends Controller
 
             return response()->json([
                 'ok'      => false,
-                'message' => 'Error fetching password: ' . $e->getMessage(),
+                'message' => 'Error fetching password. See the application log for details.',
             ], 500);
         }
     }
@@ -342,7 +346,6 @@ class ServicesController extends Controller
                 'status' => $result['status'] ?? 'no status',
                 'has_url' => isset($result['url']),
                 'response_keys' => array_keys($result),
-                'full_response' => json_encode($result)
             ]);
 
             // Extract the URL from the response
@@ -468,7 +471,6 @@ class ServicesController extends Controller
                 'status' => $response['status'] ?? 'no status',
                 'has_packages' => isset($response['packages']),
                 'packages_type' => isset($response['packages']) ? gettype($response['packages']) : 'not set',
-                'full_response' => json_encode($response)
             ]);
 
             if (($response['status'] ?? null) !== 'OK') {

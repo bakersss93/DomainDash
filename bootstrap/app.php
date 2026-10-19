@@ -25,11 +25,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\ApplyImpersonation::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
 
+        // Per-IP throttle runs BEFORE API-key authentication (SEC-06).
+        $middleware->api(prepend: [
+            'throttle:api-ip',
+        ]);
+
         $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
     })
@@ -38,5 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
         
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // API clients always get JSON (e.g. 422 validation errors) regardless of Accept.
+        $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {
+            return $request->is('api/*') || $request->expectsJson();
+        });
     })->create();

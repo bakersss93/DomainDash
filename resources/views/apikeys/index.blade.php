@@ -536,7 +536,7 @@
                     @php
                         $selectedScopes = old('scopes', []);
                         $scopeGroups = [
-                            'Domains'           => ['domains.read', 'domains.write'],
+                            'Domains'           => ['domains.read', 'domains.auth-code', 'domains.write'],
                             'DNS Records'       => ['dns.read', 'dns.write'],
                             'Clients'           => ['clients.read', 'clients.write'],
                             'Hosting Services'  => ['hosting.read', 'hosting.write'],
@@ -544,7 +544,7 @@
                             'Internet Services' => ['internet.read', 'internet.write'],
                             'Tickets'           => ['tickets.read', 'tickets.write'],
                             'Domain Pricing'    => ['pricing.read'],
-                            'Users'             => ['users.read', 'users.write'],
+                            'Users'             => ['users.read', 'users.write', 'users.admin'],
                             'Audit Log'         => ['audit.read'],
                         ];
                         $allScopes = \App\Models\ApiKey::SCOPES;

@@ -1436,6 +1436,35 @@
             document.getElementById('haloClientsBtn').style.color = 'var(--text-muted)';
         }
 
+        function ddSyncBarHtml(sync, url) {
+            const when = sync && sync.last_synced_human ? 'Last synced ' + sync.last_synced_human : 'Never synced';
+            const busy = sync && sync.active ? ' (refresh running: ' + sync.active.status + ')' : '';
+            return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:13px;color:var(--text-muted);">
+                <span>${when}${busy}</span>
+                <button type="button" onclick="ddRefreshMirror('${url}', this)" style="padding:4px 12px;background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:6px;color:var(--text);cursor:pointer;">Refresh now</button>
+            </div>`;
+        }
+
+        function ddEsc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        async function ddRefreshMirror(url, btn) {
+            btn.disabled = true;
+            btn.textContent = 'Queued...';
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
+                });
+                btn.textContent = 'Queued - reopen shortly';
+            } catch (e) {
+                btn.textContent = 'Failed';
+            }
+        }
+
         async function loadHaloClients() {
             const listEl = document.getElementById('haloClientList');
             listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading clients from HaloPSA...</span></div></div>';
@@ -1445,13 +1474,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh') + `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderHaloClientList(data.clients);
+                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${error.message}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1471,13 +1501,13 @@
             clients.forEach((client, index) => {
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="halo-client-checkbox" data-client-id="${client.halo_id}" data-client-name="${client.halo_name}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${client.halo_name}</div>
-                        <select class="halo-client-mapping" data-halo-id="${client.halo_id}" class="dd-input">
+                        <input type="checkbox" class="halo-client-checkbox" data-client-id="${ddEsc(client.halo_id)}" data-client-name="${ddEsc(client.halo_name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:var(--text);">${ddEsc(client.halo_name)}</div>
+                        <select class="halo-client-mapping" data-halo-id="${ddEsc(client.halo_id)}" class="dd-input">
                             <option value="">-- Select Client --</option>
-                            ${client.suggestions.map(s => `<option value="${s.id}" ${s.id === client.mapped_id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                            ${client.suggestions.map(s => `<option value="${ddEsc(s.id)}" ${s.id === client.mapped_id ? 'selected' : ''}>${ddEsc(s.name)}</option>`).join('')}
                         </select>
-                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${client.updated || 'N/A'}</div>
+                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${ddEsc(client.updated || 'N/A')}</div>
                         <div style="text-align:center;">
                             ${client.mapped_id ? '' : '<button onclick="createClientFromHalo(\'' + client.halo_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;">+</button>'}
                         </div>
@@ -1509,36 +1539,27 @@
                 return;
             }
 
-            const total = selectedClients.length;
-            let syncedCount = 0;
-            const errors = [];
-
             try {
-                for (let i = 0; i < selectedClients.length; i++) {
-                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} client${total !== 1 ? 's' : ''}…`);
+                showHaloSyncProgress('Saving mappings and queueing asset refresh…');
 
-                    const response = await fetch('/admin/sync/halo/clients/sync', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({ clients: [selectedClients[i]] })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        syncedCount += data.synced_count;
-                    } else {
-                        errors.push({ label: selectedClients[i]._name, message: data.error || 'Unknown error' });
-                    }
-                }
+                const response = await fetch('/admin/sync/halo/clients/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ clients: selectedClients })
+                });
+                const data = await response.json();
+                const errors = (data.results || []).filter(r => !r.success).map(r => ({ label: r.item?.name || 'Client', message: r.error || 'Unknown error' }));
+                if (!data.success && data.error) errors.push({ label: 'Request', message: data.error });
 
                 hideHaloSyncProgress();
                 closeHaloSyncModal();
                 showSyncResult(
-                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
-                    `Successfully synced ${syncedCount} client${syncedCount !== 1 ? 's' : ''}.`,
+                    errors.length === 0 ? 'Sync Queued' : 'Queued with Errors',
+                    `Linked ${data.queued_count || 0} client${data.queued_count === 1 ? '' : 's'}. Domain assets are refreshing in the background.`,
                     errors,
                     () => location.reload()
                 );
@@ -1557,13 +1578,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderHaloDomainList(data.domains);
+                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${error.message}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1586,8 +1608,8 @@
 
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${domain.id}" data-domain-name="${domain.name}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${domain.name}</div>
+                        <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${ddEsc(domain.id)}" data-domain-name="${ddEsc(domain.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:var(--text);">${ddEsc(domain.name)}</div>
                         <div style="color:#94a3b8;font-size:13px;">${domain.client || 'No Client'}</div>
                         <div style="text-align:center;color:#94a3b8;font-size:13px;">${domain.expiry || 'N/A'}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
@@ -1614,42 +1636,28 @@
                 return;
             }
 
-            const total = selectedDomains.length;
-            let syncedCount = 0;
-            const allWarnings = [];
-            const errors = [];
-
             try {
-                for (let i = 0; i < selectedDomains.length; i++) {
-                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} domain${total !== 1 ? 's' : ''}…`);
+                showHaloSyncProgress('Queueing sync…');
 
-                    const response = await fetch('/admin/sync/halo/domains/sync', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({ domain_ids: [selectedDomains[i].id] })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        syncedCount += data.synced_count;
-                        if (data.warnings?.length) allWarnings.push(...data.warnings);
-                    } else {
-                        errors.push({ label: selectedDomains[i]._name, message: data.error || 'Unknown error' });
-                    }
-                }
+                const response = await fetch('/admin/sync/halo/domains/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ domain_ids: selectedDomains.map(d => d.id) })
+                });
+                const data = await response.json();
 
                 hideHaloSyncProgress();
                 closeHaloSyncModal();
-
-                let summaryMsg = `Successfully synced ${syncedCount} domain${syncedCount !== 1 ? 's' : ''}.`;
-                if (allWarnings.length > 0) summaryMsg += ` ${allWarnings.length} warning${allWarnings.length !== 1 ? 's' : ''} noted.`;
                 showSyncResult(
-                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
-                    summaryMsg,
-                    errors,
+                    data.success ? 'Sync Queued' : 'Sync Failed',
+                    data.success
+                        ? `Queued ${data.queued_count} domain${data.queued_count === 1 ? '' : 's'} for background sync to HaloPSA. Status updates as the queue worker processes them.`
+                        : (data.error || 'Unknown error'),
+                    [],
                     () => location.reload()
                 );
             } catch (error) {
@@ -1698,13 +1706,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh') + `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderItGlueClientList(data.clients);
+                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${error.message}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1722,10 +1731,10 @@
             clients.forEach(client => {
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
-                        <div style="color:var(--text);">${client.dash_name}</div>
-                        <select class="itglue-client-mapping" data-dash-id="${client.dash_id}" data-dash-name="${client.dash_name}" class="dd-input">
+                        <div style="color:var(--text);">${ddEsc(client.dash_name)}</div>
+                        <select class="itglue-client-mapping" data-dash-id="${ddEsc(client.dash_id)}" data-dash-name="${ddEsc(client.dash_name)}" class="dd-input">
                             <option value="">-- Select Organization --</option>
-                            ${client.organizations.map(org => `<option value="${org.id}" ${org.id === client.mapped_id ? 'selected' : ''}>${org.name}</option>`).join('')}
+                            ${client.organizations.map(org => `<option value="${ddEsc(org.id)}" ${org.id === client.mapped_id ? 'selected' : ''}>${ddEsc(org.name)}</option>`).join('')}
                         </select>
                         <div style="text-align:center;">
                             ${!client.mapped_id ? '<button onclick="suggestItGlueOrg(\'' + client.dash_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">Suggest</button>' : '<span style="color:#10b981;font-size:13px;">✓ Mapped</span>'}
@@ -1816,13 +1825,13 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderIp2whoisDomainList(data.items || []);
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${error.message}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1846,8 +1855,8 @@
 
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="ip2whois-checkbox" data-item-id="${item.id}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${item.name}</div>
+                        <input type="checkbox" class="ip2whois-checkbox" data-item-id="${ddEsc(item.id)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:var(--text);">${ddEsc(item.name)}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.client || 'No client'}</div>
                         <div style="color:#94a3b8;font-size:13px;">${syncedAt}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
@@ -1909,13 +1918,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${data.error}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderItGlueConfigList(data.items);
+                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load items: ${error.message}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load items: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1938,10 +1948,10 @@
 
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${item.id}" data-item-type="${item.type}" data-item-name="${item.name}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${item.name}</div>
+                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${ddEsc(item.id)}" data-item-type="${ddEsc(item.type)}" data-item-name="${ddEsc(item.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
+                        <div style="color:var(--text);">${ddEsc(item.name)}</div>
                         <div style="color:#94a3b8;font-size:13px;">${item.client || 'No Client'}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${item.type}</div>
+                        <div style="color:#94a3b8;font-size:13px;">${ddEsc(item.type)}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
                 `;
@@ -1966,37 +1976,28 @@
                 return;
             }
 
-            const total = selectedItems.length;
-            let syncedCount = 0;
-            const errors = [];
-
             try {
-                for (let i = 0; i < selectedItems.length; i++) {
-                    showHaloSyncProgress(`Syncing ${i + 1} / ${total} configuration${total !== 1 ? 's' : ''}…`);
+                showHaloSyncProgress('Queueing sync…');
 
-                    const response = await fetch('/admin/sync/itglue/configurations/sync', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                        },
-                        body: JSON.stringify({ items: [selectedItems[i]] })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        syncedCount += data.synced_count;
-                    } else {
-                        errors.push({ label: selectedItems[i]._name, message: data.error || 'Unknown error' });
-                    }
-                }
+                const response = await fetch('/admin/sync/itglue/configurations/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
+                    body: JSON.stringify({ items: selectedItems.map(i => ({ id: i.id, type: i.type })) })
+                });
+                const data = await response.json();
 
                 hideHaloSyncProgress();
                 closeItGlueSyncModal();
                 showSyncResult(
-                    errors.length === 0 ? 'Sync Complete' : 'Sync Completed with Errors',
-                    `Successfully synced ${syncedCount} configuration${syncedCount !== 1 ? 's' : ''}.`,
-                    errors,
+                    data.success ? 'Sync Queued' : 'Sync Failed',
+                    data.success
+                        ? `Queued ${data.queued_count} configuration${data.queued_count === 1 ? '' : 's'} for background sync to IT Glue.`
+                        : (data.error || 'Unknown error'),
+                    [],
                     () => location.reload()
                 );
             } catch (error) {
@@ -2030,8 +2031,8 @@
                 const list = document.getElementById('syncResultErrorList');
                 list.innerHTML = errors.map((e, idx) => `
                     <div style="padding:10px 12px;${idx < errors.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : ''}display:flex;flex-direction:column;gap:3px;">
-                        <span style="font-size:13px;font-weight:600;color:var(--text);">${e.label}</span>
-                        <span style="font-size:13px;color:#ef4444;">${e.message}</span>
+                        <span style="font-size:13px;font-weight:600;color:var(--text);">${ddEsc(e.label)}</span>
+                        <span style="font-size:13px;color:#ef4444;">${ddEsc(e.message)}</span>
                     </div>`).join('');
                 document.getElementById('syncResultErrors').style.display = 'block';
             } else {

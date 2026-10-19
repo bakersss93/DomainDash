@@ -1367,6 +1367,7 @@
             const data = await request('{{ route('me.account.details') }}');
             nameInput.value = data.name || '';
             emailInput.value = data.email || '';
+            emailInput.dataset.original = emailInput.value;
             mfaConfigured = !!data.mfa_configured;
             if (passwordMfaCodeWrap) {
                 passwordMfaCodeWrap.style.display = 'none';
@@ -1403,10 +1404,14 @@
 
         saveBtn.addEventListener('click', async function () {
             try {
-                await request('{{ route('me.account.update') }}', {
-                    name: nameInput.value,
-                    email: emailInput.value
-                });
+                const payload = { name: nameInput.value, email: emailInput.value };
+                if (emailInput.dataset.original && emailInput.dataset.original.toLowerCase() !== emailInput.value.toLowerCase()) {
+                    const pw = window.prompt('Enter your current password to change your email address:');
+                    if (!pw) { setStatus(status, 'Email not changed: password required.', 'is-error'); return; }
+                    payload.current_password = pw;
+                }
+                await request('{{ route('me.account.update') }}', payload);
+                emailInput.dataset.original = emailInput.value;
                 setStatus(status, 'Account updated successfully.', 'is-ok');
             } catch (error) {
                 setStatus(status, error.message, 'is-error');
