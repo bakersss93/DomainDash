@@ -1,10 +1,18 @@
 @extends('layouts.app')
 
 @section('content')
+<script>
+    // Names/references come from external systems (IT Glue, HaloPSA): always escape before innerHTML.
+    window.ddEscHtml = function (value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+</script>
     <div class="dd-page" style="max-width: 920px;">
 
         {{-- Title --}}
-        <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">
+        <h1>
             {{ $client->exists ? 'Edit Client' : 'New Client' }}
         </h1>
 
@@ -37,9 +45,9 @@
                     <input id="business_name" name="business_name" type="text"
                            value="{{ old('business_name', $client->business_name) }}"
                            required
-                           style="width:100%;font-size:14px;">
+                           style="width:100%;">
                     @error('business_name')
-                        <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
+                        <div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -48,9 +56,9 @@
                     <label for="abn" style="display:block;font-size:14px;margin-bottom:4px;">ABN</label>
                     <input id="abn" name="abn" type="text"
                            value="{{ old('abn', $client->abn) }}"
-                           style="width:100%;font-size:14px;">
+                           style="width:100%;">
                     @error('abn')
-                        <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
+                        <div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -66,7 +74,7 @@
                                value="{{ old('halopsa_reference', $client->halopsa_reference) }}"
                                placeholder="Selected HaloPSA client reference"
                                readonly
-                               style="flex:1;font-size:14px;background:var(--surface-muted);color:var(--text);border:1px solid var(--border-subtle);">
+                               style="flex:1;">
 
                         {{-- Button opens the HaloPSA picker modal --}}
                         <button type="button"
@@ -79,7 +87,7 @@
                         @if($client->halopsa_reference)
                             <button type="button"
                                     id="btn-halopsa-clear"
-                                    style="padding:8px 12px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:transparent;white-space:nowrap;">
+                                    style="padding:8px 12px;border-radius:4px;border:1px solid var(--dd-danger);color:var(--dd-danger-text);background:transparent;white-space:nowrap;">
                                 Clear
                             </button>
                         @endif
@@ -92,7 +100,7 @@
                            value="{{ old('halopsa_reference', $client->halopsa_reference) }}">
 
                     @error('halopsa_reference')
-                        <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
+                        <div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -108,7 +116,7 @@
                                value="{{ old('itglue_org_name', $client->itglue_org_name) }}"
                                placeholder="Selected ITGlue org name"
                                readonly
-                               style="flex:1;font-size:14px;background:var(--surface-muted);color:var(--text);border:1px solid var(--border-subtle);">
+                               style="flex:1;">
 
                         {{-- Button opens the ITGlue picker modal --}}
                         <button type="button"
@@ -121,7 +129,7 @@
                         @if($client->itglue_org_id)
                             <button type="button"
                                     id="btn-itglue-clear"
-                                    style="padding:8px 12px;border-radius:4px;border:1px solid #ef4444;color:#ef4444;background:transparent;white-space:nowrap;">
+                                    style="padding:8px 12px;border-radius:4px;border:1px solid var(--dd-danger);color:var(--dd-danger-text);background:transparent;white-space:nowrap;">
                                 Clear
                             </button>
                         @endif
@@ -139,7 +147,7 @@
                            value="{{ old('itglue_org_name', $client->itglue_org_name) }}">
 
                     @error('itglue_org_id')
-                        <div style="color:#f87171;font-size:12px;margin-top:2px;">{{ $message }}</div>
+                        <div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>
                     @enderror
                 </div>
 
@@ -179,8 +187,7 @@
                     @if($client->exists)
                         <button type="button"
                                 id="btn-delete-client"
-                                style="padding:8px 14px;border-radius:4px;border:1px solid #ef4444;
-                                       background:#ef4444;color:white;font-size:14px;cursor:pointer;">
+                                class="ui-btn ui-btn--danger">
                             Delete Client
                         </button>
                     @endif
@@ -196,11 +203,11 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                     {{-- ITGlue Sync --}}
                     <div style="border:1px solid var(--dd-border);border-radius:6px;padding:14px;">
-                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#60a5fa;">
-                            📘 ITGlue Sync
+                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--dd-status-info-fg);">
+                            ITGlue Sync
                         </h3>
                         @if($client->itglue_org_id)
-                            <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">
+                            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:10px;">
                                 Sync domains to ITGlue with DNS records from Synergy
                             </p>
                             <button type="button"
@@ -211,7 +218,7 @@
                             </button>
                             <div id="itglue-sync-status" style="margin-top:8px;font-size:13px;"></div>
                         @else
-                            <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:0;">
                                 Link an ITGlue organization above to enable syncing
                             </p>
                         @endif
@@ -219,15 +226,15 @@
 
                     {{-- HaloPSA DNS Sync --}}
                     <div style="border:1px solid var(--dd-border);border-radius:6px;padding:14px;">
-                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:#34d399;">
-                            🔧 HaloPSA DNS Sync
+                        <h3 style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--dd-status-success-fg);">
+                            HaloPSA DNS Sync
                         </h3>
                         @if($client->halopsa_reference)
                             @php
                                 $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
                             @endphp
                             @if($domainsWithAssets > 0)
-                                <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">
+                                <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:10px;">
                                     Update HaloPSA asset notes with DNS records ({{ $domainsWithAssets }} domain{{ $domainsWithAssets !== 1 ? 's' : '' }})
                                 </p>
                                 <button type="button"
@@ -238,12 +245,12 @@
                                 </button>
                                 <div id="halo-sync-status" style="margin-top:8px;font-size:13px;"></div>
                             @else
-                                <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                                <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:0;">
                                     No domains with HaloPSA asset links found
                                 </p>
                             @endif
                         @else
-                            <p style="font-size:13px;color:#9ca3af;margin-bottom:0;">
+                            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:0;">
                                 Client must be imported from HaloPSA first
                             </p>
                         @endif
@@ -258,7 +265,7 @@
                 <h2 style="font-size:16px;font-weight:600;margin-bottom:8px;">Assigned Users</h2>
 
                 @if($assignedUsers->isEmpty())
-                    <div style="font-size:14px;color:#9ca3af;">No users assigned to this client yet.</div>
+                    <div style="font-size:14px;color:var(--dd-text-soft);">No users assigned to this client yet.</div>
                 @else
                     <ul style="list-style:none;padding-left:0;margin:0;font-size:14px;">
                         @foreach($assignedUsers as $user)
@@ -282,7 +289,7 @@
                 Select ITGlue Organisation
             </h2>
 
-            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
+            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:12px;">
                 Choose an organisation from ITGlue to link with this client.
             </p>
 
@@ -290,11 +297,10 @@
             <input type="text"
                    id="itglue-search"
                    placeholder="Search organisations..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-subtle);
-                          font-size:14px;margin-bottom:12px;background:var(--surface-muted);color:var(--text);">
+                   style="width:100%;margin-bottom:12px;">
 
             <div id="itglue-loading"
-                 style="font-size:14px;color:#9ca3af;margin:8px 0;">
+                 style="font-size:14px;color:var(--dd-text-soft);margin:8px 0;">
                 Loading organisations from ITGlue…
             </div>
 
@@ -318,17 +324,17 @@
             </div>
 
             <div id="itglue-empty"
-                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-text-soft);margin-top:8px;">
                 No organisations returned from ITGlue.
             </div>
 
             <div id="itglue-no-results"
-                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-text-soft);margin-top:8px;">
                 No organisations match your search.
             </div>
 
             <div id="itglue-error"
-                 style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-danger-text);margin-top:8px;">
                 Failed to load organisations from ITGlue. Please check the ITGlue API settings.
             </div>
 
@@ -353,7 +359,7 @@
                 Select HaloPSA Client
             </h2>
 
-            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
+            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:12px;">
                 Choose a client from HaloPSA to link with this client.
             </p>
 
@@ -361,11 +367,10 @@
             <input type="text"
                    id="halopsa-search"
                    placeholder="Search clients..."
-                   style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border-subtle);
-                          font-size:14px;margin-bottom:12px;background:var(--surface-muted);color:var(--text);">
+                   style="width:100%;margin-bottom:12px;">
 
             <div id="halopsa-loading"
-                 style="font-size:14px;color:#9ca3af;margin:8px 0;">
+                 style="font-size:14px;color:var(--dd-text-soft);margin:8px 0;">
                 Loading clients from HaloPSA…
             </div>
 
@@ -389,17 +394,17 @@
             </div>
 
             <div id="halopsa-empty"
-                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-text-soft);margin-top:8px;">
                 No clients returned from HaloPSA.
             </div>
 
             <div id="halopsa-no-results"
-                 style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-text-soft);margin-top:8px;">
                 No clients match your search.
             </div>
 
             <div id="halopsa-error"
-                 style="display:none;font-size:14px;color:#f97373;margin-top:8px;">
+                 style="display:none;font-size:14px;color:var(--dd-danger-text);margin-top:8px;">
                 Failed to load clients from HaloPSA. Please check the HaloPSA API settings.
             </div>
 
@@ -421,15 +426,15 @@
         <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:12px;padding:20px 24px;
                     width:100%;max-width:500px;box-shadow:0 20px 40px rgba(0,0,0,0.45);
                     border:2px solid #ef4444;">
-            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;color:#ef4444;">
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:12px;color:var(--dd-danger-text);">
                 ⚠️ Delete Client: {{ $client->business_name ?? 'Unnamed Client' }}
             </h2>
 
             <p style="font-size:14px;color:#e5e7eb;margin-bottom:16px;line-height:1.5;">
-                This action <strong style="color:#ef4444;">cannot be undone</strong>. Deleting this client will permanently remove:
+                This action <strong style="color:var(--dd-danger-text);">cannot be undone</strong>. Deleting this client will permanently remove:
             </p>
 
-            <ul style="font-size:13px;color:#9ca3af;margin-bottom:16px;padding-left:20px;">
+            <ul style="font-size:13px;color:var(--dd-text-soft);margin-bottom:16px;padding-left:20px;">
                 <li>Client record and all associated data</li>
                 <li>Links to domains (domains will become unassigned)</li>
                 <li>Links to users</li>
@@ -443,10 +448,9 @@
             <input type="email"
                    id="delete-email-confirm"
                    placeholder="your.email@example.com"
-                   style="width:100%;padding:10px 12px;border-radius:6px;border:1px solid var(--dd-border);
-                          font-size:14px;margin-bottom:16px;background:var(--dd-surface-soft);color:var(--dd-text);">
+                   style="width:100%;margin-bottom:16px;">
 
-            <div id="delete-error" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px;"></div>
+            <div id="delete-error" style="display:none;color:var(--dd-danger-text);font-size:13px;margin-bottom:12px;"></div>
 
             <div style="display:flex;justify-content:flex-end;gap:8px;">
                 <button type="button"
@@ -457,8 +461,7 @@
                 </button>
                 <button type="button"
                         id="delete-confirm"
-                        style="padding:8px 14px;border-radius:4px;border:1px solid #ef4444;
-                               background:#ef4444;color:white;font-size:14px;">
+                        class="ui-btn ui-btn--danger">
                     Delete Permanently
                 </button>
             </div>
@@ -651,8 +654,8 @@
                     const tr = document.createElement('tr');
 
                     tr.innerHTML = `
-                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${org.name}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${org.ref || org.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${ddEscHtml(org.name)}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${ddEscHtml(org.ref || org.id || '')}</td>
                         <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);text-align:right;">
                             <button type="button"
                                     class="btn-accent"
@@ -761,7 +764,7 @@
             }
 
             const statusDiv = document.getElementById('itglue-sync-status');
-            statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+            statusDiv.innerHTML = '<span style="color:var(--dd-text-soft);">⏳ Syncing...</span>';
 
             console.log('Starting ITGlue sync for client:', clientId);
 
@@ -803,7 +806,7 @@
                 console.log('ITGlue sync response:', data);
 
                 if (data.success) {
-                    let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
+                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + data.message + '</div>';
 
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
@@ -816,7 +819,7 @@
 
                     statusDiv.innerHTML = html;
                 } else {
-                    statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
+                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + (data.error || data.message) + '</div>';
                 }
             })
             .catch(err => {
@@ -830,7 +833,7 @@
                     errorMsg = err.message;
                 }
 
-                statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + errorMsg + '</div>';
+                statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + errorMsg + '</div>';
             })
             .finally(() => {
                 clearTimeout(timeoutId);
@@ -843,7 +846,7 @@
             }
 
             const statusDiv = document.getElementById('halo-sync-status');
-            statusDiv.innerHTML = '<span style="color:#9ca3af;">⏳ Syncing...</span>';
+            statusDiv.innerHTML = '<span style="color:var(--dd-text-soft);">⏳ Syncing...</span>';
 
             fetch('/admin/clients/' + clientId + '/halo/sync-dns', {
                 method: 'POST',
@@ -855,7 +858,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    let html = '<div style="color:#34d399;">✓ ' + data.message + '</div>';
+                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + data.message + '</div>';
 
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
@@ -868,12 +871,12 @@
 
                     statusDiv.innerHTML = html;
                 } else {
-                    statusDiv.innerHTML = '<div style="color:#f87171;">✗ ' + (data.error || data.message) + '</div>';
+                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + (data.error || data.message) + '</div>';
                 }
             })
             .catch(err => {
                 console.error('Sync error:', err);
-                statusDiv.innerHTML = '<div style="color:#f87171;">✗ Error syncing DNS to HaloPSA</div>';
+                statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ Error syncing DNS to HaloPSA</div>';
             });
         }
         @endif
@@ -1010,8 +1013,8 @@
                     const tr = document.createElement('tr');
 
                     tr.innerHTML = `
-                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${client.name || 'Unknown'}</td>
-                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${client.reference || client.id || ''}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${ddEscHtml(client.name || 'Unknown')}</td>
+                        <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);color:var(--text);">${ddEscHtml(client.reference || client.id || '')}</td>
                         <td style="padding:6px;border-bottom:1px solid var(--border-subtle);background:var(--surface-elevated);text-align:right;">
                             <button type="button"
                                     class="btn-accent"

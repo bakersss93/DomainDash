@@ -2,7 +2,7 @@
 
 @section('content')
 <div style="max-width: 1100px;">
-    <h1 style="font-size:24px;margin-bottom:10px;">SSL Certificate Details</h1>
+    <h1>SSL Certificate Details</h1>
     <p style="margin-bottom:16px;opacity:0.8;">
         <a href="{{ route('admin.services.ssls') }}">SSL Certificates</a> / {{ $ssl->common_name ?: 'Certificate #' . $ssl->id }}
     </p>

@@ -100,3 +100,80 @@ document.addEventListener('submit', (event) => {
         showGlobalLoader('Sync in progress…');
     }
 });
+
+/* ==========================================================================
+   UI shell behaviour (sidebar, nav sections, user menu, dialogs)
+   ========================================================================== */
+
+window.toggleNav = function toggleNav(element) {
+    const section = element.closest('.nav-section');
+    if (!section) {
+        return;
+    }
+    const expanded = section.classList.toggle('expanded');
+    element.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+};
+
+function setSidebar(open) {
+    document.body.classList.toggle('nav-open', open);
+    document.querySelectorAll('[data-sidebar-toggle]').forEach((btn) => {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+}
+
+document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+        return;
+    }
+
+    // Mobile sidebar
+    if (target.closest('[data-sidebar-toggle]')) {
+        setSidebar(!document.body.classList.contains('nav-open'));
+        return;
+    }
+    if (target.closest('.sidebar-scrim') || (target.closest('.sidebar a.nav-link') && window.matchMedia('(max-width: 1023px)').matches)) {
+        setSidebar(false);
+    }
+
+    // Close open <details> menus when clicking elsewhere
+    document.querySelectorAll('.user-menu details[open]').forEach((d) => {
+        if (!d.contains(target)) {
+            d.removeAttribute('open');
+        }
+    });
+
+    // Generic dialogs: <x-ui.modal>
+    const opener = target.closest('[data-modal-open]');
+    if (opener) {
+        const modal = document.getElementById(opener.getAttribute('data-modal-open'));
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.__returnFocus = opener;
+            modal.querySelector('[role="dialog"]')?.focus();
+        }
+        return;
+    }
+    if (target.closest('[data-modal-close]')) {
+        const modal = target.closest('[data-ui-modal]');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.__returnFocus?.focus?.();
+        }
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+        return;
+    }
+    setSidebar(false);
+    document.querySelectorAll('[data-ui-modal]').forEach((modal) => {
+        if (modal.style.display === 'none') {
+            return;
+        }
+        modal.style.display = 'none';
+        modal.__returnFocus?.focus?.();
+    });
+    document.querySelectorAll('.user-menu details[open]').forEach((d) => d.removeAttribute('open'));
+});

@@ -3,9 +3,9 @@
 @section('content')
 <div class="dd-page">
 <div class="dd-card" style="max-width:700px;">
-    <a href="{{ route('admin.services.internet') }}" style="font-size:13px;color:#6b7280;text-decoration:none;">← Internet Services</a>
-    <h1 class="dd-page-title" style="font-size:1.35rem;margin:8px 0 4px;">Qualify Service Address</h1>
-    <p style="font-size:14px;color:#6b7280;margin:0 0 24px;">Check whether an address is eligible for NBN and view available technologies and speeds.</p>
+    <a href="{{ route('admin.services.internet') }}" style="font-size:13px;color:var(--dd-text-soft);text-decoration:none;">← Internet Services</a>
+    <h1 class="dd-page-title">Qualify Service Address</h1>
+    <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 24px;">Check whether an address is eligible for NBN and view available technologies and speeds.</p>
 
     {{-- Step 1: Address search --}}
     <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
@@ -17,7 +17,7 @@
                 <input id="simple-address"
                        type="text"
                        placeholder="e.g. 2/99 Example St, Melbourne VIC 3000"
-                       style="flex:1;padding:9px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;"
+                       style="flex:1;"
                        oninput="clearResults()">
                 <button onclick="searchAddress()" class="btn-accent" style="padding:9px 18px;white-space:nowrap;">
                     Search
@@ -35,20 +35,20 @@
         <div id="structured-form" style="display:none;border-top:1px solid #e5e7eb;padding-top:14px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Unit / Level</label>
-                    <input id="f-unit" type="text" placeholder="e.g. 2" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Unit / Level</label>
+                    <input id="f-unit" type="text" placeholder="e.g. 2" style="width:100%;">
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Street Number</label>
-                    <input id="f-number" type="text" placeholder="e.g. 99" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Number</label>
+                    <input id="f-number" type="text" placeholder="e.g. 99" style="width:100%;">
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Street Name</label>
-                    <input id="f-street" type="text" placeholder="e.g. Example" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Name</label>
+                    <input id="f-street" type="text" placeholder="e.g. Example" style="width:100%;">
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Street Type</label>
-                    <select id="f-type" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Type</label>
+                    <select id="f-type" style="width:100%;">
                         <option value="">Select…</option>
                         @foreach(['ST','AVE','RD','DR','CL','CT','PL','TCE','WAY','HWY','BLVD','LN','GR','CCT','CRES'] as $t)
                             <option value="{{ $t }}">{{ $t }}</option>
@@ -56,13 +56,13 @@
                     </select>
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Suburb</label>
-                    <input id="f-suburb" type="text" placeholder="e.g. Melbourne" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Suburb</label>
+                    <input id="f-suburb" type="text" placeholder="e.g. Melbourne" style="width:100%;">
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">State</label>
-                        <select id="f-state" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">State</label>
+                        <select id="f-state" style="width:100%;">
                             <option value="">State</option>
                             @foreach(['NSW','VIC','QLD','SA','WA','TAS','NT','ACT'] as $s)
                                 <option>{{ $s }}</option>
@@ -70,8 +70,8 @@
                         </select>
                     </div>
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:#6b7280;">Postcode</label>
-                        <input id="f-postcode" type="text" placeholder="0000" maxlength="4" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:13px;">
+                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Postcode</label>
+                        <input id="f-postcode" type="text" placeholder="0000" maxlength="4" style="width:100%;">
                     </div>
                 </div>
             </div>
@@ -79,8 +79,8 @@
         </div>
 
         {{-- Address results --}}
-        <div id="address-loading" style="display:none;padding:12px;text-align:center;color:#9ca3af;font-size:13px;">Searching Vocus address directory…</div>
-        <div id="address-error" style="display:none;padding:10px;background:#fff1f2;border:1px solid #fecaca;border-radius:6px;color:#b91c1c;font-size:13px;margin-top:10px;"></div>
+        <div id="address-loading" style="display:none;padding:12px;text-align:center;color:var(--dd-text-soft);font-size:13px;">Searching Vocus address directory…</div>
+        <div id="address-error" style="display:none;padding:10px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);border-radius:6px;color:var(--dd-danger-text);font-size:13px;margin-top:10px;"></div>
         <div id="address-results" style="display:none;margin-top:12px;">
             <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 8px;">Select your address:</p>
             <div id="address-list" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -90,8 +90,8 @@
     {{-- Step 2: Qualification result --}}
     <div id="qualify-section" style="display:none;background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Step 2 — Qualification Result</h3>
-        <div id="qualify-loading" style="display:none;color:#9ca3af;font-size:13px;">Checking serviceability with Vocus…</div>
-        <div id="qualify-error" style="display:none;padding:10px;background:#fff1f2;border:1px solid #fecaca;border-radius:6px;color:#b91c1c;font-size:13px;"></div>
+        <div id="qualify-loading" style="display:none;color:var(--dd-text-soft);font-size:13px;">Checking serviceability with Vocus…</div>
+        <div id="qualify-error" style="display:none;padding:10px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);border-radius:6px;color:var(--dd-danger-text);font-size:13px;"></div>
         <div id="qualify-result" style="display:none;"></div>
     </div>
 </div>
@@ -169,7 +169,7 @@ function doLookup(params) {
             btn.type = 'button';
             btn.style = 'text-align:left;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;background:white;font-size:13px;cursor:pointer;transition:border-color 0.15s;';
             const strong = document.createElement('strong');
-            strong.style = 'font-size:12px;color:#6b7280;display:block;';
+            strong.style = 'font-size:12px;color:var(--dd-text-soft);display:block;';
             strong.textContent = addr.directory_id;
             btn.appendChild(strong);
             btn.appendChild(document.createTextNode(String(addr.address_long ?? '')));
@@ -258,7 +258,7 @@ function renderQualifyResult(data, directoryId, addressLong) {
             const pairId = pair.CopperPairID || pair.copperPairId || '';
             copperPairs += `<div style="margin-top:8px;padding:10px;background:white;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;">
                 <strong>${qEsc(pairId)}</strong>
-                ${speeds ? `<span style="color:#6b7280;margin-left:8px;">↓ ${qEsc(speeds)} Mbps / ↑ ${qEsc(upSpeeds)} Mbps</span>` : ''}
+                ${speeds ? `<span style="color:var(--dd-text-soft);margin-left:8px;">↓ ${qEsc(speeds)} Mbps / ↑ ${qEsc(upSpeeds)} Mbps</span>` : ''}
             </div>`;
         });
     }
@@ -288,9 +288,9 @@ function renderQualifyResult(data, directoryId, addressLong) {
             <span style="padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:${passed ? '#dcfce7' : '#fee2e2'};color:${passed ? '#15803d' : '#b91c1c'};">
                 ${passed ? '✓ PASS' : '✗ FAIL'}
             </span>
-            ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:#dbeafe;color:#1e40af;">${qEsc(data.service_type)}</span>` : ''}
-            ${data.zone ? `<span style="font-size:13px;color:#6b7280;">Zone: ${qEsc(data.zone)}</span>` : ''}
-            ${data.service_class ? `<span style="font-size:13px;color:#6b7280;">Class ${qEsc(data.service_class)}</span>` : ''}
+            ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);">${qEsc(data.service_type)}</span>` : ''}
+            ${data.zone ? `<span style="font-size:13px;color:var(--dd-text-soft);">Zone: ${qEsc(data.zone)}</span>` : ''}
+            ${data.service_class ? `<span style="font-size:13px;color:var(--dd-text-soft);">Class ${qEsc(data.service_class)}</span>` : ''}
         </div>
         ${copperPairs}
         ${orderButtons}

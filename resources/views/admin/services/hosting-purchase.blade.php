@@ -2,7 +2,7 @@
 
 @section('content')
 <div style="max-width: 1200px;">
-    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase Hosting</h1>
+    <h1>Purchase Hosting</h1>
 
     @if(isset($error))
         <div class="dd-alert-box dd-alert-box--danger">

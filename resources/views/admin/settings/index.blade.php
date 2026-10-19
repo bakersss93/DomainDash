@@ -4,30 +4,17 @@
     <div class="dd-settings-page">
 
         {{-- Title --}}
-        <h1 style="font-size:28px;font-weight:700;margin-bottom:8px;">
-            Settings
-        </h1>
-        <p style="font-size:14px;margin-bottom:24px;">
-            Configure your DomainDash installation and integrations
-        </p>
+        <x-ui.page-header title="Settings" subtitle="Configure your DomainDash installation and integrations." />
 
         {{-- Success Message --}}
-        @if(session('status'))
-            <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#10b981;">
-                <strong>✓</strong> {{ session('status') }}
-            </div>
-        @endif
-
         {{-- Error Messages --}}
         @if($errors->any())
-            <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#ef4444;">
-                <strong>⚠</strong>
+            <x-ui.alert variant="danger" class="mb-4"><strong>⚠</strong>
                 <ul style="margin:4px 0 0 20px;padding:0;">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
-                </ul>
-            </div>
+                </ul></x-ui.alert>
         @endif
 
         <form method="POST"
@@ -39,15 +26,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('branding')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#3b82f6);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="white"/><circle cx="17.5" cy="10.5" r=".5" fill="white"/><circle cx="8.5" cy="7.5" r=".5" fill="white"/><circle cx="6.5" cy="12.5" r=".5" fill="white"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Branding</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Customize colors and logo</p>
                         </div>
                     </div>
-                    <svg id="branding-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="branding-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -63,7 +50,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Primary Color</label>
                             <input type="color"
                                    name="branding[primary]"
-                                   value="{{ $settings['branding']['primary'] ?? '#1f2937' }}"
+                                   value="{{ $settings['branding']['primary'] ?? '#26272c' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -71,7 +58,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Accent Color</label>
                             <input type="color"
                                    name="branding[accent]"
-                                   value="{{ $settings['branding']['accent'] ?? '#06b6d4' }}"
+                                   value="{{ $settings['branding']['accent'] ?? '#2f7d4b' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -79,7 +66,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Background Color</label>
                             <input type="color"
                                    name="branding[bg]"
-                                   value="{{ $settings['branding']['bg'] ?? '#ffffff' }}"
+                                   value="{{ $settings['branding']['bg'] ?? '#f5f6f8' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -87,7 +74,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Text Color</label>
                             <input type="color"
                                    name="branding[text]"
-                                   value="{{ $settings['branding']['text'] ?? '#111827' }}"
+                                   value="{{ $settings['branding']['text'] ?? '#1b1d22' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -97,7 +84,7 @@
                                    name="branding[button_text]"
                                    value="{{ $settings['branding']['button_text'] ?? '#ffffff' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
-                            <small style="display:block;margin-top:4px;font-size:12px;color:#94a3b8;">Text colour used on accent-coloured buttons.</small>
+                            <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">Text colour used on accent-coloured buttons.</small>
                         </div>
                     </div>
 
@@ -109,7 +96,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Primary Color</label>
                             <input type="color"
                                    name="branding[primary_dark]"
-                                   value="{{ $settings['branding']['primary_dark'] ?? '#0b1220' }}"
+                                   value="{{ $settings['branding']['primary_dark'] ?? '#15161a' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -117,7 +104,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Accent Color</label>
                             <input type="color"
                                    name="branding[accent_dark]"
-                                   value="{{ $settings['branding']['accent_dark'] ?? '#22d3ee' }}"
+                                   value="{{ $settings['branding']['accent_dark'] ?? '#86b57a' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -125,7 +112,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Background Color</label>
                             <input type="color"
                                    name="branding[bg_dark]"
-                                   value="{{ $settings['branding']['bg_dark'] ?? '#0f172a' }}"
+                                   value="{{ $settings['branding']['bg_dark'] ?? '#101114' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -133,7 +120,7 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Text Color</label>
                             <input type="color"
                                    name="branding[text_dark]"
-                                   value="{{ $settings['branding']['text_dark'] ?? '#e2e8f0' }}"
+                                   value="{{ $settings['branding']['text_dark'] ?? '#eceef1' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
                         </div>
 
@@ -141,9 +128,9 @@
                             <label style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Button Text Color</label>
                             <input type="color"
                                    name="branding[button_text_dark]"
-                                   value="{{ $settings['branding']['button_text_dark'] ?? '#0f172a' }}"
+                                   value="{{ $settings['branding']['button_text_dark'] ?? '#0f1a0f' }}"
                                    style="width:100px;height:32px;border-radius:4px;border:1px solid #e5e7eb;">
-                            <small style="display:block;margin-top:4px;font-size:12px;color:#94a3b8;">Text colour used on accent-coloured buttons in dark mode.</small>
+                            <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">Text colour used on accent-coloured buttons in dark mode.</small>
                         </div>
                     </div>
 
@@ -168,7 +155,7 @@
                            accept="image/png,image/jpeg,image/svg+xml"
                            class="dd-input"
                            style="display:block;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         PNG preferred, 200px wide, height auto-scales.
                     </small>
                 </div>
@@ -179,15 +166,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('synergy')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Synergy Wholesale</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Domain registrar API configuration</p>
                         </div>
                     </div>
-                    <svg id="synergy-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="synergy-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -202,8 +189,7 @@
                            name="synergy[reseller_id]"
                            value="{{ $settings['synergy']['reseller_id'] ?? '' }}"
                            placeholder="Reseller ID"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -222,8 +208,7 @@
                                    value=""
                                @endif
                                placeholder="Set or update API key"
-                               style="flex:1;padding:8px 10px;border-radius:4px;
-                                      border:1px solid #e5e7eb;font-size:14px;">
+                               style="flex:1;">
 
                         <button type="button"
                                 class="btn-accent"
@@ -233,7 +218,7 @@
                         </button>
                     </div>
 
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Stored securely; value is not displayed. Click "Update key" to set a new one.
                     </small>
                 </div>
@@ -247,8 +232,7 @@
                            name="synergy[wsdl_path]"
                            value="{{ $settings['synergy']['wsdl_path'] ?? '' }}"
                            placeholder="WSDL path or URL"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
                 </div>
             </div>
@@ -257,15 +241,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('vocus')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Vocus Wholesale</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">NBN internet service management API</p>
                         </div>
                     </div>
-                    <svg id="vocus-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="vocus-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -280,19 +264,19 @@
                            name="vocus[access_key]"
                            value="{{ $settings['vocus']['access_key'] ?? '' }}"
                            placeholder="Provided by Vocus during onboarding"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
                     <label for="vocus_alias_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
-                        Alias Key <span style="font-weight:400;color:#9ca3af;">(optional)</span>
+                        Alias Key <span style="font-weight:400;color:var(--dd-text-soft);">(optional)</span>
                     </label>
                     <input id="vocus_alias_key"
                            type="text"
                            name="vocus[alias_key]"
                            value="{{ $settings['vocus']['alias_key'] ?? '' }}"
                            placeholder="Optional secondary access key"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -304,8 +288,8 @@
                            name="vocus[wsdl_url]"
                            value="{{ $settings['vocus']['wsdl_url'] ?? 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement' }}"
                            placeholder="https://wsm.webservice.m2.com.au/WholesaleServiceManagement"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Change to the sandbox URL during testing. Leave blank to use the production default.
                     </small>
                 </div>
@@ -319,7 +303,7 @@
                            name="vocus[login_url]"
                            value="{{ $settings['vocus']['login_url'] ?? 'https://wsm.webservice.m2.com.au:9443/login/' }}"
                            placeholder="https://wsm.webservice.m2.com.au:9443/login/"
-                           style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -327,7 +311,7 @@
                         Client Certificate (.p12 / .pfx / .keystore)
                     </label>
                     @if(!empty($settings['vocus']['cert_path']))
-                        <p style="font-size:13px;color:#16a34a;margin:0 0 6px;">
+                        <p style="font-size:13px;color:var(--dd-status-success-fg);margin:0 0 6px;">
                             <svg style="display:inline;width:14px;height:14px;vertical-align:-2px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             Certificate on file. Upload a new file to replace it.
                         </p>
@@ -337,7 +321,7 @@
                            name="vocus_cert"
                            accept=".p12,.pfx,.keystore"
                            style="width:100%;padding:6px 0;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Vocus issues a new certificate annually. Upload the PKCS#12 keystore file they provide (.p12, .pfx, or .keystore).
                     </small>
                 </div>
@@ -357,7 +341,7 @@
                                    value=""
                                @endif
                                placeholder="Set or update certificate password"
-                               style="flex:1;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                               style="flex:1;">
                         <button type="button"
                                 class="btn-accent"
                                 style="white-space:nowrap;padding:8px 12px;"
@@ -365,7 +349,7 @@
                             Update
                         </button>
                     </div>
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Stored securely; value is not displayed.
                     </small>
                 </div>
@@ -377,15 +361,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('halo')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#10b981,#059669);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">HaloPSA</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">PSA integration settings</p>
                         </div>
                     </div>
-                    <svg id="halo-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="halo-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -400,9 +384,8 @@
                            name="halo[base_url]"
                            value="{{ old('halo.base_url', $settings['halo']['base_url'] ?? '') }}"
                            placeholder="https://yourtenant.halopsa.com/api"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Resource Server URL from Halo &gt; Configuration &gt; Integrations &gt; Halo API.
                     </small>
                 </div>
@@ -416,9 +399,8 @@
                            name="halo[auth_server]"
                            value="{{ old('halo.auth_server', $settings['halo']['auth_server'] ?? '') }}"
                            placeholder="https://auth.halopsa.com/auth"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Authorisation Server URL from Halo API details (optional – leave blank to derive from resource server).
                     </small>
                 </div>
@@ -432,9 +414,8 @@
                            name="halo[tenant]"
                            value="{{ old('halo.tenant', $settings['halo']['tenant'] ?? '') }}"
                            placeholder="yourtenant"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Tenant / account name (if using the hosted HaloPSA cloud).
                     </small>
                 </div>
@@ -447,8 +428,7 @@
                            type="text"
                            name="halo[client_id]"
                            value="{{ old('halo.client_id', $settings['halo']['client_id'] ?? '') }}"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:0;">
@@ -467,8 +447,7 @@
                                    value=""
                                @endif
                                placeholder="Set or update API key"
-                               style="flex:1;padding:8px 10px;border-radius:4px;
-                                      border:1px solid #e5e7eb;font-size:14px;">
+                               style="flex:1;">
 
                         <button type="button"
                                 class="btn-accent"
@@ -478,7 +457,7 @@
                         </button>
                     </div>
 
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Stored securely; value is not displayed. Click "Update key" to set a new one.
                     </small>
                 </div>
@@ -491,7 +470,7 @@
                         }
                     @endphp
                     <h4 style="margin:0 0 10px;color:var(--text,#1e293b);font-size:14px;">Support ticket type mappings</h4>
-                    <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
+                    <p style="margin:0 0 12px;color:var(--dd-text-soft);font-size:12px;">
                         Map DomainDash service categories to HaloPSA ticket types used for create/sync/list filters.
                     </p>
 
@@ -533,12 +512,12 @@
                                 </div>
                                 <button type="button"
                                         onclick="removeHaloTicketTypeMapping(this)"
-                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">
+                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:var(--dd-danger-text);cursor:pointer;">
                                     Remove
                                 </button>
                             </div>
                         @empty
-                            <div id="halo-ticket-type-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:#94a3b8;font-size:13px;">
+                            <div id="halo-ticket-type-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:var(--dd-text-soft);font-size:13px;">
                                 No mappings configured yet.
                             </div>
                         @endforelse
@@ -562,7 +541,7 @@
                         }
                     @endphp
                     <h4 style="margin:0 0 10px;color:var(--text,#1e293b);font-size:14px;">Support status mappings</h4>
-                    <p style="margin:0 0 12px;color:#94a3b8;font-size:12px;">
+                    <p style="margin:0 0 12px;color:var(--dd-text-soft);font-size:12px;">
                         Map HaloPSA statuses to a DomainDash status label for the Support Requests table.
                     </p>
 
@@ -597,12 +576,12 @@
                                 </div>
                                 <button type="button"
                                         onclick="removeHaloStatusMapping(this)"
-                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">
+                                        style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:var(--dd-danger-text);cursor:pointer;">
                                     Remove
                                 </button>
                             </div>
                         @empty
-                            <div id="halo-status-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:#94a3b8;font-size:13px;">
+                            <div id="halo-status-empty" style="padding:10px;border:1px dashed rgba(148,163,184,0.4);border-radius:8px;color:var(--dd-text-soft);font-size:13px;">
                                 No status mappings configured yet.
                             </div>
                         @endforelse
@@ -638,7 +617,7 @@
                         <input type="hidden" data-field="halo_ticket_type_id">
                         <input type="text" data-field="halo_ticket_type_name" readonly class="dd-input" placeholder="Choose ticket type">
                     </div>
-                    <button type="button" onclick="removeHaloTicketTypeMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
+                    <button type="button" onclick="removeHaloTicketTypeMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:var(--dd-danger-text);cursor:pointer;">Remove</button>
                 </div>
             </template>
 
@@ -646,7 +625,7 @@
                 <div style="width:min(720px,92vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;padding:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="margin:0;font-size:18px;color:var(--text,#111827);">Add ticket type mapping</h3>
-                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
+                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:22px;cursor:pointer;">&times;</button>
                     </div>
                     <div style="display:grid;gap:12px;">
                         <div>
@@ -675,7 +654,7 @@
                         </div>
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
-                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:#94a3b8;cursor:pointer;">Cancel</button>
+                        <button type="button" onclick="closeHaloTicketTypeMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:var(--dd-text-soft);cursor:pointer;">Cancel</button>
                         <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="confirmHaloTicketTypeMapping()">Add</button>
                     </div>
                 </div>
@@ -692,7 +671,7 @@
                         <input type="hidden" data-field="halo_status_id">
                         <input type="text" data-field="halo_status_name" readonly class="dd-input" placeholder="Choose Halo status">
                     </div>
-                    <button type="button" onclick="removeHaloStatusMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Remove</button>
+                    <button type="button" onclick="removeHaloStatusMapping(this)" style="height:38px;padding:0 12px;border-radius:6px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.1);color:var(--dd-danger-text);cursor:pointer;">Remove</button>
                 </div>
             </template>
 
@@ -700,7 +679,7 @@
                 <div style="width:min(640px,92vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;padding:18px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="margin:0;font-size:18px;color:var(--text,#111827);">Add status mapping</h3>
-                        <button type="button" onclick="closeHaloStatusMappingModal()" style="background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;">&times;</button>
+                        <button type="button" onclick="closeHaloStatusMappingModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:22px;cursor:pointer;">&times;</button>
                     </div>
                     <div style="display:grid;gap:12px;">
                         <div>
@@ -718,7 +697,7 @@
                         </div>
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
-                        <button type="button" onclick="closeHaloStatusMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:#94a3b8;cursor:pointer;">Cancel</button>
+                        <button type="button" onclick="closeHaloStatusMappingModal()" style="padding:8px 12px;border-radius:6px;border:1px solid rgba(148,163,184,0.3);background:transparent;color:var(--dd-text-soft);cursor:pointer;">Cancel</button>
                         <button type="button" class="btn-accent" style="padding:8px 12px;" onclick="confirmHaloStatusMapping()">Add</button>
                     </div>
                 </div>
@@ -728,15 +707,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('itglue')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">ITGlue</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Documentation platform integration</p>
                         </div>
                     </div>
-                    <svg id="itglue-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="itglue-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -751,8 +730,7 @@
                            name="itglue[base_url]"
                            value="{{ $settings['itglue']['base_url'] ?? '' }}"
                            placeholder="https://api.itglue.com"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:0;">
@@ -764,8 +742,7 @@
                            name="itglue[api_key]"
                            value="{{ $settings['itglue']['api_key'] ?? '' }}"
                            placeholder="API Key"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 @php
@@ -787,9 +764,8 @@
                            name="itglue[flexible_asset_type_id]"
                            value="{{ $settings['itglue']['flexible_asset_type_id'] ?? '' }}"
                            placeholder="e.g. 4521154692859938"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Required when syncing domains to flexible assets.
                     </small>
                 </div>
@@ -797,23 +773,23 @@
                 <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
                     <div>
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Domain trait key</label>
-                        <input type="text" name="itglue[flexible_asset_traits][domain]" value="{{ $flexibleAssetTraits['domain'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="domain-name">
+                        <input type="text" name="itglue[flexible_asset_traits][domain]" value="{{ $flexibleAssetTraits['domain'] ?? '' }}" style="width:100%;" placeholder="domain-name">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Name servers trait key</label>
-                        <input type="text" name="itglue[flexible_asset_traits][name_servers]" value="{{ $flexibleAssetTraits['name_servers'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="name-servers">
+                        <input type="text" name="itglue[flexible_asset_traits][name_servers]" value="{{ $flexibleAssetTraits['name_servers'] ?? '' }}" style="width:100%;" placeholder="name-servers">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Expiry trait key</label>
-                        <input type="text" name="itglue[flexible_asset_traits][expiry]" value="{{ $flexibleAssetTraits['expiry'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="expiry">
+                        <input type="text" name="itglue[flexible_asset_traits][expiry]" value="{{ $flexibleAssetTraits['expiry'] ?? '' }}" style="width:100%;" placeholder="expiry">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">WHOIS trait key</label>
-                        <input type="text" name="itglue[flexible_asset_traits][whois]" value="{{ $flexibleAssetTraits['whois'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="whois">
+                        <input type="text" name="itglue[flexible_asset_traits][whois]" value="{{ $flexibleAssetTraits['whois'] ?? '' }}" style="width:100%;" placeholder="whois">
                     </div>
                     <div>
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">DNS trait key</label>
-                        <input type="text" name="itglue[flexible_asset_traits][dns]" value="{{ $flexibleAssetTraits['dns'] ?? '' }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:13px;" placeholder="dns">
+                        <input type="text" name="itglue[flexible_asset_traits][dns]" value="{{ $flexibleAssetTraits['dns'] ?? '' }}" style="width:100%;" placeholder="dns">
                     </div>
                 </div>
                 </div>
@@ -823,15 +799,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('ip2whois')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">IP2WHOIS</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">IP2Location.io WHOIS lookups</p>
                         </div>
                     </div>
-                    <svg id="ip2whois-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="ip2whois-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -846,9 +822,8 @@
                                name="ip2whois[api_key]"
                                value="{{ $settings['ip2whois']['api_key'] ?? '' }}"
                                placeholder="Enter IP2WHOIS API key"
-                               style="width:100%;padding:8px 10px;border-radius:4px;
-                                      border:1px solid #e5e7eb;font-size:14px;">
-                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                               style="width:100%;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                             Get your key from IP2Location.io &gt; IP2WHOIS.
                         </small>
                     </div>
@@ -864,15 +839,15 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('smtp')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">SMTP</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Email server configuration</p>
                         </div>
                     </div>
-                    <svg id="smtp-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="smtp-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
@@ -887,8 +862,7 @@
                            name="smtp[host]"
                            value="{{ $settings['smtp']['host'] ?? '' }}"
                            placeholder="smtp.example.com"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -900,9 +874,8 @@
                            name="smtp[port]"
                            value="{{ $settings['smtp']['port'] ?? 587 }}"
                            placeholder="587"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
-                    <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                           style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Common ports: 587 (TLS), 465 (SSL), 25 (unencrypted)
                     </small>
                 </div>
@@ -929,8 +902,7 @@
                            name="smtp[username]"
                            value="{{ $settings['smtp']['username'] ?? '' }}"
                            placeholder="SMTP username (if required)"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -943,8 +915,7 @@
                            value="{{ $settings['smtp']['password'] ?? '' }}"
                            placeholder="SMTP password (if required)"
                            autocomplete="new-password"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:12px;">
@@ -956,8 +927,7 @@
                            name="smtp[from]"
                            value="{{ $settings['smtp']['from'] ?? '' }}"
                            placeholder="noreply@yourdomain.com"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
 
                 <div style="margin-bottom:0;">
@@ -969,8 +939,7 @@
                            name="smtp[from_name]"
                            value="{{ $settings['smtp']['from_name'] ?? 'DomainDash' }}"
                            placeholder="DomainDash"
-                           style="width:100%;padding:8px 10px;border-radius:4px;
-                                  border:1px solid #e5e7eb;font-size:14px;">
+                           style="width:100%;">
                 </div>
                 </div>
             </div>
@@ -984,27 +953,27 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('sync-scheduler')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Sync Scheduler</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Configure recurring integration sync jobs</p>
                         </div>
                     </div>
-                    <svg id="sync-scheduler-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="sync-scheduler-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
                 <div id="sync-scheduler-content" class="settings-content" style="padding:20px 24px;display:none;">
                     <div style="margin-bottom:16px;">
-                        <small style="display:block;font-size:12px;color:#9ca3af;">
+                        <small style="display:block;font-size:12px;color:var(--dd-text-soft);">
                             Scheduler uses the server timezone: <strong>{{ $serverTimezone }}</strong>.
                         </small>
-                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                             If your server timezone is Australia/Adelaide, UTC+9:30 and daylight savings are handled automatically.
                         </small>
-                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                             Ensure cron runs <code>php artisan schedule:run</code> every minute to trigger these sync tasks.
                         </small>
                     </div>
@@ -1029,7 +998,7 @@
                             <div>
                                 <label style="display:block;font-size:12px;margin-bottom:4px;">Frequency</label>
                                 <select name="sync_schedule[{{ $key }}][frequency]" class="dd-field"
-                                        style="width:100%;font-size:13px;">
+                                        style="width:100%;">
                                     @foreach($syncFrequencies as $value => $text)
                                         <option value="{{ $value }}" {{ ($syncSchedule[$key]['frequency'] ?? 'daily') === $value ? 'selected' : '' }}>{{ $text }}</option>
                                     @endforeach
@@ -1049,7 +1018,7 @@
                             </div>
                         </div>
                     @endforeach
-                    <small style="display:block;margin-top:8px;font-size:12px;color:#9ca3af;">
+                    <small style="display:block;margin-top:8px;font-size:12px;color:var(--dd-text-soft);">
                         Hourly sync uses the minutes from "Run time"; weekly sync runs every Monday at the selected time.
                     </small>
                 </div>
@@ -1063,23 +1032,23 @@
             <div class="settings-section" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;margin-bottom:16px;overflow:hidden;">
                 <div class="settings-header" onclick="toggleSection('mfa')" style="padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);transition:background 0.2s;">
                     <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#0ea5e9,#2563eb);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                         </div>
                         <div>
                             <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">Multi-Factor Authentication</h3>
                             <p style="font-size:13px;color:var(--text-muted,#566177);margin:0;">Configure default MFA behavior and challenge persistence</p>
                         </div>
                     </div>
-                    <svg id="mfa-icon" style="width:20px;height:20px;transition:transform 0.3s;color:#94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="mfa-icon" style="width:20px;height:20px;transition:transform 0.3s;color:var(--dd-text-soft);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
                 <div id="mfa-content" class="settings-content" style="padding:20px 24px;display:none;">
                     <div style="margin-bottom:12px;">
                         <label for="mfa_persistence_days" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">MFA persistence window (days)</label>
-                        <input id="mfa_persistence_days" type="number" min="1" max="365" name="mfa[persistence_days]" value="{{ $mfaSettings['persistence_days'] ?? 30 }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
-                        <small style="display:block;margin-top:4px;font-size:12px;color:#9ca3af;">How long to trust a remembered browser before re-prompting for MFA.</small>
+                        <input id="mfa_persistence_days" type="number" min="1" max="365" name="mfa[persistence_days]" value="{{ $mfaSettings['persistence_days'] ?? 30 }}" style="width:100%;">
+                        <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">How long to trust a remembered browser before re-prompting for MFA.</small>
                     </div>
 
                     <div style="margin-bottom:12px;">
@@ -1106,7 +1075,7 @@
 
                     <div style="margin-top:12px;">
                         <label for="mfa_issuer" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">MFA issuer label</label>
-                        <input id="mfa_issuer" type="text" name="mfa[issuer]" value="{{ $mfaSettings['issuer'] ?? config('app.name') }}" style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid #e5e7eb;font-size:14px;">
+                        <input id="mfa_issuer" type="text" name="mfa[issuer]" value="{{ $mfaSettings['issuer'] ?? config('app.name') }}" style="width:100%;">
                     </div>
                 </div>
             </div>
@@ -1118,11 +1087,11 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                         Save All Settings
                     </button>
-                    <button type="button" onclick="openHaloSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(145deg,#10b981,#059669);color:#ffffff;border:1px solid transparent;border-radius:12px;">
+                    <button type="button" onclick="openHaloSyncModal()" class="ui-btn ui-btn--primary ui-btn--lg">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         Sync with Halo
                     </button>
-                    <button type="button" onclick="openItGlueSyncModal()" class="btn-primary" style="padding:12px 32px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;background:linear-gradient(145deg,#f59e0b,#d97706);color:#ffffff;border:1px solid transparent;border-radius:12px;">
+                    <button type="button" onclick="openItGlueSyncModal()" class="ui-btn ui-btn--primary ui-btn--lg">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                         Sync IT Glue
                     </button>
@@ -1134,8 +1103,8 @@
         <div class="dd-settings-panel" style="margin-top:16px;overflow:hidden;">
             <div style="padding:16px 20px;background:var(--surface-muted);border-bottom:1px solid var(--border-subtle);">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:40px;height:40px;background:linear-gradient(135deg,#06b6d4,#0891b2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    <div style="width:40px;height:40px;background:var(--dd-accent-soft);color:var(--dd-accent-text);border-radius:var(--dd-radius);flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     </div>
                     <div>
                         <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--text,#111827);">SMTP Test</h3>
@@ -1156,8 +1125,7 @@
                                name="to"
                                placeholder="test@yourdomain.com"
                                required
-                               style="width:100%;padding:8px 10px;border-radius:4px;
-                                      border:1px solid #e5e7eb;font-size:14px;">
+                               style="width:100%;">
                     </div>
 
                     <button type="submit" class="btn-accent" style="padding:10px 20px;">
@@ -1173,7 +1141,7 @@
         <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
             <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
                 <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);display:flex;align-items:center;gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync with HaloPSA</h2>
-                <button onclick="closeHaloSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+                <button onclick="closeHaloSyncModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
@@ -1275,11 +1243,11 @@
         <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
             <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
                 <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);display:flex;align-items:center;gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync with IT Glue</h2>
-                <button onclick="closeItGlueSyncModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+                <button onclick="closeItGlueSyncModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
-                    <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #f59e0b;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                    <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-accent);border:2px solid var(--dd-accent);border-radius:8px;color:var(--dd-accent-contrast);font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         Sync Clients
                     </button>
@@ -1349,7 +1317,7 @@
         <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:900px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
             <div style="padding:20px 24px;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
                 <h2 style="font-size:20px;font-weight:700;margin:0;color:var(--text);display:flex;align-items:center;gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Sync WHOIS (IP2WHOIS)</h2>
-                <button onclick="closeIp2whoisModal()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+                <button onclick="closeIp2whoisModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
                 <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
@@ -1417,7 +1385,7 @@
         function showHaloClientSync() {
             document.getElementById('haloClientSyncContent').style.display = 'block';
             document.getElementById('haloDomainSyncContent').style.display = 'none';
-            document.getElementById('haloClientsBtn').style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            document.getElementById('haloClientsBtn').style.background = 'var(--dd-accent)';
             document.getElementById('haloClientsBtn').style.borderColor = '#10b981';
             document.getElementById('haloClientsBtn').style.color = '#fff';
             document.getElementById('haloDomainsBtn').style.background = 'var(--surface-muted)';
@@ -1428,7 +1396,7 @@
         function showHaloDomainSync() {
             document.getElementById('haloClientSyncContent').style.display = 'none';
             document.getElementById('haloDomainSyncContent').style.display = 'block';
-            document.getElementById('haloDomainsBtn').style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            document.getElementById('haloDomainsBtn').style.background = 'var(--dd-accent)';
             document.getElementById('haloDomainsBtn').style.borderColor = '#10b981';
             document.getElementById('haloDomainsBtn').style.color = '#fff';
             document.getElementById('haloClientsBtn').style.background = 'var(--surface-muted)';
@@ -1474,14 +1442,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh') + `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
+                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh') + `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderHaloClientList(data.clients);
                 listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1489,7 +1457,7 @@
             const listEl = document.getElementById('haloClientList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
                     <input type="checkbox" id="selectAllHaloClients" onchange="toggleAllHaloClients(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>HaloPSA Client</div>
                     <div>DomainDash Client</div>
@@ -1507,9 +1475,9 @@
                             <option value="">-- Select Client --</option>
                             ${client.suggestions.map(s => `<option value="${ddEsc(s.id)}" ${s.id === client.mapped_id ? 'selected' : ''}>${ddEsc(s.name)}</option>`).join('')}
                         </select>
-                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${ddEsc(client.updated || 'N/A')}</div>
+                        <div style="text-align:center;color:var(--dd-text-soft);font-size:13px;">${ddEsc(client.updated || 'N/A')}</div>
                         <div style="text-align:center;">
-                            ${client.mapped_id ? '' : '<button onclick="createClientFromHalo(\'' + client.halo_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;">+</button>'}
+                            ${client.mapped_id ? '' : '<button onclick="createClientFromHalo(\'' + client.halo_id + '\')" style="padding:6px 12px;background:var(--dd-accent);border:none;border-radius:4px;color:var(--dd-accent-contrast);cursor:pointer;font-weight:600;">+</button>'}
                         </div>
                     </div>
                 `;
@@ -1578,14 +1546,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderHaloDomainList(data.domains);
                 listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1593,7 +1561,7 @@
             const listEl = document.getElementById('haloDomainList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
                     <input type="checkbox" id="selectAllHaloDomains" onchange="toggleAllHaloDomains(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Domain Name</div>
                     <div>Client</div>
@@ -1610,8 +1578,8 @@
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${ddEsc(domain.id)}" data-domain-name="${ddEsc(domain.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                         <div style="color:var(--text);">${ddEsc(domain.name)}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${domain.client || 'No Client'}</div>
-                        <div style="text-align:center;color:#94a3b8;font-size:13px;">${domain.expiry || 'N/A'}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${domain.client || 'No Client'}</div>
+                        <div style="text-align:center;color:var(--dd-text-soft);font-size:13px;">${domain.expiry || 'N/A'}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
                 `;
@@ -1678,7 +1646,7 @@
         function showItGlueClientSync() {
             document.getElementById('itglueClientSyncContent').style.display = 'block';
             document.getElementById('itglueConfigSyncContent').style.display = 'none';
-            document.getElementById('itglueClientsBtn').style.background = 'linear-gradient(135deg,#f59e0b,#d97706)';
+            document.getElementById('itglueClientsBtn').style.background = 'var(--dd-accent)';
             document.getElementById('itglueClientsBtn').style.borderColor = '#f59e0b';
             document.getElementById('itglueClientsBtn').style.color = '#fff';
             document.getElementById('itglueConfigBtn').style.background = 'var(--surface-muted)';
@@ -1689,7 +1657,7 @@
         function showItGlueConfigSync() {
             document.getElementById('itglueClientSyncContent').style.display = 'none';
             document.getElementById('itglueConfigSyncContent').style.display = 'block';
-            document.getElementById('itglueConfigBtn').style.background = 'linear-gradient(135deg,#f59e0b,#d97706)';
+            document.getElementById('itglueConfigBtn').style.background = 'var(--dd-accent)';
             document.getElementById('itglueConfigBtn').style.borderColor = '#f59e0b';
             document.getElementById('itglueConfigBtn').style.color = '#fff';
             document.getElementById('itglueClientsBtn').style.background = 'var(--surface-muted)';
@@ -1706,14 +1674,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh') + `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
+                    listEl.innerHTML = ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh') + `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderItGlueClientList(data.clients);
                 listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1721,7 +1689,7 @@
             const listEl = document.getElementById('itglueClientList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
                     <div>DomainDash Client</div>
                     <div>IT Glue Organization</div>
                     <div style="text-align:center;">Action</div>
@@ -1737,7 +1705,7 @@
                             ${client.organizations.map(org => `<option value="${ddEsc(org.id)}" ${org.id === client.mapped_id ? 'selected' : ''}>${ddEsc(org.name)}</option>`).join('')}
                         </select>
                         <div style="text-align:center;">
-                            ${!client.mapped_id ? '<button onclick="suggestItGlueOrg(\'' + client.dash_id + '\')" style="padding:6px 12px;background:linear-gradient(135deg,#f59e0b,#d97706);border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600;font-size:13px;">Suggest</button>' : '<span style="color:#10b981;font-size:13px;">✓ Mapped</span>'}
+                            ${!client.mapped_id ? '<button onclick="suggestItGlueOrg(\'' + client.dash_id + '\')" style="padding:6px 12px;background:var(--dd-accent);border:none;border-radius:4px;color:var(--dd-accent-contrast);cursor:pointer;font-weight:600;font-size:13px;">Suggest</button>' : '<span style="color:var(--dd-status-success-fg);font-size:13px;">✓ Mapped</span>'}
                         </div>
                     </div>
                 `;
@@ -1825,13 +1793,13 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderIp2whoisDomainList(data.items || []);
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1839,7 +1807,7 @@
             const listEl = document.getElementById('ip2whoisDomainList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
                     <input type="checkbox" id="selectAllIp2whois" onchange="toggleAllIp2whois(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Name</div>
                     <div>Client</div>
@@ -1857,8 +1825,8 @@
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="ip2whois-checkbox" data-item-id="${ddEsc(item.id)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                         <div style="color:var(--text);">${ddEsc(item.name)}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${item.client || 'No client'}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${syncedAt}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${item.client || 'No client'}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${syncedAt}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
                 `;
@@ -1918,14 +1886,14 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">${ddEsc(data.error)}</div>`;
+                    listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error)}</div>`;
                     return;
                 }
 
                 renderItGlueConfigList(data.items);
                 listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
             } catch (error) {
-                listEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:40px;">Failed to load items: ${ddEsc(error.message)}</div>`;
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load items: ${ddEsc(error.message)}</div>`;
             }
         }
 
@@ -1933,7 +1901,7 @@
             const listEl = document.getElementById('itglueConfigList');
 
             let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:#94a3b8;font-size:13px;">
+                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
                     <input type="checkbox" id="selectAllItGlueConfigs" onchange="toggleAllItGlueConfigs(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                     <div>Name</div>
                     <div>Client</div>
@@ -1950,8 +1918,8 @@
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="itglue-config-checkbox" data-item-id="${ddEsc(item.id)}" data-item-type="${ddEsc(item.type)}" data-item-name="${ddEsc(item.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                         <div style="color:var(--text);">${ddEsc(item.name)}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${item.client || 'No Client'}</div>
-                        <div style="color:#94a3b8;font-size:13px;">${ddEsc(item.type)}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${item.client || 'No Client'}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.type)}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
                 `;
@@ -2032,7 +2000,7 @@
                 list.innerHTML = errors.map((e, idx) => `
                     <div style="padding:10px 12px;${idx < errors.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : ''}display:flex;flex-direction:column;gap:3px;">
                         <span style="font-size:13px;font-weight:600;color:var(--text);">${ddEsc(e.label)}</span>
-                        <span style="font-size:13px;color:#ef4444;">${ddEsc(e.message)}</span>
+                        <span style="font-size:13px;color:var(--dd-danger-text);">${ddEsc(e.message)}</span>
                     </div>`).join('');
                 document.getElementById('syncResultErrors').style.display = 'block';
             } else {
