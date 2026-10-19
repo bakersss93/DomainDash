@@ -7,9 +7,9 @@ Roles: researcher, builder, verifier. Budget: 1 run, 30 units, 10 tasks.
 |---|------|------|--------|--------|
 | 1 | Halo + IT Glue client vs docs | researcher | done (9 High, 12 Med, 7 Low) | docs/review/01-halo-itglue-clients.md |
 | 2 | Synergy v3.18 + Vocus WSM client vs docs | researcher | in progress | docs/review/02-synergy-vocus-clients.md |
-| 3 | Fix API client defects | builder | blocked on 1,2 | |
-| 4 | Profile slow Halo asset/sync path | researcher | in progress | docs/review/04-sync-performance.md |
-| 5 | Queued sync + local cache redesign | builder | blocked on 4 | |
+| 3 | Fix API client defects | builder | Halo/ITGlue part in progress (with 5) | |
+| 4 | Profile slow Halo asset/sync path | researcher | done | docs/review/04-sync-performance.md |
+| 5 | Queued sync + local cache redesign | builder | in progress | |
 | 6 | Security audit | researcher | in progress | docs/review/06-security-audit.md |
 | 7 | Remediate High/Critical security findings | builder | blocked on 6 | |
 | 8 | OpenAPI 3.1 spec + download on API page | builder | pending | |
