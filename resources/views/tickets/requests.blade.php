@@ -1,106 +1,104 @@
 @extends('layouts.app')
 
 @section('content')
-<div style="max-width:1080px;">
-    <div id="ticket-loading-overlay" style="position:fixed;inset:0;background:rgba(2,6,23,0.6);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
-        <div style="min-width:220px;background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);">
-            <span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:ticket-spin 0.7s linear infinite;"></span>
+<div class="ui-page">
+    <div id="ticket-loading-overlay" role="status" aria-live="polite" style="position:fixed;inset:0;background:var(--dd-backdrop);backdrop-filter:blur(2px);z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;">
+        <div class="ui-card" style="min-width:14rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;box-shadow:var(--dd-shadow-lg);">
+            <span class="spinner" style="margin:0;" aria-hidden="true"></span>
             <span id="ticket-loading-text">Loading tickets...</span>
         </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
-        <div>
-            <h1 class="dd-page-title" style="font-size:1.6rem;margin-bottom:10px;">Support Requests</h1>
-            <p style="margin:0 0 14px;color:var(--text-muted);">Showing HaloPSA tickets limited to ticket types configured in Admin Settings.</p>
-        </div>
-        <a href="{{ route('tickets.create') }}" class="btn-accent" style="text-decoration:none;">Log Support Ticket</a>
-    </div>
+    <x-ui.page-header title="Support Requests" subtitle="HaloPSA tickets limited to the ticket types configured in Admin Settings.">
+        <x-slot name="actions">
+            <x-ui.button :href="route('tickets.create')" variant="primary">
+                <x-ui.icon name="plus" :size="16" /> Log Support Ticket
+            </x-ui.button>
+        </x-slot>
+    </x-ui.page-header>
 
     @if($clients->isNotEmpty())
-        <form id="ticket-filter-form" method="GET" action="{{ route('tickets.index') }}" style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:end;">
-            <div>
-                <label for="client_id" style="display:block;font-weight:600;margin-bottom:6px;">Client</label>
-                <select id="client_id" name="client_id" style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:9px 11px;background:var(--bg);color:var(--text);">
-                    @foreach($clients as $client)
-                        <option value="{{ $client->id }}" @selected($selectedClientId === $client->id)>{{ $client->business_name }}</option>
-                    @endforeach
-                </select>
-            </div>
+        <form id="ticket-filter-form" method="GET" action="{{ route('tickets.index') }}" class="ui-card" style="margin-bottom:1rem;">
+            <div class="ui-card__body" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));align-items:end;">
+                <div class="ui-field">
+                    <label for="client_id" class="ui-label">Client</label>
+                    <select id="client_id" name="client_id" class="ui-input">
+                        @foreach($clients as $client)
+                            <option value="{{ $client->id }}" @selected($selectedClientId === $client->id)>{{ $client->business_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-            <div>
-                <label for="service_category" style="display:block;font-weight:600;margin-bottom:6px;">Filter by Service</label>
-                <select id="service_category" name="service_category" style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:9px 11px;background:var(--bg);color:var(--text);">
-                    <option value="">All Services</option>
-                    @foreach($serviceOptions as $serviceOption)
-                        <option value="{{ $serviceOption }}" @selected($selectedServiceCategory === $serviceOption)>{{ $serviceOption }}</option>
-                    @endforeach
-                </select>
-            </div>
+                <div class="ui-field">
+                    <label for="service_category" class="ui-label">Filter by Service</label>
+                    <select id="service_category" name="service_category" class="ui-input">
+                        <option value="">All Services</option>
+                        @foreach($serviceOptions as $serviceOption)
+                            <option value="{{ $serviceOption }}" @selected($selectedServiceCategory === $serviceOption)>{{ $serviceOption }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
-            <div>
-                <label for="ticket_type_id" style="display:block;font-weight:600;margin-bottom:6px;">Filter by Type</label>
-                <select id="ticket_type_id" name="ticket_type_id" style="width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:9px 11px;background:var(--bg);color:var(--text);">
-                    <option value="">All Configured Types</option>
-                    @foreach($ticketMappings as $mapping)
-                        <option value="{{ $mapping['halo_ticket_type_id'] }}" @selected((int) $selectedTicketTypeId === (int) $mapping['halo_ticket_type_id'])>
-                            {{ $mapping['halo_ticket_type_name'] ?? ('Type #' . $mapping['halo_ticket_type_id']) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                <div class="ui-field">
+                    <label for="ticket_type_id" class="ui-label">Filter by Type</label>
+                    <select id="ticket_type_id" name="ticket_type_id" class="ui-input">
+                        <option value="">All Configured Types</option>
+                        @foreach($ticketMappings as $mapping)
+                            <option value="{{ $mapping['halo_ticket_type_id'] }}" @selected((int) $selectedTicketTypeId === (int) $mapping['halo_ticket_type_id'])>
+                                {{ $mapping['halo_ticket_type_name'] ?? ('Type #' . $mapping['halo_ticket_type_id']) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
 
-            <div style="display:flex;gap:8px;align-items:end;">
-                <button class="btn-accent" type="submit">Apply</button>
-                <a href="{{ route('tickets.index', ['client_id' => $selectedClientId]) }}" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border-subtle);text-decoration:none;color:var(--text-muted);">Clear</a>
+                <div class="flex items-center gap-2">
+                    <button class="ui-btn ui-btn--primary" type="submit">Apply</button>
+                    <a href="{{ route('tickets.index', ['client_id' => $selectedClientId]) }}" class="ui-btn ui-btn--secondary">Clear</a>
+                </div>
             </div>
         </form>
     @else
-        <div style="background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.4);color:var(--warning-text);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
-            No client assignments were found for your account.
-        </div>
+        <x-ui.alert variant="warning">No client assignments were found for your account.</x-ui.alert>
     @endif
 
     @if($error)
-        <div style="background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.4);color:var(--warning-text);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
-            {{ $error }}
-        </div>
+        <x-ui.alert variant="warning" class="mb-4">{{ $error }}</x-ui.alert>
     @endif
 
-    <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;overflow:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-            <thead>
-                <tr style="background:var(--surface-muted);text-align:left;">
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">ID</th>
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Summary</th>
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Service</th>
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Type</th>
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Status</th>
-                    <th style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">Updated</th>
+    <x-ui.table>
+        <thead>
+            <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Summary</th>
+                <th scope="col">Service</th>
+                <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Updated</th>
+            </tr>
+        </thead>
+        <tbody id="support-ticket-table-body">
+            @forelse($tickets as $ticket)
+                <tr data-ticket-link="{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId, 'service' => $ticket['service'] ?? '']) }}" style="cursor:pointer;" tabindex="0">
+                    <td>{{ $ticket['id'] ?? '-' }}</td>
+                    <td>{{ $ticket['summary'] ?? '-' }}</td>
+                    <td>{{ $ticket['service'] ?? '-' }}</td>
+                    <td>{{ $ticket['type'] ?? 'Unknown' }}</td>
+                    <td><x-ui.badge :status="$ticket['status'] ?? null">{{ $ticket['status'] ?? '-' }}</x-ui.badge></td>
+                    <td>{{ $ticket['updated'] ?? '-' }}</td>
                 </tr>
-            </thead>
-            <tbody id="support-ticket-table-body">
-                @forelse($tickets as $ticket)
-                    <tr data-ticket-link="{{ route('tickets.show', ['ticketId' => $ticket['id'] ?? 0, 'client_id' => $selectedClientId, 'service' => $ticket['service'] ?? '']) }}" style="cursor:pointer;">
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['id'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['summary'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['service'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['type'] ?? 'Unknown' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['status'] ?? '-' }}</td>
-                        <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">{{ $ticket['updated'] ?? '-' }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="6" style="padding:14px 12px;color:var(--text-muted);">No support requests were found for this filter.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+            @empty
+                <tr>
+                    <td colspan="6">
+                        <x-ui.empty-state title="No support requests found" text="No support requests were found for this filter." />
+                    </td>
+                </tr>
+            @endforelse
+        </tbody>
+    </x-ui.table>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
-        <div style="color:var(--text-muted);font-size:13px;">Page <span id="support-ticket-current-page">{{ $page }}</span> (25 per load)</div>
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="ui-muted" style="font-size:13px;">Page <span id="support-ticket-current-page">{{ $page }}</span> (25 per load)</div>
         @if($hasMore)
-            <button id="support-ticket-load-more" class="btn-accent" type="button">Load Next 25</button>
+            <button id="support-ticket-load-more" class="ui-btn ui-btn--secondary" type="button">Load Next 25</button>
         @endif
     </div>
 </div>
@@ -132,7 +130,7 @@
 
         const wireTicketRowClicks = (scope) => {
             scope.querySelectorAll('tr[data-ticket-link]').forEach((row) => {
-                row.addEventListener('click', function () {
+                const open = function () {
                     const targetUrl = row.getAttribute('data-ticket-link');
                     if (!targetUrl) {
                         return;
@@ -140,6 +138,12 @@
 
                     showLoading('Loading ticket details...');
                     window.location.href = targetUrl;
+                };
+                row.addEventListener('click', open);
+                row.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        open();
+                    }
                 });
             });
         };
@@ -160,14 +164,16 @@
         let currentPage = Number(currentPageLabel.textContent || '1');
 
         const selectedClientId = @json($selectedClientId);
+        // Ticket fields come from the PSA: always HTML-escape before insertion.
+        const tkEsc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const buildRow = (row) => `
-            <tr data-ticket-link="{{ url('/tickets') }}/${row.id}?client_id=${selectedClientId}&service=${encodeURIComponent(row.service || '')}" style="cursor:pointer;">
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.id}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.summary}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.service}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.type}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.status}</td>
-                <td style="padding:10px 12px;border-bottom:1px solid var(--border-subtle);">${row.updated}</td>
+            <tr data-ticket-link="{{ url('/tickets') }}/${encodeURIComponent(row.id)}?client_id=${encodeURIComponent(selectedClientId ?? '')}&service=${encodeURIComponent(row.service || '')}" style="cursor:pointer;" tabindex="0">
+                <td>${tkEsc(row.id)}</td>
+                <td>${tkEsc(row.summary)}</td>
+                <td>${tkEsc(row.service)}</td>
+                <td>${tkEsc(row.type)}</td>
+                <td><span class="ui-badge ui-badge--neutral ui-badge--dot">${tkEsc(row.status)}</span></td>
+                <td>${tkEsc(row.updated)}</td>
             </tr>
         `;
 

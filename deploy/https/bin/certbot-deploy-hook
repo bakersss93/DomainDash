@@ -1,0 +1,5 @@
+#!/bin/bash
+# certbot --deploy-hook: runs after every successful issue/renewal. Test the config, then reload nginx.
+set -euo pipefail
+/usr/sbin/nginx -t
+/usr/bin/systemctl reload nginx

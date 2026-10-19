@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">Reset Password</h1>
+    <h1>Reset Password</h1>
 
     <p style="margin-bottom:16px;font-size:14px;">
         User: <strong>{{ $user->email }}</strong>
@@ -33,7 +33,7 @@
             </div>
 
             @error('password')
-                <div style="color:#dc2626;font-size:12px;margin-bottom:8px;">{{ $message }}</div>
+                <div style="color:var(--dd-danger-text);font-size:12px;margin-bottom:8px;">{{ $message }}</div>
             @enderror
 
             <button type="submit" class="btn-accent">

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="dd-page"><h1 class="dd-page-title" style="font-size:1.45rem;">
+    <div class="dd-page"><h1 class="dd-page-title">
         Domain overview – {{ $domain->name }}
     </h1>
 
@@ -236,7 +236,7 @@
                 <input id="dd-auth-value"
                        type="text"
                        readonly
-                       style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid var(--border-subtle);background:var(--bg);color:var(--text);">
+                       style="flex:1;">
                 <button type="button" id="dd-auth-copy" class="btn-accent" style="white-space:nowrap;">
                     Copy
                 </button>

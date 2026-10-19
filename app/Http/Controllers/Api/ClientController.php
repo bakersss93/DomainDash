@@ -29,7 +29,7 @@ class ClientController extends Controller
         }
 
         return response()->json(
-            $q->orderBy('business_name')->paginate((int) $request->get('per_page', 100))
+            $q->orderBy('business_name')->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
         );
     }
 

@@ -1,52 +1,29 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="dd-ticket-wrap">
-    <h1 class="dd-page-title">Log Support Ticket</h1>
-    <p class="dd-ticket-intro">Create a Support or Service Request for Domain, Web Hosting, or SSL services.</p>
+<div class="ui-page ui-page--narrow">
+    <x-ui.page-header title="Log Support Ticket" subtitle="Create a Support or Service Request for Domain, Web Hosting, or SSL services." />
 
     <style>
-        .dd-ticket-wrap { max-width: 980px; }
-        .dd-ticket-intro { margin: 0 0 18px; color: var(--text-muted); }
-        .dd-ticket-card {
-            background: var(--surface-elevated);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 18px;
-        }
-        .dd-ticket-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-        .dd-ticket-field { display: grid; gap: 6px; }
-        .dd-ticket-field label { font-weight: 600; }
-        .dd-ticket-field input,
-        .dd-ticket-field textarea,
-        .dd-ticket-field select {
-            width: 100%;
-            min-width: 0;
-            border: 1px solid var(--border-subtle);
-            border-radius: 10px;
-            padding: 10px 11px;
-            background: var(--bg);
-            color: var(--text);
-            box-sizing: border-box;
-        }
-        .dd-ticket-actions { margin-top: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .dd-ticket-card { background: var(--dd-surface); border: 1px solid var(--dd-border); border-radius: var(--dd-radius-lg); box-shadow: var(--dd-shadow-xs); padding: 1.25rem; }
+        .dd-ticket-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+        .dd-ticket-field { display: grid; gap: 0.375rem; }
+        .dd-ticket-field label { font-size: var(--dd-text-sm); font-weight: 600; }
+        .dd-ticket-field input, .dd-ticket-field textarea, .dd-ticket-field select { width: 100%; min-width: 0; }
+        .dd-ticket-actions { margin-top: 1.25rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
     </style>
 
     @if($errors->any())
-        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);color:#ef4444;border-radius:12px;padding:12px 14px;margin-bottom:16px;">
-            <strong>Unable to submit ticket.</strong>
+        <x-ui.alert variant="danger" class="mb-4"><strong>Unable to submit ticket.</strong>
             <ul style="margin:8px 0 0 18px;padding:0;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
-            </ul>
-        </div>
+            </ul></x-ui.alert>
     @endif
 
     @if($clients->isEmpty())
-        <div class="dd-ticket-card">
-            <p style="margin:0;color:var(--warning-text);">No client assignments were found for your account. Please contact an administrator.</p>
-        </div>
+        <x-ui.alert variant="warning">No client assignments were found for your account. Please contact an administrator.</x-ui.alert>
     @else
         <form method="POST" action="{{ route('tickets.store') }}" class="dd-ticket-card" novalidate>
             @csrf
@@ -116,8 +93,8 @@
             </div>
 
             <div class="dd-ticket-actions">
-                <button type="submit" class="btn-accent">Submit Ticket</button>
-                <a href="{{ route('tickets.index') }}" style="color:var(--text-muted);text-decoration:none;">View Support Requests</a>
+                <button type="submit" class="ui-btn ui-btn--primary">Submit Ticket</button>
+                <a href="{{ route('tickets.index') }}" class="ui-btn ui-btn--ghost">View Support Requests</a>
             </div>
         </form>
     @endif

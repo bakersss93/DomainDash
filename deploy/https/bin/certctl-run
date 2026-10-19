@@ -1,0 +1,19 @@
+#!/bin/bash
+# Installed to /usr/local/lib/domaindash/certctl-run (root:root 0755) by install.sh.
+# Fixed entry point used by the systemd units: only "tick" or "renew" are accepted.
+set -euo pipefail
+
+APP_DIR='@APP_DIR@'
+PHP_BIN='@PHP_BIN@'
+
+op="${1:-tick}"
+case "$op" in
+  tick|renew) ;;
+  *) echo "usage: certctl-run [tick|renew]" >&2; exit 64 ;;
+esac
+
+# Never let root write root-owned files into the app's storage (laravel.log, cache, sessions).
+export APP_ENV=production LOG_CHANNEL=stderr CACHE_STORE=array SESSION_DRIVER=array QUEUE_CONNECTION=sync
+cd "$APP_DIR"
+# One helper run at a time (tick and renew share the lock).
+exec /usr/bin/flock --timeout 1700 /run/lock/domaindash-certctl.lock "$PHP_BIN" artisan domaindash:certctl "$op"

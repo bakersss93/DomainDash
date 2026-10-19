@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-    <h1 style="font-size:18px;font-weight:600;margin-bottom:16px;">New Client</h1>
+    <h1>New Client</h1>
 
     <form method="POST"
           action="{{ route('admin.clients.store') }}"
@@ -15,7 +15,7 @@
             <input id="business_name" name="business_name" type="text" required
                    value="{{ old('business_name') }}">
             @error('business_name')
-                <div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>
+                <div style="color:var(--dd-danger-text);font-size:12px;margin-top:4px;">{{ $message }}</div>
             @enderror
         </div>
 

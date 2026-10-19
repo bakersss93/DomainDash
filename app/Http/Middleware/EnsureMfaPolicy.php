@@ -15,6 +15,17 @@ class EnsureMfaPolicy
             return $next($request);
         }
 
+        // Deactivated users lose existing sessions immediately.
+        if ($user->is_active === false) {
+            \Illuminate\Support\Facades\Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return $request->expectsJson()
+                ? response()->json(['message' => 'This user is disabled.'], 403)
+                : redirect()->route('login');
+        }
+
         $allowedRouteNames = [
             'profile.show',
             'user-profile-information.update',
@@ -23,6 +34,9 @@ class EnsureMfaPolicy
             'logout',
             'admin.users.stop-impersonate',
             'me.mfa.*',
+            'me.account.details',
+            'password.confirm',
+            'password.confirmation',
         ];
 
         foreach ($allowedRouteNames as $routeName) {
@@ -33,6 +47,23 @@ class EnsureMfaPolicy
 
         if ($request->is('livewire/*')) {
             return $next($request);
+        }
+
+        // Mandatory MFA (e.g. Administrator): block everything except the setup
+        // flow until 2FA is confirmed. The dashboard stays reachable because it
+        // hosts the (non-dismissible) setup prompt.
+        if ($user->requiresMfa() && ! $user->hasConfiguredMfa()) {
+            $request->session()->put('mfa.setup', ['show' => true, 'required' => true]);
+
+            if ($request->routeIs('dashboard')) {
+                return $next($request);
+            }
+
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => 'Multi-factor authentication setup is required.'], 403);
+            }
+
+            return redirect()->route('dashboard')->with('status', 'Multi-factor authentication is required for your role. Please complete setup.');
         }
 
         if ($user->hasConfiguredMfa() || $user->mfa_preference === 'disabled') {

@@ -5,19 +5,20 @@
 <style>
     /* ── Page ── */
     .ak-card {
-        background: var(--surface-elevated);
-        border: 1px solid var(--border-subtle);
-        border-radius: 12px;
-        padding: 20px 24px;
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-lg);
+        box-shadow: var(--dd-shadow-xs);
+        padding: 1.25rem 1.5rem;
     }
 
     /* ── Shared modal overlay ── */
     .ak-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(2, 6, 23, 0.65);
+        background: var(--dd-backdrop);
         backdrop-filter: blur(2px);
-        z-index: 60;
+        z-index: 70;
         display: none;
         align-items: center;
         justify-content: center;
@@ -28,11 +29,11 @@
     /* ── Modal dialog shell ── */
     .ak-dialog {
         width: min(94vw, 520px);
-        background: var(--surface-elevated);
-        border: 1px solid var(--border-subtle);
-        border-radius: 14px;
+        background: var(--dd-surface);
+        border: 1px solid var(--dd-border);
+        border-radius: var(--dd-radius-xl);
         overflow: hidden;
-        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+        box-shadow: var(--dd-shadow-overlay);
         display: flex;
         flex-direction: column;
         max-height: 90vh;
@@ -94,17 +95,18 @@
 
     .ak-input {
         width: 100%;
-        padding: 9px 12px;
-        border-radius: 8px;
-        border: 1px solid var(--border-subtle);
-        background: var(--surface-muted);
-        color: var(--text);
-        font-size: 14px;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--dd-radius);
+        border: 1px solid var(--dd-border-strong);
+        background: var(--dd-surface);
+        color: var(--dd-text);
+        font-size: var(--dd-text-sm);
         box-sizing: border-box;
         outline: none;
-        transition: border-color 0.15s;
+        transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .ak-input:focus { border-color: var(--accent); }
+    .ak-input:focus { border-color: var(--dd-focus); box-shadow: var(--dd-focus-ring); }
+    .ak-input[readonly] { background: var(--dd-surface-muted); }
     .ak-input[readonly] { cursor: default; opacity: 0.9; }
 
     .ak-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
@@ -147,13 +149,14 @@
         border-color: var(--accent);
         background: color-mix(in srgb, var(--accent) 12%, var(--surface-muted) 88%);
     }
-    .ak-scope-read  { color: #93c5fd; }
-    .ak-scope-write { color: #fbbf24; }
+    .ak-scope-read  { color: var(--dd-status-info-fg); }
+    .ak-scope-write { color: var(--dd-status-warning-fg); }
 
     /* ── Buttons ── */
     .ak-btn-secondary {
-        padding: 8px 16px;
-        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        min-height: 2.5rem;
+        border-radius: var(--dd-radius);
         border: 1px solid var(--border-subtle);
         background: transparent;
         color: var(--text);
@@ -186,25 +189,15 @@
 
     .ak-action-btn-warning {
         color: var(--warning-text, #78350f);
-        border-color: var(--warning-border, #fcd34d);
-        background: var(--warning-bg, #fef3c7);
-    }
-    html.dark .ak-action-btn-warning {
-        color: #fde68a;
-        border-color: rgba(245,158,11,0.45);
-        background: rgba(245,158,11,0.1);
+        border-color: var(--warning-border, var(--warning-border));
+        background: var(--warning-bg, var(--dd-status-warning-bg));
     }
     .ak-action-btn-warning:hover { filter: brightness(1.1); }
 
     .ak-action-btn-success {
         color: var(--success-text, #14532d);
-        border-color: var(--success-border, #86efac);
-        background: var(--success-bg, #dcfce7);
-    }
-    html.dark .ak-action-btn-success {
-        color: #d1fae5;
-        border-color: rgba(16,185,129,0.45);
-        background: rgba(16,185,129,0.12);
+        border-color: var(--success-border, var(--success-border));
+        background: var(--success-bg, var(--dd-status-success-bg));
     }
     .ak-action-btn-success:hover { filter: brightness(1.1); }
 
@@ -235,13 +228,8 @@
     }
     .ak-badge-active {
         color: var(--success-text, #14532d);
-        background: var(--success-bg, #dcfce7);
-        border: 1px solid var(--success-border, #86efac);
-    }
-    html.dark .ak-badge-active {
-        color: #d1fae5;
-        background: rgba(16,185,129,0.12);
-        border-color: rgba(16,185,129,0.4);
+        background: var(--success-bg, var(--dd-status-success-bg));
+        border: 1px solid var(--success-border, var(--success-border));
     }
     .ak-badge-active::before { background: currentColor; }
 
@@ -259,17 +247,12 @@
         gap: 8px;
         padding: 10px 12px;
         border-radius: 8px;
-        border: 1px solid var(--warning-border, #fcd34d);
-        background: var(--warning-bg, #fef3c7);
+        border: 1px solid var(--warning-border, var(--warning-border));
+        background: var(--warning-bg, var(--dd-status-warning-bg));
         color: var(--warning-text, #78350f);
         font-size: 13px;
         margin-bottom: 16px;
         line-height: 1.45;
-    }
-    html.dark .ak-warn {
-        border-color: rgba(245,158,11,0.45);
-        background: rgba(245,158,11,0.12);
-        color: #fde68a;
     }
 
     /* ── Key copy row ── */
@@ -304,29 +287,46 @@
     .ak-muted { color: var(--text-muted); font-size: 13px; }
 </style>
 
-<div style="max-width:960px;margin:0 auto;">
+<div class="ui-page ui-page--narrow" style="max-width:60rem;">
 
     {{-- Header --}}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h1 style="font-size:18px;font-weight:600;color:var(--text);margin:0;">API Keys</h1>
-        <button id="btn-new-key" class="btn-accent" style="padding:8px 16px;">
-            New API key
-        </button>
+    <x-ui.page-header title="API Keys" subtitle="Create and manage keys for the DomainDash REST API.">
+        <x-slot name="actions">
+            <button id="btn-new-key" class="ui-btn ui-btn--primary" type="button">
+                <x-ui.icon name="plus" :size="16" /> New API key
+            </button>
+        </x-slot>
+    </x-ui.page-header>
+
+    {{-- OpenAPI / Rewst integration card --}}
+    <div class="ak-card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1 1 320px;min-width:0;">
+                <h2 style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px;">API documentation (OpenAPI)</h2>
+                <p style="font-size:13px;color:var(--text-muted);margin:0;">
+                    Download the OpenAPI 3.1 document describing every DomainDash API endpoint, for importing into Rewst or any other API client.
+                </p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <a href="{{ route('admin.apidocs.yaml') }}" class="ui-btn ui-btn--primary"><x-ui.icon name="download" :size="16" /> Download OpenAPI (YAML)</a>
+                <a href="{{ route('admin.apidocs.json') }}" class="ui-btn ui-btn--secondary"><x-ui.icon name="download" :size="16" /> Download OpenAPI (JSON)</a>
+            </div>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle);font-size:13px;color:var(--text);">
+            <div style="font-weight:600;margin-bottom:6px;">Rewst setup</div>
+            <ol style="margin:0;padding-left:20px;color:var(--text-muted);line-height:1.7;">
+                <li>In Rewst, create a custom integration and import the downloaded OpenAPI file.</li>
+                <li>Set the base URL to <code>{{ rtrim(config('app.url'), '/') }}/api</code> (the document's <code>baseUrl</code> variable is pre-filled with <code>{{ rtrim(config('app.url'), '/') }}</code>).</li>
+                <li>Authenticate with an API key sent in the <code>x-api-key</code> header (not a Bearer token). Create a key below and grant only the scopes your workflows need.</li>
+                <li>Send <code>Accept: application/json</code> on requests so errors come back as JSON.</li>
+            </ol>
+        </div>
     </div>
 
-    @if(session('status'))
-        <div style="margin-bottom:14px;padding:10px 14px;border-radius:8px;
-                    background:var(--success-bg);border:1px solid var(--success-border);
-                    color:var(--success-text);font-size:13px;">
-            {{ session('status') }}
-        </div>
-    @endif
-
     {{-- Existing keys card --}}
-    <div class="ak-card">
-        <h2 style="font-size:15px;font-weight:600;color:var(--text);margin:0 0 14px;">Existing API keys</h2>
-
-        <table class="ak-table">
+    <x-ui.card title="Existing API keys" :flush="true">
+        <x-ui.table>
             <thead>
                 <tr>
                     <th>Name</th>
@@ -335,7 +335,7 @@
                     <th>Rate limit</th>
                     <th>Scopes</th>
                     <th>Created</th>
-                    <th>Actions</th>
+                    <th style="text-align:right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -349,9 +349,9 @@
 
                     <td>
                         @if($isActive)
-                            <span class="ak-badge ak-badge-active">Active</span>
+                            <x-ui.badge variant="success">Active</x-ui.badge>
                         @else
-                            <span class="ak-badge ak-badge-inactive">Inactive</span>
+                            <x-ui.badge variant="neutral">Inactive</x-ui.badge>
                         @endif
                     </td>
 
@@ -367,14 +367,14 @@
                     <td class="ak-muted">{{ $key->created_at->diffForHumans() }}</td>
 
                     <td>
-                        <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
+                        <div style="display:flex;gap:0.375rem;justify-content:flex-end;flex-wrap:wrap;">
 
                             {{-- Regenerate --}}
                             <form method="POST" action="{{ route('admin.apikeys.regenerate', $key) }}"
                                   onsubmit="return confirm('Regenerate this key? The current key will stop working immediately.');"
                                   style="display:inline;">
                                 @csrf
-                                <button type="submit" class="ak-action-btn" title="Regenerate key">
+                                <button type="submit" class="ak-action-btn" title="Regenerate key" aria-label="Regenerate key">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="23 4 23 10 17 10"/>
                                         <polyline points="1 20 1 14 7 14"/>
@@ -386,7 +386,7 @@
                             {{-- Edit --}}
                             <button type="button"
                                     class="ak-action-btn ak-edit-btn"
-                                    title="Edit key"
+                                    title="Edit key" aria-label="Edit key"
                                     data-key-id="{{ $key->id }}"
                                     data-key-name="{{ $key->name }}"
                                     data-allowed-ips="{{ $key->allowed_ips }}"
@@ -405,7 +405,7 @@
                                       onsubmit="return confirm('Deactivate this API key? It will stop working immediately.');"
                                       style="display:inline;">
                                     @csrf
-                                    <button type="submit" class="ak-action-btn ak-action-btn-warning" title="Deactivate key">
+                                    <button type="submit" class="ak-action-btn ak-action-btn-warning" title="Deactivate key" aria-label="Deactivate key">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <circle cx="12" cy="12" r="10"/>
                                             <line x1="10" y1="15" x2="10" y2="9"/>
@@ -417,7 +417,7 @@
                                 <form method="POST" action="{{ route('admin.apikeys.reactivate', $key) }}"
                                       style="display:inline;">
                                     @csrf
-                                    <button type="submit" class="ak-action-btn ak-action-btn-success" title="Reactivate key">
+                                    <button type="submit" class="ak-action-btn ak-action-btn-success" title="Reactivate key" aria-label="Reactivate key">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <circle cx="12" cy="12" r="10"/>
                                             <polygon points="10 8 16 12 10 16 10 8"/>
@@ -432,7 +432,7 @@
                                   style="display:inline;">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="ak-action-btn ak-action-btn-danger" title="Delete key">
+                                <button type="submit" class="ak-action-btn ak-action-btn-danger" title="Delete key" aria-label="Delete key">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="3 6 5 6 21 6"/>
                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -445,14 +445,14 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="7" style="padding:20px 8px;text-align:center;color:var(--text-muted);">
-                        No API keys created yet.
+                    <td colspan="7">
+                        <x-ui.empty-state title="No API keys yet" text="Create a key to let integrations call the DomainDash API." icon="key" />
                     </td>
                 </tr>
             @endforelse
             </tbody>
-        </table>
-    </div>
+        </x-ui.table>
+    </x-ui.card>
 
 </div>
 
@@ -510,7 +510,7 @@
                     @php
                         $selectedScopes = old('scopes', []);
                         $scopeGroups = [
-                            'Domains'           => ['domains.read', 'domains.write'],
+                            'Domains'           => ['domains.read', 'domains.auth-code', 'domains.write'],
                             'DNS Records'       => ['dns.read', 'dns.write'],
                             'Clients'           => ['clients.read', 'clients.write'],
                             'Hosting Services'  => ['hosting.read', 'hosting.write'],
@@ -518,7 +518,7 @@
                             'Internet Services' => ['internet.read', 'internet.write'],
                             'Tickets'           => ['tickets.read', 'tickets.write'],
                             'Domain Pricing'    => ['pricing.read'],
-                            'Users'             => ['users.read', 'users.write'],
+                            'Users'             => ['users.read', 'users.write', 'users.admin'],
                             'Audit Log'         => ['audit.read'],
                         ];
                         $allScopes = \App\Models\ApiKey::SCOPES;

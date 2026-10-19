@@ -1,0 +1,20 @@
+[Unit]
+Description=DomainDash Platform HTTPS helper (renew certificates)
+Documentation=file:@APP_DIR@/README.md
+After=network-online.target nginx.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/lib/domaindash/certctl-run renew
+TimeoutStartSec=2400
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes

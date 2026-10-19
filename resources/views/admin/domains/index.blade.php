@@ -8,8 +8,17 @@
         </div>
     </div>
 
-    <div class="dd-page">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">Domains</h1>
+    <div class="ui-page">
+    <x-ui.page-header title="Domains" subtitle="Registered domains, expiry and client assignment.">
+        <x-slot name="actions">
+            <form method="POST" action="{{ route('admin.domains.bulkSync') }}">
+                @csrf
+                <x-ui.button type="submit" variant="secondary">
+                    <x-ui.icon name="refresh" :size="16" /> Bulk domain sync
+                </x-ui.button>
+            </form>
+        </x-slot>
+    </x-ui.page-header>
 
     @php
         $currentSort = request('sort', $sort ?? 'name');
@@ -46,31 +55,26 @@
     @endphp
 
     {{-- Search + bulk sync row --}}
-    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
+    <div class="ui-toolbar">
         <form method="GET"
               action="{{ route('admin.domains') }}"
-              style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
+              class="flex flex-1 flex-wrap items-center gap-2">
+            <label for="domain-search" class="sr-only">Search domains</label>
             <input
-                type="text"
+                type="search"
+                id="domain-search"
                 name="q"
                 value="{{ $search }}"
                 placeholder="Search domains…"
-                class="dd-input dd-input-inline"
-                style="flex:1;min-width:260px;"
+                class="dd-input"
+                style="flex:1;min-width:14rem;max-width:32rem;"
             >
-            <button type="submit" class="btn-accent">Search</button>
-        </form>
-
-        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;">
-            @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">
-                Bulk domain sync
-            </button>
+            <button type="submit" class="ui-btn ui-btn--primary">Search</button>
         </form>
     </div>
 
-    <div class="dd-card">
-    <table>
+    <x-ui.card :flush="true">
+    <x-ui.table>
         <thead>
         <tr>
             <th>{!! $ddSortLink('name', 'Domain Name') !!}</th>
@@ -110,7 +114,7 @@
             {{-- SUMMARY ROW --}}
             <tr data-domain-toggle="{{ $rowId }}" class="dd-domain-row" style="cursor:pointer;">
                 <td>{{ $domain->name }}</td>
-                <td>{{ $domain->status ?? '—' }}</td>
+                <td><x-ui.badge :status="$domain->status">{{ $domain->status ?? '—' }}</x-ui.badge></td>
                 <td class="{{ $isDanger ? 'danger' : '' }}">
                     @if($expiresInDays !== null)
                         {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
@@ -149,14 +153,14 @@
                         <div class="dd-domain-panel-header">
                             <div>
                                 <div style="font-weight:600;">{{ $domain->name }}</div>
-                                <div style="font-size:13px;opacity:.8;">
+                                <div class="ui-muted" style="font-size:13px;">
                                     {{ $domain->status ?? 'Status unknown' }}
                                     @if($expiresInDays !== null)
                                         • expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
                                     @endif
                                 </div>
                             </div>
-                            <div style="font-size:13px;opacity:.7;">
+                            <div class="ui-muted" style="font-size:13px;">
                                 DNS: {{ $dnsLabel }}
                             </div>
                         </div>
@@ -230,10 +234,12 @@
             </tr>
         @endforeach
         </tbody>
-    </table>
+    </x-ui.table>
 
-    {{ $domains->links() }}
-    </div>
+    @if ($domains->hasPages())
+        <div class="px-4 py-3">{{ $domains->links() }}</div>
+    @endif
+    </x-ui.card>
 
     {{-- Assign client modal --}}
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
@@ -275,7 +281,7 @@
 
                 <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
                     <button type="submit" class="btn-accent">Save</button>
-                    <button type="button" class="btn-accent" id="dd-assign-cancel">
+                    <button type="button" class="btn-secondary" id="dd-assign-cancel">
                         Cancel
                     </button>
                 </div>
@@ -598,138 +604,13 @@
         }
 
         .dd-domain-option-danger {
-            border-color:#b91c1c;
+            border-color: color-mix(in srgb, var(--dd-danger) 55%, var(--dd-border));
+            color: var(--dd-danger-text);
         }
 
         .dd-domain-option-danger:hover {
-            background:#7f1d1d;
-        }
-
-        /* Modal */
-        .dd-modal {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 60;
-        }
-        .dd-modal-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(15,23,42,0.75);
-        }
-        .dd-modal-dialog {
-            position: relative;
-            background:var(--surface-elevated);
-            border-radius:12px;
-            padding:16px 18px 18px;
-            border:1px solid var(--border-subtle);
-            width:420px;
-            max-width:95%;
-            box-shadow:0 20px 40px rgba(0,0,0,.6);
-        }
-
-        /* Searchable combobox */
-        .dd-combobox {
-            position: relative;
-            display: flex;
-            align-items: center;
-            background: var(--bg);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            padding: 0 36px 0 14px;
-            min-height: 44px;
-            cursor: text;
-        }
-        .dd-combobox-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--text);
-            font-size: 14px;
-        }
-        .dd-combobox-arrow {
-            position: absolute;
-            right: 12px;
-            font-size: 12px;
-            color: #9ca3af;
-            pointer-events: none;
-        }
-        .dd-combobox-list {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(100% + 4px);
-            background: var(--surface-elevated);
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 15px 35px rgba(0,0,0,.65);
-            max-height: 260px;
-            overflow-y: auto;
-            z-index: 80;
-            display: none;
-        }
-        .dd-combobox.open .dd-combobox-list {
-            display: block;
-        }
-        .dd-combobox-list-item {
-            padding: 8px 12px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .dd-combobox-list-item:hover,
-        .dd-combobox-list-item.is-highlighted {
-            background: var(--surface-muted);
-        }
-
-        html.dark tr[data-domain-panel].open > td > .dd-domain-panel-inner {
-            border-color: #1f2937;
-            background: #0f172a;
-        }
-
-        html.dark .dd-domain-panel-header {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-domain-option,
-        html.dark .dd-domain-option-btn {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-domain-option:hover,
-        html.dark .dd-domain-option-btn:hover {
-            background: #0f172a;
-        }
-
-        html.dark .dd-modal-dialog {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox {
-            background: #0f172a;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox-input {
-            color: #e5e7eb;
-        }
-
-        html.dark .dd-combobox-list {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox-list-item:hover,
-        html.dark .dd-combobox-list-item.is-highlighted {
-            background: #111827;
-        }
-        .dd-combobox select.dd-hidden-select {
-            display: none;
+            background: var(--dd-status-danger-bg);
+            border-color: var(--dd-danger);
         }
     </style>
     </div>

@@ -1,0 +1,53 @@
+# DomainDash - nginx server block for Platform HTTPS (HTTPS only; port 80 is NOT used).
+#
+# The helper (domaindash:certctl) owns /etc/nginx/snippets/domaindash-ssl.conf: it contains
+# ssl_certificate, ssl_certificate_key and the TLS parameters (TLSv1.2/1.3, session settings,
+# OCSP stapling only where the certificate offers it). Never edit that file by hand.
+#
+# Let's Encrypt certificates are validated with DNS-01, so no /.well-known/acme-challenge
+# location and no port 80 are required.
+#
+# Order of operations (see README "Platform HTTPS"):
+#   1. install the helper (deploy/https/install.sh)  -> creates an empty snippet so this file loads
+#   2. request / upload a certificate in Settings > Platform HTTPS -> helper fills the snippet
+#   3. add this server block (or add the include to your existing 443 block), edit the three
+#      marked lines, then: sudo nginx -t && sudo systemctl reload nginx
+#      Enable this block only AFTER step 2 succeeds - a 443 ssl listener with no certificate
+#      in the snippet fails nginx -t.
+
+server {
+    # "listen ... ssl http2" works on every nginx version Ubuntu ships (1.18 / 1.24).
+    # On nginx >= 1.25.1 you may instead use "listen 443 ssl;" plus "http2 on;".
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name dash.example.com;               # <-- your hostname (must match the certificate)
+
+    include /etc/nginx/snippets/domaindash-ssl.conf;
+
+    root /var/www/DomainDash/public;            # <-- your app path
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;                 # sets HTTPS $https if_not_empty => request()->isSecure() works
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;   # <-- your php-fpm socket
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
+
+# OPTIONAL - only if you ever open port 80 (it is closed on this deployment, so leave commented).
+# Redirects plain HTTP to HTTPS at nginx level; the app also redirects when "Force HTTPS" is on.
+#
+# server {
+#     listen 80;
+#     listen [::]:80;
+#     server_name dash.example.com;
+#     return 301 https://$host$request_uri;
+# }

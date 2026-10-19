@@ -1,9 +1,27 @@
 @extends('layouts.app')
 
 @section('content')
-<div style="max-width: 1200px; margin: 0 auto;">
+<script>
+    // Names/references come from HaloPSA: always escape before innerHTML.
+    window.ddEscHtml = function (value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+</script>
+<div class="ui-page">
+    <x-ui.page-header title="Clients" subtitle="Client organisations and their PSA / documentation links.">
+        <x-slot name="actions">
+            <x-ui.button :href="route('admin.clients.create')" variant="primary">
+                <x-ui.icon name="plus" :size="16" /> New client
+            </x-ui.button>
+            <button type="button" id="btn-halo-import" class="ui-btn ui-btn--secondary">
+                <x-ui.icon name="download" :size="16" /> + HaloPSA
+            </button>
+        </x-slot>
+    </x-ui.page-header>
+
     <div class="dd-clients-card">
-        <h1 class="dd-clients-title">Clients</h1>
 
         {{-- Header / actions --}}
         <div class="dd-clients-toolbar">
@@ -11,13 +29,14 @@
             <form method="GET"
                   action="{{ route('admin.clients.index') }}"
                   class="dd-search-form">
-                <input type="text"
+                <label for="client-search" class="sr-only">Search clients</label>
+                <input type="search"
                        name="search"
                        id="client-search"
                        placeholder="Search clients..."
                        class="dd-search-input"
                        value="{{ $search ?? '' }}">
-                <button type="submit" class="btn-accent dd-search-btn">Search</button>
+                <button type="submit" class="ui-btn ui-btn--primary dd-search-btn">Search</button>
 
                 {{-- Preserve sort parameters --}}
                 @if(request('sort'))
@@ -28,15 +47,15 @@
                 @endif
             </form>
 
-            <div class="dd-clients-actions">
-                <a href="{{ route('admin.clients.create') }}" class="btn-accent dd-pill-btn">
-                    New client
-                </a>
+        </div>
 
-                <button type="button" id="btn-halo-import" class="btn-accent dd-pill-btn">
-                    + HaloPSA
-                </button>
-            </div>
+        {{-- Local mirror freshness: pages never call Halo / IT Glue; workers refresh in the background --}}
+        <div class="dd-status-muted" id="dd-sync-bar" style="display:flex;flex-wrap:wrap;gap:0.75rem 1rem;align-items:center;margin:0 0 1rem;padding:0.625rem 0.875rem;font-size:13px;background:var(--dd-surface-soft);border:1px solid var(--dd-border);border-radius:var(--dd-radius);">
+            <span>HaloPSA: <strong id="dd-sync-halo">{{ $syncStatus['halo']['last_synced_human'] ?? null ? 'synced ' . $syncStatus['halo']['last_synced_human'] : 'never synced' }}</strong></span>
+            <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" onclick="ddRefreshSync('/admin/sync/halo/refresh', this)">Refresh now</button>
+            <span>IT Glue: <strong id="dd-sync-itglue">{{ $syncStatus['itglue']['last_synced_human'] ?? null ? 'synced ' . $syncStatus['itglue']['last_synced_human'] : 'never synced' }}</strong></span>
+            <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" onclick="ddRefreshSync('/admin/sync/itglue/refresh', this)">Refresh now</button>
+            <span id="dd-sync-msg" role="status"></span>
         </div>
 
         {{-- Clients table --}}
@@ -129,9 +148,7 @@
                                 @endif
                             </td>
                             <td class="dd-cell-center">
-                                <span class="{{ $client->active ? 'dd-status-success' : 'dd-status-muted' }}">
-                                    {{ $client->active ? 'Active' : 'Inactive' }}
-                                </span>
+                                <x-ui.badge :variant="$client->active ? 'success' : 'neutral'">{{ $client->active ? 'Active' : 'Inactive' }}</x-ui.badge>
                             </td>
                             <td class="dd-cell-right">
                                 <a href="{{ route('admin.clients.edit', $client) }}"
@@ -145,19 +162,19 @@
                         {{-- Expandable details row --}}
                         <tr class="client-details" data-client-id="{{ $client->id }}" style="display:none;">
                             <td colspan="6" class="dd-expandable-cell">
-                                <div style="background:#0f172a;padding:16px 20px;border-radius:0;">
+                                <div style="background:var(--dd-surface-soft);padding:1rem 1.25rem;border-top:1px solid var(--dd-border);">
                                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
                                         {{-- Info column --}}
                                         <div>
                                             <div style="font-weight:600;">{{ $client->business_name }}</div>
-                                            <div style="font-size:13px;opacity:.8;">
+                                            <div class="ui-muted" style="font-size:13px;">
                                                 {{ $client->abn ? 'ABN: ' . $client->abn : 'No ABN' }}
                                                 • {{ $client->active ? 'Active' : 'Inactive' }}
                                             </div>
                                         </div>
-                                        <div style="font-size:13px;opacity:.7;">
-                                            {{ $client->domains()->count() }} domains • {{ $client->users()->count() }} users
+                                        <div class="ui-muted" style="font-size:13px;">
+                                            {{ $client->domains_count }} domains • {{ $client->users_count }} users
                                         </div>
                                     </div>
 
@@ -168,6 +185,9 @@
                                             @if($client->halopsa_reference)
                                                 <div class="dd-info-item">
                                                     <strong>HaloPSA Ref:</strong> {{ $client->halopsa_reference }}
+                                                    &middot; {{ $client->halo_synced_at ? 'synced ' . $client->halo_synced_at->diffForHumans() : 'not synced yet' }}
+                                                    <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm"
+                                                            onclick="ddRefreshSync('/admin/sync/clients/{{ $client->id }}/halo/refresh', this, event)">Refresh now</button>
                                                 </div>
                                             @endif
                                             @if($client->itglue_org_name)
@@ -179,14 +199,14 @@
 
                                         {{-- Actions column --}}
                                         <div>
-                                            <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#9ca3af;">Integration Actions</h4>
+                                            <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--dd-text-soft);">Integration Actions</h4>
 
                                             {{-- ITGlue Sync --}}
                                             @if($client->itglue_org_id)
                                                 <button type="button"
                                                         onclick="syncClientToItglue({{ $client->id }}, event)"
-                                                        class="btn-accent dd-pill-btn dd-sync-btn">
-                                                    📘 Sync Domains to ITGlue
+                                                        class="ui-btn ui-btn--secondary ui-btn--sm dd-sync-btn">
+                                                    Sync Domains to ITGlue
                                                 </button>
                                             @else
                                                 <div class="dd-status-muted dd-no-integration">
@@ -197,23 +217,23 @@
                                             {{-- HaloPSA Actions --}}
                                             @if($client->halopsa_reference)
                                                 @php
-                                                    $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
-                                                    $totalDomains = $client->domains()->count();
+                                                    $domainsWithAssets = $client->halo_linked_domains_count;
+                                                    $totalDomains = $client->domains_count;
                                                 @endphp
 
                                                 {{-- Link Domains from Halo button --}}
                                                 <button type="button"
                                                         onclick="linkDomainsFromHalo({{ $client->id }}, event)"
-                                                        class="btn-accent dd-pill-btn dd-sync-btn">
-                                                    🔗 Link Domains from Halo
+                                                        class="ui-btn ui-btn--secondary ui-btn--sm dd-sync-btn">
+                                                    Link Domains from Halo
                                                 </button>
 
                                                 {{-- Sync DNS to HaloPSA --}}
                                                 @if($domainsWithAssets > 0)
                                                     <button type="button"
                                                             onclick="syncClientDnsToHalo({{ $client->id }}, event)"
-                                                            class="btn-accent dd-pill-btn dd-sync-btn">
-                                                        🔧 Sync DNS to HaloPSA ({{ $domainsWithAssets }})
+                                                            class="ui-btn ui-btn--secondary ui-btn--sm dd-sync-btn">
+                                                        Sync DNS to HaloPSA ({{ $domainsWithAssets }})
                                                     </button>
                                                 @else
                                                     <div class="dd-status-muted dd-no-integration">
@@ -232,8 +252,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="dd-empty-state">
-                                No clients found.
+                            <td colspan="6">
+                                <x-ui.empty-state title="No clients found" text="Try a different search, or add a new client." icon="users" />
                             </td>
                         </tr>
                     @endforelse
@@ -257,7 +277,7 @@
                 Import clients from HaloPSA
             </h2>
 
-            <p style="font-size:13px;color:#9ca3af;margin-bottom:12px;">
+            <p style="font-size:13px;color:var(--dd-text-soft);margin-bottom:12px;">
                 Select one or more Halo clients to import. Matching domain assets will be linked automatically.
             </p>
 
@@ -265,8 +285,7 @@
             <input type="text"
                    id="halo-import-search"
                    placeholder="Search clients..."
-                   style="width:100%;padding:8px 12px;border-radius:12px;border:1px solid var(--dd-card-border);
-                          font-size:14px;margin-bottom:12px;background:var(--dd-pill-bg);color:var(--dd-text-color);">
+                   style="width:100%;margin-bottom:12px;">
 
             <div id="halo-import-loading" class="dd-loading-text">
                 Loading clients from HaloPSA...
@@ -289,7 +308,7 @@
                 </table>
             </div>
 
-            <div id="halo-import-no-results" style="display:none;font-size:14px;color:#9ca3af;margin-top:8px;">
+            <div id="halo-import-no-results" style="display:none;font-size:14px;color:var(--dd-text-soft);margin-top:8px;">
                 No clients match your search.
             </div>
 
@@ -510,10 +529,10 @@
                 const isChecked = selectedImportClientIds.has(String(client.id));
                 tr.innerHTML = `
                     <td style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);">
-                        <input type="checkbox" class="halo-client-checkbox dd-checkbox" value="${client.id}" ${isChecked ? 'checked' : ''}>
+                        <input type="checkbox" class="halo-client-checkbox dd-checkbox" value="${ddEscHtml(client.id)}" ${isChecked ? 'checked' : ''}>
                     </td>
-                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${client.name || ''}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${client.reference || ''}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${ddEscHtml(client.name || '')}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid var(--dd-card-border);background:var(--dd-card-bg);color:var(--dd-text-color);">${ddEscHtml(client.reference || '')}</td>
                 `;
                 const checkbox = tr.querySelector('.halo-client-checkbox');
                 checkbox.addEventListener('change', function () {
@@ -689,6 +708,26 @@
         }
     }
 
+    // Queue a background refresh; the server answers 202 immediately.
+    function ddRefreshSync(url, btn, event) {
+        if (event) event.stopPropagation();
+        const msg = document.getElementById('dd-sync-msg');
+        btn.disabled = true;
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (msg) msg.textContent = ok ? 'Refresh queued - it runs in the background.' : (d.error || d.message || 'Could not queue refresh');
+        })
+        .catch(() => { if (msg) msg.textContent = 'Could not queue refresh'; })
+        .finally(() => setTimeout(() => { btn.disabled = false; }, 3000));
+    }
+
     // Sync functions
     function syncClientToItglue(clientId, event) {
         event.stopPropagation();
@@ -856,37 +895,17 @@
 
 <style>
     :root {
-        --dd-card-radius: 18px;
-        --dd-card-padding: 18px 20px;
-        --dd-pill-radius: 9999px;
-        --dd-pill-padding: 8px 14px;
-
-        --dd-card-bg: #ffffff;
-        --dd-card-border: #d1d5db;
-        --dd-pill-bg: #f3f4f6;
-        --dd-pill-border: #d1d5db;
-        --dd-text-color: #111827;
-        --dd-header-bg: #f9fafb;
-        --dd-header-text: #111827;
-        --dd-row-alt-bg: #f9f9fb;
-        --dd-hover-bg: rgba(148,163,184,0.12);
-        --dd-overlay-bg: rgba(15,23,42,0.65);
-    }
-
-    body.dark-mode,
-    body[data-theme="dark"],
-    html.dark,
-    html[data-theme="dark"] {
-        --dd-card-bg: #020617;
-        --dd-card-border: #1f2937;
-        --dd-pill-bg: #0f172a;
-        --dd-pill-border: #374151;
-        --dd-text-color: #e5e7eb;
-        --dd-header-bg: #020617;
-        --dd-header-text: #f9fafb;
-        --dd-row-alt-bg: #111827;
-        --dd-hover-bg: rgba(148,163,184,0.18);
-        --dd-overlay-bg: rgba(15,23,42,0.85);
+        --dd-card-radius: var(--dd-radius-lg);
+        --dd-pill-radius: var(--dd-radius);
+        --dd-card-bg: var(--dd-surface);
+        --dd-card-border: var(--dd-border);
+        --dd-pill-bg: var(--dd-surface);
+        --dd-pill-border: var(--dd-border-strong);
+        --dd-text-color: var(--dd-text);
+        --dd-header-bg: var(--dd-surface-soft);
+        --dd-header-text: var(--dd-text-soft);
+        --dd-hover-bg: var(--dd-surface-muted);
+        --dd-overlay-bg: var(--dd-backdrop);
     }
 
     .dd-hidden {
@@ -895,18 +914,13 @@
 
     /* Card styling */
     .dd-clients-card {
+        box-shadow: var(--dd-shadow-xs);
         border-radius: var(--dd-card-radius);
-        padding: 16px 20px;
+        padding: 1.25rem;
         margin-top: 0;
         border: 1px solid var(--dd-card-border);
         background: var(--dd-card-bg);
         color: var(--dd-text-color);
-    }
-
-    .dd-clients-title {
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 16px;
     }
 
     /* Toolbar */
@@ -935,59 +949,10 @@
         min-width: 250px;
     }
 
-    .dd-search-input {
-        flex: 1;
-        padding: 10px 16px !important;
-        border-radius: 12px !important;
-        border: 1px solid #1e293b !important;
-        background: #0f172a !important;
-        color: #e5e7eb !important;
-        font-size: 14px;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .dd-search-input:focus {
-        outline: none;
-        border-color: #334155 !important;
-        box-shadow: 0 0 0 2px rgba(51, 65, 85, 0.3);
-    }
-
-    .dd-search-input::placeholder {
-        color: #64748b !important;
-    }
-
     .dd-search-btn {
         white-space: nowrap;
         padding: 8px 16px !important;
         border-radius: 12px !important;
-    }
-
-    /* Table styling */
-    .dd-clients-table-wrapper {
-        overflow-x: auto;
-    }
-
-    .dd-clients-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-    }
-
-    .dd-clients-table thead tr {
-        background: var(--dd-header-bg);
-        color: var(--dd-header-text);
-    }
-
-    .dd-clients-table th,
-    .dd-clients-table td {
-        padding: 8px 10px;
-        text-align: left;
-        border-bottom: 1px solid rgba(148,163,184,0.4);
-    }
-
-    .dd-clients-table tbody tr:nth-child(4n+1),
-    .dd-clients-table tbody tr:nth-child(4n+2) {
-        background: var(--dd-row-alt-bg);
     }
 
     .dd-clients-pagination {
@@ -1067,12 +1032,16 @@
     }
 
     .dd-error-text {
-        color: #f87171;
+        color: var(--dd-danger-text);
     }
 
     /* Edit button */
     .dd-edit-btn {
-        padding: 6px 12px;
+        display: inline-flex;
+        align-items: center;
+        min-height: 2rem;
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
         border-radius: var(--dd-pill-radius);
         border: 1px solid var(--dd-pill-border);
         background: var(--dd-pill-bg);
@@ -1152,7 +1121,7 @@
         font-size: 14px;
         font-weight: 600;
         margin-bottom: 8px;
-        color: #9ca3af;
+        color: var(--dd-text-soft);
     }
 
     .dd-info-item {
@@ -1179,17 +1148,11 @@
         font-size: 12px;
     }
 
-    /* Pill button styling */
-    .dd-pill-btn {
-        border-radius: 12px !important;
-        padding: 8px 16px !important;
-    }
-
     /* Empty state */
     .dd-empty-state {
         padding: 12px 6px;
         text-align: center;
-        color: #9ca3af;
+        color: var(--dd-text-soft);
     }
 
     /* Force rounded custom checkboxes in Halo import modal (native checkboxes stay square on some browsers). */
@@ -1232,34 +1195,9 @@
     }
 
     /* Modal */
-    .dd-modal {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 60;
-    }
 
-    .dd-modal-backdrop {
-        position: absolute;
-        inset: 0;
-        background: var(--dd-overlay-bg);
-    }
-
-    .dd-modal-dialog {
-        position: relative;
-        background: var(--dd-card-bg);
-        border-radius: 12px;
-        padding: 16px 18px 18px;
-        border: 1px solid var(--dd-card-border);
-        width: 420px;
-        max-width: 95%;
-        box-shadow: 0 20px 40px rgba(0,0,0,.6);
-    }
-
-    .dd-modal-wide {
-        width: 720px;
+    .dd-modal-dialog.dd-modal-wide {
+        width: min(45rem, 100%);
     }
 
     .dd-modal-title {
@@ -1271,13 +1209,13 @@
 
     .dd-modal-description {
         font-size: 13px;
-        color: #9ca3af;
+        color: var(--dd-text-soft);
         margin-bottom: 12px;
     }
 
     .dd-loading-text {
         font-size: 14px;
-        color: #9ca3af;
+        color: var(--dd-text-soft);
         margin: 8px 0;
     }
 

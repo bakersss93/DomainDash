@@ -24,12 +24,30 @@ return Application::configure(basePath: dirname(__DIR__))
             'mfa.policy'        => \App\Http\Middleware\EnsureMfaPolicy::class,
         ]);
 
+        // Trusted proxies (SEC-16): TRUSTED_PROXIES env -> config/trustedproxy.php, which
+        // Laravel's global TrustProxies middleware reads (cache-safe). Empty = trust nobody.
+        $middleware->trustProxies(headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+            | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO);
+
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ForceHttps::class,
+        ]);
+
         $middleware->web(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\ApplyImpersonation::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
 
+        // Per-IP throttle runs BEFORE API-key authentication (SEC-06).
+        $middleware->api(prepend: [
+            'throttle:api-ip',
+        ]);
+
         $middleware->api(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
     })
@@ -38,5 +56,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
         
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // API clients always get JSON (e.g. 422 validation errors) regardless of Accept.
+        $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {
+            return $request->is('api/*') || $request->expectsJson();
+        });
     })->create();

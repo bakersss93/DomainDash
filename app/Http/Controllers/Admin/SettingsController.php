@@ -55,6 +55,9 @@ class SettingsController extends Controller
                 'retention_days' => 90,
             ]),
         ];
+        // Never echo stored secrets into the page: show the placeholder instead.
+        $settings = \App\Support\Redactor::maskForForm($settings);
+
         return view('admin.settings.index', compact('settings'));
     }
 
@@ -193,14 +196,17 @@ class SettingsController extends Controller
             }
 
             $currentValue = Setting::get($key, null);
+            // Keep stored secrets unless a genuinely new value was submitted.
+            $value = \App\Support\Redactor::preserveSecrets($value, $currentValue);
             $diff = $this->extractChangedValues($currentValue, $value);
             if ($diff === null) {
                 continue;
             }
 
             Setting::put($key, $value);
-            $oldValues[$key] = $diff['old'];
-            $newValues[$key] = $diff['new'];
+            // Audit diff never contains secret values.
+            $oldValues[$key] = \App\Support\Redactor::redact($diff['old']);
+            $newValues[$key] = \App\Support\Redactor::redact($diff['new']);
         }
 
         if (!empty($newValues)) {
