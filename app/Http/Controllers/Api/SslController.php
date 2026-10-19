@@ -38,9 +38,9 @@ class SslController extends Controller
         $response = $synergy->listAllSSLCerts();
 
         if (($response['status'] ?? null) !== 'OK') {
-            return response()->json([
-                'message' => 'Synergy error: ' . ($response['errorMessage'] ?? 'Unknown error'),
-            ], 502);
+            \Log::warning('Synergy SSL sync failed', ['status' => $response['status'] ?? null, 'error' => $response['errorMessage'] ?? null]);
+
+            return response()->json(['message' => 'Registrar request failed. Try again later.'], 502);
         }
 
         $synced = 0;

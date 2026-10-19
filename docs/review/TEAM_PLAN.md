@@ -14,4 +14,4 @@ Roles: researcher, builder, verifier. Budget: 1 run, 30 units, 10 tasks.
 | 7 | Remediate High/Critical security findings | builder | done (SEC-10 needs local composer update) | |
 | 8 | OpenAPI 3.1 spec + download on API page | builder | done (41 ops, redocly valid; PHP test not run — no vendor) | |
 | 9 | UI consistency pass | builder | done | |
-| 10 | Final verification | verifier | blocked on all | |
+| 10 | Final verification | verifier | done (166 passed, 0 failed) | |

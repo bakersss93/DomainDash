@@ -806,20 +806,20 @@
                 console.log('ITGlue sync response:', data);
 
                 if (data.success) {
-                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + data.message + '</div>';
+                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + ddEscHtml(data.message) + '</div>';
 
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
                         data.results.forEach(result => {
                             const color = result.success ? '#34d399' : '#f87171';
-                            html += '<div style="color:' + color + ';">• ' + result.domain + ': ' + result.message + '</div>';
+                            html += '<div style="color:' + color + ';">• ' + ddEscHtml(result.domain) + ': ' + ddEscHtml(result.message) + '</div>';
                         });
                         html += '</div>';
                     }
 
                     statusDiv.innerHTML = html;
                 } else {
-                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + (data.error || data.message) + '</div>';
+                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + ddEscHtml(data.error || data.message) + '</div>';
                 }
             })
             .catch(err => {
@@ -833,7 +833,7 @@
                     errorMsg = err.message;
                 }
 
-                statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + errorMsg + '</div>';
+                statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + ddEscHtml(errorMsg) + '</div>';
             })
             .finally(() => {
                 clearTimeout(timeoutId);
@@ -858,20 +858,20 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + data.message + '</div>';
+                    let html = '<div style="color:var(--dd-status-success-fg);">✓ ' + ddEscHtml(data.message) + '</div>';
 
                     if (data.results && data.results.length > 0) {
                         html += '<div style="margin-top:6px;font-size:12px;">';
                         data.results.forEach(result => {
                             const color = result.success ? '#34d399' : '#f87171';
-                            html += '<div style="color:' + color + ';">• ' + result.domain + ': ' + result.message + '</div>';
+                            html += '<div style="color:' + color + ';">• ' + ddEscHtml(result.domain) + ': ' + ddEscHtml(result.message) + '</div>';
                         });
                         html += '</div>';
                     }
 
                     statusDiv.innerHTML = html;
                 } else {
-                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + (data.error || data.message) + '</div>';
+                    statusDiv.innerHTML = '<div style="color:var(--dd-danger-text);">✗ ' + ddEscHtml(data.error || data.message) + '</div>';
                 }
             })
             .catch(err => {

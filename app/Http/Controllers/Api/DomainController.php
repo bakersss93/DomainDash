@@ -77,9 +77,9 @@ class DomainController extends Controller
             $response = $synergy->listDomains($page, $limit);
 
             if (($response['status'] ?? null) !== 'OK') {
-                return response()->json([
-                    'message' => 'Synergy error: ' . ($response['errorMessage'] ?? 'Unknown error'),
-                ], 502);
+                \Log::warning('Synergy domain sync failed', ['status' => $response['status'] ?? null, 'error' => $response['errorMessage'] ?? null]);
+
+                return response()->json(['message' => 'Registrar request failed. Try again later.'], 502);
             }
 
             foreach ($response['domainList'] ?? [] as $entry) {
@@ -143,7 +143,7 @@ class DomainController extends Controller
 
         return response()->json([
             'ok'      => str_starts_with(strtoupper((string) ($res['status'] ?? '')), 'OK'),
-            'message' => $res['errorMessage'] ?? 'Renewal submitted.',
+            'message' => str_starts_with(strtoupper((string) ($res['status'] ?? '')), 'OK') ? 'Renewal submitted.' : 'Renewal was not accepted by the registrar.',
         ]);
     }
 

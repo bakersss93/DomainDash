@@ -3,7 +3,7 @@
   "info": {
     "title": "DomainDash API",
     "version": "1.0.0",
-    "description": "REST API for DomainDash: domains, DNS, clients, hosting, SSL, internet services, HaloPSA tickets, domain pricing, portal users and audit logs.\n\n**Authentication.** Every request must carry an API key in the `x-api-key` header (raw key value, NOT `Authorization: Bearer`). Keys are created by an administrator on the API Keys page. Each key has optional scopes (`<resource>.read` / `<resource>.write`; a key with no scopes may call everything), an optional IP allow-list and an hourly rate limit.\n\n**Send `Accept: application/json`.** Without it Laravel may answer validation errors with an HTML redirect instead of a 422 JSON body.\n\n**Base URL.** All paths below are relative to `{baseUrl}/api`.\n\n**Pagination.** List endpoints use Laravel pagination: `?page=` and `?per_page=` (default 100); results are in `data` with `current_page`, `last_page`, `total`, `next_page_url`, etc. Ticket listing uses its own simpler envelope.\n\n**Scopes required per operation** are listed in the `x-required-scope` extension on each operation.",
+    "description": "REST API for DomainDash: domains, DNS, clients, hosting, SSL, internet services, HaloPSA tickets, domain pricing, portal users and audit logs.\n\n**Authentication.** Every request must carry an API key in the `x-api-key` header (raw key value, NOT `Authorization: Bearer`). Keys are created by an administrator on the API Keys page and have the format `<prefix>.<secret>` (12-character hex prefix, a dot, then a 48-character hex secret); the secret is shown once at creation or regeneration. Each key carries a list of scopes (`<resource>.read` / `<resource>.write`), an optional IP allow-list, an optional expiry and an hourly rate limit. **A key with no scopes has no access** (every call returns 403 `Scope denied`). Sensitive scopes are never implied by broad legacy scopes: `domains.auth-code` (EPP/transfer codes), `users.read`, `users.write`, `users.admin` (modify or delete Administrator users and assign the Administrator role) and `audit.read` must be granted explicitly.\n\n**Errors.** All `/api/*` responses are JSON, including 422 validation errors, whether or not `Accept: application/json` is sent (sending it is still recommended). 429 responses (per-key hourly quota, per-IP request throttle, or too many failed authentication attempts) carry a `Retry-After` header with the number of seconds to wait.\n\n**Base URL.** All paths below are relative to `{baseUrl}/api`.\n\n**Pagination.** List endpoints use Laravel pagination: `?page=` and `?per_page=` (default 100, maximum 100; larger values are clamped); results are in `data` with `current_page`, `last_page`, `total`, `next_page_url`, etc. Ticket listing uses its own simpler envelope.\n\n**Scopes required per operation** are listed in the `x-required-scope` extension on each operation.",
     "contact": {
       "name": "DomainDash administrator"
     }
@@ -261,8 +261,8 @@
             "ApiKeyAuth": []
           }
         ],
-        "x-required-scope": "domains.read",
-        "description": "Fetches the transfer/EPP auth code live from the registrar. Sensitive.",
+        "x-required-scope": "domains.auth-code",
+        "description": "Fetches the transfer/EPP auth code live from the registrar. Sensitive; requires the dedicated `domains.auth-code` scope (not satisfied by `domains.read` or the legacy `read` scope). Each read is audit-logged.",
         "parameters": [
           {
             "$ref": "#/components/parameters/DomainId"
@@ -1084,7 +1084,7 @@
           }
         ],
         "x-required-scope": "clients.read",
-        "description": "Routed to the same handler as listDomains. NOTE: the {client} path value is currently NOT applied as a filter; pass `client_id` as a query parameter to filter by client.",
+        "description": "Domains belonging to the client in the path (always filtered by that client). Returns 404 if the client does not exist.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Page"
@@ -1094,9 +1094,6 @@
           },
           {
             "$ref": "#/components/parameters/ClientId"
-          },
-          {
-            "$ref": "#/components/parameters/ClientIdQuery"
           },
           {
             "name": "status",
@@ -1139,6 +1136,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -2158,6 +2158,7 @@
           }
         ],
         "x-required-scope": "users.write",
+        "description": "Creates a verified, active-by-default user that must enrol MFA on first sign-in. Assigning the Administrator role requires the `users.admin` scope.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2255,7 +2256,7 @@
           }
         ],
         "x-required-scope": "users.write",
-        "description": "Partial update. Password cannot be changed through the API.",
+        "description": "Partial update. Password cannot be changed through the API. Returns 403 when the target user is an Administrator and the key lacks the `users.admin` scope.",
         "parameters": [
           {
             "$ref": "#/components/parameters/UserId"
@@ -2314,6 +2315,7 @@
           }
         ],
         "x-required-scope": "users.write",
+        "description": "Returns 403 when the target is an Administrator and the key lacks the `users.admin` scope, and 422 when it would delete the last Administrator.",
         "parameters": [
           {
             "$ref": "#/components/parameters/UserId"
@@ -2331,6 +2333,16 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "description": "The last remaining Administrator cannot be deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -2465,7 +2477,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "x-api-key",
-        "description": "DomainDash API key. Required scopes: domains.read; domains.write; dns.read; dns.write; clients.read; clients.write; hosting.read; hosting.write; ssl.read; ssl.write; internet.read; internet.write; tickets.read; tickets.write; pricing.read; users.read; users.write; audit.read. Keys with no scopes are unrestricted."
+        "description": "DomainDash API key in the format `<prefix>.<secret>`, sent in the `x-api-key` header. Scopes: domains.read; domains.auth-code; domains.write; dns.read; dns.write; clients.read; clients.write; hosting.read; hosting.write; ssl.read; ssl.write; internet.read; internet.write; tickets.read; tickets.write; pricing.read; users.read; users.write; users.admin; audit.read. Keys with no scopes have no access. The legacy broad scopes `read` / `write` still satisfy ordinary `*.read` / `*.write` scopes but never domains.auth-code, users.*, or audit.read."
       }
     },
     "parameters": {
@@ -2484,10 +2496,11 @@
         "name": "per_page",
         "in": "query",
         "required": false,
-        "description": "Items per page (default 100). No server-side maximum is enforced on most list endpoints.",
+        "description": "Items per page (default 100, clamped to a maximum of 100).",
         "schema": {
           "type": "integer",
           "minimum": 1,
+          "maximum": 100,
           "default": 100
         }
       },
@@ -2585,7 +2598,7 @@
     },
     "responses": {
       "Unauthorized": {
-        "description": "Missing or invalid API key (`API key required` / `Invalid API key`).",
+        "description": "Missing, invalid or expired API key (`API key required` / `Invalid API key` / `API key expired`).",
         "content": {
           "application/json": {
             "schema": {
@@ -2595,7 +2608,7 @@
         }
       },
       "Forbidden": {
-        "description": "Caller IP not in the key's allow-list (`IP not allowed`) or the key lacks the required scope (`Scope denied`).",
+        "description": "Caller IP not in the key's allow-list (`IP not allowed`), the key lacks the required scope or has no scopes at all (`Scope denied`), or the operation targets an Administrator user without the `users.admin` scope (`Administrator accounts cannot be modified through the API.`).",
         "content": {
           "application/json": {
             "schema": {
@@ -2625,7 +2638,16 @@
         }
       },
       "RateLimited": {
-        "description": "Per-key hourly rate limit exceeded (`Rate limit exceeded`). Counted per key and client IP per clock hour.",
+        "description": "Per-key hourly quota exceeded (`Rate limit exceeded`, counted per key per clock hour), too many failed authentication attempts from this IP (`Too many failed attempts`), or the per-IP request throttle. Honour the `Retry-After` header.",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -4283,7 +4305,7 @@
               "string",
               "null"
             ],
-            "description": "Existing role name (Spatie permission role)."
+            "description": "Existing role name. Only `Technician` and `Customer` are accepted unless the key also has the `users.admin` scope, which additionally allows `Administrator`; anything else returns 422. Users created through the API must enrol MFA on first sign-in."
           }
         },
         "required": [
@@ -4315,7 +4337,7 @@
               "string",
               "null"
             ],
-            "description": "Replaces the user's roles with this role; empty/null removes all roles."
+            "description": "Replaces the user's roles with this role; empty/null removes all roles. `Administrator` is only accepted with the `users.admin` scope (otherwise 422)."
           }
         }
       },

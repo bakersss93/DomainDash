@@ -364,7 +364,7 @@ class ServicesController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return back()->with('error', 'Error getting cPanel login: ' . $e->getMessage());
+            return back()->with('error', 'Error getting cPanel login. See the application log for details.');
         }
     }
 

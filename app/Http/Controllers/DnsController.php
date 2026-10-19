@@ -54,9 +54,10 @@ class DnsController extends Controller
                 ];
             });
         } catch (\Throwable $e) {
+            report($e);
             session()->flash(
                 'status',
-                'Unable to refresh DNS records from Synergy: ' . $e->getMessage()
+                'Unable to refresh DNS records from Synergy. Showing the last known data.'
             );
         }
 
@@ -188,12 +189,13 @@ class DnsController extends Controller
                 null // dnsConfigType is optional
             );
         } catch (\Throwable $e) {
+            report($e);
             $domain->dns_config = $dnsMode;
             $domain->save();
 
             return back()->with(
                 'status',
-                'DNS options saved locally but failed to update Synergy: ' . $e->getMessage()
+                'DNS options saved locally but failed to update Synergy. Check the application log and retry.'
             );
         }
 

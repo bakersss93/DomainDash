@@ -43,9 +43,9 @@ class HostingController extends Controller
             $res = $synergy->listHosting(null, $page, $limit);
 
             if (($res['status'] ?? null) !== 'OK') {
-                return response()->json([
-                    'message' => 'Synergy error: ' . ($res['errorMessage'] ?? 'Unknown error'),
-                ], 502);
+                \Log::warning('Synergy hosting sync failed', ['status' => $res['status'] ?? null, 'error' => $res['errorMessage'] ?? null]);
+
+                return response()->json(['message' => 'Registrar request failed. Try again later.'], 502);
             }
 
             foreach ($res['serviceList'] ?? [] as $entry) {

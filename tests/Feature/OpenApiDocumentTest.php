@@ -109,4 +109,34 @@ class OpenApiDocumentTest extends TestCase
         $ids = array_merge(...array_values(array_map(fn ($m) => array_column($m, 'operationId'), $spec['paths'])));
         $this->assertSame(count($ids), count(array_unique($ids)), 'operationIds must be unique');
     }
+    public function test_documented_scopes_match_route_middleware(): void
+    {
+        $spec = json_decode(file_get_contents(resource_path('openapi/domaindash-openapi.json')), true);
+
+        $documented = [];
+        foreach ($spec['paths'] as $path => $methods) {
+            foreach ($methods as $method => $operation) {
+                $documented[strtoupper($method) . ' ' . preg_replace('/\{[^}]+\}/', '{}', $path)] = $operation['x-required-scope'] ?? null;
+            }
+        }
+
+        foreach (Route::getRoutes() as $route) {
+            if (! str_starts_with($route->uri(), 'api/v1/')) {
+                continue;
+            }
+            $scope = null;
+            foreach ($route->gatherMiddleware() as $mw) {
+                if (is_string($mw) && str_starts_with($mw, \App\Http\Middleware\ApiKeyAuth::class . ':')) {
+                    $scope = substr($mw, strlen(\App\Http\Middleware\ApiKeyAuth::class) + 1);
+                }
+            }
+            foreach ($route->methods() as $method) {
+                if ($method === 'HEAD') {
+                    continue;
+                }
+                $key = $method . ' ' . preg_replace('/\{[^}]+\}/', '{}', substr($route->uri(), strlen('api')));
+                $this->assertSame($scope, $documented[$key] ?? null, "Scope drift for $key");
+            }
+        }
+    }
 }
