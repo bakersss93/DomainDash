@@ -10,12 +10,16 @@
 # Order of operations (see README "Platform HTTPS"):
 #   1. install the helper (deploy/https/install.sh)  -> creates an empty snippet so this file loads
 #   2. request / upload a certificate in Settings > Platform HTTPS -> helper fills the snippet
-#   3. add this server block (or add the include to your existing 443 block), nginx -t, reload.
+#   3. add this server block (or add the include to your existing 443 block), edit the three
+#      marked lines, then: sudo nginx -t && sudo systemctl reload nginx
+#      Enable this block only AFTER step 2 succeeds - a 443 ssl listener with no certificate
+#      in the snippet fails nginx -t.
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    # "listen ... ssl http2" works on every nginx version Ubuntu ships (1.18 / 1.24).
+    # On nginx >= 1.25.1 you may instead use "listen 443 ssl;" plus "http2 on;".
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name dash.example.com;               # <-- your hostname (must match the certificate)
 
     include /etc/nginx/snippets/domaindash-ssl.conf;
