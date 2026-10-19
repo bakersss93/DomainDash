@@ -24,6 +24,23 @@ class ScheduleRegistrar
         self::scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'sync-halo-assets', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'sync-itglue', $timezone);
 
+        // Halo / IT Glue local mirrors (queued; no-ops when the integration is not configured).
+        // Pushes to Halo / IT Glue stay on the admin-configured sync_halo_assets / sync_itglue tasks above.
+        $queue = config('integrations.sync.queue');
+        $schedule->job(new \App\Jobs\SyncHaloClientsJob(), $queue)
+            ->everySixHours()->name('scheduled-halo-clients')->onOneServer()
+            ->description('Queue job: mirror Halo clients');
+        $schedule->job(new \App\Jobs\SyncHaloAssetsJob(), $queue)
+            ->hourly()->name('scheduled-halo-assets')->onOneServer()
+            ->description('Queue job: incremental Halo domain asset mirror');
+        $schedule->job(new \App\Jobs\SyncItGlueOrganizationsJob(), $queue)
+            ->everySixHours()->name('scheduled-itglue-organizations')->onOneServer()
+            ->description('Queue job: mirror IT Glue organisations');
+        // Daily full reconcile (also removes assets deleted remotely).
+        $schedule->job(new \App\Jobs\SyncHaloAssetsJob(null, true), $queue)
+            ->dailyAt('03:15')->name('scheduled-halo-assets-full')->onOneServer()
+            ->description('Queue job: full Halo domain asset reconcile');
+
         // Backup
         $schedule->command('domaindash:backup-run')
             ->dailyAt('03:00')

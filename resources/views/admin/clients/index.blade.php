@@ -39,6 +39,15 @@
             </div>
         </div>
 
+        {{-- Local mirror freshness: pages never call Halo / IT Glue; workers refresh in the background --}}
+        <div class="dd-status-muted" id="dd-sync-bar" style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:0 0 12px;font-size:13px;">
+            <span>HaloPSA: <strong id="dd-sync-halo">{{ $syncStatus['halo']['last_synced_human'] ?? null ? 'synced ' . $syncStatus['halo']['last_synced_human'] : 'never synced' }}</strong></span>
+            <button type="button" class="btn-accent dd-pill-btn" onclick="ddRefreshSync('/admin/sync/halo/refresh', this)">Refresh now</button>
+            <span>IT Glue: <strong id="dd-sync-itglue">{{ $syncStatus['itglue']['last_synced_human'] ?? null ? 'synced ' . $syncStatus['itglue']['last_synced_human'] : 'never synced' }}</strong></span>
+            <button type="button" class="btn-accent dd-pill-btn" onclick="ddRefreshSync('/admin/sync/itglue/refresh', this)">Refresh now</button>
+            <span id="dd-sync-msg" role="status"></span>
+        </div>
+
         {{-- Clients table --}}
         <div class="dd-clients-table-wrapper">
             <table class="dd-clients-table">
@@ -157,7 +166,7 @@
                                             </div>
                                         </div>
                                         <div style="font-size:13px;opacity:.7;">
-                                            {{ $client->domains()->count() }} domains • {{ $client->users()->count() }} users
+                                            {{ $client->domains_count }} domains • {{ $client->users_count }} users
                                         </div>
                                     </div>
 
@@ -168,6 +177,9 @@
                                             @if($client->halopsa_reference)
                                                 <div class="dd-info-item">
                                                     <strong>HaloPSA Ref:</strong> {{ $client->halopsa_reference }}
+                                                    &middot; {{ $client->halo_synced_at ? 'synced ' . $client->halo_synced_at->diffForHumans() : 'not synced yet' }}
+                                                    <button type="button" class="btn-accent dd-pill-btn"
+                                                            onclick="ddRefreshSync('/admin/sync/clients/{{ $client->id }}/halo/refresh', this, event)">Refresh now</button>
                                                 </div>
                                             @endif
                                             @if($client->itglue_org_name)
@@ -197,8 +209,8 @@
                                             {{-- HaloPSA Actions --}}
                                             @if($client->halopsa_reference)
                                                 @php
-                                                    $domainsWithAssets = $client->domains()->whereNotNull('halo_asset_id')->count();
-                                                    $totalDomains = $client->domains()->count();
+                                                    $domainsWithAssets = $client->halo_linked_domains_count;
+                                                    $totalDomains = $client->domains_count;
                                                 @endphp
 
                                                 {{-- Link Domains from Halo button --}}
@@ -687,6 +699,26 @@
             _clientSyncResultOnClose = null;
             cb();
         }
+    }
+
+    // Queue a background refresh; the server answers 202 immediately.
+    function ddRefreshSync(url, btn, event) {
+        if (event) event.stopPropagation();
+        const msg = document.getElementById('dd-sync-msg');
+        btn.disabled = true;
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json'
+            }
+        })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (msg) msg.textContent = ok ? 'Refresh queued - it runs in the background.' : (d.error || d.message || 'Could not queue refresh');
+        })
+        .catch(() => { if (msg) msg.textContent = 'Could not queue refresh'; })
+        .finally(() => setTimeout(() => { btn.disabled = false; }, 3000));
     }
 
     // Sync functions

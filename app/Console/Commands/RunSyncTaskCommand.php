@@ -3,8 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\Admin\ServicesController;
-use App\Http\Controllers\Admin\SyncController;
-use App\Models\Client;
+use App\Services\Sync\SyncDispatcher;
 use App\Models\Domain;
 use App\Services\AuditLogger;
 use App\Services\Synergy\SynergyWholesaleClient;
@@ -106,47 +105,6 @@ class RunSyncTaskCommand extends Command
         return self::SUCCESS;
     }
 
-    private function runHaloDomainSync(): int
-    {
-        AuditLogger::logSystem('sync.started', 'Scheduled Halo domain sync started.', [
-            'service' => 'halo',
-            'function' => 'sync-halo-domains',
-        ]);
-
-        $domainIds = Domain::whereNotNull('client_id')->pluck('id')->all();
-
-        if (empty($domainIds)) {
-            $this->info('No client-linked domains found for Halo domain sync.');
-            return self::SUCCESS;
-        }
-
-        $controller = app(SyncController::class);
-        $response = $controller->syncHaloDomains(new Request(['domain_ids' => $domainIds]));
-        $payload = $response->getData(true);
-
-        if (!empty($payload['error'])) {
-            $this->error('Halo domain sync failed: ' . $payload['error']);
-            Log::error('Scheduled halo domain sync failed', $payload);
-            AuditLogger::logSystem('sync.failed', 'Scheduled Halo domain sync failed.', [
-                'service' => 'halo',
-                'function' => 'sync-halo-domains',
-            ], [
-                'new_values' => ['error' => $payload['error']],
-            ]);
-            return self::FAILURE;
-        }
-
-        $this->info('Halo domain sync complete. Synced: ' . ($payload['synced_count'] ?? 0));
-        AuditLogger::logSystem('sync.completed', 'Scheduled Halo domain sync completed.', [
-            'service' => 'halo',
-            'function' => 'sync-halo-domains',
-        ], [
-            'new_values' => ['synced_count' => $payload['synced_count'] ?? 0],
-        ]);
-
-        return self::SUCCESS;
-    }
-
     private function runHostingServiceSync(): int
     {
         AuditLogger::logSystem('sync.started', 'Scheduled hosting service sync started.', [
@@ -167,78 +125,25 @@ class RunSyncTaskCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Queue the Halo pipeline (clients -> assets -> changed domains) and return
+     * immediately; a queue worker does the actual API work.
+     */
     private function runHaloAssetSync(): int
     {
-        $mappings = Client::whereNotNull('halopsa_reference')
-            ->get(['id', 'halopsa_reference'])
-            ->map(fn ($client) => [
-                'halo_id' => (string) $client->halopsa_reference,
-                'dash_client_id' => $client->id,
-            ])
-            ->all();
+        app(SyncDispatcher::class)->scheduleHaloPipeline();
+        $this->info('Halo sync queued (SyncHaloClientsJob, SyncHaloAssetsJob, SyncHaloDomainsJob). Run a queue worker to process it.');
 
-        $controller = app(SyncController::class);
-
-        if (!empty($mappings)) {
-            $clientSyncResponse = $controller->syncHaloClients(new Request(['clients' => $mappings]));
-            $clientSyncPayload = $clientSyncResponse->getData(true);
-
-            if (!empty($clientSyncPayload['error'])) {
-                $this->error('Halo client sync failed: ' . $clientSyncPayload['error']);
-                Log::error('Scheduled halo client sync failed', $clientSyncPayload);
-                return self::FAILURE;
-            }
-        }
-
-        return $this->runHaloDomainSync();
+        return self::SUCCESS;
     }
 
+    /**
+     * Queue the IT Glue pipeline (organisations -> changed domains).
+     */
     private function runItGlueSync(): int
     {
-        AuditLogger::logSystem('sync.started', 'Scheduled IT Glue sync started.', [
-            'service' => 'itglue',
-            'function' => 'sync-itglue',
-        ]);
-
-        $items = Domain::query()
-            ->whereHas('client', function ($query) {
-                $query->whereNotNull('itglue_org_id');
-            })
-            ->get(['id'])
-            ->map(fn ($domain) => [
-                'id' => $domain->id,
-                'type' => 'domain',
-            ])
-            ->all();
-
-        if (empty($items)) {
-            $this->info('No IT Glue-linked domains found for sync.');
-            return self::SUCCESS;
-        }
-
-        $controller = app(SyncController::class);
-        $response = $controller->syncItGlueConfigurations(new Request(['items' => $items]));
-        $payload = $response->getData(true);
-
-        if (!empty($payload['error'])) {
-            $this->error('IT Glue sync failed: ' . $payload['error']);
-            Log::error('Scheduled IT Glue sync failed', $payload);
-            AuditLogger::logSystem('sync.failed', 'Scheduled IT Glue sync failed.', [
-                'service' => 'itglue',
-                'function' => 'sync-itglue',
-            ], [
-                'new_values' => ['error' => $payload['error']],
-            ]);
-            return self::FAILURE;
-        }
-
-        $this->info('IT Glue configuration sync complete. Synced: ' . ($payload['synced_count'] ?? 0));
-        AuditLogger::logSystem('sync.completed', 'Scheduled IT Glue sync completed.', [
-            'service' => 'itglue',
-            'function' => 'sync-itglue',
-        ], [
-            'new_values' => ['synced_count' => $payload['synced_count'] ?? 0],
-        ]);
+        app(SyncDispatcher::class)->scheduleItGluePipeline();
+        $this->info('IT Glue sync queued (SyncItGlueOrganizationsJob, SyncItGlueConfigurationsJob). Run a queue worker to process it.');
 
         return self::SUCCESS;
     }

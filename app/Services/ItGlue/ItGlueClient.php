@@ -4,13 +4,16 @@ namespace App\Services\ItGlue;
 
 use App\Models\Domain;
 use App\Models\Setting;
+use App\Services\Integrations\IntegrationApiException;
+use App\Services\Integrations\IntegrationConfigurationException;
+use App\Services\Integrations\IntegrationHttp;
 use App\Support\WhoisFormatter;
-use GuzzleHttp\Client;
+use Generator;
 use Illuminate\Support\Facades\Log;
 
 class ItGlueClient
 {
-    protected Client $http;
+    public const PROVIDER = 'itglue';
 
     protected string $baseUrl;
     protected ?string $apiKey;
@@ -21,13 +24,7 @@ class ItGlueClient
     {
         $cfg = Setting::get('itglue', []);
 
-        // Base URL – default to official ITGlue API if not configured
-        $base = trim($cfg['base_url'] ?? '');
-        if ($base === '') {
-            $base = 'https://api.itglue.com';
-        }
-
-        $this->baseUrl = rtrim($base, '/');
+        $this->baseUrl = self::normalizeBaseUrl($cfg['base_url'] ?? null);
         $this->apiKey  = $cfg['api_key'] ?? null;
         $this->flexibleAssetTypeId = isset($cfg['flexible_asset_type_id'])
             ? (int) $cfg['flexible_asset_type_id']
@@ -39,46 +36,148 @@ class ItGlueClient
             'whois' => 'whois',
             'dns' => 'dns',
         ];
+    }
 
-        $this->http = new Client([
-            'base_uri' => $this->baseUrl,
-            'timeout'  => 30,
-        ]);
+    /**
+     * Only ever send the API key to an official https regional host.
+     * Blank falls back to the US endpoint.
+     */
+    public static function normalizeBaseUrl(?string $configured): string
+    {
+        $base = trim((string) $configured);
+        $default = (string) config('integrations.itglue.default_base_url', 'https://api.itglue.com');
+
+        if ($base === '') {
+            return $default;
+        }
+
+        $parts = parse_url($base);
+        $allowed = (array) config('integrations.itglue.allowed_hosts', []);
+
+        $valid = is_array($parts)
+            && strtolower($parts['scheme'] ?? '') === 'https'
+            && in_array(strtolower($parts['host'] ?? ''), $allowed, true)
+            && ! isset($parts['user'], $parts['pass'], $parts['port'], $parts['query'], $parts['fragment'])
+            && trim($parts['path'] ?? '', '/') === '';
+
+        if (! $valid) {
+            throw new IntegrationConfigurationException(
+                'IT Glue base URL must be https:// on one of: ' . implode(', ', $allowed) . '.'
+            );
+        }
+
+        return 'https://' . strtolower($parts['host']);
+    }
+
+    public static function isConfigured(): bool
+    {
+        $cfg = Setting::get('itglue', []);
+
+        return ! empty($cfg['api_key']);
     }
 
     protected function headers(): array
     {
-        if (!$this->apiKey) {
-            throw new \RuntimeException('ITGlue API key is not configured in settings.');
+        if (! $this->apiKey) {
+            throw new IntegrationConfigurationException('ITGlue API key is not configured in settings.');
         }
 
         return [
-            'x-api-key'    => $this->apiKey,
-            'Accept'       => 'application/vnd.api+json',
-            'Content-Type' => 'application/vnd.api+json',
+            'x-api-key' => $this->apiKey,
+            'Accept'    => 'application/vnd.api+json',
         ];
     }
 
     /**
-     * List organisations from ITGlue.
+     * Core request helper: shared timeouts, GET-only retry with backoff and
+     * Retry-After, typed exception on any failure.
      */
-    public function listOrganisations(int $pageSize = 100): array
+    protected function request(string $method, string $uri, array $query = [], ?array $json = null): array
     {
-        try {
-            $resp = $this->http->get('/organizations', [
-                'headers' => $this->headers(),
-                'query' => [
-                    'page' => ['size' => $pageSize]
-                ]
-            ]);
+        $method = strtoupper($method);
+        $url = $this->baseUrl . '/' . ltrim($uri, '/');
 
-            $data = json_decode((string) $resp->getBody(), true);
+        $response = IntegrationHttp::send(
+            self::PROVIDER,
+            $method,
+            $url,
+            function () use ($method, $url, $query, $json) {
+                $pending = IntegrationHttp::pending('', $this->headers());
 
-            return is_array($data) ? $data : [];
-        } catch (\Exception $e) {
-            Log::error('ITGlue listOrganisations error: ' . $e->getMessage());
-            throw $e;
+                if ($json !== null) {
+                    $pending = $pending->withBody(json_encode($json), 'application/vnd.api+json');
+                }
+
+                return $pending->send($method, $url, ['query' => $query]);
+            },
+            $method === 'GET'
+        );
+
+        $data = $response->json();
+
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Walk a JSON:API list endpoint using page[size]/page[number]. Stops when
+     * the response says there is no next page (meta.next-page / links.next /
+     * meta.total-pages) or a short page arrives. Always builds the next URL
+     * itself, never follows an absolute link (key never leaves the vetted host).
+     *
+     * @return Generator<int, array> one array of resource objects per page
+     */
+    public function paginate(string $uri, array $query = [], ?int $pageSize = null): Generator
+    {
+        $pageSize ??= (int) config('integrations.itglue.page_size', 1000);
+        $maxPages = (int) config('integrations.itglue.max_pages', 200);
+        $page = 1;
+
+        do {
+            $result = $this->request('GET', $uri, array_merge($query, [
+                'page' => ['size' => $pageSize, 'number' => $page],
+            ]));
+
+            $rows = is_array($result['data'] ?? null) ? $result['data'] : [];
+            $meta = $result['meta'] ?? [];
+            $links = $result['links'] ?? [];
+
+            if ($rows !== []) {
+                yield $rows;
+            }
+
+            if (array_key_exists('next-page', $meta)) {
+                $more = ! empty($meta['next-page']);
+            } elseif (isset($meta['total-pages'])) {
+                $more = $page < (int) $meta['total-pages'];
+            } elseif (array_key_exists('next', $links)) {
+                $more = ! empty($links['next']);
+            } else {
+                $more = count($rows) >= $pageSize;
+            }
+
+            $page++;
+        } while ($more && $rows !== [] && $page <= $maxPages);
+    }
+
+    /**
+     * @return Generator<int, array>
+     */
+    public function organizationPages(): Generator
+    {
+        return $this->paginate('/organizations');
+    }
+
+    /**
+     * List every organisation (all pages) in JSON:API envelope form.
+     */
+    public function listOrganisations(): array
+    {
+        $all = [];
+        foreach ($this->organizationPages() as $rows) {
+            array_push($all, ...$rows);
         }
+
+        return ['data' => $all];
     }
 
     /**
@@ -86,11 +185,16 @@ class ItGlueClient
      */
     protected function getFlexibleAssetTypeId(): int
     {
-        if (!$this->flexibleAssetTypeId) {
-            throw new \RuntimeException('ITGlue flexible asset type ID is not configured in settings.');
+        if (! $this->flexibleAssetTypeId) {
+            throw new IntegrationConfigurationException('ITGlue flexible asset type ID is not configured in settings.');
         }
 
         return $this->flexibleAssetTypeId;
+    }
+
+    public function configuredFlexibleAssetTypeId(): int
+    {
+        return $this->getFlexibleAssetTypeId();
     }
 
     /**
@@ -102,157 +206,178 @@ class ItGlueClient
     }
 
     /**
-     * Find an existing flexible asset for a domain by organisation and type
+     * All flexible assets of a type (optionally for one organisation), keyed
+     * by lower-cased name. One paged call per ~1000 assets.
+     *
+     * @return array<string,array> name => JSON:API resource
+     */
+    public function flexibleAssetsByName(int $flexibleAssetTypeId, ?int $organizationId = null): array
+    {
+        $filter = ['flexible-asset-type-id' => $flexibleAssetTypeId];
+        if ($organizationId) {
+            $filter['organization-id'] = $organizationId;
+        }
+
+        $map = [];
+        foreach ($this->paginate('/flexible_assets', ['filter' => $filter]) as $rows) {
+            foreach ($rows as $row) {
+                $name = strtolower(trim((string) ($row['attributes']['name'] ?? '')));
+                if ($name !== '') {
+                    $map[$name] = $row;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Find an existing flexible asset for a domain by organisation and type.
+     * Returns null ONLY when the API answered successfully with no match;
+     * any failure throws IntegrationApiException.
      */
     public function findDomainFlexibleAsset(int $organizationId, int $flexibleAssetTypeId, string $domainName): ?array
     {
-        try {
-            $resp = $this->http->get('/flexible_assets', [
-                'headers' => $this->headers(),
-                'query' => [
-                    'filter' => [
-                        'organization-id' => $organizationId,
-                        'flexible-asset-type-id' => $flexibleAssetTypeId,
-                        'name' => $domainName
-                    ],
-                    'page' => ['size' => 1]
-                ]
-            ]);
+        $result = $this->request('GET', '/flexible_assets', [
+            'filter' => [
+                'organization-id' => $organizationId,
+                'flexible-asset-type-id' => $flexibleAssetTypeId,
+                'name' => $domainName,
+            ],
+            'page' => ['size' => 1],
+        ]);
 
-            $data = json_decode((string) $resp->getBody(), true);
-            $assets = $data['data'] ?? [];
+        $assets = $result['data'] ?? [];
 
-            return !empty($assets) ? $assets[0] : null;
-        } catch (\Exception $e) {
-            Log::error('ITGlue findFlexibleAsset error: ' . $e->getMessage());
-            return null;
-        }
+        return ! empty($assets) ? $assets[0] : null;
+    }
+
+    public function getFlexibleAsset(int $assetId): array
+    {
+        $result = $this->request('GET', '/flexible_assets/' . $assetId);
+
+        return $result['data'] ?? [];
     }
 
     /**
-     * Create a flexible asset for a domain in ITGlue
+     * Create a flexible asset for a domain in ITGlue (single attempt, no retry).
      */
     public function createFlexibleAsset(int $organizationId, int $flexibleAssetTypeId, string $domainName, array $traits = []): array
     {
-        try {
-            $payload = [
-                'data' => [
-                    'type' => 'flexible-assets',
-                    'attributes' => [
-                        'organization-id' => $organizationId,
-                        'flexible-asset-type-id' => $flexibleAssetTypeId,
-                        'name' => $domainName,
-                        'traits' => $traits,
-                    ]
-                ]
-            ];
+        $payload = [
+            'data' => [
+                'type' => 'flexible-assets',
+                'attributes' => [
+                    'organization-id' => $organizationId,
+                    'flexible-asset-type-id' => $flexibleAssetTypeId,
+                    'name' => $domainName,
+                    'traits' => $traits,
+                ],
+            ],
+        ];
 
-            Log::info('Creating ITGlue flexible asset', [
-                'organization_id' => $organizationId,
-                'domain' => $domainName,
-                'flexible_asset_type_id' => $flexibleAssetTypeId,
-            ]);
+        Log::info('Creating ITGlue flexible asset', [
+            'organization_id' => $organizationId,
+            'domain' => $domainName,
+            'flexible_asset_type_id' => $flexibleAssetTypeId,
+        ]);
 
-            $resp = $this->http->post('/flexible_assets', [
-                'headers' => $this->headers(),
-                'json' => $payload
-            ]);
-
-            return json_decode((string) $resp->getBody(), true);
-        } catch (\Exception $e) {
-            Log::error('ITGlue createFlexibleAsset error: ' . $e->getMessage(), [
-                'organization_id' => $organizationId,
-                'domain' => $domainName,
-                'flexible_asset_type_id' => $flexibleAssetTypeId,
-            ]);
-            throw $e;
-        }
+        return $this->request('POST', '/flexible_assets', [], $payload);
     }
 
     /**
-     * Update an existing flexible asset in ITGlue
+     * Update an existing flexible asset in ITGlue.
+     *
+     * IT Glue deletes every trait a PATCH does not mention, so the existing
+     * traits are loaded (or supplied via $existingTraits) and the new values
+     * are merged over them: the PATCH always carries the full trait set.
      */
-    public function updateFlexibleAsset(int $assetId, string $domainName, array $traits): array
+    public function updateFlexibleAsset(int $assetId, string $domainName, array $traits, ?array $existingTraits = null): array
     {
-        try {
-            $payload = [
-                'data' => [
-                    'type' => 'flexible-assets',
-                    'attributes' => [
-                        'name' => $domainName,
-                        'traits' => $traits,
-                    ]
-                ]
-            ];
-
-            Log::info('Updating ITGlue flexible asset', [
-                'asset_id' => $assetId,
-                'domain' => $domainName,
-            ]);
-
-            $resp = $this->http->patch('/flexible_assets/' . $assetId, [
-                'headers' => $this->headers(),
-                'json' => $payload
-            ]);
-
-            return json_decode((string) $resp->getBody(), true);
-        } catch (\Exception $e) {
-            Log::error('ITGlue updateFlexibleAsset error: ' . $e->getMessage(), [
-                'asset_id' => $assetId
-            ]);
-            throw $e;
+        if ($existingTraits === null) {
+            $existing = $this->getFlexibleAsset($assetId);
+            $existingTraits = $existing['attributes']['traits'] ?? [];
         }
+
+        // Drop unset (null) values: nothing to preserve there.
+        $existingTraits = array_filter(
+            is_array($existingTraits) ? $existingTraits : [],
+            fn ($v) => $v !== null
+        );
+
+        $merged = array_merge($existingTraits, $traits);
+
+        $payload = [
+            'data' => [
+                'type' => 'flexible-assets',
+                'attributes' => [
+                    'name' => $domainName,
+                    'traits' => $merged,
+                ],
+            ],
+        ];
+
+        Log::info('Updating ITGlue flexible asset', [
+            'asset_id' => $assetId,
+            'domain' => $domainName,
+            'trait_count' => count($merged),
+        ]);
+
+        return $this->request('PATCH', '/flexible_assets/' . $assetId, [], $payload);
     }
 
     /**
-     * Sync a domain to ITGlue with DNS records
+     * Sync a domain to ITGlue. $dnsRecords === null means "DNS unknown":
+     * the dns trait is left untouched rather than overwritten with "none".
+     *
+     * Failures throw IntegrationApiException (callers decide retry / record);
+     * a failed lookup can never fall through to a duplicate create.
+     *
+     * @param array|bool|null $knownAsset JSON:API flexible asset already located by the caller;
+     *                                    false = caller knows it does not exist (skips the find call).
      */
-    public function syncDomain(Domain $domain, int $organizationId, ?array $dnsRecords = null): array
+    public function syncDomain(Domain $domain, int $organizationId, ?array $dnsRecords = null, array|bool|null $knownAsset = null): array
     {
-        try {
-            $flexibleAssetTypeId = $this->getFlexibleAssetTypeId();
+        $flexibleAssetTypeId = $this->getFlexibleAssetTypeId();
 
-            // Find existing flexible asset
-            $existing = $this->findDomainFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name);
+        $existing = $knownAsset === false
+            ? null
+            : ($knownAsset ?: $this->findDomainFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name));
 
-            // Prepare traits
-            $traits = $this->buildDomainTraits($domain, $dnsRecords ?? []);
+        $traits = $this->buildDomainTraits($domain, $dnsRecords);
 
-            if ($existing) {
-                // Update existing
-                $assetId = (int) $existing['id'];
-                $result = $this->updateFlexibleAsset($assetId, $domain->name, $traits);
+        if ($existing) {
+            $assetId = (int) $existing['id'];
+            $result = $this->updateFlexibleAsset(
+                $assetId,
+                $domain->name,
+                $traits,
+                $existing['attributes']['traits'] ?? null
+            );
 
-                return [
-                    'success' => true,
-                    'action' => 'updated',
-                    'flexible_asset_id' => $assetId,
-                    'data' => $result
-                ];
-            }
-
-            // Create new
-            $result = $this->createFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name, $traits);
-            $assetId = (int) ($result['data']['id'] ?? null);
-            
             return [
                 'success' => true,
-                'action' => 'created',
+                'action' => 'updated',
                 'flexible_asset_id' => $assetId,
-                'data' => $result
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
+                'data' => $result,
             ];
         }
+
+        $result = $this->createFlexibleAsset($organizationId, $flexibleAssetTypeId, $domain->name, $traits);
+        $assetId = (int) ($result['data']['id'] ?? 0);
+
+        return [
+            'success' => true,
+            'action' => 'created',
+            'flexible_asset_id' => $assetId,
+            'data' => $result,
+        ];
     }
 
     /**
      * Build flexible asset traits for a domain
      */
-    protected function buildDomainTraits(Domain $domain, array $dnsRecords): array
+    public function buildDomainTraits(Domain $domain, ?array $dnsRecords): array
     {
         $traits = [];
 
@@ -282,7 +407,7 @@ class ItGlueClient
             );
         }
 
-        if ($dnsKey = $this->traitKey('dns')) {
+        if (($dnsKey = $this->traitKey('dns')) && $dnsRecords !== null) {
             $traits[$dnsKey] = $this->formatDnsRecordsAsHtml($dnsRecords, $domain);
         }
 
