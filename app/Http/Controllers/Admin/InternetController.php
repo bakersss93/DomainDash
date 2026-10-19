@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 use App\Services\Vocus\VocusWsmClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class InternetController extends Controller
 {
@@ -97,6 +98,7 @@ class InternetController extends Controller
             $vocus   = app(VocusWsmClient::class);
             $created = 0;
             $updated = 0;
+            $failed  = 0;
 
             // Refresh all locally-known services from Vocus.
             // Use the "Import Service IDs" button to seed new services first.
@@ -131,8 +133,13 @@ class InternetController extends Controller
                     $service->save();
 
                     $isNew ? $created++ : $updated++;
-                } catch (\Throwable) {
-                    // Skip individual failures and continue
+                } catch (\Throwable $e) {
+                    $failed++;
+                    Log::warning('Vocus service refresh failed', [
+                        'service_id' => $service->vocus_service_id,
+                        'error_code' => $e instanceof \App\Services\Vocus\VocusWsmException ? $e->errorCode : null,
+                        'message'    => $e->getMessage(),
+                    ]);
                 }
             }
 
@@ -141,12 +148,12 @@ class InternetController extends Controller
             if ($created > 0) {
                 $msg .= ", {$created} newly imported";
             }
-            $msg .= ').';
+            $msg .= $failed > 0 ? ", {$failed} failed - see logs)." : ').';
 
             AuditLogger::logSystem('sync.completed', $msg, [
                 'service'  => 'vocus',
                 'function' => 'internet-sync',
-            ], ['new_values' => ['refreshed' => $total, 'created' => $created, 'updated' => $updated]]);
+            ], ['new_values' => ['refreshed' => $total, 'created' => $created, 'updated' => $updated, 'failed' => $failed]]);
 
             return redirect()->route('admin.services.internet')->with('status', $msg);
         } catch (\Throwable $e) {
@@ -184,6 +191,7 @@ class InternetController extends Controller
         try {
             $vocus   = app(VocusWsmClient::class);
             $updated = 0;
+            $failed  = 0;
 
             foreach (InternetService::whereIn('vocus_service_id', $ids)->get() as $service) {
                 try {
@@ -209,8 +217,13 @@ class InternetController extends Controller
                     $service->synced_at           = now();
                     $service->save();
                     $updated++;
-                } catch (\Throwable) {
-                    // Skip individual failures
+                } catch (\Throwable $e) {
+                    $failed++;
+                    Log::warning('Vocus service import refresh failed', [
+                        'service_id' => $service->vocus_service_id,
+                        'error_code' => $e instanceof \App\Services\Vocus\VocusWsmException ? $e->errorCode : null,
+                        'message'    => $e->getMessage(),
+                    ]);
                 }
             }
         } catch (\Throwable $e) {
@@ -218,7 +231,7 @@ class InternetController extends Controller
                 ->with('status', "Seeded {$seeded} service(s) but Vocus refresh failed: " . $e->getMessage());
         }
 
-        AuditLogger::logSystem('import.completed', "Manual Vocus service import: {$seeded} seeded, {$updated} refreshed.", [
+        AuditLogger::logSystem('import.completed', "Manual Vocus service import: {$seeded} seeded, {$updated} refreshed, {$failed} failed.", [
             'service'  => 'vocus',
             'function' => 'internet-import',
         ], ['new_values' => ['seeded' => $seeded, 'updated' => $updated, 'ids' => $ids]]);
@@ -244,13 +257,13 @@ class InternetController extends Controller
     {
         $request->validate([
             'address'         => 'nullable|string|max:255',
-            'street_number'   => 'nullable|string|max:10',
+            'street_number'   => 'nullable|integer|min:0|max:99999',
             'street_name'     => 'nullable|string|max:50',
-            'street_type'     => 'nullable|string|max:10',
+            'street_type'     => 'nullable|string|max:8',
             'suburb'          => 'nullable|string|max:50',
             'state'           => 'nullable|string|max:10',
             'postcode'        => 'nullable|string|max:6',
-            'unit_number'     => 'nullable|string|max:10',
+            'unit_number'     => 'nullable|integer|min:0|max:99999',
         ]);
 
         try {
@@ -333,18 +346,18 @@ class InternetController extends Controller
     public function orderStore(Request $request)
     {
         $validated = $request->validate([
-            'vocus_service_id'  => 'required|string|max:30|unique:internet_services,vocus_service_id',
+            'vocus_service_id'  => ['required', 'regex:/^[A-Za-z0-9._-]{1,30}$/', 'unique:internet_services,vocus_service_id'],
             'plan_id'           => 'required|string|max:30',
             'scope'             => 'required|in:RESELLER-CONNECT,NETWORK-CONNECT',
-            'customer_name'     => 'required|string|max:100',
-            'phone'             => 'required|string|max:20',
+            'customer_name'     => 'required|string|min:1|max:40',
+            'phone'             => ['required', 'regex:/^\d{10}$/'],
             'directory_id'      => 'required|string|max:30',
             'location_reference'=> 'required|string|max:10',
             'service_type'      => 'required|string|max:20',
-            'realm'             => 'nullable|string|max:64',
+            'realm'             => 'nullable|string|max:61',
             'service_level'     => 'nullable|string|max:20',
-            'copper_pair_id'    => 'nullable|string|max:30',
-            'password'          => 'nullable|string|max:50',
+            'copper_pair_id'    => 'nullable|string|max:15',
+            'password'          => 'nullable|string|min:2|max:50',
             'client_id'         => 'nullable|exists:clients,id',
             'notes'             => 'nullable|string|max:500',
         ]);
@@ -423,17 +436,17 @@ class InternetController extends Controller
     public function transferStore(Request $request)
     {
         $validated = $request->validate([
-            'vocus_service_id'  => 'required|string|max:30|unique:internet_services,vocus_service_id',
+            'vocus_service_id'  => ['required', 'regex:/^[A-Za-z0-9._-]{1,30}$/', 'unique:internet_services,vocus_service_id'],
             'plan_id'           => 'required|string|max:30',
             'scope'             => 'required|in:RESELLER-CONNECT,NETWORK-CONNECT',
-            'customer_name'     => 'required|string|max:100',
-            'phone'             => 'required|string|max:20',
+            'customer_name'     => 'required|string|min:1|max:40',
+            'phone'             => ['required', 'regex:/^\d{10}$/'],
             'directory_id'      => 'required|string|max:30',
             'location_reference'=> 'required|string|max:10',
             'service_type'      => 'required|string|max:20',
-            'copper_pair_id'    => 'required|string|max:30',
+            'copper_pair_id'    => 'required|string|max:15',
             'ca_date'           => 'required|date_format:Y-m-d',
-            'realm'             => 'nullable|string|max:64',
+            'realm'             => 'nullable|string|max:61',
             'service_level'     => 'nullable|string|max:20',
             'avc_id'            => 'nullable|string|max:30',
             'cvc_id'            => 'nullable|string|max:30',
@@ -518,15 +531,26 @@ class InternetController extends Controller
 
         try {
             $vocus  = app(VocusWsmClient::class);
-            $result = $vocus->pollTransaction($service->last_transaction_id);
-            $state  = $result['params']['TransactionState'] ?? null;
+            $result = VocusWsmClient::normalizeTransactionResult($vocus->pollTransaction($service->last_transaction_id));
+            $state  = $result['state'];
 
             if ($state) {
-                $service->last_transaction_state = strtoupper($state);
-                if ($state === 'SUCCESS') {
-                    $service->service_status = 'ACTIVE';
-                } elseif ($state === 'FAILED') {
-                    // Keep status as-is; let admin investigate
+                $service->last_transaction_state = $state;
+
+                // SUCCESS may be the result of a suspend or cancel, so the new
+                // service status comes from the live record, never assumed ACTIVE.
+                if ($state === 'SUCCESS' && $service->vocus_service_id) {
+                    try {
+                        $live = $vocus->getService($service->vocus_service_id)['params']['ServiceStatus'] ?? null;
+                        if ($new = VocusWsmClient::resolveServiceStatus($state, $live)) {
+                            $service->service_status = $new;
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Vocus status refresh after transaction failed', [
+                            'service_id' => $service->vocus_service_id,
+                            'message'    => $e->getMessage(),
+                        ]);
+                    }
                 }
                 $service->save();
             }
@@ -534,6 +558,8 @@ class InternetController extends Controller
             return response()->json([
                 'transaction_state' => $service->last_transaction_state,
                 'params'            => $result['params'],
+                'fault_code'        => $result['fault_code'],
+                'fault_message'     => $result['fault_message'],
             ]);
         } catch (\Throwable $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -617,7 +643,7 @@ class InternetController extends Controller
                 'internet_service_id' => $service->id,
                 'diagnostic_type'     => $request->type,
                 'transaction_id'      => $response['transaction_id'] ?? null,
-                'transaction_state'   => $response['params']['TransactionState'] ?? 'SUCCESS',
+                'transaction_state'   => $response['params']['TransactionState'] ?? null,
                 'result'              => $result,
                 'run_by_user_id'      => Auth::id(),
                 'created_at'          => now(),

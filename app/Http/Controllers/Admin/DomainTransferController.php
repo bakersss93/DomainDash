@@ -40,29 +40,28 @@ class DomainTransferController extends Controller
         ]);
 
         try {
-            // Check if domain can be transferred
-            $domainInfo = $this->synergy->domainInfo($request->domain);
+            // isDomainTransferrable validates the EPP code and that the domain
+            // is not already in this account; ERR_* statuses throw.
+            $check = $this->synergy->isDomainTransferrable($request->domain, $request->epp_code);
 
-            if (isset($domainInfo['status']) && $domainInfo['status'] === 'OK') {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Domain validation successful. You can proceed with the transfer.',
-                    'domain_info' => [
-                        'domain' => $request->domain,
-                        'expiry_date' => $domainInfo['expiryDate'] ?? null,
-                    ],
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unable to validate domain. Please check the domain name and EPP code.',
-                ], 422);
-            }
-        } catch (\Exception $e) {
             return response()->json([
                 'success' => true,
-                'message' => 'Domain appears valid. You can proceed with the transfer.',
+                'message' => 'Domain validation successful. You can proceed with the transfer.',
+                'domain_info' => [
+                    'domain' => $request->domain,
+                    'expiry_date' => $check['expiry'] ?? null,
+                ],
             ]);
+        } catch (\App\Services\Synergy\SynergyApiException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to validate domain: ' . $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to validate the transfer right now. Please try again.',
+            ], 502);
         }
     }
 
@@ -100,14 +99,15 @@ class DomainTransferController extends Controller
 
                 // Use stored contact info from the client
                 $contacts = [
-                    'registrantName' => $client->business_name,
-                    'registrantEmail' => $client->email ?? 'admin@example.com',
-                    'registrantPhone' => $client->phone ?? '+61.400000000',
-                    'registrantAddress' => $client->address ?? '123 Main St',
-                    'registrantCity' => $client->city ?? 'Melbourne',
-                    'registrantState' => $client->state ?? 'VIC',
-                    'registrantPostcode' => $client->postcode ?? '3000',
-                    'registrantCountry' => $client->country ?? 'AU',
+                    'organisation' => $client->business_name,
+                    'contactName' => $client->primary_contact_name ?: $client->business_name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'address' => $client->address,
+                    'suburb' => $client->city,
+                    'state' => $client->state,
+                    'postcode' => $client->postcode,
+                    'country' => $client->country ?: 'AU',
                 ];
             } else {
                 // Create new client with all contact fields
@@ -135,26 +135,29 @@ class DomainTransferController extends Controller
                 $user->clients()->attach($client->id);
 
                 $contacts = [
-                    'registrantName' => $request->business_name,
-                    'registrantEmail' => $request->email,
-                    'registrantPhone' => $request->phone,
-                    'registrantAddress' => $request->address,
-                    'registrantCity' => $request->city,
-                    'registrantState' => $request->state,
-                    'registrantPostcode' => $request->postcode,
-                    'registrantCountry' => $request->country,
+                    'organisation' => $request->business_name,
+                    'firstname' => $request->first_name,
+                    'lastname' => $request->last_name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'suburb' => $request->city,
+                    'state' => $request->state,
+                    'postcode' => $request->postcode,
+                    'country' => $request->country,
                 ];
             }
 
-            // Transfer domain with Synergy (default to 1 year transfer)
-            $result = $this->synergy->transferDomain(
-                $request->domain,
-                $request->epp_code,
-                1, // Transfers are typically 1 year
-                $contacts
-            );
+            // Transfer domain with Synergy. transferDomain takes one payload
+            // (authInfo + gaining contact); ERR_* responses throw.
+            $result = $this->synergy->transferDomain($contacts + [
+                'domainName' => $request->domain,
+                'authInfo' => $request->epp_code,
+                'autoRenew' => (bool) $request->auto_renew,
+                'dnsConfig' => 5, // Synergy default nameservers
+            ]);
 
-            if (isset($result['status']) && in_array($result['status'], ['OK', 'pending'])) {
+            if (isset($result['status']) && str_starts_with(strtoupper((string) $result['status']), 'OK')) {
                 // Create domain in database
                 $domain = Domain::create([
                     'client_id' => $client->id,
@@ -163,9 +166,8 @@ class DomainTransferController extends Controller
                     'transfer_status' => 'pending',
                     'expiry_date' => now()->addYear(),
                     'auto_renew' => $request->auto_renew,
-                    'name_servers' => json_encode(['ns1.synergywholesale.com', 'ns2.synergywholesale.com']),
-                    'dns_config' => 'custom_ns',
-                    'registry_id' => $result['domainID'] ?? null,
+                    'name_servers' => SynergyWholesaleClient::DEFAULT_NAMESERVERS,
+                    'dns_config' => 5,
                 ]);
 
                 DB::commit();
