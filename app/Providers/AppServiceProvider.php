@@ -15,7 +15,9 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use App\Support\MailSettings;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,7 +28,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One client (and one credentials lookup / WSDL parse) per request or
+        // queue job; scoped instances are flushed between queued jobs.
+        $this->app->scoped(\App\Services\Synergy\SynergyWholesaleClient::class);
+        $this->app->scoped(\App\Services\Vocus\VocusWsmClient::class);
+        $this->app->bind(\App\Services\Https\TxtResolver::class, \App\Services\Https\PhpTxtResolver::class);
+        $this->app->bind(\App\Services\Https\AcmeDnsHook::class, fn ($app) => new \App\Services\Https\AcmeDnsHook(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class),
+            $app->make(\App\Services\Https\TxtResolver::class),
+        ));
+        $this->app->bind(\App\Services\Https\ZoneFinder::class, fn ($app) => new \App\Services\Https\ZoneFinder(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class)
+        ));
     }
 
     /**
@@ -34,6 +47,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Validation\Rules\Password::defaults(function () {
+            // Strong policy in production; Laravel's default (min 8) elsewhere so local/test data stays easy.
+            return $this->app->isProduction()
+                ? \Illuminate\Validation\Rules\Password::min(12)->mixedCase()->numbers()->uncompromised()
+                : \Illuminate\Validation\Rules\Password::min(8);
+        });
+
+        // Pre-auth throttle for the API (before any key lookup / bcrypt work).
+        \Illuminate\Support\Facades\RateLimiter::for('api-ip', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(120)->by('api-ip:' . $request->ip());
+        });
+
+        // Shared budgets for queued Halo / IT Glue calls across all workers.
+        RateLimiter::for('halo-api', fn () => Limit::perMinute((int) config('integrations.halo.rate_limit_per_minute', 120)));
+        RateLimiter::for('itglue-api', fn () => Limit::perMinute((int) config('integrations.itglue.rate_limit_per_minute', 400)));
+
         if (Schema::hasTable('settings')) {
             MailSettings::applyFromDatabase();
         }

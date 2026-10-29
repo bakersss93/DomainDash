@@ -38,7 +38,7 @@ class AuditLogController extends Controller
         }
 
         return response()->json(
-            $q->paginate((int) $request->get('per_page', 100))
+            $q->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
         );
     }
 }

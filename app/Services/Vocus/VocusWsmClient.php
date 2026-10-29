@@ -3,17 +3,24 @@
 namespace App\Services\Vocus;
 
 use App\Models\Setting;
-use SoapClient;
-use SoapFault;
-use SoapVar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use SoapClient;
+use SoapFault;
+use SoapVar;
 
 class VocusWsmClient
 {
-    protected SoapClient $soap;
-    protected array $config;
+    protected ?object $soap = null;
+    protected ?array $config = null;
+    protected ?VocusRateLimiter $limiter = null;
+
+    /** @var callable|null fn(string $wsdl, array $options, string $sessionId): object */
+    protected $soapFactory;
+
+    /** @var callable|null fn(): string  returns a fresh JSESSIONID (tests / custom auth) */
+    protected $loginCallback;
 
     // Namespace constants
     const NS_WSM = 'https://wsm.webservice.m2.com.au/schemas/WholesaleServiceManagement.xsd';
@@ -21,40 +28,181 @@ class VocusWsmClient
     const DEFAULT_WSDL_URL = 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement';
     const DEFAULT_LOGIN_URL = 'https://wsm.webservice.m2.com.au:9443/login/';
 
-    public function __construct()
-    {
-        $this->config = Setting::get('vocus', [
-            'access_key'    => null,
-            'alias_key'     => null,
-            'wsdl_url'      => self::DEFAULT_WSDL_URL,
-            'login_url'     => self::DEFAULT_LOGIN_URL,
-            'cert_path'     => null,
-            'cert_password' => null,
-        ]);
+    /** Short, user-safe messages for the documented basic error codes (Main doc 5.1). */
+    const FRIENDLY_ERRORS = [
+        'WSM-4005' => 'Login required (session expired).',
+        'WSM-4020' => 'The Vocus WSM account is blocked. Contact Vocus.',
+        'WSM-4050' => 'Insufficient access privileges for this product or operation.',
+        'WSM-4080' => 'Vocus request rate limit exceeded. Try again in a few seconds.',
+        'WSM-5010' => 'The operation was only partially completed. Check the transaction and open a Vocus support ticket.',
+        'WSM-5030' => 'A Vocus supporting system reported an error. Open a Vocus support ticket.',
+    ];
 
-        $sessionId = $this->getOrCreateSession();
-        $this->soap = $this->buildSoapClient($sessionId);
+    /**
+     * Nothing touches the network here: the session login and SOAP client are
+     * created lazily on the first operation.
+     *
+     * @param callable|null $soapFactory   fn(string $wsdl, array $options, string $sessionId): object (SoapClient-like)
+     * @param array|null    $config        Vocus settings (defaults to Setting 'vocus')
+     * @param callable|null $loginCallback fn(): string session id (defaults to the certificate login)
+     */
+    public function __construct(?callable $soapFactory = null, ?array $config = null, ?callable $loginCallback = null)
+    {
+        $this->soapFactory   = $soapFactory;
+        $this->config        = $config;
+        $this->loginCallback = $loginCallback;
+    }
+
+    public function setRateLimiter(VocusRateLimiter $limiter): static
+    {
+        $this->limiter = $limiter;
+
+        return $this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Configuration
+    // -------------------------------------------------------------------------
+
+    protected function settings(): array
+    {
+        if ($this->config === null) {
+            $this->config = (array) Setting::get('vocus', [
+                'access_key'    => null,
+                'alias_key'     => null,
+                'cert_path'     => null,
+                'cert_password' => null,
+            ]);
+        }
+
+        return $this->config;
+    }
+
+    /** production|sandbox */
+    public function environment(): string
+    {
+        $env = strtolower((string) ($this->settings()['environment'] ?? config('services.vocus.environment', 'production')));
+
+        return $env === 'sandbox' ? 'sandbox' : 'production';
+    }
+
+    protected function endpointFor(string $key, string $legacyKey, string $default): string
+    {
+        $settings = $this->settings();
+        $env = $this->environment();
+
+        // Explicit per-install override wins. The legacy `wsdl_url`/`login_url`
+        // settings only apply in production so they cannot pin a sandbox switch.
+        $explicit = $settings[$key . '_override'] ?? ($key === 'endpoint' ? ($settings['endpoint_url'] ?? null) : ($settings['login_url_override'] ?? null));
+        if (! empty($explicit)) {
+            return (string) $explicit;
+        }
+
+        if ($env === 'production' && ! empty($settings[$legacyKey])) {
+            return (string) $settings[$legacyKey];
+        }
+
+        return (string) (config("services.vocus.{$env}.{$key}") ?: $default);
+    }
+
+    public function endpointUrl(): string
+    {
+        return $this->endpointFor('endpoint', 'wsdl_url', self::DEFAULT_WSDL_URL);
+    }
+
+    public function loginUrl(): string
+    {
+        return $this->endpointFor('login_url', 'login_url', self::DEFAULT_LOGIN_URL);
+    }
+
+    /**
+     * Optional PEM CA bundle / pinned certificate (needed for the sandbox's
+     * self-signed certificate). Verification itself is never disabled.
+     */
+    protected function caBundle(): ?string
+    {
+        $path = $this->settings()['ca_bundle_path'] ?? config('services.vocus.ca_bundle');
+
+        if (empty($path)) {
+            return null;
+        }
+
+        if (! is_file($path) || ! is_readable($path)) {
+            throw new \RuntimeException('The configured Vocus CA bundle is not readable: ' . $path);
+        }
+
+        return $path;
+    }
+
+    protected function connectionTimeout(): int
+    {
+        return (int) config('services.vocus.connection_timeout', 10);
+    }
+
+    protected function timeout(): int
+    {
+        return (int) config('services.vocus.timeout', 30);
+    }
+
+    protected function limiter(): VocusRateLimiter
+    {
+        return $this->limiter ??= new VocusRateLimiter(
+            (int) config('services.vocus.rate_limit.max_requests', 4),
+            (int) config('services.vocus.rate_limit.per_seconds', 10),
+            (int) config('services.vocus.rate_limit.max_wait_seconds', 15),
+        );
     }
 
     // -------------------------------------------------------------------------
     // Session management
     // -------------------------------------------------------------------------
 
+    /** Cache key scoped to environment, endpoint, certificate and access key. */
+    protected function sessionCacheKey(): string
+    {
+        $s = $this->settings();
+
+        return 'vocus_wsm_session:' . sha1(implode('|', [
+            $this->environment(),
+            $this->loginUrl(),
+            $s['cert_path'] ?? '',
+            $s['access_key'] ?? '',
+        ]));
+    }
+
     protected function getOrCreateSession(): string
     {
-        return Cache::remember('vocus_wsm_session', 540, fn () => $this->login());
+        $key = $this->sessionCacheKey();
+
+        if ($cached = Cache::get($key)) {
+            return $cached;
+        }
+
+        // Single login even when several workers start at once.
+        return Cache::lock($key . ':login', 40)->block(40, function () use ($key) {
+            return Cache::remember($key, (int) config('services.vocus.session_ttl', 540), fn () => $this->login());
+        });
+    }
+
+    protected function forgetSession(): void
+    {
+        Cache::forget($this->sessionCacheKey());
+        $this->soap = null;
     }
 
     protected function login(): string
     {
+        if ($this->loginCallback) {
+            return (string) ($this->loginCallback)();
+        }
+
         $certPath = $this->resolveCertPath();
-        $certPassword = $this->config['cert_password'] ?? '';
-        $loginUrl = $this->config['login_url'] ?? self::DEFAULT_LOGIN_URL;
+        $certPassword = $this->settings()['cert_password'] ?? '';
+        $loginUrl = $this->loginUrl();
 
         $certType = $this->resolveCertType($certPath);
 
-        $ch = curl_init($loginUrl);
-        curl_setopt_array($ch, [
+        $curlOptions = [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
             CURLOPT_NOBODY         => false,
@@ -63,8 +211,16 @@ class VocusWsmClient
             CURLOPT_SSLCERTTYPE    => $certType,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_TIMEOUT        => 30,
-        ]);
+            CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout(),
+            CURLOPT_TIMEOUT        => max(30, $this->timeout()),
+        ];
+
+        if ($ca = $this->caBundle()) {
+            $curlOptions[CURLOPT_CAINFO] = $ca;
+        }
+
+        $ch = curl_init($loginUrl);
+        curl_setopt_array($ch, $curlOptions);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -76,7 +232,10 @@ class VocusWsmClient
         }
 
         if ($httpCode !== 202) {
-            throw new \RuntimeException("Vocus WSM login failed — HTTP {$httpCode}. Check certificate and login URL.");
+            throw new \RuntimeException(
+                "Vocus WSM login failed - HTTP {$httpCode}. Check the certificate, login URL, and that this server's IP "
+                . 'address is on the Vocus allow-list (a maximum of 2 client IPs is permitted).'
+            );
         }
 
         if (preg_match('/Set-Cookie:\s*JSESSIONID=([^;\s]+)/i', $response, $matches)) {
@@ -88,7 +247,7 @@ class VocusWsmClient
 
     protected function resolveCertPath(): string
     {
-        $certPath = $this->config['cert_path'] ?? null;
+        $certPath = $this->settings()['cert_path'] ?? null;
 
         if (!$certPath) {
             throw new \RuntimeException('Vocus client certificate path is not configured. Please upload a certificate in Settings.');
@@ -109,13 +268,19 @@ class VocusWsmClient
             return Storage::disk('local')->path('wsdl/vocus.wsdl');
         }
 
-        // Fall back to the bundled WSDL shipped with the application.
-        $bundled = base_path('vocus-api/Vocus-Wholesale/Schemas/WholesaleServiceManagement.wsdl');
+        // Bundled copy (WSDL + the two XSDs it imports) shipped with the application.
+        $bundled = base_path('resources/wsdl/vocus/WholesaleServiceManagement.wsdl');
         if (file_exists($bundled)) {
             return $bundled;
         }
 
-        throw new \RuntimeException('Vocus WSDL not found. Expected at: ' . Storage::disk('local')->path('wsdl/vocus.wsdl'));
+        // Legacy location inside the vendor documentation folder.
+        $legacy = base_path('vocus-api/Vocus-Wholesale/Schemas/WholesaleServiceManagement.wsdl');
+        if (file_exists($legacy)) {
+            return $legacy;
+        }
+
+        throw new \RuntimeException('Vocus WSDL not found. Expected at: ' . $bundled);
     }
 
     protected function resolveCertType(string $certPath): string
@@ -147,28 +312,50 @@ class VocusWsmClient
         return 'P12';
     }
 
-    protected function buildSoapClient(string $sessionId): SoapClient
+    protected function buildSoapClient(string $sessionId): object
     {
         $wsdlPath = $this->resolveWsdlPath();
-        $endpoint = $this->config['wsdl_url'] ?? self::DEFAULT_WSDL_URL;
+        $endpoint = $this->endpointUrl();
+
+        $ssl = [
+            'verify_peer'      => true,
+            'verify_peer_name' => true,
+        ];
+        if ($ca = $this->caBundle()) {
+            $ssl['cafile'] = $ca;
+        }
 
         $context = stream_context_create([
             'http' => [
-                'header' => "Cookie: JSESSIONID={$sessionId}\r\n",
+                'header'  => "Cookie: JSESSIONID={$sessionId}\r\n",
+                'timeout' => (float) $this->timeout(),
             ],
-            'ssl' => [
-                'verify_peer'      => true,
-                'verify_peer_name' => true,
-            ],
+            'ssl' => $ssl,
         ]);
 
-        return new SoapClient($wsdlPath, [
-            'trace'          => 1,
-            'exceptions'     => true,
-            'cache_wsdl'     => WSDL_CACHE_MEMORY,
-            'stream_context' => $context,
-            'location'       => $endpoint,
-        ]);
+        $options = [
+            'trace'              => false, // trace would retain request XML (incl. AccessKey) in memory
+            'exceptions'         => true,
+            'cache_wsdl'         => 1, // WSDL_CACHE_DISK (constant only exists with ext-soap)
+            'connection_timeout' => $this->connectionTimeout(),
+            'stream_context'     => $context,
+            'location'           => $endpoint,
+        ];
+
+        if ($this->soapFactory) {
+            return ($this->soapFactory)($wsdlPath, $options, $sessionId);
+        }
+
+        if (! class_exists(SoapClient::class)) {
+            throw new \RuntimeException('The PHP soap extension (ext-soap) is not installed; cannot call Vocus WSM.');
+        }
+
+        return new SoapClient($wsdlPath, $options);
+    }
+
+    protected function soap(): object
+    {
+        return $this->soap ??= $this->buildSoapClient($this->getOrCreateSession());
     }
 
     // -------------------------------------------------------------------------
@@ -180,44 +367,110 @@ class VocusWsmClient
         $xml = $this->buildRequestXml($operation, $productId, $params, $planId, $scope);
         $soapVar = new SoapVar($xml, XSD_ANYXML);
 
-        try {
-            $result = $this->soap->__soapCall($operation, [$soapVar]);
-            return $this->parseResponse($result);
-        } catch (SoapFault $e) {
-            $errorCode = null;
-            if (isset($e->detail->ErrorCode)) {
-                $errorCode = $e->detail->ErrorCode;
-            } elseif (isset($e->detail)) {
-                // Try parsing detail as XML
-                if (is_string($e->detail)) {
-                    if (preg_match('/<ErrorCode>([^<]+)<\/ErrorCode>/i', $e->detail, $m)) {
-                        $errorCode = $m[1];
-                    }
+        $retriedSession = false;
+        $retriedRate    = false;
+
+        while (true) {
+            $this->limiter()->acquire();
+
+            $previousTimeout = ini_get('default_socket_timeout');
+            @ini_set('default_socket_timeout', (string) max(1, $this->timeout()));
+
+            try {
+                $result = $this->soap()->__soapCall($operation, [$soapVar]);
+
+                return $this->parseResponse($result);
+            } catch (SoapFault $e) {
+                $fault = $this->extractFault($e);
+
+                // Session expired - drop it, log in again and retry once.
+                if ($fault['code'] === 'WSM-4005' && ! $retriedSession) {
+                    $retriedSession = true;
+                    $this->forgetSession();
+                    continue;
+                }
+
+                // Flooded: Vocus blocks the client for ~10s. Wait it out and retry once.
+                if ($fault['code'] === 'WSM-4080' && ! $retriedRate) {
+                    $retriedRate = true;
+                    $this->limiter()->sleep(10);
+                    continue;
+                }
+
+                Log::error('Vocus WSM SOAP fault', [
+                    'operation'     => $operation,
+                    'productId'     => $productId,
+                    'errorCode'     => $fault['code'],
+                    'transactionId' => $fault['transaction_id'],
+                    'message'       => $e->getMessage(),
+                ]);
+
+                $friendly = self::FRIENDLY_ERRORS[$fault['code']] ?? $e->getMessage();
+                $label    = $fault['code'] ?? 'no error code';
+                $suffix   = $fault['transaction_id'] ? " [TransactionID {$fault['transaction_id']}]" : '';
+
+                throw new VocusWsmException(
+                    "Vocus WSM error ({$label}): {$friendly}{$suffix}",
+                    $fault['code'],
+                    $fault['transaction_id'],
+                    $e
+                );
+            } finally {
+                if ($previousTimeout !== false) {
+                    @ini_set('default_socket_timeout', (string) $previousTimeout);
                 }
             }
+        }
+    }
 
-            // Session expired — clear cache and retry once
-            if ($errorCode === 'WSM-4005') {
-                Cache::forget('vocus_wsm_session');
-                $sessionId = $this->getOrCreateSession();
-                $this->soap = $this->buildSoapClient($sessionId);
+    /**
+     * Pull ErrorCode / TransactionID out of a SoapFault.
+     *
+     * Documented fault detail is <detail><FaultResponse><TransactionID/><ErrorCode/>
+     * </FaultResponse></detail> (sandbox doc; the main doc names the wrapper
+     * "Fault"), so the code is one level below $e->detail. We search the whole
+     * detail tree so either wrapper (or none) works.
+     *
+     * @return array{code:?string,transaction_id:?string}
+     */
+    public function extractFault(SoapFault $e): array
+    {
+        $found = ['code' => null, 'transaction_id' => null];
+        $this->scanFaultNode($e->detail ?? null, $found);
 
-                $result = $this->soap->__soapCall($operation, [$soapVar]);
-                return $this->parseResponse($result);
+        return $found;
+    }
+
+    protected function scanFaultNode(mixed $node, array &$found): void
+    {
+        if (is_string($node)) {
+            if ($found['code'] === null && preg_match('/<(?:\w+:)?ErrorCode>\s*([^<\s]+)\s*</i', $node, $m)) {
+                $found['code'] = $m[1];
+            }
+            if ($found['transaction_id'] === null && preg_match('/<(?:\w+:)?TransactionID>\s*([^<\s]+)\s*</i', $node, $m)) {
+                $found['transaction_id'] = $m[1];
             }
 
-            Log::error('Vocus WSM SOAP fault', [
-                'operation'  => $operation,
-                'productId'  => $productId,
-                'errorCode'  => $errorCode,
-                'message'    => $e->getMessage(),
-            ]);
+            return;
+        }
 
-            throw new \RuntimeException(
-                "Vocus WSM error ({$errorCode}): {$e->getMessage()}",
-                0,
-                $e
-            );
+        if (! is_object($node) && ! is_array($node)) {
+            return;
+        }
+
+        foreach ((array) $node as $key => $value) {
+            $name = strtolower((string) preg_replace('/^.*[:\\\\]/', '', (string) $key));
+
+            if (($name === 'errorcode' || $name === 'transactionid') && (is_scalar($value) || (is_object($value) && isset($value->_)))) {
+                $scalar = is_object($value) ? (string) $value->_ : (string) $value;
+                $slot = $name === 'errorcode' ? 'code' : 'transaction_id';
+                if ($found[$slot] === null && $scalar !== '') {
+                    $found[$slot] = trim($scalar);
+                }
+                continue;
+            }
+
+            $this->scanFaultNode($value, $found);
         }
     }
 
@@ -319,6 +572,9 @@ class VocusWsmClient
 
     protected function e(string $value): string
     {
+        // Control characters are illegal in XML 1.0 and would break the request.
+        $value = (string) preg_replace('/[^\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', '', $value);
+
         return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
     }
 
@@ -464,6 +720,45 @@ class VocusWsmClient
     public function pollTransaction(string $transactionId): array
     {
         return $this->call('Get', 'TCAS', ['TransactionID' => $transactionId], 'TRANSACTION-ID', 'RESPONSE');
+    }
+
+    /**
+     * Normalise a pollTransaction() result: upper-case state (docs show mixed
+     * case, e.g. "Processing"), final flag, and the TCAS faultcode/faultmessage
+     * on FAILED transactions.
+     *
+     * @return array{state:?string,final:bool,fault_code:?string,fault_message:?string,params:array}
+     */
+    public static function normalizeTransactionResult(array $poll): array
+    {
+        $params = $poll['params'] ?? [];
+        $state  = isset($params['TransactionState']) ? strtoupper(trim((string) $params['TransactionState'])) : null;
+
+        return [
+            'state'         => $state,
+            'final'         => in_array($state, ['SUCCESS', 'FAILED', 'WITHDRAWN'], true),
+            'fault_code'    => isset($params['faultcode']) ? (string) $params['faultcode'] : null,
+            'fault_message' => isset($params['faultmessage']) ? (string) $params['faultmessage'] : null,
+            'params'        => $params,
+        ];
+    }
+
+    /**
+     * Decide the local service_status after polling a transaction.
+     *
+     * SUCCESS only says the transaction completed - it may have been a
+     * SUSPEND or INACTIVE (cancel) - so never assume ACTIVE. The status comes
+     * from the live service record; without it nothing changes.
+     */
+    public static function resolveServiceStatus(?string $transactionState, ?string $liveServiceStatus): ?string
+    {
+        if (strtoupper((string) $transactionState) !== 'SUCCESS') {
+            return null;
+        }
+
+        $live = strtoupper(trim((string) $liveServiceStatus));
+
+        return $live !== '' ? $live : null;
     }
 
     // -------------------------------------------------------------------------

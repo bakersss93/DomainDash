@@ -24,7 +24,7 @@ class SslController extends Controller
         }
 
         return response()->json(
-            $q->orderBy('common_name')->paginate((int) $request->get('per_page', 100))
+            $q->orderBy('common_name')->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
         );
     }
 
@@ -38,16 +38,16 @@ class SslController extends Controller
         $response = $synergy->listAllSSLCerts();
 
         if (($response['status'] ?? null) !== 'OK') {
-            return response()->json([
-                'message' => 'Synergy error: ' . ($response['errorMessage'] ?? 'Unknown error'),
-            ], 502);
+            \Log::warning('Synergy SSL sync failed', ['status' => $response['status'] ?? null, 'error' => $response['errorMessage'] ?? null]);
+
+            return response()->json(['message' => 'Registrar request failed. Try again later.'], 502);
         }
 
         $synced = 0;
 
-        foreach ($response['certList'] ?? [] as $entry) {
+        foreach ($response['certs'] ?? [] as $entry) {
             $entry  = (array) $entry;
-            $certId = $entry['certId'] ?? $entry['id'] ?? null;
+            $certId = $entry['certID'] ?? $entry['certId'] ?? $entry['id'] ?? null;
             if (!$certId) {
                 continue;
             }

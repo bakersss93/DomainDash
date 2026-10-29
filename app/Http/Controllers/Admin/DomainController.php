@@ -30,7 +30,7 @@ class DomainController extends Controller
 
         $q = Domain::query()->with('client');
 
-        if (auth()->user()->hasRole('Customer')) {
+        if (! auth()->user()->isStaff()) {
             $clientIds = auth()->user()->clients()->pluck('clients.id');
             $q->whereIn('client_id', $clientIds);
         }
@@ -43,9 +43,21 @@ class DomainController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $clients = Client::orderBy('business_name')->get();
+        $clients = $this->visibleClients();
 
         return view('admin.domains.index', compact('domains', 'sort', 'dir', 'search', 'clients'));
+    }
+
+    /** Staff see every client; others only the clients they are assigned to. */
+    private function visibleClients()
+    {
+        $user = auth()->user();
+
+        if ($user->isStaff()) {
+            return Client::orderBy('business_name')->get();
+        }
+
+        return $user->clients()->orderBy('business_name')->get();
     }
 
     public function show(Domain $domain)
@@ -67,7 +79,7 @@ class DomainController extends Controller
             $dnsLabel = $dnsMap[$code] ?? $domain->dns_config;
         }
 
-        $clients = Client::orderBy('business_name')->get();
+        $clients = $this->visibleClients();
 
         $whoisOverview = WhoisFormatter::overview(
             $domain->whois_data ?? [],
@@ -122,6 +134,8 @@ class DomainController extends Controller
 
 public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
 {
+    $this->authorize('view', $domain);
+
     try {
         $code = $synergy->getDomainPassword($domain->name);
 
@@ -224,6 +238,7 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
 
     public function renew(Request $request, SynergyWholesaleClient $synergy, Domain $domain)
     {
+        $this->authorize('view', $domain);
         $request->validate(['years'=>'required|integer|min:1|max:10']);
         $res = $synergy->renewDomain($domain->name, (int)$request->years);
         AuditLogger::logAction('domain.renew', $domain, "Renewal requested for {$domain->name}.", [

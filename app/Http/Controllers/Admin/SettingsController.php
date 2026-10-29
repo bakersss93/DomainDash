@@ -55,6 +55,9 @@ class SettingsController extends Controller
                 'retention_days' => 90,
             ]),
         ];
+        // Never echo stored secrets into the page: show the placeholder instead.
+        $settings = \App\Support\Redactor::maskForForm($settings);
+
         return view('admin.settings.index', compact('settings'));
     }
 
@@ -70,6 +73,23 @@ class SettingsController extends Controller
             'halo.tenant' => 'nullable|string|max:120',
             'halo.client_id' => 'nullable|string|max:120',
             'halo.api_key' => 'nullable|string|max:255',
+            'halo.asset_field_ids' => 'nullable|array',
+            // 0 = "Don't sync" this data point; blank = built-in default id.
+            'halo.asset_field_ids.domain' => 'nullable|integer|min:0',
+            'halo.asset_field_ids.expiry' => 'nullable|integer|min:0',
+            'halo.asset_field_ids.nameservers' => 'nullable|integer|min:0',
+            'halo.asset_field_ids.whois' => 'nullable|integer|min:0',
+            'halo.asset_type_id' => 'nullable|integer|min:1',
+            'halo.asset_type_name' => 'nullable|string|max:180',
+            'halo.asset_field_names' => 'nullable|array',
+            'halo.asset_field_names.domain' => 'nullable|string|max:180',
+            'halo.asset_field_names.expiry' => 'nullable|string|max:180',
+            'halo.asset_field_names.nameservers' => 'nullable|string|max:180',
+            'halo.asset_field_names.whois' => 'nullable|string|max:180',
+            'halo.asset_key_fields' => 'nullable|array',
+            'halo.asset_key_fields.1' => 'nullable|in:domain,expiry,nameservers,whois',
+            'halo.asset_key_fields.2' => 'nullable|in:domain,expiry,nameservers,whois',
+            'halo.asset_key_fields.3' => 'nullable|in:domain,expiry,nameservers,whois',
             'halo.ticket_type_mappings' => 'nullable|array',
             'halo.ticket_type_mappings.*' => 'nullable|array',
             'halo.ticket_type_mappings.*.service_category' => 'nullable|string|max:120',
@@ -82,6 +102,12 @@ class SettingsController extends Controller
             'halo.status_mappings.*.halo_status_id' => 'nullable|integer|min:1',
             'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
+            'itglue.base_url' => 'nullable|string|max:255',
+            'itglue.api_key' => 'nullable|string|max:255',
+            'itglue.flexible_asset_type_id' => 'nullable|integer|min:1',
+            'itglue.flexible_asset_type_name' => 'nullable|string|max:180',
+            'itglue.flexible_asset_traits' => 'nullable|array',
+            'itglue.flexible_asset_traits.*' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9_-]+$/'],
             'ip2whois'      => 'array',
             'vocus'                   => 'array',
             'vocus.access_key'        => 'nullable|string|max:64',
@@ -193,14 +219,37 @@ class SettingsController extends Controller
             }
 
             $currentValue = Setting::get($key, null);
+            // Keep stored secrets unless a genuinely new value was submitted.
+            $value = \App\Support\Redactor::preserveSecrets($value, $currentValue);
             $diff = $this->extractChangedValues($currentValue, $value);
             if ($diff === null) {
                 continue;
             }
 
             Setting::put($key, $value);
-            $oldValues[$key] = $diff['old'];
-            $newValues[$key] = $diff['new'];
+            // Audit diff never contains secret values.
+            $oldValues[$key] = \App\Support\Redactor::redact($diff['old']);
+            $newValues[$key] = \App\Support\Redactor::redact($diff['new']);
+        }
+
+        // Dedicated audit entry for asset type / field mapping changes (ids and names only, no secrets).
+        $mappingKeys = ['asset_type_id', 'asset_type_name', 'asset_field_ids', 'asset_field_names', 'asset_key_fields'];
+        $mappingOld = array_intersect_key((array) ($oldValues['halo'] ?? []), array_flip($mappingKeys));
+        $mappingNew = array_intersect_key((array) ($newValues['halo'] ?? []), array_flip($mappingKeys));
+        foreach (['flexible_asset_type_id', 'flexible_asset_type_name', 'flexible_asset_traits'] as $k) {
+            if (isset($newValues['itglue'][$k]) || isset($oldValues['itglue'][$k])) {
+                $mappingOld['itglue.' . $k] = $oldValues['itglue'][$k] ?? null;
+                $mappingNew['itglue.' . $k] = $newValues['itglue'][$k] ?? null;
+            }
+        }
+        if ($mappingNew !== [] || $mappingOld !== []) {
+            AuditLogger::logSystem('integration.mapping.update', 'Asset type / field mapping changed.', [
+                'service' => 'settings',
+                'function' => 'integration-mapping-update',
+            ], [
+                'old_values' => $mappingOld,
+                'new_values' => $mappingNew,
+            ]);
         }
 
         if (!empty($newValues)) {

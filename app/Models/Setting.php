@@ -8,7 +8,8 @@ class Setting extends Model
 {
     protected $fillable = ['key','value'];
 
-    protected $casts = ['value' => 'array'];
+    /** Values (which include vendor credentials) are encrypted at rest. */
+    protected $casts = ['value' => \App\Casts\EncryptedSettingValue::class];
 
     public static function get(string $key, $default = null){
         return optional(static::where('key',$key)->first())->value ?? $default;

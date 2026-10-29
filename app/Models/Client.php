@@ -26,6 +26,11 @@ class Client extends Model
         'active'
     ];
 
+    protected $casts = [
+        'halo_synced_at' => 'datetime',
+        'itglue_synced_at' => 'datetime',
+    ];
+
     public function users()
     {
         return $this->belongsToMany(User::class, 'client_user');

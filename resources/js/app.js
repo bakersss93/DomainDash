@@ -1,4 +1,5 @@
 import './bootstrap';
+import './dd-list';
 
 const trackedFetchHints = ['/sync', '/bulk-sync'];
 const trackedFormHints = ['/sync', '/bulk-sync'];
@@ -48,7 +49,13 @@ function hideGlobalLoader() {
     overlay.classList.remove('is-visible');
 }
 
-function shouldTrackUrl(url) {
+// The full-screen "Sync in progress" overlay is only for requests that start work.
+// Reads (list loads, run/status polling) must never cover the page: the lists show live progress themselves.
+function shouldTrackUrl(url, method = 'GET') {
+    if (String(method).toUpperCase() === 'GET') {
+        return false;
+    }
+
     return trackedFetchHints.some((hint) => url.includes(hint));
 }
 
@@ -58,7 +65,7 @@ window.hideGlobalLoader = hideGlobalLoader;
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (input, init = {}) => {
     const target = typeof input === 'string' ? input : (input?.url ?? '');
-    const trackRequest = shouldTrackUrl(target);
+    const trackRequest = shouldTrackUrl(target, init?.method ?? (typeof input !== 'string' ? input?.method : 'GET') ?? 'GET');
 
     if (trackRequest) {
         pendingRequests += 1;
@@ -99,4 +106,93 @@ document.addEventListener('submit', (event) => {
     if (trackedFormHints.some((hint) => action.includes(hint))) {
         showGlobalLoader('Sync in progress…');
     }
+});
+
+/* ==========================================================================
+   UI shell behaviour (sidebar, nav sections, user menu, dialogs)
+   ========================================================================== */
+
+window.toggleNav = function toggleNav(element) {
+    const section = element.closest('.nav-section');
+    if (!section) {
+        return;
+    }
+    const expanded = section.classList.toggle('expanded');
+    element.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+};
+
+function setSidebar(open) {
+    document.body.classList.toggle('nav-open', open);
+    document.querySelectorAll('[data-sidebar-toggle]').forEach((btn) => {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+}
+
+document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) {
+        return;
+    }
+
+    // Sidebar toggle: off-canvas on mobile, collapse/expand on desktop
+    if (target.closest('[data-sidebar-toggle]')) {
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+            const collapsed = document.body.classList.toggle('sidebar-collapsed');
+            document.querySelectorAll('[data-sidebar-toggle]').forEach((btn) => {
+                btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            });
+            try {
+                localStorage.setItem('dd.sidebarCollapsed', collapsed ? '1' : '0');
+            } catch (e) {
+                // storage unavailable: state just won't persist
+            }
+        } else {
+            setSidebar(!document.body.classList.contains('nav-open'));
+        }
+        return;
+    }
+    if (target.closest('.sidebar-scrim') || (target.closest('.sidebar a.nav-link') && window.matchMedia('(max-width: 1023px)').matches)) {
+        setSidebar(false);
+    }
+
+    // Close open <details> menus when clicking elsewhere
+    document.querySelectorAll('.user-menu details[open]').forEach((d) => {
+        if (!d.contains(target)) {
+            d.removeAttribute('open');
+        }
+    });
+
+    // Generic dialogs: <x-ui.modal>
+    const opener = target.closest('[data-modal-open]');
+    if (opener) {
+        const modal = document.getElementById(opener.getAttribute('data-modal-open'));
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.__returnFocus = opener;
+            modal.querySelector('[role="dialog"]')?.focus();
+        }
+        return;
+    }
+    if (target.closest('[data-modal-close]')) {
+        const modal = target.closest('[data-ui-modal]');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.__returnFocus?.focus?.();
+        }
+    }
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+        return;
+    }
+    setSidebar(false);
+    document.querySelectorAll('[data-ui-modal]').forEach((modal) => {
+        if (modal.style.display === 'none') {
+            return;
+        }
+        modal.style.display = 'none';
+        modal.__returnFocus?.focus?.();
+    });
+    document.querySelectorAll('.user-menu details[open]').forEach((d) => d.removeAttribute('open'));
 });

@@ -1,0 +1,15 @@
+# Install (as root):
+#   cp deploy/queue/domaindash-schedule.{service,timer} /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now domaindash-schedule.timer
+# Alternative: use cron instead (see cron.example) - do not enable both.
+[Unit]
+Description=Run the DomainDash scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=false
+Unit=domaindash-schedule.service
+
+[Install]
+WantedBy=timers.target

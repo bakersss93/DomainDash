@@ -25,6 +25,17 @@ class AuditLogger
 
         $user = Auth::user();
 
+        // While impersonating, record the real administrator on every row.
+        try {
+            if (app()->bound('request') && request()->hasSession() && ($impersonator = request()->session()->get('impersonator_id'))) {
+                $ctx = (array) ($options['context'] ?? []);
+                $ctx['impersonator_id'] = $ctx['impersonator_id'] ?? $impersonator;
+                $options['context'] = $ctx;
+            }
+        } catch (\Throwable $e) {
+            // never let audit decoration break the request
+        }
+
         return AuditLog::create([
             'user_id' => $user?->id,
             'user_email' => $options['user_email'] ?? $user?->email,
@@ -32,9 +43,10 @@ class AuditLogger
             'auditable_type' => $auditableType,
             'auditable_id' => $auditableId,
             'description' => $options['description'] ?? null,
-            'old_values' => $options['old_values'] ?? null,
-            'new_values' => $options['new_values'] ?? null,
-            'context' => $options['context'] ?? null,
+            // Defence in depth: nothing secret-like is ever persisted, whatever the caller.
+            'old_values' => \App\Support\Redactor::redact($options['old_values'] ?? null),
+            'new_values' => \App\Support\Redactor::redact($options['new_values'] ?? null),
+            'context' => \App\Support\Redactor::redact($options['context'] ?? null),
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);

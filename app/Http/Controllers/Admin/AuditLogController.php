@@ -65,24 +65,8 @@ class AuditLogController extends Controller
 
         $logs = $query->paginate(50)->withQueryString();
         $actionOptions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
-        $functionOptions = AuditLog::query()
-            ->whereNotNull('context')
-            ->get(['context'])
-            ->pluck('context')
-            ->map(fn ($context) => $context['function'] ?? null)
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
-        $serviceOptions = AuditLog::query()
-            ->whereNotNull('context')
-            ->get(['context'])
-            ->pluck('context')
-            ->map(fn ($context) => $context['service'] ?? null)
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
+        $functionOptions = $this->distinctContextValues('function');
+        $serviceOptions = $this->distinctContextValues('service');
         $users = User::query()->orderBy('name')->get(['id', 'name', 'email']);
         $clients = Client::query()->orderBy('business_name')->get(['id', 'business_name']);
 
@@ -129,27 +113,55 @@ class AuditLogController extends Controller
             : 'Audit retention saved.');
     }
 
+    /**
+     * Distinct values of one context JSON key, computed in the database (the
+     * audit table can hold hundreds of thousands of rows) and cached briefly.
+     */
+    private function distinctContextValues(string $key): \Illuminate\Support\Collection
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            "audit:filter-options:{$key}",
+            now()->addMinutes(10),
+            fn () => AuditLog::query()
+                ->toBase()
+                ->whereNotNull("context->{$key}")
+                ->select("context->{$key} as value")
+                ->distinct()
+                ->orderBy('value')
+                ->limit(500)
+                ->pluck('value')
+                ->filter(fn ($value) => is_string($value) && $value !== '')
+                ->values()
+        );
+    }
+
+    /**
+     * Size of the audit table, computed by the database rather than by loading
+     * every row into PHP (which exhausts memory on large tables).
+     */
     private function estimateAuditDatabaseSizeBytes(): int
     {
-        return (int) AuditLog::query()->get()->reduce(function (int $carry, AuditLog $log): int {
-            $row = json_encode([
-                $log->id,
-                $log->user_id,
-                $log->user_email,
-                $log->action,
-                $log->auditable_type,
-                $log->auditable_id,
-                $log->description,
-                $log->old_values,
-                $log->new_values,
-                $log->context,
-                $log->ip_address,
-                $log->user_agent,
-                $log->created_at,
-            ]);
+        return (int) \Illuminate\Support\Facades\Cache::remember('audit:db-size', now()->addMinutes(10), function (): int {
+            $connection = AuditLog::query()->getConnection();
+            $table = $connection->getTablePrefix() . (new AuditLog())->getTable();
 
-            return $carry + strlen((string) $row);
-        }, 0);
+            if (in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
+                $row = $connection->selectOne(
+                    'SELECT data_length + index_length AS bytes FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+                    [$table]
+                );
+
+                if ($row !== null && $row->bytes !== null) {
+                    return (int) $row->bytes;
+                }
+            }
+
+            // Portable estimate: stored text lengths plus a fixed per-row overhead.
+            return (int) AuditLog::query()->toBase()->selectRaw(
+                'COALESCE(SUM(200 + COALESCE(LENGTH(description), 0) + COALESCE(LENGTH(old_values), 0)'
+                . ' + COALESCE(LENGTH(new_values), 0) + COALESCE(LENGTH(context), 0) + COALESCE(LENGTH(user_agent), 0)), 0) AS bytes'
+            )->value('bytes');
+        });
     }
 
     private function logFileSizeBytes(): int

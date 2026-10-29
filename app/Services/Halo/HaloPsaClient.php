@@ -3,178 +3,385 @@
 namespace App\Services\Halo;
 
 use App\Models\Setting;
+use App\Services\Integrations\IntegrationApiException;
+use App\Services\Integrations\IntegrationConfigurationException;
+use App\Services\Integrations\IntegrationHttp;
 use App\Support\WhoisFormatter;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
+use Generator;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class HaloPsaClient
 {
-    private const ACCESS_TOKEN_CACHE_KEY = 'halo_api_access_token';
+    public const PROVIDER = 'halo';
 
-    protected Client $http;
+    /** Delimiters of the block DomainDash owns inside an asset's notes. */
+    public const NOTES_BEGIN = '[[DOMAINDASH-BEGIN]]';
+    public const NOTES_END = '[[DOMAINDASH-END]]';
+
+    /**
+     * Query parameter for "changed since" on asset lists. Halo tenants that do
+     * not know it ignore it (full list is returned), so a daily full
+     * reconcile remains the safety net. Unverified against a live tenant.
+     */
+    public const ASSET_SINCE_PARAM = 'lastupdatefromdate';
 
     protected string $baseUrl;
-    protected ?string $authServer;
+    protected string $authServer;
     protected ?string $tenant;
     protected ?string $clientId;
     protected ?string $clientSecret;
+
+    /** @var array<int,array> */
+    protected array $siteCache = [];
 
     public function __construct()
     {
         $halo = Setting::get('halo', []);
 
-        // Resource server URL
-        $baseUrl = rtrim($halo['base_url'] ?? '', '/');
+        // Resource server URL (without the /api suffix, which is re-added per request)
+        $baseUrl = rtrim((string) ($halo['base_url'] ?? ''), '/');
         $baseUrl = preg_replace('#/api$#i', '', $baseUrl);
 
         if ($baseUrl === '') {
-            throw new \RuntimeException('HaloPSA base URL is not configured.');
+            throw new IntegrationConfigurationException('HaloPSA base URL is not configured.');
+        }
+
+        $authServer = isset($halo['auth_server']) && $halo['auth_server'] !== ''
+            ? rtrim((string) $halo['auth_server'], '/')
+            : $baseUrl . '/auth';
+
+        // Credentials are sent to these hosts: require TLS.
+        foreach (['base URL' => $baseUrl, 'authorisation server URL' => $authServer] as $label => $url) {
+            if (! preg_match('#^https://[^/\s]+#i', $url)) {
+                throw new IntegrationConfigurationException("HaloPSA {$label} must use https://.");
+            }
         }
 
         $this->baseUrl      = $baseUrl;
-        $this->authServer   = isset($halo['auth_server']) && $halo['auth_server'] !== ''
-            ? rtrim($halo['auth_server'], '/')
-            : null;
-        $this->tenant       = $halo['tenant'] ?? null;
+        $this->authServer   = $authServer;
+        $this->tenant       = isset($halo['tenant']) && $halo['tenant'] !== '' ? (string) $halo['tenant'] : null;
         $this->clientId     = $halo['client_id'] ?? null;
         $this->clientSecret = $halo['api_key'] ?? null;
-
-        $this->http = new Client([
-            'base_uri' => $this->baseUrl,
-            'timeout'  => 30,
-        ]);
     }
 
     /**
-     * Get (and cache) an OAuth2 access token
+     * Is Halo configured well enough to attempt calls? (No exceptions.)
      */
+    public static function isConfigured(): bool
+    {
+        $halo = Setting::get('halo', []);
+
+        return ! empty($halo['base_url']) && ! empty($halo['client_id']) && ! empty($halo['api_key']);
+    }
+
+    /**
+     * Human reason why Halo cannot be used, or null when configured. Separates
+     * "never configured" from "saved but unreadable" (APP_KEY changed).
+     */
+    public static function configurationProblem(): ?string
+    {
+        if (self::isConfigured()) {
+            return null;
+        }
+
+        if (! empty(\App\Casts\EncryptedSettingValue::$decryptFailures['halo'])) {
+            return 'HaloPSA settings could not be decrypted (was APP_KEY changed?). Re-enter the HaloPSA credentials in Settings → HaloPSA.';
+        }
+
+        return 'HaloPSA is not configured. Set the base URL, client ID and API key in Settings → HaloPSA.';
+    }
+
+    /**
+     * Custom field ids of the Domain asset type (tenant specific; defaults are
+     * the values this integration was built against).
+     *
+     * 0 means the data point is mapped to "don't sync".
+     *
+     * @return array{domain:int,expiry:int,nameservers:int,whois:int}
+     */
+    public static function assetFieldIds(): array
+    {
+        return HaloAssetMapping::fromSettings()->fieldIds;
+    }
+
+    // ------------------------------------------------------------------
+    // Auth: the one and only token path
+    // ------------------------------------------------------------------
+
+    /**
+     * Cache key is scoped to tenant/base_url/auth server/client credentials so
+     * changing any of them in Settings never re-uses another identity's token.
+     */
+    public function tokenCacheKey(): string
+    {
+        return 'halo_api_access_token_' . sha1(implode('|', [
+            $this->baseUrl,
+            $this->authServer,
+            (string) $this->tenant,
+            (string) $this->clientId,
+            sha1((string) $this->clientSecret),
+        ]));
+    }
+
+    public function forgetAccessToken(): void
+    {
+        Cache::forget($this->tokenCacheKey());
+    }
+
     protected function getAccessToken(): string
     {
-        $cacheKey = self::ACCESS_TOKEN_CACHE_KEY;
+        $key = $this->tokenCacheKey();
 
-        if ($token = Cache::get($cacheKey)) {
+        if ($token = Cache::get($key)) {
             return $token;
         }
 
-        if (!$this->authServer || !$this->clientId || !$this->clientSecret) {
-            throw new \RuntimeException(
+        if (! $this->clientId || ! $this->clientSecret) {
+            throw new IntegrationConfigurationException(
                 'HaloPSA API is not fully configured. Please set Authorisation server, Client ID and API key.'
             );
         }
 
-        $tokenUrl = rtrim($this->authServer, '/') . '/token';
-        if (!empty($this->tenant)) {
+        // One worker fetches the token; concurrent callers wait and re-use it.
+        try {
+            return Cache::lock($key . ':lock', (int) config('integrations.halo.token_lock_seconds', 10))
+                ->block(5, function () use ($key) {
+                    return Cache::get($key) ?: $this->fetchAccessToken($key);
+                });
+        } catch (LockTimeoutException) {
+            return Cache::get($key) ?: $this->fetchAccessToken($key);
+        }
+    }
+
+    protected function fetchAccessToken(string $cacheKey): string
+    {
+        $tokenUrl = $this->authServer . '/token';
+        if ($this->tenant) {
             $tokenUrl .= '?tenant=' . urlencode($this->tenant);
         }
 
-        $client   = new Client(['timeout' => 15]);
-        $response = $client->post($tokenUrl, [
-            'form_params' => [
+        $response = IntegrationHttp::send(
+            self::PROVIDER,
+            'POST',
+            $tokenUrl,
+            fn () => IntegrationHttp::pending()->asForm()->post($tokenUrl, [
                 'grant_type'    => 'client_credentials',
                 'client_id'     => $this->clientId,
                 'client_secret' => $this->clientSecret,
                 'scope'         => 'all',
-            ],
-        ]);
+            ]),
+            idempotent: true // token issuance has no side effects worth protecting
+        );
 
-        $data = json_decode((string) $response->getBody(), true) ?: [];
+        $data = $response->json();
+        $token = is_array($data) ? ($data['access_token'] ?? null) : null;
 
-        if (empty($data['access_token'])) {
-            throw new \RuntimeException('HaloPSA auth failed – no access_token in response.');
+        if (! $token) {
+            throw new IntegrationApiException(
+                'HaloPSA auth failed: no access_token in response.',
+                self::PROVIDER,
+                $response->status()
+            );
         }
 
-        $token = $data['access_token'];
-        $ttl   = isset($data['expires_in'])
-            ? max(60, (int) $data['expires_in'] - 60)
-            : 600;
-
+        $ttl = isset($data['expires_in']) ? max(60, (int) $data['expires_in'] - 60) : 600;
         Cache::put($cacheKey, $token, $ttl);
 
         return $token;
     }
 
-    protected function headers(): array
-    {
-        return [
-            'Authorization' => 'Bearer ' . $this->getAccessToken(),
-            'Accept'        => 'application/json',
-            'Content-Type'  => 'application/json',
-        ];
-    }
+    // ------------------------------------------------------------------
+    // Core request + pagination
+    // ------------------------------------------------------------------
 
     /**
-     * Core request helper
+     * Core request helper. Throws IntegrationApiException on any non-2xx.
+     * Only GETs are retried (429/5xx/connection) - POSTs are sent once.
+     *
+     * Supported $options: query (array), json (array), body (string) with
+     * content_type (string).
      */
     protected function request(string $method, string $uri, array $options = []): array
     {
+        $method = strtoupper($method);
         $uri = ltrim($uri, '/');
         if (stripos($uri, 'api/') !== 0) {
             $uri = 'api/' . $uri;
         }
+        $url = $this->baseUrl . '/' . $uri;
+        $idempotent = $method === 'GET';
 
-        $options['headers'] = array_merge(
-            $this->headers(),
-            $options['headers'] ?? []
-        );
+        $reauthenticated = false;
 
-        try {
-            $response = $this->http->request($method, $uri, $options);
-        } catch (ClientException $exception) {
-            $statusCode = $exception->getResponse()?->getStatusCode();
-            if ($statusCode === 401) {
-                Cache::forget(self::ACCESS_TOKEN_CACHE_KEY);
+        while (true) {
+            try {
+                $response = IntegrationHttp::send(
+                    self::PROVIDER,
+                    $method,
+                    $url,
+                    fn () => $this->dispatch($method, $url, $options),
+                    $idempotent
+                );
+            } catch (IntegrationApiException $e) {
+                // An expired/revoked token is rejected before processing: safe to refresh once and resend.
+                if ($e->status === 401 && ! $reauthenticated) {
+                    $reauthenticated = true;
+                    $this->forgetAccessToken();
+                    continue;
+                }
 
-                $options['headers']['Authorization'] = 'Bearer ' . $this->getAccessToken();
-                $response = $this->http->request($method, $uri, $options);
-            } else {
-                throw $exception;
+                // Let the operator see exactly what Halo rejected (sanitized, truncated).
+                if ($e->status !== null && $e->status >= 400 && $e->status < 500) {
+                    Log::warning('HaloPSA rejected request', [
+                        'method' => $method,
+                        'url' => \App\Support\SyncErrorSanitizer::clean($url, 300),
+                        'status' => $e->status,
+                        'response' => \App\Support\SyncErrorSanitizer::clean((string) $e->responseBody, 500),
+                    ]);
+                }
+
+                throw $e;
             }
+
+            $json = $response->json();
+
+            return is_array($json) ? $json : [];
+        }
+    }
+
+    private function dispatch(string $method, string $url, array $options)
+    {
+        $pending = IntegrationHttp::pending()
+            ->withToken($this->getAccessToken())
+            ->acceptJson();
+
+        $query = $options['query'] ?? [];
+
+        if (isset($options['body'])) {
+            $pending = $pending->withBody((string) $options['body'], $options['content_type'] ?? 'application/json');
+
+            return $pending->send($method, $url, ['query' => $query]);
         }
 
-        $json = json_decode((string) $response->getBody(), true);
+        if (isset($options['json'])) {
+            $pending = $pending->withBody(json_encode($options['json'], JSON_UNESCAPED_SLASHES), 'application/json');
 
-        return is_array($json) ? $json : [];
+            return $pending->send($method, $url, ['query' => $query]);
+        }
+
+        return $pending->send($method, $url, ['query' => $query]);
     }
 
     /**
-     * List Halo clients
+     * Pull the record list out of Halo's wrapper object.
      */
-    public function listClients(int $page = 1, int $pageSize = 100): array
+    protected function extractList(array $result, array $keys): array
     {
-        $result = $this->request('GET', 'client', [
-            'query' => [
-                'page'     => $page,
-                'pageSize' => $pageSize,
-            ],
-        ]);
-
-        // Try common wrappers
-        if (isset($result['clients']) && is_array($result['clients'])) {
-            return $result['clients'];
-        }
-
-        if (isset($result['data']) && is_array($result['data'])) {
-            return $result['data'];
-        }
-
-        if (isset($result['Results']) && is_array($result['Results'])) {
-            return $result['Results'];
-        }
-
-        if (is_array($result) && array_is_list($result)) {
-            return $result;
-        }
-
-        if (is_array($result) && count($result) === 1) {
-            $only = reset($result);
-            if (is_array($only) && array_is_list($only)) {
-                return $only;
+        foreach ($keys as $key) {
+            if (isset($result[$key]) && is_array($result[$key])) {
+                return array_values(array_filter($result[$key], 'is_array'));
             }
         }
 
+        foreach (['data', 'Results'] as $key) {
+            if (isset($result[$key]) && is_array($result[$key])) {
+                return array_values(array_filter($result[$key], 'is_array'));
+            }
+        }
+
+        if (array_is_list($result)) {
+            return array_values(array_filter($result, 'is_array'));
+        }
+
         return [];
+    }
+
+    /**
+     * Walk a Halo list endpoint page by page (pageinate=true, page_size,
+     * page_no). Yields one array of rows per page; stops on a short page or
+     * once record_count rows have been seen.
+     *
+     * @return Generator<int, array>
+     */
+    public function paginate(string $uri, array $query, array $listKeys, ?int $pageSize = null): Generator
+    {
+        $pageSize ??= (int) config('integrations.halo.page_size', 100);
+        $maxPages = (int) config('integrations.halo.max_pages', 500);
+        $page = 1;
+        $seen = 0;
+        $previousFirstId = null;
+
+        do {
+            $result = $this->request('GET', $uri, [
+                'query' => array_merge($query, [
+                    'pageinate' => 'true',
+                    'page_size' => $pageSize,
+                    'page_no'   => $page,
+                ]),
+            ]);
+
+            $rows = $this->extractList($result, $listKeys);
+            $total = isset($result['record_count']) ? (int) $result['record_count'] : null;
+
+            $firstId = $rows[0]['id'] ?? $rows[0]['Id'] ?? null;
+            if ($page > 1 && $firstId !== null && $firstId === $previousFirstId) {
+                // Server ignored page_no and repeated itself: avoid looping forever.
+                return;
+            }
+            $previousFirstId = $firstId;
+
+            if ($rows !== []) {
+                yield $rows;
+            }
+
+            $seen += count($rows);
+            $more = count($rows) >= $pageSize && ($total === null || $seen < $total);
+            $page++;
+        } while ($more && $page <= $maxPages);
+    }
+
+    /**
+     * @return array<int,array> every row of every page
+     */
+    protected function paginateAll(string $uri, array $query, array $listKeys, ?int $pageSize = null): array
+    {
+        $all = [];
+        foreach ($this->paginate($uri, $query, $listKeys, $pageSize) as $rows) {
+            array_push($all, ...$rows);
+        }
+
+        return $all;
+    }
+
+    // ------------------------------------------------------------------
+    // Clients
+    // ------------------------------------------------------------------
+
+    /**
+     * @return Generator<int, array>
+     */
+    public function clientPages(bool $includeInactive = false): Generator
+    {
+        return $this->paginate('client', [
+            'order' => 'name',
+            'includeinactive' => $includeInactive ? 'true' : 'false',
+        ], ['clients']);
+    }
+
+    /**
+     * List every Halo client (all pages).
+     */
+    public function listClients(bool $includeInactive = false): array
+    {
+        $all = [];
+        foreach ($this->clientPages($includeInactive) as $rows) {
+            array_push($all, ...$rows);
+        }
+
+        return $all;
     }
 
     /**
@@ -185,90 +392,122 @@ class HaloPsaClient
         return $this->request('GET', 'client/' . $clientId);
     }
 
+    // ------------------------------------------------------------------
+    // Assets
+    // ------------------------------------------------------------------
+
     /**
-     * List all assets for a given client
+     * The asset type DomainDash pushes to: the one picked in Settings
+     * (halo.asset_type_id, no API call), else the type named "Domain"
+     * (looked up once, cached 24h) for installs that never picked one.
      */
-    public function listAssetsForClient(int $clientId, ?int $assetTypeId = null): array
+    public function getDomainAssetTypeId(): ?int
     {
-        $query = [
-            'client_id' => $clientId,
-            'count' => 100
-        ];
-
-        if ($assetTypeId) {
-            $query['assettype_id'] = $assetTypeId;
+        if ($configured = HaloAssetMapping::fromSettings()->typeId) {
+            return $configured;
         }
 
-        $result = $this->request('GET', 'asset', [
-            'query' => $query
-        ]);
+        $key = 'halo_domain_asset_type_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
 
-        // Handle different response structures
-        if (isset($result['assets']) && is_array($result['assets'])) {
-            return $result['assets'];
+        if ($cached = Cache::get($key)) {
+            return (int) $cached;
         }
 
-        if (isset($result['data']) && is_array($result['data'])) {
-            return $result['data'];
+        $types = $this->paginateAll('assettype', [], ['assettypes']);
+
+        foreach ($types as $type) {
+            $name = $type['name'] ?? $type['Name'] ?? null;
+            if ($name && strcasecmp(trim($name), 'Domain') === 0) {
+                $id = (int) ($type['id'] ?? $type['Id'] ?? 0);
+                if ($id > 0) {
+                    Cache::put($key, $id, (int) config('integrations.halo.domain_asset_type_ttl', 86400));
+
+                    return $id;
+                }
+            }
         }
 
-        if (isset($result['Results']) && is_array($result['Results'])) {
-            return $result['Results'];
-        }
+        Log::warning('Could not find Domain asset type in HaloPSA');
 
-        if (is_array($result) && array_is_list($result)) {
-            return $result;
-        }
-
-        return [];
+        return null;
     }
 
     /**
-     * List only "Domain" assets for a client
+     * Walk assets page by page, filtered server-side.
+     *
+     * @return Generator<int, array>
+     */
+    public function assetPages(?int $clientId = null, ?int $assetTypeId = null, ?string $modifiedSince = null): Generator
+    {
+        $query = [];
+        if ($clientId) {
+            $query['client_id'] = $clientId;
+        }
+        if ($assetTypeId) {
+            $query['assettype_id'] = $assetTypeId;
+        }
+        if ($modifiedSince) {
+            $query[self::ASSET_SINCE_PARAM] = $modifiedSince;
+        }
+
+        return $this->paginate('asset', $query, ['assets']);
+    }
+
+    /**
+     * List all assets for a given client (every page).
+     */
+    public function listAssetsForClient(int $clientId, ?int $assetTypeId = null): array
+    {
+        $all = [];
+        foreach ($this->assetPages($clientId, $assetTypeId) as $rows) {
+            array_push($all, ...$rows);
+        }
+
+        return $all;
+    }
+
+    /**
+     * List only "Domain" assets for a client (server-side asset type filter).
      */
     public function listDomainAssetsForClient(int $clientId): array
     {
-        $assets = $this->listAssetsForClient($clientId);
+        $typeId = $this->getDomainAssetTypeId();
 
-        Log::info('Filtering domain assets', [
-            'client_id' => $clientId,
-            'total_assets' => count($assets)
-        ]);
+        if (! $typeId) {
+            return [];
+        }
 
-        $domainAssets = array_values(array_filter($assets, function (array $asset) {
-            // Try different possible field names for asset type
-            $typeName = $asset['assettype_name']
-                ?? $asset['assettypename']
-                ?? $asset['AssetTypeName']
-                ?? $asset['TypeName']
-                ?? $asset['asset_type_name']
-                ?? null;
+        return $this->listAssetsForClient($clientId, $typeId);
+    }
 
-            // Also check nested AssetType object
-            if (!$typeName && isset($asset['AssetType'])) {
-                $typeName = $asset['AssetType']['Name']
-                    ?? $asset['AssetType']['name']
-                    ?? null;
-            }
+    /**
+     * Flatten a Halo asset row to the fields DomainDash stores locally.
+     */
+    public static function normalizeAsset(array $asset): array
+    {
+        $typeName = $asset['assettype_name']
+            ?? $asset['assettypename']
+            ?? $asset['AssetTypeName']
+            ?? $asset['asset_type_name']
+            ?? ($asset['AssetType']['Name'] ?? $asset['AssetType']['name'] ?? null);
 
-            $isDomain = $typeName && strcasecmp($typeName, 'Domain') === 0;
+        $updated = $asset['datemodified'] ?? $asset['lastupdate'] ?? $asset['last_updated'] ?? null;
+        $ts = $updated ? strtotime((string) $updated) : false;
 
-            if ($isDomain) {
-                Log::info('Found domain asset', [
-                    'asset_id' => $asset['id'] ?? $asset['Id'] ?? 'unknown',
-                    'type' => $typeName
-                ]);
-            }
-
-            return $isDomain;
-        }));
-
-        Log::info('Domain assets filtered', [
-            'client_id' => $clientId,
-            'domain_assets_found' => count($domainAssets)
-        ]);
-
-        return $domainAssets;
+        return [
+            'halo_id'          => (int) ($asset['id'] ?? $asset['Id'] ?? 0),
+            'halo_client_id'   => (int) ($asset['client_id'] ?? $asset['clientid'] ?? $asset['ClientId'] ?? 0),
+            'assettype_id'     => (int) ($asset['assettype_id'] ?? $asset['AssetTypeId'] ?? 0),
+            'assettype_name'   => $typeName,
+            'name'             => $asset['name'] ?? $asset['Name'] ?? $asset['key_field'] ?? null,
+            'inventory_number' => $asset['inventory_number']
+                ?? $asset['InventoryNumber']
+                ?? $asset['inventory_id']
+                ?? $asset['key_field']
+                ?? $asset['KeyField']
+                ?? null,
+            'remote_updated_at' => $ts ? gmdate('Y-m-d H:i:s', $ts) : null,
+        ];
     }
 
     /**
@@ -287,13 +526,11 @@ class HaloPsaClient
         // Halo's Asset POST endpoint expects an array of assets, even when
         // creating a single item. Sending a plain object results in a 400 with
         // "Cannot deserialize the current JSON object". Wrap the payload in an
-        // array to match the expected contract.
+        // array to match the expected contract. Single attempt: no blind retry.
         $result = $this->request('POST', 'asset', [
             'json' => [$data],
         ]);
 
-        // Some Halo environments return an array of created assets. Unwrap to a
-        // single asset structure so callers can rely on consistent shape.
         if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
             return $result[0];
         }
@@ -315,7 +552,6 @@ class HaloPsaClient
             'json' => [$payload],
         ]);
 
-        // Unwrap array responses to a single asset for consistency
         if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
             return $result[0];
         }
@@ -324,35 +560,22 @@ class HaloPsaClient
     }
 
     /**
-     * Find an asset for a client by inventory number / domain name
+     * Find an asset for a client by inventory number / domain name.
+     * Throws on API failure (never "null because the call failed").
      */
     public function findAssetByInventory(int $clientId, int $assetTypeId, string $inventoryNumber): ?array
     {
-        $result = $this->request('GET', 'asset', [
-            'query' => [
-                'client_id' => $clientId,
-                'assettype_id' => $assetTypeId,
-                'search' => $inventoryNumber,
-                'count' => 100,
-            ],
-        ]);
+        foreach ($this->paginate('asset', [
+            'client_id' => $clientId,
+            'assettype_id' => $assetTypeId,
+            'search' => $inventoryNumber,
+        ], ['assets']) as $assets) {
+            foreach ($assets as $asset) {
+                $inventory = self::normalizeAsset($asset)['inventory_number'];
 
-        $assets = $result['assets']
-            ?? $result['data']
-            ?? $result['Results']
-            ?? (array_is_list($result) ? $result : []);
-
-        foreach ($assets as $asset) {
-            $inventory = $asset['inventory_number']
-                ?? $asset['InventoryNumber']
-                ?? $asset['inventory_id']
-                ?? $asset['inventoryid']
-                ?? $asset['key_field']
-                ?? $asset['KeyField']
-                ?? null;
-
-            if ($inventory && strcasecmp((string) $inventory, $inventoryNumber) === 0) {
-                return $asset;
+                if ($inventory && strcasecmp((string) $inventory, $inventoryNumber) === 0) {
+                    return $asset;
+                }
             }
         }
 
@@ -364,6 +587,10 @@ class HaloPsaClient
      */
     public function getDefaultSiteForClient(int $clientId): array
     {
+        if (isset($this->siteCache[$clientId])) {
+            return $this->siteCache[$clientId];
+        }
+
         $client = $this->getClient($clientId);
 
         $siteId = $client['site_id']
@@ -400,78 +627,74 @@ class HaloPsaClient
             $siteName = 'Main';
         }
 
-        return [
+        return $this->siteCache[$clientId] = [
             'site_id' => $siteId,
             'site_name' => $siteName,
         ];
     }
 
     /**
-     * Update domain asset with DNS records
+     * Replace (or insert) the DomainDash-managed block inside asset notes.
+     * Re-running with the same content yields identical notes (idempotent);
+     * text outside the markers is never touched.
+     */
+    public static function replaceManagedBlock(string $notes, string $block): string
+    {
+        $managed = self::NOTES_BEGIN . "\n" . trim($block) . "\n" . self::NOTES_END;
+
+        $pattern = '/' . preg_quote(self::NOTES_BEGIN, '/') . '.*?' . preg_quote(self::NOTES_END, '/') . '/s';
+
+        if (preg_match($pattern, $notes)) {
+            return preg_replace_callback($pattern, fn () => $managed, $notes, 1);
+        }
+
+        $notes = rtrim($notes);
+
+        return $notes === '' ? $managed : $notes . "\n\n" . $managed;
+    }
+
+    /**
+     * Update domain asset notes with DNS/WHOIS info. Exceptions propagate.
      */
     public function syncDomainAssetDns(\App\Models\Domain $domain, int $assetId, ?array $dnsRecords = null): array
     {
-        try {
-            Log::info('Syncing DNS to HaloPSA asset', [
-                'domain' => $domain->name,
-                'asset_id' => $assetId
-            ]);
+        $asset = $this->getAsset($assetId);
+        $currentNotes = (string) ($asset['notes'] ?? $asset['Notes'] ?? '');
 
-            // Fetch the current asset to get existing notes
-            $asset = $this->getAsset($assetId);
-            $currentNotes = $asset['notes'] ?? $asset['Notes'] ?? '';
+        $dnsNotes = $this->formatDnsRecordsForNotes($dnsRecords ?? []);
 
-            // Format DNS records
-            $dnsNotes = $this->formatDnsRecordsForNotes($dnsRecords ?? []);
+        $whoisNotes = WhoisFormatter::formatText(
+            $domain->whois_data ?? [],
+            $domain->name,
+            $domain->whois_synced_at
+        );
 
-            // Format WHOIS details if available
-            $whoisNotes = WhoisFormatter::formatText(
-                $domain->whois_data ?? [],
-                $domain->name,
-                $domain->whois_synced_at
-            );
-
-            // Combine with domain info
-            $lines = [];
-            $lines[] = '=== DomainDash Domain Info ===';
-            $lines[] = 'Domain: ' . $domain->name;
-            if ($domain->registrar) {
-                $lines[] = 'Registrar: ' . $domain->registrar;
-            }
-            if ($domain->expiry_date) {
-                $lines[] = 'Expiry: ' . $domain->expiry_date;
-            }
-            $lines[] = '';
-            $lines[] = $dnsNotes;
-
-            if ($whoisNotes) {
-                $lines[] = '';
-                $lines[] = $whoisNotes;
-            }
-
-            $newNotes = trim(rtrim((string) $currentNotes) . "\n\n" . implode("\n", $lines));
-
-            // Update the asset
-            $result = $this->updateAsset($assetId, [
-                'notes' => $newNotes
-            ]);
-
-            return [
-                'success' => true,
-                'asset_id' => $assetId,
-                'data' => $result
-            ];
-        } catch (\Exception $e) {
-            Log::error('HaloPSA syncDomainAssetDns error: ' . $e->getMessage(), [
-                'domain' => $domain->name,
-                'asset_id' => $assetId
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+        $lines = [];
+        $lines[] = '=== DomainDash Domain Info ===';
+        $lines[] = 'Domain: ' . $domain->name;
+        if ($domain->registrar) {
+            $lines[] = 'Registrar: ' . $domain->registrar;
         }
+        if ($domain->expiry_date) {
+            $lines[] = 'Expiry: ' . $domain->expiry_date;
+        }
+        $lines[] = '';
+        $lines[] = $dnsNotes;
+
+        if ($whoisNotes) {
+            $lines[] = '';
+            $lines[] = $whoisNotes;
+        }
+
+        $newNotes = self::replaceManagedBlock($currentNotes, implode("\n", $lines));
+
+        $result = $this->updateAsset($assetId, ['notes' => $newNotes]);
+
+        return [
+            'success' => true,
+            'asset_id' => $assetId,
+            'data' => $result,
+        ];
     }
 
     /**
@@ -518,8 +741,31 @@ class HaloPsaClient
         return $notes;
     }
 
+    // ------------------------------------------------------------------
+    // Tickets
+    // ------------------------------------------------------------------
+
+    private function ticketCacheVersion(): int
+    {
+        return (int) Cache::get('halo_tickets_version', 1);
+    }
+
+    /** Drop cached ticket lists/details after any ticket write. */
+    private function bumpTicketCache(): void
+    {
+        Cache::add('halo_tickets_version', 1, 86400 * 30);
+        Cache::increment('halo_tickets_version');
+    }
+
+    private function ticketCacheKey(string $kind, array $parts): string
+    {
+        return 'halo_' . $kind . '_' . sha1($this->baseUrl . '|' . $this->ticketCacheVersion() . '|' . json_encode($parts));
+    }
+
     /**
-     * Create a ticket
+     * Create a ticket. The POST is attempted once per payload shape and only
+     * falls through to the next shape when Halo *rejects* the shape (4xx); a
+     * 5xx/timeout is rethrown because the ticket may already exist.
      */
     public function createTicket(array $data): array
     {
@@ -528,29 +774,24 @@ class HaloPsaClient
             [$data],
         ];
 
-        $endpoints = [
-            'Tickets',
-            'tickets',
-        ];
-
         $lastError = null;
-        foreach ($endpoints as $endpoint) {
-            foreach ($payloads as $payload) {
-                try {
-                    $result = $this->request('POST', $endpoint, [
-                        'json' => $payload,
-                    ]);
+        foreach ($payloads as $payload) {
+            try {
+                $result = $this->request('POST', 'Tickets', [
+                    'json' => $payload,
+                ]);
+                $this->bumpTicketCache();
 
-                    return $this->extractTicketPayload($result);
-                } catch (ClientException|\RuntimeException $exception) {
-                    $lastError = $exception->getMessage();
-                    Log::warning('Failed Halo ticket create payload.', [
-                        'endpoint' => $endpoint,
-                        'wrapped' => array_is_list($payload),
-                        'payload_keys' => array_keys(is_array($payload) && isset($payload[0]) && is_array($payload[0]) ? $payload[0] : $payload),
-                        'error' => $lastError,
-                    ]);
+                return $this->extractTicketPayload($result);
+            } catch (IntegrationApiException $exception) {
+                if (! $exception->isRequestRejected()) {
+                    throw $exception;
                 }
+                $lastError = $exception->getMessage();
+                Log::warning('Halo rejected ticket create payload shape.', [
+                    'wrapped' => array_is_list($payload),
+                    'error' => $lastError,
+                ]);
             }
         }
 
@@ -576,35 +817,58 @@ class HaloPsaClient
     }
 
     /**
+     * One page of tickets plus Halo's total (record_count).
+     *
+     * @param  array $clientIds  Halo client ids; empty = no client filter
+     * @return array{tickets: array, record_count: int|null}
+     */
+    public function listTicketsPage(array $clientIds = [], array $ticketTypeIds = [], int $page = 1, int $pageSize = 20): array
+    {
+        $clientIds = array_values(array_unique(array_map('intval', $clientIds)));
+        sort($clientIds);
+
+        $query = [
+            'pageinate' => 'true',
+            'page_size' => $pageSize,
+            'page_no'   => $page,
+        ];
+
+        if (count($clientIds) === 1) {
+            $query['client_id'] = $clientIds[0];
+        }
+
+        if (! empty($ticketTypeIds)) {
+            $query['tickettype_id'] = implode(',', array_map('intval', $ticketTypeIds));
+        }
+
+        $key = $this->ticketCacheKey('tickets', [$query, count($clientIds) > 1 ? $clientIds : []]);
+
+        return Cache::remember($key, (int) config('integrations.halo.ticket_list_ttl', 60), function () use ($query, $clientIds) {
+            $result = $this->request('GET', 'tickets', ['query' => $query]);
+            $tickets = $this->extractList($result, ['tickets']);
+
+            // Several clients requested: one un-filtered call, narrowed locally
+            // (never loop one call per client).
+            if (count($clientIds) > 1) {
+                $tickets = array_values(array_filter(
+                    $tickets,
+                    fn (array $t) => in_array((int) ($t['client_id'] ?? $t['clientid'] ?? 0), $clientIds, true)
+                ));
+            }
+
+            return [
+                'tickets' => $tickets,
+                'record_count' => isset($result['record_count']) ? (int) $result['record_count'] : null,
+            ];
+        });
+    }
+
+    /**
      * List support tickets for a Halo client, optionally constrained to ticket type IDs.
      */
     public function listTicketsForClient(int $clientId, array $ticketTypeIds = [], int $page = 1, int $pageSize = 20): array
     {
-        $query = [
-            'client_id' => $clientId,
-            'count' => $pageSize,
-            'page' => $page,
-            'page_no' => $page,
-        ];
-
-        if (!empty($ticketTypeIds)) {
-            $query['tickettype_id'] = implode(',', array_map('intval', $ticketTypeIds));
-        }
-
-        $result = $this->request('GET', 'tickets', [
-            'query' => $query,
-        ]);
-
-        $tickets = $result['tickets']
-            ?? $result['data']
-            ?? $result['Results']
-            ?? (array_is_list($result) ? $result : []);
-
-        if (!is_array($tickets)) {
-            return [];
-        }
-
-        return $tickets;
+        return $this->listTicketsPage([$clientId], $ticketTypeIds, $page, $pageSize)['tickets'];
     }
 
     /**
@@ -612,17 +876,21 @@ class HaloPsaClient
      */
     public function getTicket(int $ticketId): array
     {
-        $result = $this->request('GET', 'tickets/' . $ticketId);
+        $key = $this->ticketCacheKey('ticket', [$ticketId]);
 
-        if (isset($result['ticket']) && is_array($result['ticket'])) {
-            return $result['ticket'];
-        }
+        return Cache::remember($key, (int) config('integrations.halo.ticket_ttl', 15), function () use ($ticketId) {
+            $result = $this->request('GET', 'tickets/' . $ticketId);
 
-        if (isset($result['data']) && is_array($result['data'])) {
-            return $result['data'];
-        }
+            if (isset($result['ticket']) && is_array($result['ticket'])) {
+                return $result['ticket'];
+            }
 
-        return $result;
+            if (isset($result['data']) && is_array($result['data'])) {
+                return $result['data'];
+            }
+
+            return $result;
+        });
     }
 
     /**
@@ -635,6 +903,8 @@ class HaloPsaClient
             'actions',
             'action',
         ];
+
+        $lastRejection = null;
 
         foreach ($endpoints as $endpoint) {
             $query = [
@@ -659,13 +929,23 @@ class HaloPsaClient
                 if (is_array($actions)) {
                     return array_values(array_filter($actions, 'is_array'));
                 }
-            } catch (\RuntimeException $exception) {
-                Log::warning('Failed Halo ticket action endpoint.', [
+            } catch (IntegrationApiException $exception) {
+                // Only "endpoint does not exist / rejects this" moves on to
+                // the next candidate; transient failures surface to the caller.
+                if (! $exception->isRequestRejected()) {
+                    throw $exception;
+                }
+                $lastRejection = $exception;
+                Log::warning('Halo ticket action endpoint rejected.', [
                     'ticket_id' => $ticketId,
                     'endpoint' => $endpoint,
                     'error' => $exception->getMessage(),
                 ]);
             }
+        }
+
+        if ($lastRejection) {
+            throw $lastRejection;
         }
 
         return [];
@@ -708,25 +988,25 @@ class HaloPsaClient
         foreach ($payloads as $requestPayload) {
             try {
                 $result = $this->request('POST', 'Actions', [
-                    'headers' => [
-                        'Content-Type' => 'application/json-patch+json',
-                    ],
+                    'content_type' => 'application/json-patch+json',
                     'body' => json_encode($requestPayload, JSON_UNESCAPED_SLASHES),
                 ]);
+                $this->bumpTicketCache();
 
                 $action = $this->extractActionPayload($result);
-                if (!empty($action)) {
+                if (! empty($action)) {
                     return $action;
                 }
 
                 return $result;
-            } catch (\RuntimeException $exception) {
+            } catch (IntegrationApiException $exception) {
+                if (! $exception->isRequestRejected()) {
+                    throw $exception;
+                }
                 $lastError = $exception->getMessage();
-                Log::warning('Failed Halo ticket action create payload.', [
+                Log::warning('Halo rejected ticket action payload shape.', [
                     'ticket_id' => $ticketId,
-                    'endpoint' => 'Actions',
                     'wrapped' => true,
-                    'payload_keys' => array_keys($requestPayload[0] ?? []),
                     'error' => $lastError,
                 ]);
             }
@@ -779,19 +1059,19 @@ class HaloPsaClient
                     $jsonPayload = $wrapInArray ? [$payload] : $payload;
 
                     try {
-                        return $this->request('POST', $endpoint, [
+                        $result = $this->request('POST', $endpoint, [
                             'json' => $jsonPayload,
                         ]);
-                    } catch (\RuntimeException $exception) {
+                        $this->bumpTicketCache();
+
+                        return $result;
+                    } catch (IntegrationApiException $exception) {
+                        // Server/transport failure: the status change may have
+                        // been applied, do not hammer other shapes.
+                        if (! $exception->isRequestRejected()) {
+                            throw $exception;
+                        }
                         $lastError = $exception->getMessage();
-                        Log::warning('Failed Halo ticket status update payload.', [
-                            'ticket_id' => $ticketId,
-                            'status_id' => $statusId,
-                            'endpoint' => $endpoint,
-                            'wrapped' => $wrapInArray,
-                            'payload_keys' => array_keys($payload),
-                            'error' => $lastError,
-                        ]);
                     }
                 }
             }
@@ -802,45 +1082,157 @@ class HaloPsaClient
     }
 
     /**
-     * Fetch HaloPSA ticket types.
+     * Every asset type (GET /api/AssetType), normalised and cached 10 minutes.
+     * The endpoint documents no search/paging parameters, so the whole list is
+     * read in one call and filtered in the browser.
+     *
+     * @return array<int,array{id:int,name:string,group:string}>
      */
-    public function listTicketTypes(): array
+    public function listAssetTypes(bool $refresh = false): array
     {
-        $result = $this->request('GET', 'tickettype', [
-            'query' => ['count' => 200],
-        ]);
-
-        $types = $result['tickettypes']
-            ?? $result['data']
-            ?? $result['Results']
-            ?? (array_is_list($result) ? $result : []);
-
-        if (!is_array($types)) {
-            return [];
+        $key = 'halo_assettypes_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
         }
 
-        return array_values(array_filter($types, 'is_array'));
+        return Cache::remember($key, 600, function () {
+            $rows = $this->extractList($this->request('GET', 'assettype'), ['assettypes']);
+            $types = [];
+            foreach ($rows as $row) {
+                $id = (int) ($row['id'] ?? $row['Id'] ?? 0);
+                $name = trim((string) ($row['name'] ?? $row['Name'] ?? ''));
+                if ($id <= 0 || $name === '') {
+                    continue;
+                }
+                $types[$id] = [
+                    'id' => $id,
+                    'name' => $name,
+                    'group' => trim((string) ($row['assetgroup_name'] ?? '')),
+                ];
+            }
+            $types = array_values($types);
+            usort($types, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+            return $types;
+        });
     }
 
     /**
-     * Fetch HaloPSA ticket statuses.
+     * One asset type with its fields (GET /api/AssetType/{id}?includedetails=true),
+     * cached 10 minutes.
+     *
+     * @return array{id:int,name:string,fields:array,keyfields:array}
+     */
+    public function getAssetTypeDetails(int $id, bool $refresh = false): array
+    {
+        $key = 'halo_assettype_' . $id . '_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, 600, function () use ($id) {
+            $raw = $this->request('GET', 'assettype/' . $id, ['query' => ['includedetails' => 'true']]);
+            // Tolerate a list wrapper around the single object.
+            if (isset($raw['assettypes'][0]) && is_array($raw['assettypes'][0])) {
+                $raw = $raw['assettypes'][0];
+            }
+
+            return self::normalizeAssetType($raw, $id);
+        });
+    }
+
+    /**
+     * Reduce a Halo "Xtype" to what the mapping UI needs. Fields come from
+     * field_list (Field: id, name, kind, mandatory) when present, otherwise
+     * from fields (TypeInfo: field_id, field_name). Key fields are
+     * keyfield_id/2/3 (+ _name).
+     *
+     * @return array{id:int,name:string,fields:array<int,array>,keyfields:array<int,array>}
+     */
+    public static function normalizeAssetType(array $raw, int $fallbackId = 0): array
+    {
+        $fields = [];
+        foreach ((array) ($raw['field_list'] ?? []) as $f) {
+            if (! is_array($f)) {
+                continue;
+            }
+            $fid = (int) ($f['id'] ?? 0);
+            $name = trim((string) ($f['name'] ?? ''));
+            if ($fid > 0 && $name !== '') {
+                $fields[$fid] = [
+                    'id' => $fid,
+                    'name' => $name,
+                    'kind' => $f['kind'] ?? null,
+                    'mandatory' => (bool) ($f['mandatory'] ?? false),
+                    'typeinfo_id' => isset($f['typeinfo_id']) ? (int) $f['typeinfo_id'] : null,
+                ];
+            }
+        }
+        if ($fields === []) {
+            foreach ((array) ($raw['fields'] ?? []) as $f) {
+                if (! is_array($f)) {
+                    continue;
+                }
+                $fid = (int) ($f['field_id'] ?? 0);
+                $name = trim((string) ($f['field_name'] ?? $f['name'] ?? ''));
+                if ($fid > 0 && $name !== '') {
+                    $fields[$fid] = [
+                        'id' => $fid,
+                        'name' => $name,
+                        'kind' => $f['type'] ?? null,
+                        'mandatory' => false,
+                        'typeinfo_id' => isset($f['typeinfo_id']) ? (int) $f['typeinfo_id'] : null,
+                    ];
+                }
+            }
+        }
+
+        $keyfields = [];
+        foreach ([1 => ['keyfield_id', 'keyfield_name'], 2 => ['keyfield2_id', 'keyfield2_name'], 3 => ['keyfield3_id', 'keyfield3_name']] as $slot => [$idKey, $nameKey]) {
+            $kid = (int) ($raw[$idKey] ?? 0);
+            $kname = trim((string) ($raw[$nameKey] ?? ''));
+            if ($kid > 0 || $kname !== '') {
+                $keyfields[] = ['slot' => $slot, 'id' => $kid, 'name' => $kname];
+            }
+        }
+
+        return [
+            'id' => (int) ($raw['id'] ?? $fallbackId),
+            'name' => trim((string) ($raw['name'] ?? '')),
+            'fields' => array_values($fields),
+            'keyfields' => $keyfields,
+        ];
+    }
+
+    /**
+     * Fetch HaloPSA ticket types (cached 1h: reference data).
+     */
+    public function listTicketTypes(): array
+    {
+        $key = 'halo_tickettypes_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+
+        return Cache::remember($key, (int) config('integrations.halo.reference_data_ttl', 3600), function () {
+            $result = $this->request('GET', 'tickettype', [
+                'query' => ['count' => 200],
+            ]);
+
+            return array_values(array_filter($this->extractList($result, ['tickettypes']), 'is_array'));
+        });
+    }
+
+    /**
+     * Fetch HaloPSA ticket statuses (cached 1h: reference data).
      */
     public function listTicketStatuses(): array
     {
-        $result = $this->request('GET', 'status', [
-            'query' => ['count' => 200],
-        ]);
+        $key = 'halo_ticketstatuses_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
 
-        $statuses = $result['statuses']
-            ?? $result['status']
-            ?? $result['data']
-            ?? $result['Results']
-            ?? (array_is_list($result) ? $result : []);
+        return Cache::remember($key, (int) config('integrations.halo.reference_data_ttl', 3600), function () {
+            $result = $this->request('GET', 'status', [
+                'query' => ['count' => 200],
+            ]);
 
-        if (!is_array($statuses)) {
-            return [];
-        }
-
-        return array_values(array_filter($statuses, 'is_array'));
+            return array_values(array_filter($this->extractList($result, ['statuses', 'status']), 'is_array'));
+        });
     }
 }

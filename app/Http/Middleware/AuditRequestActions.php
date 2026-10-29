@@ -38,7 +38,7 @@ class AuditRequestActions
             [
                 'user_email' => $apiKey?->name ? "api-key:{$apiKey->name}" : null,
                 'new_values' => [
-                    'query' => $request->query(),
+                    'query' => \App\Support\Redactor::redact($request->query()),
                     'payload' => $requestPayload,
                 ],
             ]
@@ -49,25 +49,15 @@ class AuditRequestActions
 
     private function sanitizedPayload(Request $request): array
     {
-        $sensitiveKeys = [
-            'password',
-            'password_confirmation',
-            'current_password',
-            'token',
-            'api_key',
-            'secret',
-            'two_factor_code',
-            'two_factor_recovery_code',
-        ];
+        // Uploaded files (certificates, PFX, logos) are logged as a descriptor, never their content.
+        $input = $request->except(['_token']);
+        array_walk_recursive($input, function (&$v) {
+            if ($v instanceof \Illuminate\Http\UploadedFile) {
+                $v = '[file ' . $v->getClientOriginalName() . ', ' . $v->getSize() . ' bytes]';
+            }
+        });
+        $payload = \App\Support\Redactor::redact($input);
 
-        return collect($request->except($sensitiveKeys))
-            ->map(function ($value, string $key) use ($sensitiveKeys) {
-                if (in_array($key, $sensitiveKeys, true)) {
-                    return '[REDACTED]';
-                }
-
-                return $value;
-            })
-            ->all();
+        return is_array($payload) ? $payload : [];
     }
 }

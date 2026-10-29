@@ -3,13 +3,7 @@
 @section('content')
 <div class="dd-page">
 <div class="dd-card">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">Internet Services</h1>
-
-    @if(session('status'))
-        <div style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#15803d;font-size:14px;">
-            {{ session('status') }}
-        </div>
-    @endif
+    <h1 class="dd-page-title">Internet Services</h1>
 
     {{-- Toolbar --}}
     <div class="dd-services-toolbar">
@@ -63,7 +57,7 @@
             @csrf
             <textarea name="service_ids" rows="3"
                       placeholder="e.g. NBN-12345, NBN-67890"
-                      style="width:100%;padding:8px 10px;border-radius:4px;border:1px solid var(--border,#334155);background:var(--input-bg,#0f172a);color:inherit;font-size:13px;font-family:monospace;resize:vertical;box-sizing:border-box;"></textarea>
+                      style="width:100%;font-family:monospace;resize:vertical;box-sizing:border-box;"></textarea>
             <div style="margin-top:8px;display:flex;gap:8px;">
                 <button type="submit" class="btn-accent dd-pill-btn">Import &amp; Fetch from Vocus</button>
                 <button type="button" class="dd-pill-btn"
@@ -96,7 +90,7 @@
                     <td>{{ $service->address_long ?? ($service->location_reference ? 'PC: '.$service->location_reference : '-') }}</td>
                     <td>
                         @if($service->service_type)
-                            <span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:#dbeafe;color:#1e40af;">
+                            <span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);">
                                 {{ $service->service_type }}
                             </span>
                         @else
@@ -118,7 +112,7 @@
                             {{ $service->service_status }}
                         </span>
                     </td>
-                    <td style="font-size:12px;color:#6b7280;">
+                    <td style="font-size:12px;color:var(--dd-text-soft);">
                         @if($service->last_transaction_state)
                             @php
                                 $txColor = match($service->last_transaction_state) {
@@ -140,7 +134,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" style="text-align:center;padding:32px;color:#9ca3af;">
+                    <td colspan="8" style="text-align:center;padding:32px;color:var(--dd-text-soft);">
                         No internet services found. <a href="{{ route('admin.services.internet.qualify') }}" style="color:var(--accent);">Qualify an address</a> to get started.
                     </td>
                 </tr>

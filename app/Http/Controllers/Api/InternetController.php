@@ -28,7 +28,7 @@ class InternetController extends Controller
         }
 
         return response()->json(
-            $q->orderBy('customer_name')->paginate((int) $request->get('per_page', 100))
+            $q->orderBy('customer_name')->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
         );
     }
 
@@ -41,6 +41,7 @@ class InternetController extends Controller
     {
         $vocus    = app(VocusWsmClient::class);
         $imported = 0;
+        $failed   = 0;
 
         $existing = InternetService::whereNotNull('vocus_service_id')->get();
 
@@ -67,19 +68,25 @@ class InternetController extends Controller
                 $service->synced_at            = now();
                 $service->save();
                 $imported++;
-            } catch (\Throwable) {
-                // continue on individual failures
+            } catch (\Throwable $e) {
+                $failed++;
+                \Illuminate\Support\Facades\Log::warning('Vocus service refresh failed (API sync)', [
+                    'service_id' => $service->vocus_service_id,
+                    'error_code' => $e instanceof \App\Services\Vocus\VocusWsmException ? $e->errorCode : null,
+                    'message'    => $e->getMessage(),
+                ]);
             }
         }
 
         AuditLogger::logSystem('sync.completed', "API internet service sync completed ({$imported} records).", [
             'service' => 'api',
             'function' => 'internet.sync',
-        ], ['new_values' => ['synced' => $imported]]);
+        ], ['new_values' => ['synced' => $imported, 'failed' => $failed]]);
 
         return response()->json([
             'message' => "Sync complete. Refreshed {$imported} internet services.",
             'count'   => $imported,
+            'failed'  => $failed,
         ], 202);
     }
 }

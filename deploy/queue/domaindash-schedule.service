@@ -1,0 +1,14 @@
+# Runs the Laravel scheduler once (invoked every minute by domaindash-schedule.timer).
+# Runs as www-data, NOT root: root-owned files in storage/ would break the web app.
+[Unit]
+Description=DomainDash scheduler (php artisan schedule:run)
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/domaindash
+ExecStart=/usr/bin/php artisan schedule:run
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=domaindash-schedule

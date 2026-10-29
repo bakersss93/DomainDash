@@ -6,12 +6,12 @@
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <div>
-            <a href="{{ route('admin.services.internet') }}" style="font-size:13px;color:#6b7280;text-decoration:none;">← Internet Services</a>
-            <h1 class="dd-page-title" style="font-size:1.35rem;margin:4px 0 0;">
+            <a href="{{ route('admin.services.internet') }}" style="font-size:13px;color:var(--dd-text-soft);text-decoration:none;">← Internet Services</a>
+            <h1 class="dd-page-title">
                 {{ $service->vocus_service_id ?? 'Internet Service' }}
             </h1>
             @if($service->address_long)
-                <p style="font-size:14px;color:#6b7280;margin:2px 0 0;">{{ $service->address_long }}</p>
+                <p style="font-size:14px;color:var(--dd-text-soft);margin:2px 0 0;">{{ $service->address_long }}</p>
             @endif
         </div>
         <div style="display:flex;gap:8px;">
@@ -27,23 +27,17 @@
                 {{ $service->service_status }}
             </span>
             @if($service->service_type)
-                <span style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;background:#dbeafe;color:#1e40af;">
+                <span style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);">
                     {{ $service->service_type }}
                 </span>
             @endif
         </div>
     </div>
 
-    @if(session('status'))
-        <div style="margin-bottom:16px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#15803d;font-size:14px;">
-            {{ session('status') }}
-        </div>
-    @endif
-
     {{-- Pending transaction banner --}}
     @if($service->isPending())
-        <div id="pending-banner" style="margin-bottom:16px;padding:12px 16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
-            <div style="font-size:14px;color:#92400e;">
+        <div id="pending-banner" style="margin-bottom:16px;padding:12px 16px;background:var(--dd-status-warning-bg);border:1px solid var(--warning-border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:14px;color:var(--dd-status-warning-fg);">
                 <strong>Transaction in progress</strong> — ID: <code style="font-family:monospace;">{{ $service->last_transaction_id }}</code>
                 &nbsp;·&nbsp; State: <strong id="txn-state">{{ $service->last_transaction_state }}</strong>
             </div>
@@ -56,7 +50,7 @@
     {{-- Client suggestion --}}
     @if($clientMatch && !$service->client_id)
         <div style="margin-bottom:16px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
-            <div style="font-size:14px;color:#1e40af;">
+            <div style="font-size:14px;color:var(--dd-status-info-fg);">
                 This service may belong to <strong>{{ $clientMatch->business_name ?? $clientMatch->name }}</strong>
             </div>
             <form method="POST" action="{{ route('admin.services.internet.assignClient', $service) }}">
@@ -73,7 +67,7 @@
         <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
             <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;color:var(--text);">Live Service Details</h3>
             @if($liveError)
-                <p style="color:#b91c1c;font-size:13px;">{{ $liveError }}</p>
+                <p style="color:var(--dd-danger-text);font-size:13px;">{{ $liveError }}</p>
             @elseif($liveData)
                 @php
                     $fields = [
@@ -99,7 +93,7 @@
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
                     @foreach($fields as $key => $label)
                         @if(isset($liveData[$key]) && $liveData[$key] !== '')
-                            <dt style="font-size:12px;color:#6b7280;font-weight:500;white-space:nowrap;">{{ $label }}</dt>
+                            <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
                             <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','BillingProviderID']) ? 'monospace' : 'inherit' }};">
                                 {{ $liveData[$key] }}
                             </dd>
@@ -107,7 +101,7 @@
                     @endforeach
                 </dl>
             @else
-                <p style="color:#9ca3af;font-size:13px;">No live data available.</p>
+                <p style="color:var(--dd-text-soft);font-size:13px;">No live data available.</p>
             @endif
         </div>
 
@@ -124,11 +118,11 @@
                         </a>
                     </p>
                 @else
-                    <p style="font-size:13px;color:#9ca3af;margin:0 0 10px;">Not assigned</p>
+                    <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 10px;">Not assigned</p>
                 @endif
                 <form method="POST" action="{{ route('admin.services.internet.assignClient', $service) }}" style="display:flex;gap:8px;align-items:center;">
                     @csrf
-                    <select name="client_id" class="dd-input" style="flex:1;font-size:13px;padding:6px 8px;">
+                    <select name="client_id" class="dd-input" style="flex:1;">
                         <option value="">— None —</option>
                         @foreach($clients as $client)
                             <option value="{{ $client->id }}" {{ $service->client_id == $client->id ? 'selected' : '' }}>
@@ -148,7 +142,7 @@
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="SUSPEND">
-                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid #fde68a;background:#fefce8;color:#92400e;font-size:13px;cursor:pointer;"
+                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--warning-border);background:var(--dd-status-warning-bg);color:var(--dd-status-warning-fg);font-size:13px;cursor:pointer;"
                                     onclick="return confirm('Suspend this service? The end user will lose connectivity.');">
                                 Suspend Service
                             </button>
@@ -157,7 +151,7 @@
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="ACTIVE">
-                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid #bbf7d0;background:#f0fdf4;color:#15803d;font-size:13px;cursor:pointer;">
+                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--success-border);background:var(--dd-status-success-bg);color:var(--dd-status-success-fg);font-size:13px;cursor:pointer;">
                                 Resume Service
                             </button>
                         </form>
@@ -167,7 +161,7 @@
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="INACTIVE">
-                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;font-size:13px;cursor:pointer;"
+                            <button type="submit" style="width:100%;padding:8px;border-radius:6px;border:1px solid color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);background:var(--dd-status-danger-bg);color:var(--dd-danger-text);font-size:13px;cursor:pointer;"
                                     onclick="return confirm('Cancel this service? This action cannot be undone. Vocus will deactivate the NBN connection.');">
                                 Cancel Service
                             </button>
@@ -192,7 +186,7 @@
             <form method="POST" action="{{ route('admin.services.internet.diagnostic', $service) }}">
                 @csrf
                 <input type="hidden" name="type" value="DISCONNECT">
-                <button type="submit" style="padding:7px 14px;border-radius:6px;border:1px solid #fde68a;background:#fefce8;color:#92400e;font-size:13px;cursor:pointer;"
+                <button type="submit" style="padding:7px 14px;border-radius:6px;border:1px solid var(--warning-border);background:var(--dd-status-warning-bg);color:var(--dd-status-warning-fg);font-size:13px;cursor:pointer;"
                         onclick="return confirm('Disconnect the current active session for this service?');">
                     Disconnect Session
                 </button>
@@ -205,12 +199,12 @@
                 <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;font-weight:600;">{{ $diag->diagnostic_type }}</span>
-                        <span style="font-size:12px;color:#9ca3af;">{{ $diag->created_at->diffForHumans() }}</span>
+                        <span style="font-size:12px;color:var(--dd-text-soft);">{{ $diag->created_at->diffForHumans() }}</span>
                     </div>
                     @if($diag->diagnostic_type === 'AUTH-LOG' && !empty($diag->result['records']))
                         <table style="width:100%;font-size:12px;border-collapse:collapse;">
                             <thead>
-                                <tr style="color:#6b7280;">
+                                <tr style="color:var(--dd-text-soft);">
                                     <th style="text-align:left;padding:3px 8px;">DateTime</th>
                                     <th style="text-align:left;padding:3px 8px;">Result</th>
                                     <th style="text-align:left;padding:3px 8px;">Reason</th>
@@ -229,15 +223,15 @@
                             </tbody>
                         </table>
                     @elseif($diag->transaction_id)
-                        <p style="font-size:12px;color:#6b7280;margin:0;">Transaction: <code>{{ $diag->transaction_id }}</code></p>
+                        <p style="font-size:12px;color:var(--dd-text-soft);margin:0;">Transaction: <code>{{ $diag->transaction_id }}</code></p>
                     @else
-                        <p style="font-size:12px;color:#9ca3af;margin:0;">No details recorded.</p>
+                        <p style="font-size:12px;color:var(--dd-text-soft);margin:0;">No details recorded.</p>
                     @endif
                 </div>
             @endforeach
             </div>
         @else
-            <p style="font-size:13px;color:#9ca3af;">No diagnostics run yet.</p>
+            <p style="font-size:13px;color:var(--dd-text-soft);">No diagnostics run yet.</p>
         @endif
     </div>
 

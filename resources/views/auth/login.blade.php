@@ -8,9 +8,7 @@
             <x-validation-errors class="mb-4" />
 
             @session('status')
-                <div class="mb-4 font-medium text-sm text-green-600 dark:text-green-400">
-                    {{ $value }}
-                </div>
+                <x-ui.alert variant="success" class="mb-4">{{ $value }}</x-ui.alert>
             @endsession
 
             <form method="POST" action="{{ route('login') }}">
@@ -32,18 +30,18 @@
                 <div class="block mt-4">
                     <label for="remember_me" class="flex items-center">
                         <x-checkbox id="remember_me" name="remember" />
-                        <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Remember me') }}</span>
+                        <span class="ms-2 text-sm text-muted">{{ __('Remember me') }}</span>
                     </label>
                 </div>
 
                 <div class="flex items-center justify-end mt-4 gap-2">
                     @if (Route::has('password.request'))
-                        <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('password.request') }}">
+                        <a class="ui-link text-sm" href="{{ route('password.request') }}">
                             {{ __('Forgot your password?') }}
                         </a>
                     @endif
 
-                    <button type="submit" class="btn-accent dd-login-submit">
+                    <button type="submit" class="ui-btn ui-btn--primary">
                         {{ __('Log in') }}
                     </button>
                 </div>
@@ -52,64 +50,23 @@
     </x-authentication-card>
 
     <style>
-        .dd-login-surface .dd-field {
-            background: #ffffff;
-            color: #111827;
-            border-color: #cbd5e1;
-            border-radius: 12px;
-        }
-
-        .dd-login-surface .dd-field::placeholder {
-            color: #6b7280;
-        }
-
-        .dd-login-submit {
-            border-radius: 12px;
-        }
-
-
-        .dd-password-wrap {
-            position: relative;
-        }
-
+        .dd-password-wrap { position: relative; }
         .dd-password-toggle {
             position: absolute;
-            right: 8px;
+            right: 0.5rem;
             top: 50%;
             transform: translateY(-50%);
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            background: #f8fafc;
-            color: #0f172a;
-            padding: 4px 10px;
+            border: 1px solid var(--dd-border-strong);
+            border-radius: var(--dd-radius-sm);
+            background: var(--dd-surface-muted);
+            color: var(--dd-text);
+            padding: 0.25rem 0.625rem;
             font-size: 0.75rem;
             font-weight: 600;
-            line-height: 1;
+            line-height: 1.2;
+            cursor: pointer;
         }
-
-        .dd-login-surface .dd-checkbox {
-            appearance: none;
-            width: 1rem;
-            height: 1rem;
-            border-radius: 6px;
-            border: 1px solid #94a3b8;
-            background: #ffffff;
-            display: inline-grid;
-            place-content: center;
-        }
-
-        .dd-login-surface .dd-checkbox:checked {
-            background: #0284c7;
-            border-color: #0284c7;
-        }
-
-        .dd-login-surface .dd-checkbox:checked::before {
-            content: "";
-            width: 0.35rem;
-            height: 0.35rem;
-            border-radius: 2px;
-            background: #ffffff;
-        }
+        .dd-password-toggle:hover { background: var(--dd-border); }
     </style>
 
     <script>

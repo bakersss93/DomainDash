@@ -8,35 +8,32 @@
     </div>
 </div>
 <div class="dd-page">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">SSL Certificates</h1>
-
-    @if(session('status'))
-        <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('status') }}</div>
-    @endif
+    <h1 class="dd-page-title">SSL Certificates</h1>
 
     @if(session('ssl_action_message'))
         <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('ssl_action_message') }}</div>
     @endif
 
-    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
-        <form method="GET" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
-            <select name="client_id" class="dd-input dd-input-inline" style="flex:1;min-width:240px;">
+    <div class="ui-toolbar">
+        <form method="GET" class="flex flex-1 flex-wrap items-center gap-2">
+            <label for="ssl-client-filter" class="sr-only">Filter by client</label>
+            <select id="ssl-client-filter" name="client_id" class="dd-input" style="flex:1;min-width:14rem;max-width:28rem;">
                 <option value="">All Clients</option>
                 @foreach($clients as $c)
                     <option value="{{ $c->id }}" @selected(request('client_id')==$c->id)>{{ $c->business_name }}</option>
                 @endforeach
             </select>
-            <button type="submit" class="btn-accent">Filter</button>
+            <button type="submit" class="ui-btn ui-btn--primary">Filter</button>
         </form>
 
         <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;">
             @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">Sync from Synergy</button>
+            <button type="submit" class="ui-btn ui-btn--secondary"><x-ui.icon name="refresh" :size="16" /> Sync from Synergy</button>
         </form>
     </div>
 
-    <div class="dd-card">
-        <table>
+    <x-ui.card :flush="true">
+        <x-ui.table>
             <thead>
                 <tr>
                     <th>SSL Certificate</th>
@@ -143,10 +140,12 @@
                 </tr>
             @endforeach
             </tbody>
-        </table>
+        </x-ui.table>
 
-        {{ $ssls->withQueryString()->links() }}
-    </div>
+        @if ($ssls->hasPages())
+            <div class="px-4 py-3">{{ $ssls->withQueryString()->links() }}</div>
+        @endif
+    </x-ui.card>
 
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
         <div class="dd-modal-backdrop"></div>

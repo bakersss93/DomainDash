@@ -285,36 +285,25 @@
 
 <style>
     :root {
-        --dd-card-radius: 18px;
-        --dd-pill-radius: 9999px;
-        --dd-pill-padding: 8px 14px;
-
-        --dd-card-bg: #ffffff;
-        --dd-card-border: #d1d5db;
-        --dd-text-color: #111827;
-        --dd-text-muted: #6b7280;
-        --dd-accent: #4ade80;
-        --dd-progress-bg: rgba(148,163,184,0.2);
-        --dd-progress-fill: #4ade80;
-        --dd-pill-bg: #f3f4f6;
-        --dd-pill-border: #d1d5db;
-        --dd-overlay-bg: rgba(15,23,42,0.65);
+        --dd-card-radius: var(--dd-radius-lg);
+        --dd-pill-radius: var(--dd-radius);
+        --dd-pill-padding: 0.5rem 0.875rem;
+        --dd-card-bg: var(--dd-surface);
+        --dd-card-border: var(--dd-border);
+        --dd-pill-bg: var(--dd-surface);
+        --dd-pill-border: var(--dd-border-strong);
+        --dd-text-color: var(--dd-text);
+        --dd-text-muted: var(--dd-text-soft);
+        --dd-header-bg: var(--dd-surface-soft);
+        --dd-header-text: var(--dd-text-soft);
+        --dd-row-alt-bg: transparent;
+        --dd-hover-bg: var(--dd-surface-muted);
+        --dd-progress-bg: var(--dd-surface-muted);
+        --dd-progress-fill: var(--dd-accent);
+        --dd-overlay-bg: var(--dd-backdrop);
     }
 
-    body.dark-mode,
-    body[data-theme="dark"],
-    html.dark,
-    html[data-theme="dark"] {
-        --dd-card-bg: #020617;
-        --dd-card-border: #1f2937;
-        --dd-text-color: #e5e7eb;
-        --dd-text-muted: #9ca3af;
-        --dd-progress-bg: rgba(148,163,184,0.15);
-        --dd-progress-fill: #4ade80;
-        --dd-pill-bg: #0f172a;
-        --dd-pill-border: #374151;
-        --dd-overlay-bg: rgba(15,23,42,0.85);
-    }
+
 
     .dd-service-overview-container {
         padding: 24px 0;
