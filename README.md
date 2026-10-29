@@ -137,6 +137,16 @@ From the **DNS records** page for each domain:
   - Red for destructive actions (Delete).
   - Neutral pills for secondary navigation and filters.
 
+## Deploying updates
+
+Run the bundled script from the app directory as root:
+
+```bash
+sudo bash deploy/deploy.sh
+```
+
+It pulls, installs dependencies, builds assets, migrates, rebuilds caches, hands `storage/` back to `www-data` (otherwise php-fpm cannot write logs/views and every page returns HTTP 500), restarts queue workers and reloads php-fpm. Set `WEB_USER` / `PHP_FPM_SERVICE` if yours differ.
+
 ## Deployment notes: front-end assets
 
 All styling lives in `resources/css/app.css` and is compiled by Vite into `public/build` (gitignored). The layout no longer carries inline CSS, so **every deploy must rebuild the assets** or pages render unstyled:
