@@ -24,17 +24,17 @@ server {
 
     include /etc/nginx/snippets/domaindash-ssl.conf;
 
-    root /var/www/DomainDash/public;            # <-- your app path
+    root /var/www/domaindash/public;            # <-- your app path (case-sensitive)
     index index.php;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
+    # Copy root / fastcgi lines from your existing working HTTP server block if they differ.
     location ~ \.php$ {
-        include fastcgi_params;                 # sets HTTPS $https if_not_empty => request()->isSecure() works
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;   # <-- your php-fpm socket
+        include snippets/fastcgi-php.conf;      # Ubuntu: sets SCRIPT_FILENAME; fastcgi_params sets HTTPS=on
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;   # <-- your php-fpm socket (ls /run/php/)
     }
 
     location ~ /\.(?!well-known) {
