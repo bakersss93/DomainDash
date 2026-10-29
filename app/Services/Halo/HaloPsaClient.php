@@ -98,19 +98,13 @@ class HaloPsaClient
      * Custom field ids of the Domain asset type (tenant specific; defaults are
      * the values this integration was built against).
      *
+     * 0 means the data point is mapped to "don't sync".
+     *
      * @return array{domain:int,expiry:int,nameservers:int,whois:int}
      */
     public static function assetFieldIds(): array
     {
-        $configured = Setting::get('halo', [])['asset_field_ids'] ?? [];
-        $defaults = ['domain' => 148, 'expiry' => 149, 'nameservers' => 150, 'whois' => 165];
-        $ids = [];
-        foreach ($defaults as $key => $default) {
-            $value = is_array($configured) ? ($configured[$key] ?? null) : null;
-            $ids[$key] = is_numeric($value) && (int) $value > 0 ? (int) $value : $default;
-        }
-
-        return $ids;
+        return HaloAssetMapping::fromSettings()->fieldIds;
     }
 
     // ------------------------------------------------------------------
@@ -403,10 +397,16 @@ class HaloPsaClient
     // ------------------------------------------------------------------
 
     /**
-     * Resolve (and cache for 24h) the id of the "Domain" asset type.
+     * The asset type DomainDash pushes to: the one picked in Settings
+     * (halo.asset_type_id, no API call), else the type named "Domain"
+     * (looked up once, cached 24h) for installs that never picked one.
      */
     public function getDomainAssetTypeId(): ?int
     {
+        if ($configured = HaloAssetMapping::fromSettings()->typeId) {
+            return $configured;
+        }
+
         $key = 'halo_domain_asset_type_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
 
         if ($cached = Cache::get($key)) {
@@ -1079,6 +1079,129 @@ class HaloPsaClient
 
         $suffix = $lastError ? ' Last error: ' . $lastError : '';
         throw new \RuntimeException('Unable to close ticket with available status payload formats.' . $suffix);
+    }
+
+    /**
+     * Every asset type (GET /api/AssetType), normalised and cached 10 minutes.
+     * The endpoint documents no search/paging parameters, so the whole list is
+     * read in one call and filtered in the browser.
+     *
+     * @return array<int,array{id:int,name:string,group:string}>
+     */
+    public function listAssetTypes(bool $refresh = false): array
+    {
+        $key = 'halo_assettypes_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, 600, function () {
+            $rows = $this->extractList($this->request('GET', 'assettype'), ['assettypes']);
+            $types = [];
+            foreach ($rows as $row) {
+                $id = (int) ($row['id'] ?? $row['Id'] ?? 0);
+                $name = trim((string) ($row['name'] ?? $row['Name'] ?? ''));
+                if ($id <= 0 || $name === '') {
+                    continue;
+                }
+                $types[$id] = [
+                    'id' => $id,
+                    'name' => $name,
+                    'group' => trim((string) ($row['assetgroup_name'] ?? '')),
+                ];
+            }
+            $types = array_values($types);
+            usort($types, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+            return $types;
+        });
+    }
+
+    /**
+     * One asset type with its fields (GET /api/AssetType/{id}?includedetails=true),
+     * cached 10 minutes.
+     *
+     * @return array{id:int,name:string,fields:array,keyfields:array}
+     */
+    public function getAssetTypeDetails(int $id, bool $refresh = false): array
+    {
+        $key = 'halo_assettype_' . $id . '_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, 600, function () use ($id) {
+            $raw = $this->request('GET', 'assettype/' . $id, ['query' => ['includedetails' => 'true']]);
+            // Tolerate a list wrapper around the single object.
+            if (isset($raw['assettypes'][0]) && is_array($raw['assettypes'][0])) {
+                $raw = $raw['assettypes'][0];
+            }
+
+            return self::normalizeAssetType($raw, $id);
+        });
+    }
+
+    /**
+     * Reduce a Halo "Xtype" to what the mapping UI needs. Fields come from
+     * field_list (Field: id, name, kind, mandatory) when present, otherwise
+     * from fields (TypeInfo: field_id, field_name). Key fields are
+     * keyfield_id/2/3 (+ _name).
+     *
+     * @return array{id:int,name:string,fields:array<int,array>,keyfields:array<int,array>}
+     */
+    public static function normalizeAssetType(array $raw, int $fallbackId = 0): array
+    {
+        $fields = [];
+        foreach ((array) ($raw['field_list'] ?? []) as $f) {
+            if (! is_array($f)) {
+                continue;
+            }
+            $fid = (int) ($f['id'] ?? 0);
+            $name = trim((string) ($f['name'] ?? ''));
+            if ($fid > 0 && $name !== '') {
+                $fields[$fid] = [
+                    'id' => $fid,
+                    'name' => $name,
+                    'kind' => $f['kind'] ?? null,
+                    'mandatory' => (bool) ($f['mandatory'] ?? false),
+                    'typeinfo_id' => isset($f['typeinfo_id']) ? (int) $f['typeinfo_id'] : null,
+                ];
+            }
+        }
+        if ($fields === []) {
+            foreach ((array) ($raw['fields'] ?? []) as $f) {
+                if (! is_array($f)) {
+                    continue;
+                }
+                $fid = (int) ($f['field_id'] ?? 0);
+                $name = trim((string) ($f['field_name'] ?? $f['name'] ?? ''));
+                if ($fid > 0 && $name !== '') {
+                    $fields[$fid] = [
+                        'id' => $fid,
+                        'name' => $name,
+                        'kind' => $f['type'] ?? null,
+                        'mandatory' => false,
+                        'typeinfo_id' => isset($f['typeinfo_id']) ? (int) $f['typeinfo_id'] : null,
+                    ];
+                }
+            }
+        }
+
+        $keyfields = [];
+        foreach ([1 => ['keyfield_id', 'keyfield_name'], 2 => ['keyfield2_id', 'keyfield2_name'], 3 => ['keyfield3_id', 'keyfield3_name']] as $slot => [$idKey, $nameKey]) {
+            $kid = (int) ($raw[$idKey] ?? 0);
+            $kname = trim((string) ($raw[$nameKey] ?? ''));
+            if ($kid > 0 || $kname !== '') {
+                $keyfields[] = ['slot' => $slot, 'id' => $kid, 'name' => $kname];
+            }
+        }
+
+        return [
+            'id' => (int) ($raw['id'] ?? $fallbackId),
+            'name' => trim((string) ($raw['name'] ?? '')),
+            'fields' => array_values($fields),
+            'keyfields' => $keyfields,
+        ];
     }
 
     /**

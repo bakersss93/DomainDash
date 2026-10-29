@@ -1,4 +1,5 @@
 import './bootstrap';
+import './dd-list';
 
 const trackedFetchHints = ['/sync', '/bulk-sync'];
 const trackedFormHints = ['/sync', '/bulk-sync'];
@@ -48,7 +49,13 @@ function hideGlobalLoader() {
     overlay.classList.remove('is-visible');
 }
 
-function shouldTrackUrl(url) {
+// The full-screen "Sync in progress" overlay is only for requests that start work.
+// Reads (list loads, run/status polling) must never cover the page: the lists show live progress themselves.
+function shouldTrackUrl(url, method = 'GET') {
+    if (String(method).toUpperCase() === 'GET') {
+        return false;
+    }
+
     return trackedFetchHints.some((hint) => url.includes(hint));
 }
 
@@ -58,7 +65,7 @@ window.hideGlobalLoader = hideGlobalLoader;
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (input, init = {}) => {
     const target = typeof input === 'string' ? input : (input?.url ?? '');
-    const trackRequest = shouldTrackUrl(target);
+    const trackRequest = shouldTrackUrl(target, init?.method ?? (typeof input !== 'string' ? input?.method : 'GET') ?? 'GET');
 
     if (trackRequest) {
         pendingRequests += 1;

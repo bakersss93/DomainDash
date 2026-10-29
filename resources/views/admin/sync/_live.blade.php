@@ -9,7 +9,7 @@
     .dd-run__head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
     .dd-run__title { font-weight: 600; }
     .dd-run__meta { color: var(--dd-text-soft, var(--text-muted)); }
-    .dd-run__bar { height: 6px; border-radius: 999px; background: var(--dd-status-muted-bg, #e8ebef); overflow: hidden; margin-top: .5rem; }
+    .dd-run__bar { height: 8px; border-radius: 999px; background: var(--dd-status-muted-bg, #e8ebef); overflow: hidden; margin-top: .5rem; }
     .dd-run__bar > span { display: block; height: 100%; width: 0; background: var(--dd-accent, #2563eb); transition: width .3s; }
     .dd-run__error { margin-top: .5rem; color: var(--dd-danger-text, #b42318); word-break: break-word; }
     .dd-run__list { margin: .5rem 0 0; padding: 0; list-style: none; max-height: 180px; overflow-y: auto; border: 1px solid var(--dd-border, var(--border-subtle)); border-radius: 8px; }
@@ -63,7 +63,9 @@
             if (run.status === 'queued') parts.push('Waiting for a queue worker to pick it up');
             if (run.status === 'running') {
                 parts.push(run.total ? (run.done + run.failed + run.skipped) + ' of ' + run.total + ' processed' : 'Working');
+                if (run.done) parts.push(run.done + ' succeeded');
                 if (run.failed) parts.push(run.failed + ' failed');
+                if (run.skipped) parts.push(run.skipped + ' unchanged');
             }
             if (run.status === 'ok') parts.push(run.total ? run.done + ' synced' + (run.skipped ? ', ' + run.skipped + ' unchanged' : '') : 'Nothing to do');
             if (run.status === 'partial') parts.push(run.done + ' synced, ' + run.failed + ' failed' + (run.skipped ? ', ' + run.skipped + ' unchanged' : ''));
@@ -79,11 +81,18 @@
             head.appendChild(el('span', 'dd-run__meta', describe(run)));
             card.appendChild(head);
 
-            if (run.status === 'queued' || run.status === 'running') {
+            if (run.status === 'queued' || run.status === 'running' || (run.total && run.finished)) {
                 const bar = el('div', 'dd-run__bar');
                 const fill = el('span');
-                const pct = run.total ? Math.min(100, Math.round(((run.done + run.failed + run.skipped) / run.total) * 100)) : (run.status === 'running' ? 10 : 0);
+                const processed = run.done + run.failed + run.skipped;
+                const pct = run.finished ? 100 : (run.total ? Math.min(100, Math.round((processed / run.total) * 100)) : (run.status === 'running' ? 10 : 0));
                 fill.style.width = pct + '%';
+                if (run.failed) fill.style.background = 'var(--dd-danger-text, #b42318)';
+                bar.setAttribute('role', 'progressbar');
+                bar.setAttribute('aria-valuemin', '0');
+                bar.setAttribute('aria-valuemax', '100');
+                bar.setAttribute('aria-valuenow', String(pct));
+                bar.setAttribute('aria-label', (opts && opts.label) || SCOPES[key] || key);
                 bar.appendChild(fill);
                 card.appendChild(bar);
             }

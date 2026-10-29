@@ -212,7 +212,30 @@ php artisan queue:failed ; php artisan queue:flush                         # lis
 
 **No worker available right now?** Admins get a "Run now" button on a queued domain sync while the worker banner is showing: it pushes up to 25 selected domains inside the request (20s budget, same Halo rate limiter as the worker) and hands the rest back to the queue. It is audit-logged and needs the `sync.run` permission.
 
-**HaloPSA custom fields.** Settings -> HaloPSA -> *Asset custom field IDs* must match the Domain asset type's custom field IDs in your tenant (defaults 148/149/150/165). When Halo rejects a push, the (sanitized, truncated) response body is shown on the failed domain and logged.
+### HaloPSA and IT Glue setup: pick the asset type, map the fields
+
+Both integrations are set up from the admin UI; no ids need to be looked up by hand. Save the connection details (base URL, credentials) first, because the pickers use the *saved* credentials.
+
+**HaloPSA** (Settings -> HaloPSA -> *Domain asset type & field mapping*, Administrator only):
+
+1. Click **Load asset types**. DomainDash calls `GET /api/AssetType` (cached 10 minutes; **Refresh** bypasses the cache) and lists every asset type. The type named "Domain" is pre-selected when it is unique.
+2. Choose the asset type that holds domains. DomainDash calls `GET /api/AssetType/{id}?includedetails=true` and shows its fields.
+3. For each DomainDash value (domain name, expiry date, name servers, WHOIS / registrant summary) choose the Halo field that receives it, or **Don't sync**. Fields are suggested by name (contains "domain", "expir", "name server"/"ns", "whois"/"registrant"); the label says whether a choice is current, suggested or manual. Required Halo fields that are left unmapped are flagged.
+4. **Key fields** (Halo key field 1-3) are matched to the mapped fields automatically; adjust or leave empty per slot.
+5. **Test mapping** shows, for one domain, exactly which Halo field each value would go to. It is a dry run: nothing is sent to HaloPSA.
+6. Save settings. The asset type id and name, the field ids and names, and the key fields are stored in the existing `halo` setting; existing installs keep working with the old defaults (asset type looked up by the name "Domain", field ids 148/149/150/165) until a type is chosen. *Advanced: manual IDs* still lets you type ids (0 = don't sync, blank = default).
+
+The asset type id and the mapping are part of every domain's sync hash, so changing them re-pushes all domains on the next sync (about one Halo call per domain, rate limited). Each `fields[]` entry is sent as `{id, name, value}` (name only when it was picked from the list). Halo's asset sync job lists assets filtered by the configured asset type id. When Halo rejects a push, the (sanitized, truncated) response body is shown on the failed domain and logged.
+
+**IT Glue** (Settings -> ITGlue -> *Flexible asset type & field mapping*):
+
+1. Click **Load flexible asset types** (`GET /flexible_asset_types?filter[enabled]=true`, paged, cached 10 minutes) and choose the type that holds domains.
+2. DomainDash loads its fields (`GET /flexible_asset_types/{id}?include=flexible_asset_fields`) and suggests a trait for domain name, name servers, expiry, WHOIS and DNS by field name and kind. Only Text, Textbox and Date fields can be filled; Tag, Select, Upload and other kinds are shown greyed out. Required IT Glue fields that are not mapped are flagged (IT Glue rejects the create without them).
+3. Save. The type id/name and the trait keys (`flexible_asset_traits`) are stored in the existing `itglue` setting; *Advanced* still shows the raw id and trait keys. Changing the mapping re-pushes all domains. Values previously written to a trait key that is no longer mapped stay in IT Glue; DomainDash never deletes them.
+
+Both mapping changes are audit-logged (`integration.mapping.update`, ids and names only).
+
+**Sync lists.** The Halo (clients, domains) and IT Glue (organisations, domains) lists in Settings have a live filter box, a sort menu (default: failed and not-synced first), status chips and select visible / all / clear. The chosen sort is remembered in the browser. Clicking **Sync Selected** shows the overall progress bar (x of y, succeeded / failed / unchanged) and a live status per row (Queued, Syncing, Synced, Failed with the reason); per-row results come from `GET /admin/sync/runs/{run}/items` (needs `sync.run`), and the list re-sorts itself when the run finishes.
 
 ## Security configuration
 

@@ -73,7 +73,7 @@ class SyncHaloAssetsJob implements ShouldQueue
 
             $typeId = $halo->getDomainAssetTypeId();
             if (! $typeId) {
-                $run->fail('No "Domain" asset type exists in HaloPSA.');
+                $run->fail('No HaloPSA asset type is selected and none named "Domain" exists. Choose one in Settings → HaloPSA → Domain asset type.');
 
                 return;
             }

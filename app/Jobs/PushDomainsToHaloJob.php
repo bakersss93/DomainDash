@@ -105,7 +105,7 @@ class PushDomainsToHaloJob implements ShouldQueue
         }
 
         if ($this->mode === HaloDomainPusher::MODE_ASSET && ! $typeId) {
-            $this->failAll($remaining, $run, 'No "Domain" asset type exists in HaloPSA (Halo → Config → Asset Types).');
+            $this->failAll($remaining, $run, 'No HaloPSA asset type is selected and none named "Domain" exists. Choose one in Settings → HaloPSA → Domain asset type.');
 
             return;
         }

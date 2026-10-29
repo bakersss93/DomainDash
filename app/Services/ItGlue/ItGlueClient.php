@@ -9,6 +9,7 @@ use App\Services\Integrations\IntegrationConfigurationException;
 use App\Services\Integrations\IntegrationHttp;
 use App\Support\WhoisFormatter;
 use Generator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class ItGlueClient
@@ -29,13 +30,9 @@ class ItGlueClient
         $this->flexibleAssetTypeId = isset($cfg['flexible_asset_type_id'])
             ? (int) $cfg['flexible_asset_type_id']
             : null;
-        $this->flexibleAssetTraits = $cfg['flexible_asset_traits'] ?? [
-            'domain' => 'domain-name',
-            'name_servers' => 'name-servers',
-            'expiry' => 'expiry',
-            'whois' => 'whois',
-            'dns' => 'dns',
-        ];
+        $this->flexibleAssetTraits = is_array($cfg['flexible_asset_traits'] ?? null)
+            ? $cfg['flexible_asset_traits']
+            : self::DEFAULT_TRAITS;
     }
 
     /**
@@ -180,6 +177,100 @@ class ItGlueClient
         return ['data' => $all];
     }
 
+    /** Trait keys DomainDash writes, with the defaults used when nothing is configured. */
+    public const DEFAULT_TRAITS = [
+        'domain' => 'domain-name',
+        'name_servers' => 'name-servers',
+        'expiry' => 'expiry',
+        'whois' => 'whois',
+        'dns' => 'dns',
+    ];
+
+    /** Field kinds a plain string (or Y-m-d date) can be written to. */
+    public const FILLABLE_KINDS = ['text', 'textbox', 'date'];
+
+    private function referenceCacheKey(string $what): string
+    {
+        return 'itglue_' . $what . '_' . sha1($this->baseUrl . '|' . sha1((string) $this->apiKey));
+    }
+
+    /**
+     * Enabled flexible asset types (id, name), cached 10 minutes.
+     *
+     * @return array<int,array{id:string,name:string,icon:?string}>
+     */
+    public function listFlexibleAssetTypes(bool $refresh = false): array
+    {
+        $key = $this->referenceCacheKey('fat');
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, 600, function () {
+            $types = [];
+            foreach ($this->paginate('/flexible_asset_types', ['filter' => ['enabled' => 'true'], 'sort' => 'name']) as $rows) {
+                foreach ($rows as $row) {
+                    $id = (string) ($row['id'] ?? '');
+                    $name = trim((string) ($row['attributes']['name'] ?? ''));
+                    if ($id !== '' && $name !== '') {
+                        $types[$id] = ['id' => $id, 'name' => $name, 'icon' => $row['attributes']['icon'] ?? null];
+                    }
+                }
+            }
+            $types = array_values($types);
+            usort($types, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+            return $types;
+        });
+    }
+
+    /**
+     * Fields of one flexible asset type (GET /flexible_asset_types/{id}?include=flexible_asset_fields).
+     *
+     * @return array<int,array{name:string,name_key:string,kind:string,required:bool,fillable:bool}>
+     */
+    public function flexibleAssetTypeFields(int $typeId, bool $refresh = false): array
+    {
+        $key = $this->referenceCacheKey('fat_fields_' . $typeId);
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, 600, function () use ($typeId) {
+            $result = $this->request('GET', '/flexible_asset_types/' . $typeId, ['include' => 'flexible_asset_fields']);
+
+            return self::normalizeTypeFields($result);
+        });
+    }
+
+    /** @return array<int,array{name:string,name_key:string,kind:string,required:bool,fillable:bool,order:int}> */
+    public static function normalizeTypeFields(array $result): array
+    {
+        $fields = [];
+        foreach ((array) ($result['included'] ?? []) as $inc) {
+            if (! is_array($inc) || ($inc['type'] ?? '') !== 'flexible-asset-fields') {
+                continue;
+            }
+            $a = (array) ($inc['attributes'] ?? []);
+            $nameKey = trim((string) ($a['name-key'] ?? ''));
+            if ($nameKey === '') {
+                continue;
+            }
+            $kind = (string) ($a['kind'] ?? '');
+            $fields[] = [
+                'name' => trim((string) ($a['name'] ?? $nameKey)),
+                'name_key' => $nameKey,
+                'kind' => $kind,
+                'required' => (bool) ($a['required'] ?? false),
+                'fillable' => in_array(strtolower($kind), self::FILLABLE_KINDS, true),
+                'order' => (int) ($a['order'] ?? 0),
+            ];
+        }
+        usort($fields, fn ($x, $y) => $x['order'] <=> $y['order']);
+
+        return $fields;
+    }
+
     /**
      * Ensure a flexible asset type ID has been configured
      */
@@ -195,6 +286,12 @@ class ItGlueClient
     public function configuredFlexibleAssetTypeId(): int
     {
         return $this->getFlexibleAssetTypeId();
+    }
+
+    /** The configured domain-point => trait name-key map (part of the sync hash). */
+    public function traitMapping(): array
+    {
+        return $this->flexibleAssetTraits;
     }
 
     /**

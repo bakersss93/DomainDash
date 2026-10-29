@@ -113,6 +113,14 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::get('/settings/halo/ticket-statuses', [SettingsController::class,'haloTicketStatuses'])->name('admin.settings.halo.ticket-statuses');
+        // Asset type / field pickers for the HaloPSA + IT Glue mapping cards (admin only, read-only toward the vendors).
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::get('/settings/halo/asset-types', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloAssetTypes'])->name('admin.settings.halo.asset-types');
+            Route::get('/settings/halo/asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloAssetTypeFields'])->whereNumber('id')->name('admin.settings.halo.asset-type-fields');
+            Route::post('/settings/halo/preview-mapping', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloPreview'])->name('admin.settings.halo.preview-mapping');
+            Route::get('/settings/itglue/flexible-asset-types', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypes'])->name('admin.settings.itglue.types');
+            Route::get('/settings/itglue/flexible-asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypeFields'])->whereNumber('id')->name('admin.settings.itglue.type-fields');
+        });
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
         Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
         Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
@@ -151,6 +159,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::post('/sync/halo/domains/run-now', [\App\Http\Controllers\Admin\SyncController::class, 'runHaloDomainsNow'])->middleware('throttle:3,1');
             Route::get('/sync/status', [\App\Http\Controllers\Admin\SyncController::class, 'syncStatus']);
             Route::get('/sync/runs/{run}', [\App\Http\Controllers\Admin\SyncController::class, 'showRun']);
+            Route::get('/sync/runs/{run}/items', [\App\Http\Controllers\Admin\SyncController::class, 'runItems']);
         });
 
         // ============================================================================

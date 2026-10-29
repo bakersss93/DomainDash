@@ -41,6 +41,7 @@ class ItGlueDomainPusher
             $domain->dns_config,
             $orgId,
             $typeId,
+            $itglue->traitMapping(),
             now()->toDateString(),
         ]));
 

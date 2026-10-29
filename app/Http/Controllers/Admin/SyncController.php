@@ -263,6 +263,69 @@ class SyncController extends Controller
         return response()->json($data);
     }
 
+    /**
+     * Per-domain outcome of a domain run, for live row status in the lists.
+     * Only domains touched since the run was created are returned (a pushed
+     * domain gets *_synced_at, a failed one gets *_sync_error, both bump
+     * updated_at); every other domain of the run is still pending (or, once
+     * the run finished, unchanged/skipped). Pass ?since=<server_time from the
+     * previous response> to receive only what changed since the last poll.
+     */
+    public function runItems(Request $request, SyncRun $run)
+    {
+        [$syncedCol, $errorCol] = match (true) {
+            $run->provider === 'halo' && $run->scope === 'domains' => ['halo_synced_at', 'halo_sync_error'],
+            $run->provider === 'itglue' && $run->scope === 'configurations' => ['itglue_synced_at', 'itglue_sync_error'],
+            default => [null, null],
+        };
+
+        $now = now();
+        if ($syncedCol === null) {
+            return response()->json(['items' => [], 'run_status' => $run->status, 'finished' => $run->isFinished(), 'server_time' => $now->toIso8601String()]);
+        }
+
+        $runStart = $run->created_at;
+        $since = $runStart;
+        if ($request->filled('since')) {
+            try {
+                $parsed = \Illuminate\Support\Carbon::parse((string) $request->query('since'));
+                $since = $parsed->greaterThan($runStart) ? $parsed->subSeconds(2) : $runStart;
+            } catch (\Throwable) {
+                $since = $runStart;
+            }
+        }
+
+        $rows = Domain::query()
+            ->where('updated_at', '>=', $since)
+            ->where(function ($q) use ($syncedCol, $errorCol, $runStart) {
+                $q->where($syncedCol, '>=', $runStart)->orWhereNotNull($errorCol);
+            })
+            ->when($run->client_id, fn ($q) => $q->where('client_id', $run->client_id))
+            ->orderBy('id')
+            ->limit(5000)
+            ->get(['id', 'name', $syncedCol, $errorCol, 'updated_at']);
+
+        $items = $rows->map(function ($d) use ($syncedCol, $errorCol, $runStart) {
+            $failed = $d->{$errorCol} !== null && $d->{$errorCol} !== '' && $d->updated_at >= $runStart
+                && (! $d->{$syncedCol} || $d->updated_at >= $d->{$syncedCol});
+
+            return [
+                'domain_id' => $d->id,
+                'status' => $failed ? 'failed' : 'done',
+                'error' => $failed ? \App\Support\SyncErrorSanitizer::clean((string) $d->{$errorCol}, 300) : null,
+                'synced_at' => $d->{$syncedCol}?->toIso8601String(),
+            ];
+        })->filter(fn ($i) => $i['status'] === 'failed' || ($i['synced_at'] && \Illuminate\Support\Carbon::parse($i['synced_at'])->gte($runStart)))
+            ->values();
+
+        return response()->json([
+            'items' => $items,
+            'run_status' => $run->status,
+            'finished' => $run->isFinished(),
+            'server_time' => $now->toIso8601String(),
+        ]);
+    }
+
     /** @return array<int,array{id:int,name:string,error:string}> */
     private function runFailures(SyncRun $run): array
     {
@@ -307,10 +370,10 @@ class SyncController extends Controller
             'dash_id' => $c->id,
             'dash_name' => $c->business_name,
             'mapped_id' => $c->itglue_org_id,
-            'organizations' => $organizations,
         ])->values();
 
-        return response()->json(['clients' => $clientList, 'sync' => $this->dispatcher->status()['itglue']]);
+        // The organisation list is sent once (not repeated per client row).
+        return response()->json(['clients' => $clientList, 'organizations' => $organizations, 'sync' => $this->dispatcher->status()['itglue']]);
     }
 
     /**

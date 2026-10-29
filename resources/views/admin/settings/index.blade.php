@@ -470,27 +470,105 @@
                 </div>
 
                 @php
-                    $assetFieldDefaults = ['domain' => 148, 'expiry' => 149, 'nameservers' => 150, 'whois' => 165];
-                    $assetFieldLabels = ['domain' => 'Domain name field ID', 'expiry' => 'Expiry date field ID', 'nameservers' => 'Name servers field ID', 'whois' => 'WHOIS / notes field ID'];
+                    $haloMap = \App\Services\Halo\HaloAssetMapping::fromArray(is_array($settings['halo'] ?? null) ? $settings['halo'] : []);
+                    $assetFieldLabels = \App\Services\Halo\HaloAssetMapping::POINTS;
+                    $haloRaw = is_array($settings['halo'] ?? null) ? $settings['halo'] : [];
                 @endphp
-                <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
-                    <h4 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text);">Asset custom field IDs</h4>
+                <div id="halo-asset-mapping" style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
+                    <h4 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text);">Domain asset type &amp; field mapping</h4>
                     <p style="margin:0 0 12px;font-size:12px;color:var(--dd-text-soft);">
-                        These must match the custom field IDs of the <strong>Domain</strong> asset type in your HaloPSA tenant
-                        (Config &rarr; Asset Types &rarr; Domain &rarr; fields). Defaults (148/149/150/165) are only correct for the tenant this integration was built against.
-                        If Halo rejects pushes, the response shown on the failed domain names the offending field.
+                        DomainDash reads your HaloPSA asset types, then you choose which one holds domains and which of its fields receives each value.
+                        Save the HaloPSA connection details above first; loading uses the <em>saved</em> credentials.
                     </p>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
-                        @foreach($assetFieldLabels as $fieldKey => $fieldLabel)
-                            <div>
-                                <label for="halo_field_{{ $fieldKey }}" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">{{ $fieldLabel }}</label>
-                                <input id="halo_field_{{ $fieldKey }}" type="number" min="1" step="1"
-                                       name="halo[asset_field_ids][{{ $fieldKey }}]"
-                                       value="{{ old('halo.asset_field_ids.'.$fieldKey, $settings['halo']['asset_field_ids'][$fieldKey] ?? $assetFieldDefaults[$fieldKey]) }}"
-                                       style="width:100%;">
-                            </div>
-                        @endforeach
+
+                    <input type="hidden" id="halo_asset_type_name" name="halo[asset_type_name]" value="{{ old('halo.asset_type_name', $haloRaw['asset_type_name'] ?? '') }}">
+
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                        <button type="button" class="btn-accent" id="haloLoadTypesBtn" style="padding:7px 14px;font-size:13px;" onclick="haloLoadAssetTypes(false)">Load asset types</button>
+                        <button type="button" id="haloRefreshTypesBtn" class="dd-list__btn" style="display:none;" onclick="haloLoadAssetTypes(true)">Refresh</button>
+                        <span id="haloMapStatus" role="status" aria-live="polite" style="font-size:12px;color:var(--dd-text-soft);"></span>
                     </div>
+                    <p id="haloCurrentType" style="margin:8px 0 0;font-size:13px;color:var(--text);">
+                        @if($haloMap->typeId)
+                            Current asset type: <strong>{{ $haloMap->typeName !== '' ? $haloMap->typeName : 'Unnamed' }}</strong> (id {{ $haloMap->typeId }})
+                        @else
+                            No asset type selected. DomainDash falls back to the asset type named <strong>Domain</strong>.
+                        @endif
+                    </p>
+
+                    <div id="haloTypePicker" style="display:none;margin-top:10px;">
+                        <label for="haloAssetTypeSelect" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Asset type for domains</label>
+                        <input type="search" id="haloAssetTypeFilter" placeholder="Filter asset types…" aria-label="Filter asset types" style="width:100%;margin-bottom:6px;">
+                        <select id="haloAssetTypeSelect" style="width:100%;" onchange="haloLoadFields(this.value, false)"></select>
+                    </div>
+
+                    <div id="haloMappingBox" style="display:none;margin-top:14px;">
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">
+                            <h5 style="margin:0;font-size:13px;font-weight:600;color:var(--text);">Data point &rarr; Halo field</h5>
+                            <button type="button" class="dd-list__btn" onclick="haloLoadFields(document.getElementById('halo_asset_type_id').value, true)">Reload fields</button>
+                        </div>
+                        <div id="haloMappingRows" style="display:grid;gap:8px;"></div>
+                        <div id="haloMappingWarnings" style="margin-top:8px;font-size:12px;color:var(--dd-danger-text);"></div>
+                        <p style="margin:10px 0 0;font-size:11px;color:var(--dd-text-soft);">
+                            Changing the asset type or any mapping re-pushes every domain on the next sync (one call per domain, rate limited).
+                        </p>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <h5 style="margin:0 0 4px;font-size:13px;font-weight:600;color:var(--text);">Key fields</h5>
+                        <p style="margin:0 0 8px;font-size:12px;color:var(--dd-text-soft);">
+                            HaloPSA shows up to three key fields per asset type in its lists. Pick which DomainDash value fills each one (normally the domain name; leave empty if the type has no key field in that position).
+                            <span id="haloKeyHint"></span>
+                        </p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+                            @foreach([1, 2, 3] as $slot)
+                                <div>
+                                    <label for="halo_key_field_{{ $slot }}" style="display:block;font-size:12px;margin-bottom:3px;color:var(--text-muted);font-weight:500;">Key field {{ $slot }} <span data-halo-key-name="{{ $slot }}"></span></label>
+                                    <select id="halo_key_field_{{ $slot }}" name="halo[asset_key_fields][{{ $slot }}]" style="width:100%;">
+                                        <option value="">Leave empty</option>
+                                        @foreach($assetFieldLabels as $pk => $pl)
+                                            <option value="{{ $pk }}" @selected(($haloMap->keyFields[$slot] ?? '') === $pk)>{{ $pl }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle);">
+                        <h5 style="margin:0 0 4px;font-size:13px;font-weight:600;color:var(--text);">Test mapping (dry run)</h5>
+                        <p style="margin:0 0 8px;font-size:12px;color:var(--dd-text-soft);">Shows what would be sent for one domain, using the mapping as it is in this form. Nothing is sent to HaloPSA.</p>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                            <input type="text" id="haloPreviewDomain" list="haloPreviewDomains" placeholder="Domain name, e.g. example.com" aria-label="Domain to preview" style="flex:1 1 220px;" onfocus="haloLoadPreviewDomains()">
+                            <datalist id="haloPreviewDomains"></datalist>
+                            <button type="button" class="btn-accent" style="padding:7px 14px;font-size:13px;" onclick="haloPreviewMapping()">Test mapping</button>
+                        </div>
+                        <div id="haloPreviewOut" role="status" aria-live="polite" style="margin-top:10px;font-size:13px;"></div>
+                    </div>
+
+                    <details style="margin-top:14px;" @if(!$haloMap->typeId) open @endif>
+                        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);">Advanced: manual IDs</summary>
+                        <p style="margin:8px 0 10px;font-size:12px;color:var(--dd-text-soft);">
+                            The pickers above fill these boxes. You can also type ids directly (HaloPSA &rarr; Config &rarr; Asset Types). Use <strong>0</strong> to not sync a value; blank restores the built-in default (148/149/150/165).
+                        </p>
+                        <div style="margin-bottom:12px;">
+                            <label for="halo_asset_type_id" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Asset type ID</label>
+                            <input id="halo_asset_type_id" type="number" min="1" step="1" name="halo[asset_type_id]" value="{{ old('halo.asset_type_id', $haloMap->typeId) }}" placeholder="blank = asset type named &quot;Domain&quot;" style="width:100%;max-width:260px;">
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+                            @foreach($assetFieldLabels as $fieldKey => $fieldLabel)
+                                <div>
+                                    <label for="halo_field_{{ $fieldKey }}" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">{{ $fieldLabel }} field ID</label>
+                                    <input id="halo_field_{{ $fieldKey }}" type="number" min="0" step="1"
+                                           name="halo[asset_field_ids][{{ $fieldKey }}]"
+                                           value="{{ old('halo.asset_field_ids.'.$fieldKey, $haloMap->fieldIds[$fieldKey]) }}"
+                                           oninput="haloManualFieldEdited('{{ $fieldKey }}')"
+                                           style="width:100%;">
+                                    <input type="hidden" id="halo_field_name_{{ $fieldKey }}" name="halo[asset_field_names][{{ $fieldKey }}]" value="{{ old('halo.asset_field_names.'.$fieldKey, $haloMap->fieldNames[$fieldKey] ?? '') }}">
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
                 </div>
 
                 <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
@@ -822,6 +900,72 @@
                         <label style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">DNS trait key</label>
                         <input type="text" name="itglue[flexible_asset_traits][dns]" value="{{ $flexibleAssetTraits['dns'] ?? '' }}" style="width:100%;" placeholder="dns">
                     </div>
+                </div>
+
+                @php
+                    $itgPoints = ['domain' => 'Domain name', 'name_servers' => 'Name servers', 'expiry' => 'Expiry date', 'whois' => 'WHOIS / registrant summary', 'dns' => 'DNS records'];
+                    $itgDefaults = \App\Services\ItGlue\ItGlueClient::DEFAULT_TRAITS;
+                @endphp
+                <div id="itglue-asset-mapping" style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
+                    <h4 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text);">Flexible asset type &amp; field mapping</h4>
+                    <p style="margin:0 0 12px;font-size:12px;color:var(--dd-text-soft);">
+                        Load your enabled flexible asset types, choose the one that holds domains, then choose which field receives each value.
+                        Save the base URL and API key first; loading uses the <em>saved</em> credentials.
+                    </p>
+                    <input type="hidden" id="itglue_flexible_asset_type_name" name="itglue[flexible_asset_type_name]" value="{{ old('itglue.flexible_asset_type_name', $settings['itglue']['flexible_asset_type_name'] ?? '') }}">
+
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                        <button type="button" class="btn-accent" style="padding:7px 14px;font-size:13px;" onclick="itgLoadTypes(false)">Load flexible asset types</button>
+                        <button type="button" id="itgRefreshBtn" class="dd-list__btn" style="display:none;" onclick="itgLoadTypes(true)">Refresh</button>
+                        <span id="itgMapStatus" role="status" aria-live="polite" style="font-size:12px;color:var(--dd-text-soft);"></span>
+                    </div>
+                    <p style="margin:8px 0 0;font-size:13px;color:var(--text);">
+                        @if(!empty($settings['itglue']['flexible_asset_type_id']))
+                            Current type: <strong>{{ ($settings['itglue']['flexible_asset_type_name'] ?? '') !== '' ? $settings['itglue']['flexible_asset_type_name'] : 'Unnamed' }}</strong> (id {{ $settings['itglue']['flexible_asset_type_id'] }})
+                        @else
+                            No flexible asset type selected. Domain sync to IT Glue needs one.
+                        @endif
+                    </p>
+
+                    <div id="itgTypePicker" style="display:none;margin-top:10px;">
+                        <label for="itgTypeSelect" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Flexible asset type for domains</label>
+                        <input type="search" id="itgTypeFilter" placeholder="Filter types…" aria-label="Filter flexible asset types" style="width:100%;margin-bottom:6px;">
+                        <select id="itgTypeSelect" style="width:100%;" onchange="itgLoadFields(this.value, false)"></select>
+                    </div>
+
+                    <div id="itgMappingBox" style="display:none;margin-top:14px;">
+                        <h5 style="margin:0 0 6px;font-size:13px;font-weight:600;color:var(--text);">Data point &rarr; IT Glue field</h5>
+                        <div id="itgMappingRows" style="display:grid;gap:8px;"></div>
+                        <div id="itgMappingWarnings" style="margin-top:8px;font-size:12px;color:var(--dd-danger-text);"></div>
+                        <p style="margin:10px 0 0;font-size:11px;color:var(--dd-text-soft);">
+                            Only Text, Textbox and Date fields can be filled. Tag, Select, Upload and other kinds are shown greyed out.
+                            Changing the mapping re-pushes every domain on the next sync; fields that were mapped before keep their old values in IT Glue.
+                        </p>
+                    </div>
+
+                    <details style="margin-top:14px;" @if(empty($settings['itglue']['flexible_asset_type_id'])) open @endif>
+                        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);">Advanced: manual IDs and trait keys</summary>
+                        <div style="margin-top:10px;">
+                            <label for="itglue_flexible_asset_type_id" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Flexible Asset Type ID</label>
+                            <input id="itglue_flexible_asset_type_id"
+                                   type="text"
+                                   inputmode="numeric"
+                                   name="itglue[flexible_asset_type_id]"
+                                   value="{{ old('itglue.flexible_asset_type_id', $settings['itglue']['flexible_asset_type_id'] ?? '') }}"
+                                   placeholder="e.g. 4521154692859938"
+                                   style="width:100%;">
+                            <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">Required when syncing domains to flexible assets.</small>
+                        </div>
+                        <p style="margin:12px 0 6px;font-size:12px;color:var(--dd-text-soft);">Trait keys (the "name-key" of each field). Blank means that value is not synced.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+                            @foreach($itgPoints as $pk => $pl)
+                                <div>
+                                    <label for="itglue_trait_{{ $pk }}" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">{{ $pl }} trait key</label>
+                                    <input id="itglue_trait_{{ $pk }}" type="text" name="itglue[flexible_asset_traits][{{ $pk }}]" value="{{ old('itglue.flexible_asset_traits.'.$pk, $flexibleAssetTraits[$pk] ?? '') }}" style="width:100%;" placeholder="{{ $itgDefaults[$pk] }}" pattern="[a-z0-9_\-]*">
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
                 </div>
                 </div>
             </div>
@@ -1474,9 +1618,92 @@
             }
         }
 
+        // ---------------------------------------------------------------
+        // Shared list helpers (DDList lives in resources/js/dd-list.js)
+        // ---------------------------------------------------------------
+        const DD_SPINNER_HTML = (label) => '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>' + ddEsc(label) + '</span></div></div>';
+
+        function ddTextEl(tag, text, css) {
+            const n = document.createElement(tag);
+            n.textContent = text === null || text === undefined ? '' : String(text);
+            if (css) n.style.cssText = css;
+            return n;
+        }
+
+        function ddNameCell(row, nameKey) {
+            const wrap = document.createElement('div');
+            wrap.appendChild(ddTextEl('div', row[nameKey || 'name'] || ''));
+            if (row.sync_error) {
+                const err = ddTextEl('div', 'Last sync failed: ' + row.sync_error);
+                err.className = 'dd-list__err';
+                wrap.appendChild(err);
+            }
+            return wrap;
+        }
+
+        function ddSyncSorts() { return [
+            { value: 'status', label: 'Status (failed / not synced first)', compare: DDList.std.status((r) => (r.sync_error ? 0 : (r.synced_at ? 2 : 1))) },
+            { value: 'name-asc', label: 'Name A–Z', compare: DDList.std.name('name', 1) },
+            { value: 'name-desc', label: 'Name Z–A', compare: DDList.std.name('name', -1) },
+            { value: 'synced-new', label: 'Last synced (newest)', compare: DDList.std.date('synced_at', -1) },
+            { value: 'synced-old', label: 'Last synced (oldest)', compare: DDList.std.date('synced_at', 1) },
+            { value: 'client', label: 'Client', compare: (a, b) => DDList.collator.compare(a.client || '', b.client || '') },
+        ]; }
+        function ddSyncFilters() { return [
+            { value: 'all', label: 'All', match: () => true },
+            { value: 'unsynced', label: 'Not synced', match: (r, st) => st.key === 'unsynced' || st.key === 'queued' },
+            { value: 'failed', label: 'Failed', match: (r, st) => st.key === 'failed' },
+            { value: 'synced', label: 'Synced', match: (r, st) => st.key === 'synced' || st.key === 'unchanged' },
+        ]; }
+
+        function ddCreateDomainList(mount, rows, o) {
+            return DDList.create({
+                mount: mount,
+                rows: rows,
+                idKey: 'id',
+                storageKey: o.storageKey,
+                grid: o.grid,
+                columns: o.columns,
+                searchKeys: ['name', 'client'],
+                sorts: ddSyncSorts(),
+                defaultSort: 'status',
+                filters: ddSyncFilters(),
+                statusOf: DDList.syncStatus(o.existsKey),
+                emptyText: 'No domains to show.',
+            });
+        }
+
+        function ddMapSorts() { return [
+            { value: 'status', label: 'Status (unmapped first)', compare: (a, b, statusOf) => (statusOf(a).rank - statusOf(b).rank) },
+            { value: 'name-asc', label: 'Name A–Z', compare: DDList.std.name('name', 1) },
+            { value: 'name-desc', label: 'Name Z–A', compare: DDList.std.name('name', -1) },
+        ]; }
+        function ddMapFilters() { return [
+            { value: 'all', label: 'All', match: () => true },
+            { value: 'unmapped', label: 'Unmapped', match: (r, st) => st.key === 'unsynced' },
+            { value: 'mapped', label: 'Mapped', match: (r, st) => st.key === 'synced' },
+        ]; }
+        const ddMapStatus = (row) => (row.mapped_id
+            ? { key: 'synced', label: 'Mapped', rank: 1, title: 'Linked to a record in the other system' }
+            : { key: 'unsynced', label: 'Unmapped', rank: 0, variant: 'warning', title: 'Not linked yet' });
+
+        // Refresh a domain list in place (no spinner, selection and sort kept) after a run finished.
+        async function ddReloadDomainList(url, listVar, rowsKey) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                const list = window[listVar];
+                if (list && Array.isArray(data[rowsKey])) {
+                    list.clearItemStates();
+                    list.setRows(data[rowsKey]);
+                }
+            } catch (e) { /* the next manual refresh will show current data */ }
+            if (window[listVar]) window[listVar].setBusy(false);
+        }
+
         async function loadHaloClients() {
             const listEl = document.getElementById('haloClientList');
-            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading clients from HaloPSA...</span></div></div>';
+            listEl.innerHTML = DD_SPINNER_HTML('Loading clients from HaloPSA...');
 
             try {
                 const response = await fetch('/admin/sync/halo/clients');
@@ -1487,61 +1714,60 @@
                     return;
                 }
 
-                renderHaloClientList(data.clients);
-                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
+                renderHaloClientList(data.clients, data.sync);
             } catch (error) {
                 listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
-        function renderHaloClientList(clients) {
+        function renderHaloClientList(clients, sync) {
             const listEl = document.getElementById('haloClientList');
+            listEl.innerHTML = ddSyncBarHtml(sync, '/admin/sync/halo/refresh');
+            const mount = document.createElement('div');
+            listEl.appendChild(mount);
 
-            let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
-                    <input type="checkbox" id="selectAllHaloClients" onchange="toggleAllHaloClients(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                    <div>HaloPSA Client</div>
-                    <div>DomainDash Client</div>
-                    <div style="text-align:center;">Updated</div>
-                    <div style="text-align:center;">Action</div>
-                </div>
-            `;
+            const rows = clients.map((c) => Object.assign({}, c, { id: c.halo_id, name: c.halo_name, sel: c.mapped_id ? String(c.mapped_id) : '' }));
 
-            clients.forEach((client, index) => {
-                html += `
-                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 80px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="halo-client-checkbox" data-client-id="${ddEsc(client.halo_id)}" data-client-name="${ddEsc(client.halo_name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${ddEsc(client.halo_name)}</div>
-                        <select class="halo-client-mapping" data-halo-id="${ddEsc(client.halo_id)}" class="dd-input">
-                            <option value="">-- Select Client --</option>
-                            ${client.suggestions.map(s => `<option value="${ddEsc(s.id)}" ${s.id === client.mapped_id ? 'selected' : ''}>${ddEsc(s.name)}</option>`).join('')}
-                        </select>
-                        <div style="text-align:center;color:var(--dd-text-soft);font-size:13px;">${ddEsc(client.updated || 'N/A')}</div>
-                        <div style="text-align:center;">
-                            ${client.mapped_id ? '' : '<button onclick="createClientFromHalo(\'' + client.halo_id + '\')" style="padding:6px 12px;background:var(--dd-accent);border:none;border-radius:4px;color:var(--dd-accent-contrast);cursor:pointer;font-weight:600;">+</button>'}
-                        </div>
-                    </div>
-                `;
+            window._haloClientList = DDList.create({
+                mount: mount,
+                rows: rows,
+                idKey: 'id',
+                storageKey: 'halo-clients',
+                grid: '1fr 1fr 130px 110px',
+                searchKeys: ['name'],
+                rowText: (r) => ((r.suggestions || []).find((s) => String(s.id) === r.sel) || {}).name || '',
+                sorts: ddMapSorts().concat([{ value: 'updated', label: 'Updated (newest)', compare: DDList.std.date('updated', -1) }]),
+                defaultSort: 'status',
+                filters: ddMapFilters(),
+                statusOf: ddMapStatus,
+                emptyText: 'No HaloPSA clients to show.',
+                columns: [
+                    { label: 'HaloPSA Client', render: (r) => ddTextEl('div', r.name) },
+                    { label: 'DomainDash Client', render: (r) => {
+                        const sel = document.createElement('select');
+                        sel.className = 'dd-list__select';
+                        sel.setAttribute('aria-label', 'DomainDash client for ' + r.name);
+                        const none = ddTextEl('option', '-- Select Client --');
+                        none.value = '';
+                        sel.appendChild(none);
+                        (r.suggestions || []).forEach((s) => {
+                            const o = ddTextEl('option', s.name);
+                            o.value = s.id;
+                            if (String(s.id) === r.sel) o.selected = true;
+                            sel.appendChild(o);
+                        });
+                        sel.addEventListener('change', () => { r.sel = sel.value; });
+                        return sel;
+                    } },
+                    { label: 'Updated', className: '', render: (r) => ddTextEl('div', r.updated || 'N/A', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Status', render: (r, l, st) => DDList.chip(st) },
+                ],
             });
-
-            listEl.innerHTML = html;
-        }
-
-        function toggleAllHaloClients(checkbox) {
-            const checkboxes = document.querySelectorAll('.halo-client-checkbox');
-            checkboxes.forEach(cb => cb.checked = checkbox.checked);
         }
 
         async function syncHaloClients() {
-            const selectedClients = [];
-            document.querySelectorAll('.halo-client-checkbox:checked').forEach(checkbox => {
-                const haloId = checkbox.dataset.clientId;
-                const mappingSelect = document.querySelector(`.halo-client-mapping[data-halo-id="${haloId}"]`);
-                const dashClientId = mappingSelect ? mappingSelect.value : '';
-                if (dashClientId) {
-                    selectedClients.push({ halo_id: haloId, dash_client_id: dashClientId, _name: checkbox.dataset.clientName || `Client ${haloId}` });
-                }
-            });
+            const list = window._haloClientList;
+            const selectedClients = list ? list.selectedRows().filter(r => r.sel).map(r => ({ halo_id: r.halo_id, dash_client_id: r.sel, _name: r.name || ('Client ' + r.halo_id) })) : [];
 
             if (selectedClients.length === 0) {
                 alert('Please select at least one client to sync');
@@ -1595,7 +1821,7 @@
 
         async function loadHaloDomains() {
             const listEl = document.getElementById('haloDomainList');
-            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading domains from DomainDash...</span></div></div>';
+            listEl.innerHTML = DD_SPINNER_HTML('Loading domains from DomainDash...');
 
             try {
                 const response = await fetch('/admin/sync/halo/domains');
@@ -1606,69 +1832,47 @@
                     return;
                 }
 
-                renderHaloDomainList(data.domains);
-                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/halo/refresh'));
+                renderHaloDomainList(data.domains, data.sync);
             } catch (error) {
                 listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load domains: ${ddEsc(error.message)}</div>`;
             }
         }
 
-        function renderHaloDomainList(domains) {
+        function renderHaloDomainList(domains, sync) {
             const listEl = document.getElementById('haloDomainList');
+            listEl.innerHTML = ddSyncBarHtml(sync, '/admin/sync/halo/refresh');
+            const mount = document.createElement('div');
+            listEl.appendChild(mount);
 
-            let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
-                    <input type="checkbox" id="selectAllHaloDomains" onchange="toggleAllHaloDomains(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                    <div>Domain Name</div>
-                    <div>Client</div>
-                    <div style="text-align:center;">Expiry</div>
-                    <div style="text-align:center;">Status</div>
-                </div>
-            `;
-
-            domains.forEach(domain => {
-                const statusColor = domain.exists_in_halo ? '#10b981' : '#94a3b8';
-                const statusText = domain.exists_in_halo ? 'Exists' : 'Will Create';
-
-                html += `
-                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${ddEsc(domain.id)}" data-domain-name="${ddEsc(domain.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${ddEsc(domain.name)}${domain.sync_error ? `<div style="font-size:12px;color:var(--dd-danger-text);margin-top:2px;word-break:break-word;">Last sync failed: ${ddEsc(domain.sync_error)}</div>` : ''}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(domain.client || 'No Client')}</div>
-                        <div style="text-align:center;color:var(--dd-text-soft);font-size:13px;">${domain.expiry || 'N/A'}</div>
-                        <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
-                    </div>
-                `;
+            window._haloDomainList = ddCreateDomainList(mount, domains, {
+                storageKey: 'halo-domains',
+                existsKey: 'exists_in_halo',
+                grid: '1.4fr 1fr 100px 150px',
+                columns: [
+                    { label: 'Domain Name', render: (r) => ddNameCell(r) },
+                    { label: 'Client', render: (r) => ddTextEl('div', r.client || 'No Client', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Expiry', render: (r) => ddTextEl('div', r.expiry ? String(r.expiry).slice(0, 10) : 'N/A', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Status', render: (r, l, st) => DDList.chip(st) },
+                ],
             });
-
-            listEl.innerHTML = html;
         }
 
-        function toggleAllHaloDomains(checkbox) {
-            const checkboxes = document.querySelectorAll('.halo-domain-checkbox');
-            checkboxes.forEach(cb => cb.checked = checkbox.checked);
-        }
-
-        async function syncHaloDomains() {
-            const selectedDomains = [];
-            document.querySelectorAll('.halo-domain-checkbox:checked').forEach(checkbox => {
-                selectedDomains.push({ id: checkbox.dataset.domainId, _name: checkbox.dataset.domainName || `Domain ${checkbox.dataset.domainId}` });
-            });
-
-            if (selectedDomains.length === 0) {
-                alert('Please select at least one domain to sync');
+        // Shared by Halo and IT Glue: queue, then show Queued -> Syncing -> Synced/Failed per row plus the overall bar.
+        async function ddQueueDomainRun(opts) {
+            const list = window[opts.listVar];
+            const panel = document.getElementById(opts.panelId);
+            const ids = list ? list.selectedIds() : [];
+            if (!ids.length) {
+                alert(opts.emptyMessage);
                 return;
             }
 
             try {
                 showHaloSyncProgress('Queueing sync…');
-
-                const ids = selectedDomains.map(d => d.id);
-                const r = await DDSync.request('/admin/sync/halo/domains/sync', 'POST', { domain_ids: ids });
+                const r = await opts.request(ids);
                 const data = r.data;
-
                 hideHaloSyncProgress();
-                const panel = document.getElementById('haloDomainRunPanel');
+
                 if (!r.ok || !data.success) {
                     panel.replaceChildren();
                     const box = document.createElement('div');
@@ -1683,16 +1887,40 @@
                 }
 
                 DDSync.updateWorker(data.worker);
+                list.setBusy(true);
+                const binder = DDList.bindRun(list, {
+                    ids: ids,
+                    itemsUrl: (runId) => '/admin/sync/runs/' + encodeURIComponent(runId) + '/items',
+                });
+                binder.start();
                 DDSync.track([data.run], panel, {
-                    label: 'Sync ' + ids.length + ' domain' + (ids.length === 1 ? '' : 's') + ' to HaloPSA',
-                    runNow: () => DDSync.request('/admin/sync/halo/domains/run-now', 'POST', { domain_ids: ids }),
-                    onDone: () => loadHaloDomains(true)
+                    label: opts.label(ids.length),
+                    runNow: opts.runNow ? () => opts.runNow(ids) : undefined,
+                    onUpdate: (run) => binder.onUpdate(run),
+                    onDone: async (run) => {
+                        await binder.onDone(run);
+                        // Let people see the final per-row result, then re-sort from fresh server data.
+                        setTimeout(() => ddReloadDomainList(opts.reloadUrl, opts.listVar, opts.rowsKey), 1500);
+                    },
                 });
             } catch (error) {
                 hideHaloSyncProgress();
-                const panel = document.getElementById('haloDomainRunPanel');
                 panel.textContent = 'Sync failed: ' + error.message;
+                if (list) list.setBusy(false);
             }
+        }
+
+        function syncHaloDomains() {
+            return ddQueueDomainRun({
+                listVar: '_haloDomainList',
+                panelId: 'haloDomainRunPanel',
+                emptyMessage: 'Please select at least one domain to sync',
+                request: (ids) => DDSync.request('/admin/sync/halo/domains/sync', 'POST', { domain_ids: ids }),
+                runNow: (ids) => DDSync.request('/admin/sync/halo/domains/run-now', 'POST', { domain_ids: ids }),
+                label: (n) => 'Sync ' + n + ' domain' + (n === 1 ? '' : 's') + ' to HaloPSA',
+                reloadUrl: '/admin/sync/halo/domains',
+                rowsKey: 'domains',
+            });
         }
 
         // IT Glue Sync Modal Functions
@@ -1728,7 +1956,7 @@
 
         async function loadItGlueClients() {
             const listEl = document.getElementById('itglueClientList');
-            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading clients...</span></div></div>';
+            listEl.innerHTML = DD_SPINNER_HTML('Loading clients...');
 
             try {
                 const response = await fetch('/admin/sync/itglue/clients');
@@ -1739,50 +1967,87 @@
                     return;
                 }
 
-                renderItGlueClientList(data.clients);
-                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
+                renderItGlueClientList(data.clients, data.organizations || [], data.sync);
             } catch (error) {
                 listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load clients: ${ddEsc(error.message)}</div>`;
             }
         }
 
-        function renderItGlueClientList(clients) {
+        function renderItGlueClientList(clients, organizations, sync) {
             const listEl = document.getElementById('itglueClientList');
+            listEl.innerHTML = ddSyncBarHtml(sync, '/admin/sync/itglue/refresh');
+            const mount = document.createElement('div');
+            listEl.appendChild(mount);
 
-            let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
-                    <div>DomainDash Client</div>
-                    <div>IT Glue Organization</div>
-                    <div style="text-align:center;">Action</div>
-                </div>
-            `;
+            const orgName = (id) => (organizations.find((o) => String(o.id) === String(id)) || {}).name || '';
+            const rows = clients.map((c) => Object.assign({}, c, { id: c.dash_id, name: c.dash_name, sel: c.mapped_id ? String(c.mapped_id) : '' }));
 
-            clients.forEach(client => {
-                html += `
-                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;align-items:center;">
-                        <div style="color:var(--text);">${ddEsc(client.dash_name)}</div>
-                        <select class="itglue-client-mapping" data-dash-id="${ddEsc(client.dash_id)}" data-dash-name="${ddEsc(client.dash_name)}" class="dd-input">
-                            <option value="">-- Select Organization --</option>
-                            ${client.organizations.map(org => `<option value="${ddEsc(org.id)}" ${org.id === client.mapped_id ? 'selected' : ''}>${ddEsc(org.name)}</option>`).join('')}
-                        </select>
-                        <div style="text-align:center;">
-                            ${!client.mapped_id ? '<button onclick="suggestItGlueOrg(\'' + client.dash_id + '\')" style="padding:6px 12px;background:var(--dd-accent);border:none;border-radius:4px;color:var(--dd-accent-contrast);cursor:pointer;font-weight:600;font-size:13px;">Suggest</button>' : '<span style="color:var(--dd-status-success-fg);font-size:13px;">✓ Mapped</span>'}
-                        </div>
-                    </div>
-                `;
+            window._itglueClientList = DDList.create({
+                mount: mount,
+                rows: rows,
+                idKey: 'id',
+                storageKey: 'itglue-orgs',
+                grid: '1fr 1fr 110px 120px',
+                searchKeys: ['name'],
+                rowText: (r) => orgName(r.sel),
+                sorts: ddMapSorts(),
+                defaultSort: 'status',
+                filters: ddMapFilters(),
+                statusOf: ddMapStatus,
+                emptyText: 'No DomainDash clients to show.',
+                selectable: false,
+                columns: [
+                    { label: 'DomainDash Client', render: (r) => ddTextEl('div', r.name) },
+                    { label: 'IT Glue Organization', render: (r) => {
+                        const sel = document.createElement('select');
+                        sel.className = 'dd-list__select itglue-client-mapping';
+                        sel.setAttribute('aria-label', 'IT Glue organisation for ' + r.name);
+                        const fill = () => {
+                            if (sel.dataset.full) return;
+                            sel.dataset.full = '1';
+                            sel.replaceChildren();
+                            const none = ddTextEl('option', '-- Select Organization --');
+                            none.value = '';
+                            sel.appendChild(none);
+                            organizations.forEach((org) => {
+                                const o = ddTextEl('option', org.name);
+                                o.value = org.id;
+                                sel.appendChild(o);
+                            });
+                            sel.value = r.sel;
+                        };
+                        // Thousands of selects x all organisations is heavy: fill the options on first use.
+                        const none = ddTextEl('option', '-- Select Organization --');
+                        none.value = '';
+                        sel.appendChild(none);
+                        if (r.sel) { const o = ddTextEl('option', orgName(r.sel) || ('#' + r.sel)); o.value = r.sel; o.selected = true; sel.appendChild(o); }
+                        ['focus', 'mousedown'].forEach((ev) => sel.addEventListener(ev, fill, { once: true }));
+                        sel.addEventListener('change', () => { r.sel = sel.value; });
+                        r._fill = fill;
+                        r._select = sel;
+                        return sel;
+                    } },
+                    { label: 'Status', render: (r, l, st) => DDList.chip(st) },
+                    { label: 'Action', render: (r) => {
+                        if (r.mapped_id) return ddTextEl('span', '✓ Mapped', 'color:var(--dd-status-success-fg);font-size:13px;');
+                        const b = ddTextEl('button', 'Suggest', 'padding:6px 12px;background:var(--dd-accent);border:none;border-radius:4px;color:var(--dd-accent-contrast);cursor:pointer;font-weight:600;font-size:13px;');
+                        b.type = 'button';
+                        b.addEventListener('click', () => suggestItGlueOrg(r));
+                        return b;
+                    } },
+                ],
             });
-
-            listEl.innerHTML = html;
         }
 
-        async function suggestItGlueOrg(dashClientId) {
+        async function suggestItGlueOrg(row) {
             try {
-                const response = await fetch(`/admin/sync/itglue/suggest/${dashClientId}`);
+                const response = await fetch(`/admin/sync/itglue/suggest/${encodeURIComponent(row.id)}`);
                 const data = await response.json();
 
                 if (data.suggested_org_id) {
-                    const select = document.querySelector(`.itglue-client-mapping[data-dash-id="${dashClientId}"]`);
-                    select.value = data.suggested_org_id;
+                    row.sel = String(data.suggested_org_id);
+                    if (row._fill) row._fill();
+                    if (row._select) row._select.value = row.sel;
                 } else {
                     alert('No matching organization found');
                 }
@@ -1792,14 +2057,8 @@
         }
 
         async function syncItGlueClients() {
-            const mappings = [];
-            document.querySelectorAll('.itglue-client-mapping').forEach(select => {
-                const dashId = select.dataset.dashId;
-                const orgId = select.value;
-                if (orgId) {
-                    mappings.push({ dash_client_id: dashId, itglue_org_id: orgId, _name: select.dataset.dashName || `Client ${dashId}` });
-                }
-            });
+            const list = window._itglueClientList;
+            const mappings = list ? list.rows().filter(r => r.sel).map(r => ({ dash_client_id: r.id, itglue_org_id: r.sel, _name: r.name || ('Client ' + r.id) })) : [];
 
             if (mappings.length === 0) {
                 alert('Please map at least one client');
@@ -1940,7 +2199,7 @@
 
         async function loadItGlueConfigs() {
             const listEl = document.getElementById('itglueConfigList');
-            listEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:40px;"><div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--text);"><span style="width:18px;height:18px;border:2px solid rgba(148,163,184,0.45);border-top-color:var(--text);border-radius:999px;display:inline-block;animation:halo-spin 0.7s linear infinite;"></span><span>Loading configuration items...</span></div></div>';
+            listEl.innerHTML = DD_SPINNER_HTML('Loading configuration items...');
 
             try {
                 const response = await fetch('/admin/sync/itglue/configurations');
@@ -1951,86 +2210,41 @@
                     return;
                 }
 
-                renderItGlueConfigList(data.items);
-                listEl.insertAdjacentHTML('afterbegin', ddSyncBarHtml(data.sync, '/admin/sync/itglue/refresh'));
+                renderItGlueConfigList(data.items, data.sync);
             } catch (error) {
                 listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load items: ${ddEsc(error.message)}</div>`;
             }
         }
 
-        function renderItGlueConfigList(items) {
+        function renderItGlueConfigList(items, sync) {
             const listEl = document.getElementById('itglueConfigList');
+            listEl.innerHTML = ddSyncBarHtml(sync, '/admin/sync/itglue/refresh');
+            const mount = document.createElement('div');
+            listEl.appendChild(mount);
 
-            let html = `
-                <div style="margin-bottom:16px;padding:12px;background:var(--surface-muted);border-radius:6px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;font-weight:600;color:var(--dd-text-soft);font-size:13px;">
-                    <input type="checkbox" id="selectAllItGlueConfigs" onchange="toggleAllItGlueConfigs(this)" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                    <div>Name</div>
-                    <div>Client</div>
-                    <div>Type</div>
-                    <div style="text-align:center;">Status</div>
-                </div>
-            `;
-
-            items.forEach(item => {
-                const statusColor = item.exists_in_itglue ? '#10b981' : '#94a3b8';
-                const statusText = item.exists_in_itglue ? 'Exists' : 'Will Create';
-
-                html += `
-                    <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
-                        <input type="checkbox" class="itglue-config-checkbox" data-item-id="${ddEsc(item.id)}" data-item-type="${ddEsc(item.type)}" data-item-name="${ddEsc(item.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${ddEsc(item.name)}${item.sync_error ? `<div style="font-size:12px;color:var(--dd-danger-text);margin-top:2px;word-break:break-word;">Last sync failed: ${ddEsc(item.sync_error)}</div>` : ''}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.client || 'No Client')}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.type)}</div>
-                        <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
-                    </div>
-                `;
+            window._itglueConfigList = ddCreateDomainList(mount, items, {
+                storageKey: 'itglue-configs',
+                existsKey: 'exists_in_itglue',
+                grid: '1.4fr 1fr 90px 150px',
+                columns: [
+                    { label: 'Name', render: (r) => ddNameCell(r) },
+                    { label: 'Client', render: (r) => ddTextEl('div', r.client || 'No Client', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Type', render: (r) => ddTextEl('div', r.type || '', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Status', render: (r, l, st) => DDList.chip(st) },
+                ],
             });
-
-            listEl.innerHTML = html;
         }
 
-        function toggleAllItGlueConfigs(checkbox) {
-            const checkboxes = document.querySelectorAll('.itglue-config-checkbox');
-            checkboxes.forEach(cb => cb.checked = checkbox.checked);
-        }
-
-        async function syncItGlueConfigs() {
-            const selectedItems = [];
-            document.querySelectorAll('.itglue-config-checkbox:checked').forEach(checkbox => {
-                selectedItems.push({ id: checkbox.dataset.itemId, type: checkbox.dataset.itemType, _name: checkbox.dataset.itemName || `Item ${checkbox.dataset.itemId}` });
+        function syncItGlueConfigs() {
+            return ddQueueDomainRun({
+                listVar: '_itglueConfigList',
+                panelId: 'itglueConfigRunPanel',
+                emptyMessage: 'Please select at least one item to sync',
+                request: (ids) => DDSync.request('/admin/sync/itglue/configurations/sync', 'POST', { items: ids.map((id) => ({ id: id, type: 'domain' })) }),
+                label: (n) => 'Sync ' + n + ' domain' + (n === 1 ? '' : 's') + ' to IT Glue',
+                reloadUrl: '/admin/sync/itglue/configurations',
+                rowsKey: 'items',
             });
-
-            if (selectedItems.length === 0) {
-                alert('Please select at least one item to sync');
-                return;
-            }
-
-            try {
-                showHaloSyncProgress('Queueing sync…');
-
-                const response = await fetch('/admin/sync/itglue/configurations/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ items: selectedItems.map(i => ({ id: i.id, type: i.type })) })
-                });
-                const data = await response.json();
-
-                hideHaloSyncProgress();
-                const panel = document.getElementById('itglueConfigRunPanel');
-                if (!data.success) {
-                    panel.textContent = 'Sync not started: ' + (data.error || data.message || 'Unknown error');
-                    return;
-                }
-                DDSync.updateWorker(data.worker);
-                DDSync.track([data.run], panel, { label: 'Sync domains to IT Glue', onDone: () => loadItGlueConfigs() });
-            } catch (error) {
-                hideHaloSyncProgress();
-                document.getElementById('itglueConfigRunPanel').textContent = 'Sync failed: ' + error.message;
-            }
         }
 
         function showHaloSyncProgress(message) {
@@ -2090,6 +2304,392 @@
                 window.hideGlobalLoader();
             }
         }
+
+        // ---------------------------------------------------------------
+        // HaloPSA asset type / field mapping
+        // ---------------------------------------------------------------
+        const haloMapState = { fields: [], keyfields: [], suggestions: {}, points: {}, types: [] };
+
+        function mapEl(tag, text, css) {
+            const n = document.createElement(tag);
+            if (text !== undefined && text !== null) n.textContent = String(text);
+            if (css) n.style.cssText = css;
+            return n;
+        }
+
+        function haloStatus(msg, isError) {
+            const s = document.getElementById('haloMapStatus');
+            s.textContent = msg || '';
+            s.style.color = isError ? 'var(--dd-danger-text)' : 'var(--dd-text-soft)';
+        }
+
+        async function haloLoadAssetTypes(refresh) {
+            haloStatus('Loading asset types from HaloPSA…');
+            const r = await DDSync.request('/admin/settings/halo/asset-types' + (refresh ? '?refresh=1' : ''), 'GET');
+            if (!r.ok) { haloStatus(r.data.error || ('Could not load asset types (HTTP ' + r.status + ')'), true); return; }
+
+            haloMapState.types = r.data.types || [];
+            const sel = document.getElementById('haloAssetTypeSelect');
+            const storedId = document.getElementById('halo_asset_type_id').value;
+            const chosen = storedId || (r.data.suggested_id ? String(r.data.suggested_id) : '');
+
+            function fillTypes(filter) {
+                const q = (filter || '').toLowerCase();
+                const current = sel.value || chosen;
+                sel.replaceChildren();
+                const none = mapEl('option', '-- Select asset type --');
+                none.value = '';
+                sel.appendChild(none);
+                haloMapState.types.filter((t) => !q || t.name.toLowerCase().includes(q) || String(t.id) === q || t.id === Number(current)).forEach((t) => {
+                    const o = mapEl('option', t.name + (t.group ? ' (' + t.group + ')' : '') + ' · #' + t.id);
+                    o.value = String(t.id);
+                    sel.appendChild(o);
+                });
+                sel.value = current;
+            }
+            fillTypes('');
+            document.getElementById('haloAssetTypeFilter').oninput = (e) => fillTypes(e.target.value);
+
+            document.getElementById('haloTypePicker').style.display = '';
+            document.getElementById('haloRefreshTypesBtn').style.display = '';
+            haloStatus(haloMapState.types.length + ' asset types loaded.');
+            if (chosen) haloLoadFields(chosen, !!refresh);
+        }
+
+        async function haloLoadFields(id, refresh) {
+            if (!id) { document.getElementById('haloMappingBox').style.display = 'none'; return; }
+            const typeIdInput = document.getElementById('halo_asset_type_id');
+            const changedType = String(typeIdInput.value) !== String(id);
+            haloStatus('Loading fields…');
+            const r = await DDSync.request('/admin/settings/halo/asset-types/' + encodeURIComponent(id) + '/fields' + (refresh ? '?refresh=1' : ''), 'GET');
+            if (!r.ok) { haloStatus(r.data.error || ('Could not load fields (HTTP ' + r.status + ')'), true); return; }
+
+            const type = haloMapState.types.find((t) => String(t.id) === String(id));
+            typeIdInput.value = id;
+            document.getElementById('halo_asset_type_name').value = (type && type.name) || r.data.name || '';
+            haloMapState.fields = r.data.fields || [];
+            haloMapState.keyfields = r.data.keyfields || [];
+            haloMapState.suggestions = r.data.suggestions || {};
+            haloMapState.points = r.data.points || {};
+            document.getElementById('haloAssetTypeSelect').value = String(id);
+            haloRenderMapping(changedType);
+            haloStatus(haloMapState.fields.length + ' fields in this asset type.');
+            document.getElementById('haloCurrentType').textContent = 'Selected: ' + document.getElementById('halo_asset_type_name').value + ' (id ' + id + ') – save settings to apply.';
+        }
+
+        function haloRenderMapping(changedType) {
+            const box = document.getElementById('haloMappingBox');
+            const rows = document.getElementById('haloMappingRows');
+            rows.replaceChildren();
+            const fields = haloMapState.fields;
+
+            Object.keys(haloMapState.points).forEach((point) => {
+                const input = document.getElementById('halo_field_' + point);
+                const currentId = Number(input.value || 0);
+                const inType = fields.some((f) => f.id === currentId);
+                const suggested = haloMapState.suggestions[point];
+
+                // Keep the current id if this type has it; otherwise take the suggestion; otherwise keep it as a manual id.
+                let pick = '';
+                let note = '';
+                if (!changedType && inType) { pick = String(currentId); note = 'current'; }
+                else if (suggested) { pick = String(suggested); note = 'suggested'; }
+                else if (currentId > 0) { pick = String(currentId); note = 'manual id, not found in this type'; }
+                else { pick = '0'; note = 'no match found'; }
+
+                const row = mapEl('div', null, 'display:grid;grid-template-columns:minmax(120px,170px) 1fr;gap:8px;align-items:center;');
+                const lab = mapEl('label', haloMapState.points[point], 'font-size:13px;color:var(--text);font-weight:500;');
+                lab.setAttribute('for', 'haloMap_' + point);
+                const wrap = mapEl('div');
+                const sel = mapEl('select', null, 'width:100%;');
+                sel.id = 'haloMap_' + point;
+                const dont = mapEl('option', "Don't sync this value");
+                dont.value = '0';
+                sel.appendChild(dont);
+                fields.forEach((f) => {
+                    const o = mapEl('option', f.name + ' · #' + f.id + (f.mandatory ? ' · required' : ''));
+                    o.value = String(f.id);
+                    sel.appendChild(o);
+                });
+                if (pick !== '0' && !fields.some((f) => String(f.id) === pick)) {
+                    const o = mapEl('option', 'Manual id #' + pick);
+                    o.value = pick;
+                    sel.appendChild(o);
+                }
+                sel.value = pick;
+                const hint = mapEl('div', note, 'font-size:11px;color:var(--dd-text-soft);margin-top:2px;');
+                hint.id = 'haloMapNote_' + point;
+                sel.addEventListener('change', () => { haloApplyPick(point, sel.value); hint.textContent = 'chosen'; });
+                wrap.appendChild(sel);
+                wrap.appendChild(hint);
+                row.appendChild(lab);
+                row.appendChild(wrap);
+                rows.appendChild(row);
+                haloApplyPick(point, pick, true);
+            });
+            box.style.display = '';
+            haloSyncKeyFields(changedType);
+        }
+
+        function haloApplyPick(point, value, silent) {
+            const id = Number(value || 0);
+            document.getElementById('halo_field_' + point).value = id;
+            const f = haloMapState.fields.find((x) => x.id === id);
+            document.getElementById('halo_field_name_' + point).value = f ? f.name : '';
+            if (!silent) haloSyncKeyFields(true);
+            haloWarnMandatory();
+        }
+
+        // The user typed an id by hand: forget the picked name and move the dropdown if it knows the id.
+        function haloManualFieldEdited(point) {
+            document.getElementById('halo_field_name_' + point).value = '';
+            const sel = document.getElementById('haloMap_' + point);
+            if (!sel) return;
+            const v = String(Number(document.getElementById('halo_field_' + point).value || 0));
+            if (![...sel.options].some((o) => o.value === v)) {
+                const o = mapEl('option', 'Manual id #' + v);
+                o.value = v;
+                sel.appendChild(o);
+            }
+            sel.value = v;
+            const hint = document.getElementById('haloMapNote_' + point);
+            if (hint) hint.textContent = 'manual id';
+        }
+
+        // Key field N of the Halo type is fed by whichever data point is mapped to that field.
+        function haloSyncKeyFields(apply) {
+            const kfs = haloMapState.keyfields;
+            const names = document.querySelectorAll('[data-halo-key-name]');
+            names.forEach((n) => { n.textContent = ''; });
+            kfs.forEach((k) => {
+                const label = document.querySelector('[data-halo-key-name="' + k.slot + '"]');
+                if (label) label.textContent = k.name ? '(' + k.name + ')' : '';
+                if (!apply) return;
+                const sel = document.getElementById('halo_key_field_' + k.slot);
+                if (!sel) return;
+                let point = '';
+                Object.keys(haloMapState.points).forEach((p) => {
+                    if (k.field_id && Number(document.getElementById('halo_field_' + p).value) === k.field_id) point = p;
+                });
+                sel.value = point;
+            });
+            if (apply && kfs.length) {
+                [1, 2, 3].forEach((slot) => {
+                    if (!kfs.some((k) => k.slot === slot)) document.getElementById('halo_key_field_' + slot).value = '';
+                });
+            }
+            document.getElementById('haloKeyHint').textContent = kfs.length ? ' Matched automatically from the asset type; adjust if needed.' : '';
+        }
+
+        function haloWarnMandatory() {
+            const warn = [];
+            const mapped = new Set();
+            Object.keys(haloMapState.points).forEach((p) => mapped.add(Number(document.getElementById('halo_field_' + p).value)));
+            haloMapState.fields.filter((f) => f.mandatory && !mapped.has(f.id)).forEach((f) => warn.push('"' + f.name + '" is required in HaloPSA but not mapped: creating assets may fail unless Halo has a default for it.'));
+            Object.keys(haloMapState.points).forEach((p) => {
+                if (Number(document.getElementById('halo_field_' + p).value) === 0) warn.push(haloMapState.points[p] + ' will not be synced.');
+            });
+            const seen = {};
+            Object.keys(haloMapState.points).forEach((p) => {
+                const v = Number(document.getElementById('halo_field_' + p).value);
+                if (v > 0) { if (seen[v]) warn.push('Two values are mapped to the same field (#' + v + ').'); seen[v] = true; }
+            });
+            const out = document.getElementById('haloMappingWarnings');
+            out.replaceChildren();
+            warn.forEach((w) => out.appendChild(mapEl('div', w)));
+        }
+
+        let haloPreviewLoaded = false;
+        async function haloLoadPreviewDomains() {
+            if (haloPreviewLoaded) return;
+            haloPreviewLoaded = true;
+            try {
+                const r = await DDSync.request('/admin/sync/halo/domains', 'GET');
+                const dl = document.getElementById('haloPreviewDomains');
+                (r.data.domains || []).slice(0, 500).forEach((d) => { const o = document.createElement('option'); o.value = d.name; dl.appendChild(o); });
+            } catch (e) { /* free typing still works */ }
+        }
+
+        async function haloPreviewMapping() {
+            const out = document.getElementById('haloPreviewOut');
+            const name = document.getElementById('haloPreviewDomain').value.trim();
+            out.replaceChildren();
+            if (!name) { out.textContent = 'Enter a domain name first.'; return; }
+
+            const ids = {}, names = {};
+            Object.keys(haloMapState.points.length ? haloMapState.points : { domain: 1, expiry: 1, nameservers: 1, whois: 1 }).forEach((p) => {
+                ids[p] = document.getElementById('halo_field_' + p).value;
+                names[p] = document.getElementById('halo_field_name_' + p).value;
+            });
+            const keys = {};
+            [1, 2, 3].forEach((n) => { keys[n] = document.getElementById('halo_key_field_' + n).value; });
+            const typeId = document.getElementById('halo_asset_type_id').value;
+
+            out.textContent = 'Building preview…';
+            const r = await DDSync.request('/admin/settings/halo/preview-mapping', 'POST', {
+                domain: name,
+                halo: { asset_type_id: typeId || null, asset_type_name: document.getElementById('halo_asset_type_name').value, asset_field_ids: ids, asset_field_names: names, asset_key_fields: keys },
+            });
+            out.replaceChildren();
+            if (!r.ok) {
+                const msg = (r.data.errors && Object.values(r.data.errors)[0] && Object.values(r.data.errors)[0][0]) || r.data.message || r.data.error || ('HTTP ' + r.status);
+                out.appendChild(mapEl('div', 'Preview failed: ' + msg, 'color:var(--dd-danger-text);'));
+                return;
+            }
+            const d = r.data;
+            out.appendChild(mapEl('div', 'Preview for ' + d.domain + (d.client ? ' (' + d.client + ')' : '') + ' → asset type ' + d.asset_type_name + (d.asset_type_id ? ' #' + d.asset_type_id : ' (looked up by name at sync time)') + '. Nothing was sent to HaloPSA.', 'margin-bottom:6px;'));
+            const table = mapEl('table', null, 'width:100%;border-collapse:collapse;font-size:12px;');
+            const head = mapEl('tr');
+            ['DomainDash value', 'Goes to Halo field', 'Value sent'].forEach((h) => head.appendChild(mapEl('th', h, 'text-align:left;padding:4px 6px;border-bottom:1px solid var(--border-subtle);')));
+            table.appendChild(head);
+            d.rows.forEach((row) => {
+                const tr = mapEl('tr', null, row.synced ? '' : 'opacity:.6;');
+                tr.appendChild(mapEl('td', row.label, 'padding:4px 6px;vertical-align:top;'));
+                tr.appendChild(mapEl('td', row.synced ? ((row.field_name ? row.field_name + ' ' : '') + '#' + row.field_id) : "Don't sync", 'padding:4px 6px;vertical-align:top;'));
+                tr.appendChild(mapEl('td', row.synced ? row.value : '', 'padding:4px 6px;white-space:pre-wrap;word-break:break-word;max-width:420px;'));
+                table.appendChild(tr);
+            });
+            d.key_fields.forEach((k) => {
+                const tr = mapEl('tr');
+                tr.appendChild(mapEl('td', 'Key field', 'padding:4px 6px;'));
+                tr.appendChild(mapEl('td', k.property, 'padding:4px 6px;'));
+                tr.appendChild(mapEl('td', k.value, 'padding:4px 6px;word-break:break-word;'));
+                table.appendChild(tr);
+            });
+            out.appendChild(table);
+            (d.warnings || []).forEach((w) => out.appendChild(mapEl('div', w, 'margin-top:4px;color:var(--dd-danger-text);')));
+        }
+
+        // ---------------------------------------------------------------
+        // IT Glue flexible asset type / trait mapping
+        // ---------------------------------------------------------------
+        const itgState = { types: [], fields: [], points: {}, suggestions: {} };
+
+        function itgStatus(msg, isError) {
+            const s = document.getElementById('itgMapStatus');
+            s.textContent = msg || '';
+            s.style.color = isError ? 'var(--dd-danger-text)' : 'var(--dd-text-soft)';
+        }
+
+        async function itgLoadTypes(refresh) {
+            itgStatus('Loading flexible asset types from IT Glue…');
+            const r = await DDSync.request('/admin/settings/itglue/flexible-asset-types' + (refresh ? '?refresh=1' : ''), 'GET');
+            if (!r.ok) { itgStatus(r.data.error || ('Could not load types (HTTP ' + r.status + ')'), true); return; }
+
+            itgState.types = r.data.types || [];
+            const sel = document.getElementById('itgTypeSelect');
+            const stored = document.getElementById('itglue_flexible_asset_type_id').value.trim();
+            const named = itgState.types.filter((t) => t.name.toLowerCase() === 'domain');
+            const chosen = stored || (named.length === 1 ? named[0].id : '');
+
+            function fill(filter) {
+                const q = (filter || '').toLowerCase();
+                const current = sel.value || chosen;
+                sel.replaceChildren();
+                const none = mapEl('option', '-- Select flexible asset type --');
+                none.value = '';
+                sel.appendChild(none);
+                itgState.types.filter((t) => !q || t.name.toLowerCase().includes(q) || t.id === current).forEach((t) => {
+                    const o = mapEl('option', t.name + ' · #' + t.id);
+                    o.value = t.id;
+                    sel.appendChild(o);
+                });
+                sel.value = current;
+            }
+            fill('');
+            document.getElementById('itgTypeFilter').oninput = (e) => fill(e.target.value);
+            document.getElementById('itgTypePicker').style.display = '';
+            document.getElementById('itgRefreshBtn').style.display = '';
+            itgStatus(itgState.types.length + ' flexible asset types loaded.');
+            if (chosen) itgLoadFields(chosen, !!refresh);
+        }
+
+        async function itgLoadFields(id, refresh) {
+            if (!id) { document.getElementById('itgMappingBox').style.display = 'none'; return; }
+            const idInput = document.getElementById('itglue_flexible_asset_type_id');
+            const changedType = String(idInput.value).trim() !== String(id);
+            itgStatus('Loading fields…');
+            const r = await DDSync.request('/admin/settings/itglue/flexible-asset-types/' + encodeURIComponent(id) + '/fields' + (refresh ? '?refresh=1' : ''), 'GET');
+            if (!r.ok) { itgStatus(r.data.error || ('Could not load fields (HTTP ' + r.status + ')'), true); return; }
+
+            const type = itgState.types.find((t) => t.id === String(id));
+            idInput.value = id;
+            document.getElementById('itglue_flexible_asset_type_name').value = type ? type.name : '';
+            itgState.fields = r.data.fields || [];
+            itgState.points = r.data.points || {};
+            itgState.suggestions = r.data.suggestions || {};
+            document.getElementById('itgTypeSelect').value = String(id);
+            itgRenderMapping(changedType);
+            itgStatus(itgState.fields.length + ' fields in this type. Save settings to apply.');
+        }
+
+        function itgRenderMapping(changedType) {
+            const rows = document.getElementById('itgMappingRows');
+            rows.replaceChildren();
+            Object.keys(itgState.points).forEach((point) => {
+                const input = document.getElementById('itglue_trait_' + point);
+                const current = input.value.trim();
+                const inType = itgState.fields.some((f) => f.name_key === current);
+                const suggested = itgState.suggestions[point];
+                let pick = '', note = '';
+                if (!changedType && inType) { pick = current; note = 'current'; }
+                else if (suggested) { pick = suggested; note = 'suggested'; }
+                else if (current) { pick = current; note = 'manual key, not found in this type'; }
+                else { pick = ''; note = 'no match found'; }
+
+                const row = mapEl('div', null, 'display:grid;grid-template-columns:minmax(120px,170px) 1fr;gap:8px;align-items:center;');
+                const lab = mapEl('label', itgState.points[point], 'font-size:13px;color:var(--text);font-weight:500;');
+                lab.setAttribute('for', 'itgMap_' + point);
+                const wrap = mapEl('div');
+                const sel = mapEl('select', null, 'width:100%;');
+                sel.id = 'itgMap_' + point;
+                const dont = mapEl('option', "Don't sync this value");
+                dont.value = '';
+                sel.appendChild(dont);
+                itgState.fields.forEach((f) => {
+                    const o = mapEl('option', f.name + ' · ' + f.name_key + ' · ' + f.kind + (f.required ? ' · required' : '') + (f.fillable ? '' : ' (cannot be filled)'));
+                    o.value = f.name_key;
+                    o.disabled = !f.fillable;
+                    sel.appendChild(o);
+                });
+                if (pick && !itgState.fields.some((f) => f.name_key === pick)) {
+                    const o = mapEl('option', 'Manual key ' + pick);
+                    o.value = pick;
+                    sel.appendChild(o);
+                }
+                sel.value = pick;
+                const hint = mapEl('div', note, 'font-size:11px;color:var(--dd-text-soft);margin-top:2px;');
+                sel.addEventListener('change', () => { input.value = sel.value; hint.textContent = 'chosen'; itgWarn(); });
+                wrap.appendChild(sel);
+                wrap.appendChild(hint);
+                row.appendChild(lab);
+                row.appendChild(wrap);
+                rows.appendChild(row);
+                input.value = pick;
+            });
+            document.getElementById('itgMappingBox').style.display = '';
+            itgWarn();
+        }
+
+        function itgWarn() {
+            const out = document.getElementById('itgMappingWarnings');
+            out.replaceChildren();
+            const used = new Set();
+            Object.keys(itgState.points).forEach((p) => used.add(document.getElementById('itglue_trait_' + p).value.trim()));
+            itgState.fields.filter((f) => f.required && !used.has(f.name_key)).forEach((f) => {
+                out.appendChild(mapEl('div', '"' + f.name + '" is required in IT Glue but not mapped: creating assets will be rejected.'));
+            });
+            Object.keys(itgState.points).forEach((p) => {
+                if (!document.getElementById('itglue_trait_' + p).value.trim()) out.appendChild(mapEl('div', itgState.points[p] + ' will not be synced.'));
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const t = document.getElementById('halo_asset_type_id');
+            if (t) t.addEventListener('input', () => { document.getElementById('halo_asset_type_name').value = ''; });
+            const i = document.getElementById('itglue_flexible_asset_type_id');
+            if (i) i.addEventListener('input', () => { document.getElementById('itglue_flexible_asset_type_name').value = ''; });
+        });
 
         const defaultServiceCategories = ['Domain', 'Web Hosting', 'SSL'];
 

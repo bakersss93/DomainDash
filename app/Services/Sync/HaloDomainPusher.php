@@ -4,6 +4,7 @@ namespace App\Services\Sync;
 
 use App\Models\Domain;
 use App\Models\HaloAsset;
+use App\Services\Halo\HaloAssetMapping;
 use App\Services\Halo\HaloPsaClient;
 use App\Support\WhoisFormatter;
 
@@ -57,8 +58,9 @@ class HaloDomainPusher
         }
 
         // Hash of locally known state only: decides "nothing to push" before any remote call.
+        $mapping = HaloAssetMapping::fromSettings();
         $hash = sha1(json_encode([
-            $domain->name, $expiryDate, $nameservers, $whoisNotes, $haloClientId, $assetTypeId, HaloPsaClient::assetFieldIds(),
+            $domain->name, $expiryDate, $nameservers, $whoisNotes, $haloClientId, $assetTypeId, $mapping->fingerprint(),
         ]));
 
         if (! $force && $domain->halo_asset_id && $domain->halo_sync_hash === $hash) {
@@ -85,7 +87,12 @@ class HaloDomainPusher
 
         [$siteId, $siteName] = $this->site($halo, $domain, $haloClientId);
 
-        $fieldIds = HaloPsaClient::assetFieldIds();
+        $values = [
+            'domain' => $domain->name,
+            'expiry' => $expiryDate,
+            'nameservers' => $nameservers,
+            'whois' => $whoisNotes,
+        ];
 
         $assetData = [
             'client_id' => $haloClientId,
@@ -95,17 +102,9 @@ class HaloDomainPusher
             'site_name' => $siteName,
             'assettype_id' => $assetTypeId,
             'inventory_number' => $domain->name,
-            'key_field' => $domain->name,
-            'key_field2' => $expiryDate,
-            'key_field3' => $nameservers,
-            // Custom field ids are tenant specific: Settings → HaloPSA → Asset custom field IDs.
-            'fields' => [
-                ['id' => $fieldIds['domain'], 'value' => $domain->name],
-                ['id' => $fieldIds['expiry'], 'value' => $expiryDate],
-                ['id' => $fieldIds['nameservers'], 'value' => $nameservers],
-                ['id' => $fieldIds['whois'], 'value' => $whoisNotes],
-            ],
-        ];
+            // Field ids/names and key fields come from Settings → HaloPSA → Domain asset type.
+            'fields' => $mapping->fields($values),
+        ] + $mapping->keyFieldPayload($values);
 
         $existingId = $this->resolveAssetId($domain, $halo, $haloClientId, $assetTypeId);
 
@@ -127,7 +126,7 @@ class HaloDomainPusher
         HaloAsset::updateOrCreate(['halo_id' => $assetId], [
             'halo_client_id' => $haloClientId,
             'assettype_id' => $assetTypeId,
-            'assettype_name' => 'Domain',
+            'assettype_name' => $mapping->typeLabel(),
             'name' => $domain->name,
             'inventory_number' => $domain->name,
             'synced_at' => now(),
@@ -141,6 +140,82 @@ class HaloDomainPusher
         ])->save();
 
         return $action;
+    }
+
+    /**
+     * Dry run for Settings → HaloPSA "Test mapping": the values and Halo
+     * targets that WOULD be sent for this domain. Makes no HTTP call (no site
+     * lookup, no Synergy fallback) and writes nothing.
+     *
+     * @return array{asset_type_id:?int,asset_type_name:string,rows:array,key_fields:array,payload:array,warnings:array}
+     */
+    public function preview(Domain $domain, HaloAssetMapping $mapping): array
+    {
+        $whoisData = $domain->whois_data ?? [];
+        $overview = WhoisFormatter::overview($whoisData, $domain->name, $domain->whois_synced_at);
+        $expiry = $domain->expiry_date instanceof \Illuminate\Support\Carbon
+            ? $domain->expiry_date->toDateString()
+            : ($domain->expiry_date ? (string) $domain->expiry_date : '');
+        $nameservers = $domain->name_servers;
+        if (empty($nameservers) && ! empty($overview['nameservers'])) {
+            $nameservers = $overview['nameservers'];
+        }
+        $nameservers = is_array($nameservers) ? implode(', ', array_filter($nameservers)) : (string) $nameservers;
+
+        $warnings = [];
+        if ($expiry === '') {
+            $warnings[] = 'This domain has no expiry date, so a real sync would fail ("Missing expiry date").';
+        }
+        if ($nameservers === '') {
+            $nameservers = 'N/A';
+            $warnings[] = 'No name servers stored locally; a real sync falls back to Synergy, then "N/A".';
+        }
+        if (! $overview['has_data']) {
+            $warnings[] = 'No WHOIS data stored locally; a real sync may fall back to Synergy.';
+        }
+
+        $values = [
+            'domain' => $domain->name,
+            'expiry' => $expiry,
+            'nameservers' => $nameservers,
+            'whois' => WhoisFormatter::formatText($whoisData, $domain->name, $domain->whois_synced_at),
+        ];
+
+        $fields = $mapping->fields($values);
+        $rows = [];
+        foreach (HaloAssetMapping::POINTS as $point => $label) {
+            $id = $mapping->fieldIds[$point] ?? 0;
+            $rows[] = [
+                'point' => $point,
+                'label' => $label,
+                'field_id' => $id > 0 ? $id : null,
+                'field_name' => $mapping->fieldNames[$point] ?? null,
+                'value' => $id > 0 ? mb_strimwidth((string) $values[$point], 0, 400, '…') : null,
+                'synced' => $id > 0,
+            ];
+        }
+
+        $keyFields = [];
+        foreach ($mapping->keyFieldPayload($values) as $prop => $value) {
+            $keyFields[] = ['property' => $prop, 'value' => mb_strimwidth((string) $value, 0, 200, '…')];
+        }
+
+        return [
+            'asset_type_id' => $mapping->typeId,
+            'asset_type_name' => $mapping->typeLabel(),
+            'rows' => $rows,
+            'key_fields' => $keyFields,
+            'payload' => [
+                'assettype_id' => $mapping->typeId,
+                'inventory_number' => $domain->name,
+                'fields' => array_map(function (array $f) {
+                    $f['value'] = is_string($f['value']) ? mb_strimwidth($f['value'], 0, 400, '…') : $f['value'];
+
+                    return $f;
+                }, $fields),
+            ] + array_map(fn ($v) => mb_strimwidth((string) $v, 0, 200, '…'), $mapping->keyFieldPayload($values)),
+            'warnings' => $warnings,
+        ];
     }
 
     private function pushDnsOnly(Domain $domain, HaloPsaClient $halo, int $haloClientId): string
