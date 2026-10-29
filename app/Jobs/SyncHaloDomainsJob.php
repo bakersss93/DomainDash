@@ -7,7 +7,6 @@ use App\Models\Domain;
 use App\Models\SyncRun;
 use App\Services\Halo\HaloPsaClient;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -16,11 +15,11 @@ use Illuminate\Queue\InteractsWithQueue;
  * Fan-out: splits the domains to push to Halo into chunks, each handled by a
  * PushDomainsToHaloJob. Returns immediately after dispatching.
  */
-class SyncHaloDomainsJob implements ShouldQueue, ShouldBeUnique
+class SyncHaloDomainsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TracksSyncRun;
 
-    public int $uniqueFor = 600;
+    public int $timeout = 120;
 
     public function __construct(
         public ?array $domainIds = null,
@@ -38,53 +37,55 @@ class SyncHaloDomainsJob implements ShouldQueue, ShouldBeUnique
         return 'halo-domains-' . ($this->clientId ?? 'all') . '-' . md5(json_encode($this->domainIds)) . '-' . $this->mode;
     }
 
+    public function middleware(): array
+    {
+        return $this->syncMiddleware(null);
+    }
+
     public function handle(): void
     {
         $run = $this->syncRun('halo', 'domains', $this->clientId)->markRunning();
 
         if (! HaloPsaClient::isConfigured()) {
-            $run->skip('HaloPSA is not configured.');
+            $run->skip(HaloPsaClient::configurationProblem() ?? 'HaloPSA is not configured.');
 
             return;
         }
 
-        $requested = $this->domainIds !== null ? array_values(array_unique(array_map('intval', $this->domainIds))) : null;
+        try {
+            $requested = $this->domainIds !== null ? array_values(array_unique(array_map('intval', $this->domainIds))) : null;
 
-        $eligible = Domain::query()
-            ->whereNotNull('client_id')
-            ->when($requested !== null, fn ($q) => $q->whereIn('id', $requested))
-            ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))
-            ->pluck('id')
-            ->all();
+            $eligible = Domain::query()
+                ->whereNotNull('client_id')
+                ->when($requested !== null, fn ($q) => $q->whereIn('id', $requested))
+                ->when($this->clientId, fn ($q) => $q->where('client_id', $this->clientId))
+                ->pluck('id')
+                ->all();
 
-        $total = $requested !== null ? count($requested) : count($eligible);
-        $run->setTotal($total);
+            $total = $requested !== null ? count($requested) : count($eligible);
+            $run->setTotal($total);
 
-        if ($requested !== null) {
-            foreach (array_diff($requested, $eligible) as $missing) {
-                Domain::whereKey($missing)->update(['halo_sync_error' => 'No client assigned']);
-                $run->advance(false);
-            }
-        }
-
-        if ($eligible === []) {
-            $run->refresh();
-            if ($total === 0) {
-                $run->finish();
+            if ($requested !== null) {
+                foreach (array_diff($requested, $eligible) as $missing) {
+                    Domain::whereKey($missing)->update(['halo_sync_error' => 'No client assigned']);
+                    $run->advance(false);
+                }
             }
 
-            return;
-        }
+            if ($eligible === []) {
+                $run->refresh();
+                if ($total === 0) {
+                    $run->finish();
+                }
 
-        foreach (array_chunk($eligible, (int) config('integrations.sync.push_chunk_size', 25)) as $chunk) {
-            PushDomainsToHaloJob::dispatch($chunk, $run->id, $this->force, $this->mode);
-        }
-    }
+                return;
+            }
 
-    public function failed(\Throwable $e): void
-    {
-        if ($this->runId) {
-            SyncRun::find($this->runId)?->fail($e->getMessage());
+            foreach (array_chunk($eligible, (int) config('integrations.sync.push_chunk_size', 25)) as $chunk) {
+                PushDomainsToHaloJob::dispatch($chunk, $run->id, $this->force, $this->mode);
+            }
+        } catch (\Throwable $e) {
+            $this->handleFailure($run, $e);
         }
     }
 }

@@ -22,6 +22,11 @@ class SyncSynergyDomainsJob implements ShouldQueue
 {
     use Queueable;
 
+    /** Below the queue connection's retry_after (config/queue.php). */
+    public int $timeout = 300;
+
+    public int $tries = 1;
+
     public function handle(SynergyWholesaleClient $synergy): void
     {
         $names = Domain::pluck('name')->all();

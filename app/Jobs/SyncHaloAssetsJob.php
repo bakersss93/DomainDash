@@ -10,11 +10,9 @@ use App\Models\SyncRun;
 use App\Services\Halo\HaloPsaClient;
 use App\Support\DomainNameExtractor;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Mirrors Halo "Domain" assets into halo_assets and links domains.halo_asset_id.
@@ -23,11 +21,11 @@ use Illuminate\Queue\Middleware\RateLimited;
  * (ceil(assets/100) requests), incremental after the first run. Per-client
  * run: the same filtered by client_id (used by "Refresh now").
  */
-class SyncHaloAssetsJob implements ShouldQueue, ShouldBeUnique
+class SyncHaloAssetsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TracksSyncRun;
 
-    public int $uniqueFor = 1800;
+    public int $timeout = 240;
 
     public function __construct(
         public ?int $clientId = null,
@@ -45,7 +43,7 @@ class SyncHaloAssetsJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
-        return [new RateLimited('halo-api')];
+        return $this->syncMiddleware('halo-api');
     }
 
     public function handle(): void
@@ -53,7 +51,7 @@ class SyncHaloAssetsJob implements ShouldQueue, ShouldBeUnique
         $run = $this->syncRun('halo', 'assets', $this->clientId)->markRunning();
 
         if (! HaloPsaClient::isConfigured()) {
-            $run->skip('HaloPSA is not configured.');
+            $run->skip(HaloPsaClient::configurationProblem() ?? 'HaloPSA is not configured.');
 
             return;
         }
@@ -86,6 +84,7 @@ class SyncHaloAssetsJob implements ShouldQueue, ShouldBeUnique
 
             foreach ($halo->assetPages($haloClientRef, $typeId, $since) as $rows) {
                 $count += $this->storePage($rows, $haloClientRef, $started);
+                $run->heartbeat();
             }
 
             // A complete (non-incremental) listing is authoritative: forget assets Halo no longer has.
@@ -102,20 +101,7 @@ class SyncHaloAssetsJob implements ShouldQueue, ShouldBeUnique
             $run->forceFill(['total' => $count, 'done' => $count])->save();
             $run->finish();
         } catch (\Throwable $e) {
-            if ($this->isConfigurationProblem($e)) {
-                $run->fail($e->getMessage());
-
-                return;
-            }
-
-            $this->releaseOrThrow($e);
-        }
-    }
-
-    public function failed(\Throwable $e): void
-    {
-        if ($this->runId) {
-            SyncRun::find($this->runId)?->fail($e->getMessage());
+            $this->handleFailure($run, $e);
         }
     }
 

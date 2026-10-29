@@ -45,7 +45,33 @@ return [
         'queue' => env('INTEGRATIONS_QUEUE', 'default'),
         // Domains handled per queued push job.
         'push_chunk_size' => 25,
-        // A queued/running SyncRun older than this no longer blocks a new one.
+        // Fallback (non-database queues, where jobs cannot be inspected): a
+        // queued/running SyncRun this old no longer blocks a new one.
         'stale_run_minutes' => 120,
+        // Database queue: a QUEUED run with no matching row in `jobs` this many
+        // minutes after it was created is an orphan ("worker did not pick it up").
+        'queued_stale_minutes' => (int) env('SYNC_QUEUED_STALE_MINUTES', 5),
+        // A RUNNING run with no progress (updated_at) for this long and no
+        // matching job row is stalled (worker killed / job lost).
+        'running_stale_minutes' => (int) env('SYNC_RUNNING_STALE_MINUTES', 10),
+        // Give up retrying transient (429/5xx/timeout) Halo/IT Glue errors after this long.
+        'retry_minutes' => 30,
+        // Transient-error attempts per job (the error is recorded on the run each time).
+        'max_remote_attempts' => 5,
+        // Per-job hard limits (seconds). Keep every value below the queue
+        // connection's retry_after (config/queue.php) and the worker --timeout.
+        'timeouts' => [
+            'mirror' => 240,   // clients / assets / organisations listing
+            'fanout' => 120,   // fan-out jobs
+            'push' => 180,     // chunked pushes
+        ],
+        // Soft budget (seconds) a push chunk may spend before handing the rest back to the queue.
+        'push_budget_seconds' => 120,
+        // "Run now" fallback: seconds spent inside the web request, max domains per request.
+        'run_now_budget_seconds' => 20,
+        'run_now_max_domains' => 25,
+        // Worker detection thresholds (seconds).
+        'worker_stale_after' => (int) env('QUEUE_WORKER_STALE_AFTER', 120),
+        'heartbeat_stale_after' => (int) env('QUEUE_HEARTBEAT_STALE_AFTER', 180),
     ],
 ];

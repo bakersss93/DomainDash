@@ -7,20 +7,18 @@ use App\Models\HaloClient;
 use App\Models\SyncRun;
 use App\Services\Halo\HaloPsaClient;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Mirrors the Halo client list into halo_clients (all pages, one call per 100).
  */
-class SyncHaloClientsJob implements ShouldQueue, ShouldBeUnique
+class SyncHaloClientsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TracksSyncRun;
 
-    public int $uniqueFor = 1800;
+    public int $timeout = 240;
 
     public function __construct(?int $runId = null)
     {
@@ -35,7 +33,7 @@ class SyncHaloClientsJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
-        return [new RateLimited('halo-api')];
+        return $this->syncMiddleware('halo-api');
     }
 
     public function handle(): void
@@ -43,7 +41,7 @@ class SyncHaloClientsJob implements ShouldQueue, ShouldBeUnique
         $run = $this->syncRun('halo', 'clients')->markRunning();
 
         if (! HaloPsaClient::isConfigured()) {
-            $run->skip('HaloPSA is not configured.');
+            $run->skip(HaloPsaClient::configurationProblem() ?? 'HaloPSA is not configured.');
 
             return;
         }
@@ -76,6 +74,7 @@ class SyncHaloClientsJob implements ShouldQueue, ShouldBeUnique
                     ];
                 }
 
+                $run->heartbeat();
                 if ($batch !== []) {
                     HaloClient::upsert($batch, ['halo_id'], ['name', 'abn', 'inactive', 'remote_updated_at', 'synced_at', 'updated_at']);
                     $count += count($batch);
@@ -88,20 +87,7 @@ class SyncHaloClientsJob implements ShouldQueue, ShouldBeUnique
             $run->forceFill(['total' => $count, 'done' => $count])->save();
             $run->finish();
         } catch (\Throwable $e) {
-            if ($this->isConfigurationProblem($e)) {
-                $run->fail($e->getMessage());
-
-                return;
-            }
-
-            $this->releaseOrThrow($e);
-        }
-    }
-
-    public function failed(\Throwable $e): void
-    {
-        if ($this->runId) {
-            SyncRun::find($this->runId)?->fail($e->getMessage());
+            $this->handleFailure($run, $e);
         }
     }
 

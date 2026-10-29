@@ -58,7 +58,7 @@ class HaloDomainPusher
 
         // Hash of locally known state only: decides "nothing to push" before any remote call.
         $hash = sha1(json_encode([
-            $domain->name, $expiryDate, $nameservers, $whoisNotes, $haloClientId, $assetTypeId,
+            $domain->name, $expiryDate, $nameservers, $whoisNotes, $haloClientId, $assetTypeId, HaloPsaClient::assetFieldIds(),
         ]));
 
         if (! $force && $domain->halo_asset_id && $domain->halo_sync_hash === $hash) {
@@ -85,6 +85,8 @@ class HaloDomainPusher
 
         [$siteId, $siteName] = $this->site($halo, $domain, $haloClientId);
 
+        $fieldIds = HaloPsaClient::assetFieldIds();
+
         $assetData = [
             'client_id' => $haloClientId,
             'clientid' => $haloClientId,
@@ -96,11 +98,12 @@ class HaloDomainPusher
             'key_field' => $domain->name,
             'key_field2' => $expiryDate,
             'key_field3' => $nameservers,
+            // Custom field ids are tenant specific: Settings → HaloPSA → Asset custom field IDs.
             'fields' => [
-                ['id' => 148, 'value' => $domain->name],
-                ['id' => 149, 'value' => $expiryDate],
-                ['id' => 150, 'value' => $nameservers],
-                ['id' => 165, 'value' => $whoisNotes],
+                ['id' => $fieldIds['domain'], 'value' => $domain->name],
+                ['id' => $fieldIds['expiry'], 'value' => $expiryDate],
+                ['id' => $fieldIds['nameservers'], 'value' => $nameservers],
+                ['id' => $fieldIds['whois'], 'value' => $whoisNotes],
             ],
         ];
 

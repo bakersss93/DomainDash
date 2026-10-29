@@ -11,6 +11,9 @@ use App\Models\HaloClient;
 use App\Models\ItglueOrganization;
 use App\Models\SyncRun;
 use App\Services\AuditLogger;
+use App\Services\Halo\HaloPsaClient;
+use App\Services\Sync\HaloRunNow;
+use App\Services\Sync\QueueHealth;
 use App\Services\Ip2whois\Ip2whoisClient;
 use App\Services\Sync\SyncDispatcher;
 use Illuminate\Http\Request;
@@ -67,6 +70,7 @@ class SyncController extends Controller
     {
         $clients = $request->input('clients', []);
         $results = [];
+        $runs = [];
         $queued = 0;
 
         foreach ($clients as $clientData) {
@@ -96,7 +100,7 @@ class SyncController extends Controller
             }
             $dashClient->save();
 
-            $this->dispatcher->refreshHaloClient($dashClient, $request->user()?->id);
+            $runs[$dashClient->id] = $this->dispatcher->refreshHaloClient($dashClient, $request->user()?->id)->toStatusArray();
             $queued++;
 
             $results[] = [
@@ -117,6 +121,8 @@ class SyncController extends Controller
             'queued_count' => $queued,
             'synced_count' => $queued,
             'results' => $results,
+            'runs' => array_values($runs),
+            'worker' => app(QueueHealth::class)->status(),
         ], 202);
     }
 
@@ -154,6 +160,13 @@ class SyncController extends Controller
     {
         $domainIds = array_map('intval', (array) $request->input('domain_ids', []));
 
+        if ($domainIds === []) {
+            return response()->json(['success' => false, 'error' => 'Select at least one domain.'], 422);
+        }
+        if (($problem = HaloPsaClient::configurationProblem()) !== null) {
+            return response()->json(['success' => false, 'error' => $problem], 422);
+        }
+
         $run = $this->dispatcher->pushHaloDomains($domainIds, null, true, 'asset', $request->user()?->id);
 
         return response()->json([
@@ -162,7 +175,21 @@ class SyncController extends Controller
             'queued_count' => count($domainIds),
             'synced_count' => 0,
             'run' => $run->toStatusArray(),
+            'worker' => app(QueueHealth::class)->status(),
         ], 202);
+    }
+
+    /**
+     * Admin fallback: push the selected domains to Halo inside this request
+     * under a hard time budget (only when no queue worker is detected).
+     */
+    public function runHaloDomainsNow(Request $request, HaloRunNow $runNow)
+    {
+        $ids = array_map('intval', (array) $request->input('domain_ids', []));
+
+        $result = $runNow->run($ids, $request->user()?->id);
+
+        return response()->json($result['body'], $result['status'], $result['headers'] ?? []);
     }
 
     /**
@@ -170,11 +197,16 @@ class SyncController extends Controller
      */
     public function refreshHalo(Request $request)
     {
+        if (($problem = HaloPsaClient::configurationProblem()) !== null) {
+            return response()->json(['queued' => false, 'error' => $problem], 422);
+        }
+
         $runs = $this->dispatcher->refreshHalo($request->user()?->id);
 
         return response()->json([
             'queued' => true,
             'runs' => array_map(fn (SyncRun $r) => $r->toStatusArray(), $runs),
+            'worker' => app(QueueHealth::class)->status(),
         ], 202);
     }
 
@@ -185,7 +217,7 @@ class SyncController extends Controller
     {
         $run = $this->dispatcher->refreshItGlue($request->user()?->id);
 
-        return response()->json(['queued' => true, 'runs' => [$run->toStatusArray()]], 202);
+        return response()->json(['queued' => true, 'runs' => [$run->toStatusArray()], 'worker' => app(QueueHealth::class)->status()], 202);
     }
 
     /**
@@ -207,7 +239,7 @@ class SyncController extends Controller
             abort(404);
         }
 
-        return response()->json(['queued' => true, 'run' => $run->toStatusArray()], 202);
+        return response()->json(['queued' => true, 'run' => $run->toStatusArray(), 'worker' => app(QueueHealth::class)->status()], 202);
     }
 
     public function syncStatus()
@@ -215,9 +247,44 @@ class SyncController extends Controller
         return response()->json($this->dispatcher->status());
     }
 
+    /**
+     * One run for the live-progress panel. Orphaned / stalled runs are failed
+     * on read, and per-domain failures are included for domain scopes.
+     */
     public function showRun(SyncRun $run)
     {
-        return response()->json($run->toStatusArray());
+        $run->recoverIfStale();
+        $run->refresh();
+
+        $data = $run->toStatusArray();
+        $data['failures'] = $this->runFailures($run);
+        $data['worker'] = app(QueueHealth::class)->status();
+
+        return response()->json($data);
+    }
+
+    /** @return array<int,array{id:int,name:string,error:string}> */
+    private function runFailures(SyncRun $run): array
+    {
+        $column = match (true) {
+            $run->provider === 'halo' && $run->scope === 'domains' => 'halo_sync_error',
+            $run->provider === 'itglue' && $run->scope === 'configurations' => 'itglue_sync_error',
+            default => null,
+        };
+
+        if ($column === null || ($run->failed ?? 0) === 0 && $run->status !== SyncRun::FAILED) {
+            return [];
+        }
+
+        return Domain::query()
+            ->whereNotNull($column)
+            ->where('updated_at', '>=', $run->created_at)
+            ->when($run->client_id, fn ($q) => $q->where('client_id', $run->client_id))
+            ->orderBy('name')
+            ->limit(50)
+            ->get(['id', 'name', $column])
+            ->map(fn ($d) => ['id' => $d->id, 'name' => $d->name, 'error' => \App\Support\SyncErrorSanitizer::clean((string) $d->{$column}, 500)])
+            ->all();
     }
 
     /**
@@ -493,6 +560,7 @@ class SyncController extends Controller
             'queued_count' => count($ids),
             'synced_count' => 0,
             'run' => $run->toStatusArray(),
+            'worker' => app(QueueHealth::class)->status(),
         ], 202);
     }
 

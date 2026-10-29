@@ -156,12 +156,63 @@ Halo and IT Glue data is synced by queued jobs into local tables (`halo_clients`
 Production therefore needs:
 
 1. `QUEUE_CONNECTION=database` (or `redis`). Do **not** use `sync` (the phpunit default) - jobs would run inside the web request.
-2. A queue worker, supervised (Supervisor/systemd): `php artisan queue:work --tries=5 --max-time=3600` (add `--queue=integrations,default` and set `INTEGRATIONS_QUEUE=integrations` to isolate sync traffic).
-3. The scheduler cron: `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`.
+2. A supervised queue worker (see **Queue worker** below).
+3. The scheduler, every minute, as `www-data` (see below). It also sends the worker heartbeat.
 4. `php artisan migrate` (adds the mirror tables, `sync_runs`, sync columns and indexes) and a first "Refresh now" (or wait for the schedule) to populate the mirrors.
-5. Cache store with locks (`database`/`redis`) so job uniqueness, rate limits and the Halo token lock work across workers.
+5. Cache store with locks (`database`/`redis`) so rate limits, overlap protection and the Halo token lock work across workers.
 
-Tunables are in `config/integrations.php` / env (`HALO_RATE_LIMIT_PER_MINUTE`, `ITGLUE_RATE_LIMIT_PER_MINUTE`, `INTEGRATIONS_MAX_ATTEMPTS`, ...). Monitor `php artisan queue:failed` and the `sync_runs` table.
+Tunables are in `config/integrations.php` / env (`HALO_RATE_LIMIT_PER_MINUTE`, `ITGLUE_RATE_LIMIT_PER_MINUTE`, `SYNC_QUEUED_STALE_MINUTES`, `SYNC_RUNNING_STALE_MINUTES`, `DB_QUEUE_RETRY_AFTER`, ...). Monitor `php artisan queue:failed` and the `sync_runs` table.
+
+### Queue worker
+
+Every "Sync"/"Refresh now" button only enqueues a job; **nothing syncs unless `queue:work` is running** on the queue the app dispatches to. The UI shows the run live (Queued, Running x of y, Succeeded / Partial / Failed / Skipped with the error text) and a warning banner "No queue worker is processing jobs ..." when the oldest waiting job is more than 2 minutes old or the per-minute heartbeat (`QueueHeartbeatJob`, sent by the scheduler) is stale. `GET /admin/sync/status` exposes the same data under `worker`.
+
+**Timeouts (important).** Each sync job sets its own `$timeout` (`config/integrations.php` -> `sync.timeouts`: mirror jobs 240s, fan-out 120s, pushes 180s with a 120s budget) and that takes precedence over the worker flag, but run the worker with an explicit, consistent value anyway:
+
+| Setting | Value |
+|---|---|
+| job `$timeout` | 120-240s (in code) |
+| worker `--timeout` | 300 (larger than any job; without the flag the default is 60s, which kills long jobs) |
+| `DB_QUEUE_RETRY_AFTER` | 360 (default now; **must be larger than `--timeout`**, otherwise a running job is handed to a second worker) |
+
+**Install as a systemd service** (as root; skip if you already supervise a worker with Supervisor/systemd - just make sure it passes `--timeout=300`, the right `--queue`, and runs as `www-data`):
+
+```bash
+cd /var/www/domaindash
+cp deploy/queue/domaindash-queue.service /etc/systemd/system/      # edit WorkingDirectory / --queue / --timeout first
+cp deploy/queue/domaindash-schedule.service deploy/queue/domaindash-schedule.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now domaindash-queue domaindash-schedule.timer
+systemctl status domaindash-queue; journalctl -u domaindash-queue -f
+```
+
+If `INTEGRATIONS_QUEUE=integrations` is set in `.env`, the worker must listen on it: `--queue=integrations,default`. A plain `queue:work` listens on `default` only, and the jobs wait forever.
+
+Cron alternative to the timer (for `www-data`, never root): `deploy/queue/cron.example`.
+
+**Every deploy** (workers keep the old code in memory until restarted):
+
+```bash
+php artisan migrate --force
+php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache
+php artisan queue:restart          # needs a working cache store
+```
+
+**Permissions.** The worker and scheduler run as `www-data` and only need *read* access to the code and *write* access to `storage/` (and `bootstrap/cache` / the SQLite file if used). This matches the Platform HTTPS notes below: the code tree stays root-owned and not writable by `www-data` because the certificate helper runs it as root. Never run `queue:work` or `schedule:run` as root against `storage/`: root-owned log/cache files break the web app.
+
+**Stuck or failed syncs.** Orphaned runs are failed automatically ("Worker did not pick up the job", "Run stalled") and a fresh dispatch is never blocked by them. To reset by hand:
+
+```bash
+sudo -u www-data php artisan domaindash:sync-reset --dry-run               # what would change
+sudo -u www-data php artisan domaindash:sync-reset                         # fail stale runs
+sudo -u www-data php artisan domaindash:sync-reset --all --clear-locks     # fail every queued/running run, drop leftover job locks (CACHE_STORE=database)
+sudo -u www-data php artisan domaindash:sync-reset --flush-failed='App\Jobs\SyncSynergyDomainsJob'   # delete old failed_jobs of one class
+php artisan queue:failed ; php artisan queue:flush                         # list / delete ALL failed jobs
+```
+
+**No worker available right now?** Admins get a "Run now" button on a queued domain sync while the worker banner is showing: it pushes up to 25 selected domains inside the request (20s budget, same Halo rate limiter as the worker) and hands the rest back to the queue. It is audit-logged and needs the `sync.run` permission.
+
+**HaloPSA custom fields.** Settings -> HaloPSA -> *Asset custom field IDs* must match the Domain asset type's custom field IDs in your tenant (defaults 148/149/150/165). When Halo rejects a push, the (sanitized, truncated) response body is shown on the failed domain and logged.
 
 ## Security configuration
 

@@ -128,26 +128,30 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // ============================================================================
         // SYNC ROUTES
         // ============================================================================
-        Route::get('/sync/halo/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloClients']);
-        Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
-        Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
-        Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
+        // Every sync route requires the sync.run permission (Administrator has it via the seeder).
+        Route::middleware('permission:sync.run')->group(function () {
+            Route::get('/sync/halo/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloClients']);
+            Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
+            Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
+            Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
 
-        Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
-        Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
-        Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
-        Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
-        Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
-        Route::get('/sync/ip2whois/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getIp2whoisDomains']);
-        Route::post('/sync/ip2whois/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncIp2whoisDomains']);
+            Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
+            Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
+            Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
+            Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
+            Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
+            Route::get('/sync/ip2whois/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getIp2whoisDomains']);
+            Route::post('/sync/ip2whois/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncIp2whoisDomains']);
 
-        // Background sync control: dispatch jobs and report progress (no remote calls in-request)
-        Route::post('/sync/halo/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshHalo'])->middleware('throttle:6,1');
-        Route::post('/sync/itglue/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshItGlue'])->middleware('throttle:6,1');
-        Route::post('/sync/clients/{client}/{provider}/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshClient'])
-            ->whereIn('provider', ['halo', 'itglue'])->middleware('throttle:12,1');
-        Route::get('/sync/status', [\App\Http\Controllers\Admin\SyncController::class, 'syncStatus']);
-        Route::get('/sync/runs/{run}', [\App\Http\Controllers\Admin\SyncController::class, 'showRun']);
+            // Background sync control: dispatch jobs and report progress (no remote calls in-request)
+            Route::post('/sync/halo/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshHalo'])->middleware('throttle:6,1');
+            Route::post('/sync/itglue/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshItGlue'])->middleware('throttle:6,1');
+            Route::post('/sync/clients/{client}/{provider}/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshClient'])
+                ->whereIn('provider', ['halo', 'itglue'])->middleware('throttle:12,1');
+            Route::post('/sync/halo/domains/run-now', [\App\Http\Controllers\Admin\SyncController::class, 'runHaloDomainsNow'])->middleware('throttle:3,1');
+            Route::get('/sync/status', [\App\Http\Controllers\Admin\SyncController::class, 'syncStatus']);
+            Route::get('/sync/runs/{run}', [\App\Http\Controllers\Admin\SyncController::class, 'showRun']);
+        });
 
         // ============================================================================
         // CLIENTS ROUTES

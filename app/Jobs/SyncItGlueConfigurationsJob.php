@@ -9,22 +9,20 @@ use App\Models\SyncRun;
 use App\Services\Integrations\IntegrationApiException;
 use App\Services\ItGlue\ItGlueClient;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Fan-out for IT Glue: lists the existing flexible assets of each affected
  * organisation ONCE (1 call per 1000 assets instead of 1 find per domain),
  * records the ids on the domains, then queues chunked PushDomainsToItGlueJobs.
  */
-class SyncItGlueConfigurationsJob implements ShouldQueue, ShouldBeUnique
+class SyncItGlueConfigurationsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TracksSyncRun;
 
-    public int $uniqueFor = 600;
+    public int $timeout = 120;
 
     public function __construct(
         public ?array $domainIds = null,
@@ -43,7 +41,7 @@ class SyncItGlueConfigurationsJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
-        return [new RateLimited('itglue-api')];
+        return $this->syncMiddleware('itglue-api');
     }
 
     public function handle(): void
@@ -51,7 +49,7 @@ class SyncItGlueConfigurationsJob implements ShouldQueue, ShouldBeUnique
         $run = $this->syncRun('itglue', 'configurations', $this->clientId)->markRunning();
 
         if (! ItGlueClient::isConfigured()) {
-            $run->skip('IT Glue is not configured.');
+            $run->skip('IT Glue is not configured. Set the API key in Settings → IT Glue.');
 
             return;
         }
@@ -129,20 +127,7 @@ class SyncItGlueConfigurationsJob implements ShouldQueue, ShouldBeUnique
             $clientIds = $domains->pluck('client_id')->unique()->all();
             Client::whereIn('id', $clientIds)->update(['itglue_synced_at' => now()]);
         } catch (\Throwable $e) {
-            if ($this->isConfigurationProblem($e)) {
-                $run->fail($e->getMessage());
-
-                return;
-            }
-
-            $this->releaseOrThrow($e);
-        }
-    }
-
-    public function failed(\Throwable $e): void
-    {
-        if ($this->runId) {
-            SyncRun::find($this->runId)?->fail($e->getMessage());
+            $this->handleFailure($run, $e);
         }
     }
 }

@@ -49,6 +49,9 @@
 
         </div>
 
+        @include('admin.sync._live')
+        @include('admin.sync._worker-banner')
+
         {{-- Local mirror freshness: pages never call Halo / IT Glue; workers refresh in the background --}}
         <div class="dd-status-muted" id="dd-sync-bar" style="display:flex;flex-wrap:wrap;gap:0.75rem 1rem;align-items:center;margin:0 0 1rem;padding:0.625rem 0.875rem;font-size:13px;background:var(--dd-surface-soft);border:1px solid var(--dd-border);border-radius:var(--dd-radius);">
             <span>HaloPSA: <strong id="dd-sync-halo">{{ $syncStatus['halo']['last_synced_human'] ?? null ? 'synced ' . $syncStatus['halo']['last_synced_human'] : 'never synced' }}</strong></span>
@@ -57,6 +60,7 @@
             <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" onclick="ddRefreshSync('/admin/sync/itglue/refresh', this)">Refresh now</button>
             <span id="dd-sync-msg" role="status"></span>
         </div>
+        <div id="dd-sync-runs" aria-live="polite"></div>
 
         {{-- Clients table --}}
         <div class="dd-clients-table-wrapper">
@@ -708,24 +712,27 @@
         }
     }
 
-    // Queue a background refresh; the server answers 202 immediately.
+    // Queue a background refresh (202), then show the run inline with live polling.
     function ddRefreshSync(url, btn, event) {
         if (event) event.stopPropagation();
         const msg = document.getElementById('dd-sync-msg');
+        const mount = document.getElementById('dd-sync-runs');
         btn.disabled = true;
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        })
-        .then(r => r.json().then(d => ({ ok: r.ok, d })))
-        .then(({ ok, d }) => {
-            if (msg) msg.textContent = ok ? 'Refresh queued - it runs in the background.' : (d.error || d.message || 'Could not queue refresh');
-        })
-        .catch(() => { if (msg) msg.textContent = 'Could not queue refresh'; })
-        .finally(() => setTimeout(() => { btn.disabled = false; }, 3000));
+        if (msg) msg.textContent = '';
+        DDSync.request(url, 'POST')
+            .then(({ ok, status, data }) => {
+                const runs = data.runs || (data.run ? [data.run] : []);
+                if (!ok || !runs.length) {
+                    if (msg) msg.textContent = 'Refresh not started: ' + (data.error || data.message || ('HTTP ' + status));
+                    return;
+                }
+                DDSync.updateWorker(data.worker);
+                DDSync.track(runs, mount, {
+                    onDone: () => { btn.disabled = false; }
+                });
+            })
+            .catch((e) => { if (msg) msg.textContent = 'Could not queue refresh: ' + e.message; })
+            .finally(() => setTimeout(() => { btn.disabled = false; }, 3000));
     }
 
     // Sync functions

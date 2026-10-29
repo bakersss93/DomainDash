@@ -1,7 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+    @include('admin.sync._live')
     <div class="dd-settings-page">
+        @include('admin.sync._worker-banner')
 
         {{-- Title --}}
         <x-ui.page-header title="Settings" subtitle="Configure your DomainDash installation and integrations." />
@@ -465,6 +467,30 @@
                     <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
                         Stored securely; value is not displayed. Click "Update key" to set a new one.
                     </small>
+                </div>
+
+                @php
+                    $assetFieldDefaults = ['domain' => 148, 'expiry' => 149, 'nameservers' => 150, 'whois' => 165];
+                    $assetFieldLabels = ['domain' => 'Domain name field ID', 'expiry' => 'Expiry date field ID', 'nameservers' => 'Name servers field ID', 'whois' => 'WHOIS / notes field ID'];
+                @endphp
+                <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
+                    <h4 style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text);">Asset custom field IDs</h4>
+                    <p style="margin:0 0 12px;font-size:12px;color:var(--dd-text-soft);">
+                        These must match the custom field IDs of the <strong>Domain</strong> asset type in your HaloPSA tenant
+                        (Config &rarr; Asset Types &rarr; Domain &rarr; fields). Defaults (148/149/150/165) are only correct for the tenant this integration was built against.
+                        If Halo rejects pushes, the response shown on the failed domain names the offending field.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+                        @foreach($assetFieldLabels as $fieldKey => $fieldLabel)
+                            <div>
+                                <label for="halo_field_{{ $fieldKey }}" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">{{ $fieldLabel }}</label>
+                                <input id="halo_field_{{ $fieldKey }}" type="number" min="1" step="1"
+                                       name="halo[asset_field_ids][{{ $fieldKey }}]"
+                                       value="{{ old('halo.asset_field_ids.'.$fieldKey, $settings['halo']['asset_field_ids'][$fieldKey] ?? $assetFieldDefaults[$fieldKey]) }}"
+                                       style="width:100%;">
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
 
                 <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
@@ -1149,6 +1175,7 @@
                 <button onclick="closeHaloSyncModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
+                @include('admin.sync._worker-banner')
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
                     <button onclick="showHaloClientSync()" id="haloClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-success);border:2px solid var(--dd-success);border-radius:10px;color:#fff;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1174,6 +1201,7 @@
                             </button>
                         </div>
                     </div>
+                    <div id="haloClientRunPanel" aria-live="polite"></div>
                     <div id="haloClientList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
                         <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load clients from HaloPSA
@@ -1200,6 +1228,7 @@
                             </button>
                         </div>
                     </div>
+                    <div id="haloDomainRunPanel" aria-live="polite"></div>
                     <div id="haloDomainList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
                         <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load domains from DomainDash
@@ -1251,6 +1280,7 @@
                 <button onclick="closeItGlueSyncModal()" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
             </div>
             <div style="padding:24px;overflow-y:auto;flex:1;">
+                @include('admin.sync._worker-banner')
                 <div style="display:flex;gap:16px;margin-bottom:24px;">
                     <button onclick="showItGlueClientSync()" id="itglueClientsBtn" class="sync-option-btn" style="flex:1;padding:16px;background:var(--dd-accent);border:2px solid var(--dd-accent);border-radius:8px;color:var(--dd-accent-contrast);font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1302,6 +1332,7 @@
                             </button>
                         </div>
                     </div>
+                    <div id="itglueConfigRunPanel" aria-live="polite"></div>
                     <div id="itglueConfigList" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
                         <div style="text-align:center;color:var(--text-muted);padding:40px;">
                             Click "Refresh List" to load configuration items
@@ -1415,7 +1446,7 @@
             return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:13px;color:var(--text-muted);">
                 <span>${when}${busy}</span>
                 <button type="button" onclick="ddRefreshMirror('${url}', this)" style="padding:4px 12px;background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:6px;color:var(--text);cursor:pointer;">Refresh now</button>
-            </div>`;
+            </div><div data-dd-runs></div>`;
         }
 
         function ddEsc(v) {
@@ -1425,16 +1456,21 @@
         }
 
         async function ddRefreshMirror(url, btn) {
+            const mount = btn.parentElement.nextElementSibling;
             btn.disabled = true;
-            btn.textContent = 'Queued...';
             try {
-                await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
-                });
-                btn.textContent = 'Queued - reopen shortly';
+                const r = await DDSync.request(url, 'POST');
+                const runs = r.data.runs || (r.data.run ? [r.data.run] : []);
+                if (!r.ok || !runs.length) {
+                    mount.textContent = 'Refresh not started: ' + (r.data.error || r.data.message || ('HTTP ' + r.status));
+                    return;
+                }
+                DDSync.updateWorker(r.data.worker);
+                DDSync.track(runs, mount, { onDone: () => { btn.disabled = false; } });
             } catch (e) {
-                btn.textContent = 'Failed';
+                mount.textContent = 'Refresh failed: ' + e.message;
+            } finally {
+                setTimeout(() => { btn.disabled = false; }, 3000);
             }
         }
 
@@ -1529,16 +1565,31 @@
                 if (!data.success && data.error) errors.push({ label: 'Request', message: data.error });
 
                 hideHaloSyncProgress();
-                closeHaloSyncModal();
-                showSyncResult(
-                    errors.length === 0 ? 'Sync Queued' : 'Queued with Errors',
-                    `Linked ${data.queued_count || 0} client${data.queued_count === 1 ? '' : 's'}. Domain assets are refreshing in the background.`,
-                    errors,
-                    () => location.reload()
-                );
+                const panel = document.getElementById('haloClientRunPanel');
+                panel.replaceChildren();
+                if (errors.length) {
+                    const box = document.createElement('div');
+                    box.className = 'dd-run';
+                    box.setAttribute('role', 'alert');
+                    const t = document.createElement('div');
+                    t.className = 'dd-run__error';
+                    t.textContent = 'Some clients could not be linked:';
+                    box.appendChild(t);
+                    const ul = document.createElement('ul');
+                    ul.className = 'dd-run__list';
+                    errors.forEach(e => { const li = document.createElement('li'); li.textContent = e.label + ': ' + e.message; ul.appendChild(li); });
+                    box.appendChild(ul);
+                    panel.appendChild(box);
+                }
+                DDSync.updateWorker(data.worker);
+                if (data.runs && data.runs.length) {
+                    const mount = document.createElement('div');
+                    panel.appendChild(mount);
+                    DDSync.track(data.runs, mount, { label: 'Refresh Halo assets for linked clients', onDone: () => loadHaloClients() });
+                }
             } catch (error) {
                 hideHaloSyncProgress();
-                showSyncResult('Sync Failed', error.message, [], () => location.reload());
+                showSyncResult('Sync Failed', error.message, [], null);
             }
         }
 
@@ -1582,8 +1633,8 @@
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 150px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="halo-domain-checkbox" data-domain-id="${ddEsc(domain.id)}" data-domain-name="${ddEsc(domain.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${ddEsc(domain.name)}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${domain.client || 'No Client'}</div>
+                        <div style="color:var(--text);">${ddEsc(domain.name)}${domain.sync_error ? `<div style="font-size:12px;color:var(--dd-danger-text);margin-top:2px;word-break:break-word;">Last sync failed: ${ddEsc(domain.sync_error)}</div>` : ''}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(domain.client || 'No Client')}</div>
                         <div style="text-align:center;color:var(--dd-text-soft);font-size:13px;">${domain.expiry || 'N/A'}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
@@ -1612,30 +1663,35 @@
             try {
                 showHaloSyncProgress('Queueing sync…');
 
-                const response = await fetch('/admin/sync/halo/domains/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-                    },
-                    body: JSON.stringify({ domain_ids: selectedDomains.map(d => d.id) })
-                });
-                const data = await response.json();
+                const ids = selectedDomains.map(d => d.id);
+                const r = await DDSync.request('/admin/sync/halo/domains/sync', 'POST', { domain_ids: ids });
+                const data = r.data;
 
                 hideHaloSyncProgress();
-                closeHaloSyncModal();
-                showSyncResult(
-                    data.success ? 'Sync Queued' : 'Sync Failed',
-                    data.success
-                        ? `Queued ${data.queued_count} domain${data.queued_count === 1 ? '' : 's'} for background sync to HaloPSA. Status updates as the queue worker processes them.`
-                        : (data.error || 'Unknown error'),
-                    [],
-                    () => location.reload()
-                );
+                const panel = document.getElementById('haloDomainRunPanel');
+                if (!r.ok || !data.success) {
+                    panel.replaceChildren();
+                    const box = document.createElement('div');
+                    box.className = 'dd-run';
+                    box.setAttribute('role', 'alert');
+                    const err = document.createElement('div');
+                    err.className = 'dd-run__error';
+                    err.textContent = 'Sync not started: ' + (data.error || data.message || ('HTTP ' + r.status));
+                    box.appendChild(err);
+                    panel.appendChild(box);
+                    return;
+                }
+
+                DDSync.updateWorker(data.worker);
+                DDSync.track([data.run], panel, {
+                    label: 'Sync ' + ids.length + ' domain' + (ids.length === 1 ? '' : 's') + ' to HaloPSA',
+                    runNow: () => DDSync.request('/admin/sync/halo/domains/run-now', 'POST', { domain_ids: ids }),
+                    onDone: () => loadHaloDomains(true)
+                });
             } catch (error) {
                 hideHaloSyncProgress();
-                showSyncResult('Sync Failed', error.message, [], () => location.reload());
+                const panel = document.getElementById('haloDomainRunPanel');
+                panel.textContent = 'Sync failed: ' + error.message;
             }
         }
 
@@ -1922,8 +1978,8 @@
                 html += `
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 120px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="itglue-config-checkbox" data-item-id="${ddEsc(item.id)}" data-item-type="${ddEsc(item.type)}" data-item-name="${ddEsc(item.name)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
-                        <div style="color:var(--text);">${ddEsc(item.name)}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${item.client || 'No Client'}</div>
+                        <div style="color:var(--text);">${ddEsc(item.name)}${item.sync_error ? `<div style="font-size:12px;color:var(--dd-danger-text);margin-top:2px;word-break:break-word;">Last sync failed: ${ddEsc(item.sync_error)}</div>` : ''}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.client || 'No Client')}</div>
                         <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.type)}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>
@@ -1964,18 +2020,16 @@
                 const data = await response.json();
 
                 hideHaloSyncProgress();
-                closeItGlueSyncModal();
-                showSyncResult(
-                    data.success ? 'Sync Queued' : 'Sync Failed',
-                    data.success
-                        ? `Queued ${data.queued_count} configuration${data.queued_count === 1 ? '' : 's'} for background sync to IT Glue.`
-                        : (data.error || 'Unknown error'),
-                    [],
-                    () => location.reload()
-                );
+                const panel = document.getElementById('itglueConfigRunPanel');
+                if (!data.success) {
+                    panel.textContent = 'Sync not started: ' + (data.error || data.message || 'Unknown error');
+                    return;
+                }
+                DDSync.updateWorker(data.worker);
+                DDSync.track([data.run], panel, { label: 'Sync domains to IT Glue', onDone: () => loadItGlueConfigs() });
             } catch (error) {
                 hideHaloSyncProgress();
-                showSyncResult('Sync Failed', error.message, [], () => location.reload());
+                document.getElementById('itglueConfigRunPanel').textContent = 'Sync failed: ' + error.message;
             }
         }
 

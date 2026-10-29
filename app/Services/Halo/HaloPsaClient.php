@@ -77,6 +77,42 @@ class HaloPsaClient
         return ! empty($halo['base_url']) && ! empty($halo['client_id']) && ! empty($halo['api_key']);
     }
 
+    /**
+     * Human reason why Halo cannot be used, or null when configured. Separates
+     * "never configured" from "saved but unreadable" (APP_KEY changed).
+     */
+    public static function configurationProblem(): ?string
+    {
+        if (self::isConfigured()) {
+            return null;
+        }
+
+        if (! empty(\App\Casts\EncryptedSettingValue::$decryptFailures['halo'])) {
+            return 'HaloPSA settings could not be decrypted (was APP_KEY changed?). Re-enter the HaloPSA credentials in Settings → HaloPSA.';
+        }
+
+        return 'HaloPSA is not configured. Set the base URL, client ID and API key in Settings → HaloPSA.';
+    }
+
+    /**
+     * Custom field ids of the Domain asset type (tenant specific; defaults are
+     * the values this integration was built against).
+     *
+     * @return array{domain:int,expiry:int,nameservers:int,whois:int}
+     */
+    public static function assetFieldIds(): array
+    {
+        $configured = Setting::get('halo', [])['asset_field_ids'] ?? [];
+        $defaults = ['domain' => 148, 'expiry' => 149, 'nameservers' => 150, 'whois' => 165];
+        $ids = [];
+        foreach ($defaults as $key => $default) {
+            $value = is_array($configured) ? ($configured[$key] ?? null) : null;
+            $ids[$key] = is_numeric($value) && (int) $value > 0 ? (int) $value : $default;
+        }
+
+        return $ids;
+    }
+
     // ------------------------------------------------------------------
     // Auth: the one and only token path
     // ------------------------------------------------------------------
@@ -201,6 +237,16 @@ class HaloPsaClient
                     $reauthenticated = true;
                     $this->forgetAccessToken();
                     continue;
+                }
+
+                // Let the operator see exactly what Halo rejected (sanitized, truncated).
+                if ($e->status !== null && $e->status >= 400 && $e->status < 500) {
+                    Log::warning('HaloPSA rejected request', [
+                        'method' => $method,
+                        'url' => \App\Support\SyncErrorSanitizer::clean($url, 300),
+                        'status' => $e->status,
+                        'response' => \App\Support\SyncErrorSanitizer::clean((string) $e->responseBody, 500),
+                    ]);
                 }
 
                 throw $e;

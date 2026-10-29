@@ -41,6 +41,16 @@ class ScheduleRegistrar
             ->dailyAt('03:15')->name('scheduled-halo-assets-full')->onOneServer()
             ->description('Queue job: full Halo domain asset reconcile');
 
+        // Worker detection: the UI warns when this heartbeat goes stale.
+        $schedule->job(new \App\Jobs\QueueHeartbeatJob(), $queue)
+            ->everyMinute()->name('scheduled-queue-heartbeat')
+            ->description('Queue job: worker heartbeat');
+
+        // Fail orphaned / stalled sync runs even when nobody is looking at the UI.
+        $schedule->call(fn () => \App\Models\SyncRun::recoverStale())
+            ->everyFiveMinutes()->name('scheduled-sync-recover-stale')
+            ->description('Fail orphaned or stalled sync runs');
+
         // Backup
         $schedule->command('domaindash:backup-run')
             ->dailyAt('03:00')

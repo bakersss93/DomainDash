@@ -8,22 +8,20 @@ use App\Models\ItglueOrganization;
 use App\Models\SyncRun;
 use App\Services\ItGlue\ItGlueClient;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 
 /**
  * Mirrors IT Glue organisations into itglue_organizations (1000 per request).
  * Always a full listing: the cost is ceil(orgs/1000) calls, so incremental
  * filtering (whose organisation filter syntax is unverified) is not worth it.
  */
-class SyncItGlueOrganizationsJob implements ShouldQueue, ShouldBeUnique
+class SyncItGlueOrganizationsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, TracksSyncRun;
 
-    public int $uniqueFor = 1800;
+    public int $timeout = 240;
 
     public function __construct(?int $runId = null)
     {
@@ -38,7 +36,7 @@ class SyncItGlueOrganizationsJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
-        return [new RateLimited('itglue-api')];
+        return $this->syncMiddleware('itglue-api');
     }
 
     public function handle(): void
@@ -46,7 +44,7 @@ class SyncItGlueOrganizationsJob implements ShouldQueue, ShouldBeUnique
         $run = $this->syncRun('itglue', 'organizations')->markRunning();
 
         if (! ItGlueClient::isConfigured()) {
-            $run->skip('IT Glue is not configured.');
+            $run->skip('IT Glue is not configured. Set the API key in Settings → IT Glue.');
 
             return;
         }
@@ -80,6 +78,7 @@ class SyncItGlueOrganizationsJob implements ShouldQueue, ShouldBeUnique
                     ];
                 }
 
+                $run->heartbeat();
                 if ($batch !== []) {
                     ItglueOrganization::upsert($batch, ['itglue_id'], ['name', 'remote_updated_at', 'synced_at', 'updated_at']);
                     $count += count($batch);
@@ -99,20 +98,7 @@ class SyncItGlueOrganizationsJob implements ShouldQueue, ShouldBeUnique
             $run->forceFill(['total' => $count, 'done' => $count])->save();
             $run->finish();
         } catch (\Throwable $e) {
-            if ($this->isConfigurationProblem($e)) {
-                $run->fail($e->getMessage());
-
-                return;
-            }
-
-            $this->releaseOrThrow($e);
-        }
-    }
-
-    public function failed(\Throwable $e): void
-    {
-        if ($this->runId) {
-            SyncRun::find($this->runId)?->fail($e->getMessage());
+            $this->handleFailure($run, $e);
         }
     }
 }

@@ -18,6 +18,9 @@ class EncryptedSettingValue implements CastsAttributes
 {
     public const PREFIX = 'enc:v1:';
 
+    /** @var array<string,bool> setting keys that failed to decrypt in this process */
+    public static array $decryptFailures = [];
+
     public static function isEncrypted(?string $raw): bool
     {
         return is_string($raw) && str_starts_with($raw, self::PREFIX);
@@ -33,6 +36,8 @@ class EncryptedSettingValue implements CastsAttributes
             try {
                 $value = Crypt::decryptString(substr($value, strlen(self::PREFIX)));
             } catch (DecryptException) {
+                self::$decryptFailures[(string) ($attributes['key'] ?? $key)] = true;
+
                 return null; // wrong APP_KEY / corrupted: behave as "not set"
             }
         }
