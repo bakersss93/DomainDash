@@ -6,6 +6,9 @@
 # storage/ is handed back to the web user at the end so php-fpm can write logs,
 # compiled views, sessions and cache. Override with WEB_USER / PHP_FPM_SERVICE.
 set -euo pipefail
+# Root on some servers has a restrictive umask (077), which makes generated files
+# (bootstrap/cache/*.php, public/build, git checkouts) unreadable by php-fpm.
+umask 022
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEB_USER="${WEB_USER:-www-data}"
@@ -31,7 +34,11 @@ php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
 
-echo "==> Fixing storage ownership"
+echo "==> Fixing permissions"
+# Code: owned by root, readable (not writable) by the web user.
+chmod -R u=rwX,go=rX --preserve-root "$APP_DIR"
+chown root:"$WEB_USER" .env && chmod 640 .env
+# storage/: writable by the web user.
 chown -R "$WEB_USER":"$WEB_USER" storage
 chmod -R ug+rwX storage
 sudo -u "$WEB_USER" php artisan view:cache
