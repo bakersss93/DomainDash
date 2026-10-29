@@ -521,13 +521,13 @@
                             <span id="haloKeyHint"></span>
                         </p>
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
-                            @foreach([1, 2, 3] as $slot)
+                            @foreach([1, 2, 3] as $keySlot)
                                 <div>
-                                    <label for="halo_key_field_{{ $slot }}" style="display:block;font-size:12px;margin-bottom:3px;color:var(--text-muted);font-weight:500;">Key field {{ $slot }} <span data-halo-key-name="{{ $slot }}"></span></label>
-                                    <select id="halo_key_field_{{ $slot }}" name="halo[asset_key_fields][{{ $slot }}]" style="width:100%;">
+                                    <label for="halo_key_field_{{ $keySlot }}" style="display:block;font-size:12px;margin-bottom:3px;color:var(--text-muted);font-weight:500;">Key field {{ $keySlot }} <span data-halo-key-name="{{ $keySlot }}"></span></label>
+                                    <select id="halo_key_field_{{ $keySlot }}" name="halo[asset_key_fields][{{ $keySlot }}]" style="width:100%;">
                                         <option value="">Leave empty</option>
                                         @foreach($assetFieldLabels as $pk => $pl)
-                                            <option value="{{ $pk }}" @selected(($haloMap->keyFields[$slot] ?? '') === $pk)>{{ $pl }}</option>
+                                            <option value="{{ $pk }}" @selected(($haloMap->keyFields[$keySlot] ?? '') === $pk)>{{ $pl }}</option>
                                         @endforeach
                                     </select>
                                 </div>

@@ -63,6 +63,13 @@
     @endif
 </head>
 <body>
+    <script>
+        try {
+            if (localStorage.getItem('dd.sidebarCollapsed') === '1' && window.matchMedia('(min-width: 1024px)').matches) {
+                document.body.classList.add('sidebar-collapsed');
+            }
+        } catch (e) {}
+    </script>
 @php
     $unreadNotifications = \App\Models\UserNotification::query()
         ->where('user_id', auth()->id())
@@ -399,7 +406,9 @@
                 <x-ui.alert variant="danger">{{ session('error') }}</x-ui.alert>
             @endif
 
-            {{ $slot ?? '' }}
+            @if (isset($slot) && $slot instanceof \Illuminate\View\ComponentSlot)
+                {{ $slot }}
+            @endif
             @yield('content')
         </div>
     </main>

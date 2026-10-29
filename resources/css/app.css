@@ -1964,7 +1964,19 @@ span.dd-status-muted, .dd-status-muted { color: var(--dd-status-muted-fg); backg
     gap: 0.5rem;
 }
 
-.topbar-menu-btn { display: none; }
+/* Menu button: off-canvas toggle on mobile, collapse/expand sidebar on desktop. */
+.topbar-menu-btn { display: inline-flex; }
+
+@media (min-width: 1024px) {
+    .sidebar { transition: flex-basis 0.2s ease, width 0.2s ease; }
+    body.sidebar-collapsed .sidebar {
+        flex-basis: 0;
+        width: 0;
+        border-right: 0;
+        overflow: hidden;
+        visibility: hidden;
+    }
+}
 
 .topbar-icon-btn {
     position: relative;

@@ -134,9 +134,21 @@ document.addEventListener('click', (event) => {
         return;
     }
 
-    // Mobile sidebar
+    // Sidebar toggle: off-canvas on mobile, collapse/expand on desktop
     if (target.closest('[data-sidebar-toggle]')) {
-        setSidebar(!document.body.classList.contains('nav-open'));
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+            const collapsed = document.body.classList.toggle('sidebar-collapsed');
+            document.querySelectorAll('[data-sidebar-toggle]').forEach((btn) => {
+                btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            });
+            try {
+                localStorage.setItem('dd.sidebarCollapsed', collapsed ? '1' : '0');
+            } catch (e) {
+                // storage unavailable: state just won't persist
+            }
+        } else {
+            setSidebar(!document.body.classList.contains('nav-open'));
+        }
         return;
     }
     if (target.closest('.sidebar-scrim') || (target.closest('.sidebar a.nav-link') && window.matchMedia('(max-width: 1023px)').matches)) {
