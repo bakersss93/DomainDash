@@ -111,6 +111,14 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
+        // Option lists + mapping-table CRUD for the settings pages (Administrator area, JSON).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/options/{source}', [\App\Http\Controllers\Admin\SettingsOptionsController::class, 'show'])->where('source', '[a-z0-9.-]+')->name('admin.settings.options');
+            Route::get('/settings/mappings/{mapping}', [\App\Http\Controllers\Admin\MappingController::class, 'index'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.index');
+            Route::post('/settings/mappings/{mapping}', [\App\Http\Controllers\Admin\MappingController::class, 'store'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.store');
+            Route::put('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'update'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.update');
+            Route::delete('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'destroy'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.destroy');
+        });
         Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::get('/settings/halo/ticket-statuses', [SettingsController::class,'haloTicketStatuses'])->name('admin.settings.halo.ticket-statuses');
         // Asset type / field pickers for the HaloPSA + IT Glue mapping cards (admin only, read-only toward the vendors).
@@ -127,6 +135,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::put('/settings/vocus/plans/{plan}/halo-item', [\App\Http\Controllers\Admin\HaloBillingController::class, 'linkItem'])->name('admin.settings.vocus.plans.halo-item');
         });
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/settings/{area}', [SettingsController::class,'area'])->where('area', '[a-z0-9-]+')->name('admin.settings.area');
         // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
         Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {
             Route::put('/realms', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateRealms'])->name('admin.settings.vocus.realms');

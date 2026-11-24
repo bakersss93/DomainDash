@@ -10,7 +10,7 @@
 
     @if(!empty($vocusProblem))
         <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:1rem;">{{ $vocusProblem }}
-            <a href="{{ route('admin.settings') }}">Open settings</a>
+            <a href="{{ route('admin.settings.area', 'vocus') }}">Open settings</a>
         </x-ui.alert>
     @endif
 

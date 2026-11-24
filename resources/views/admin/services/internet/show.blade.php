@@ -257,7 +257,7 @@
                 <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--text);">Assigned Client</h3>
                 @if($service->client)
                     <p style="font-size:14px;margin:0 0 10px;">
-                        <a href="{{ route('admin.clients.show', $service->client) }}" style="color:var(--accent);text-decoration:none;">
+                        <a href="{{ route('admin.clients.edit', $service->client) }}" style="color:var(--accent);text-decoration:none;">
                             {{ $service->client->business_name ?? $service->client->name }}
                         </a>
                     </p>

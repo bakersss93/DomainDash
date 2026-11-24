@@ -648,7 +648,7 @@ class SyncReliabilityTest extends TestCase
     {
         $admin = $this->admin();
 
-        $this->actingAs($admin)->get(route('admin.settings'))
+        $this->actingAs($admin)->get(route('admin.settings.area', 'halopsa'))
             ->assertOk()
             ->assertSee('data-dd-worker-banner', false)
             ->assertSee('DDSync', false)

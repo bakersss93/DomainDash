@@ -8,7 +8,7 @@
 
     @if(!empty($vocusProblem))
         <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:16px;">{{ $vocusProblem }}
-            <a href="{{ route('admin.settings') }}">Open settings</a>
+            <a href="{{ route('admin.settings.area', 'vocus') }}">Open settings</a>
         </x-ui.alert>
     @endif
     <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 16px;">Transfer an existing NBN service from another provider to Vocus Wholesale.</p>

@@ -9,10 +9,68 @@ use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
 use App\Services\Halo\HaloPsaClient;
+use App\Support\Settings\SettingsAreas;
 
 class SettingsController extends Controller
 {
-    public function index()
+    /** Settings home: categorised tiles linking to one page per area. */
+    public function index(Request $request)
+    {
+        // Old deep links (?section=halo) land on the matching area page.
+        $legacy = ['halo' => 'halopsa', 'smtp' => 'email', 'sync-scheduler' => 'sync', 'branding' => 'branding', 'itglue' => 'itglue',
+            'vocus' => 'vocus', 'synergy' => 'synergy', 'ip2whois' => 'ip2whois', 'mfa' => 'mfa'];
+        $section = (string) $request->query('section', '');
+        if (isset($legacy[$section])) {
+            return redirect()->route('admin.settings.area', $legacy[$section]);
+        }
+
+        return view('admin.settings.home', [
+            'categories' => SettingsAreas::categories(),
+            'areas' => SettingsAreas::all(),
+            'status' => $this->areaStatus(),
+        ]);
+    }
+
+    /** One settings area with its tabs: /admin/settings/{area}[#tab or ?tab=]. */
+    public function area(Request $request, string $area)
+    {
+        $def = SettingsAreas::get($area);
+        abort_if($def === null, 404);
+
+        $tab = (string) $request->query('tab', '');
+
+        return view('admin.settings.area', [
+            'area' => $area,
+            'def' => $def,
+            'initialTab' => array_key_exists($tab, $def['tabs']) ? $tab : array_key_first($def['tabs']),
+            'settings' => $this->settingsForForm(),
+        ]);
+    }
+
+    /** Small "configured / not configured" hint per tile (never reads secrets back). */
+    private function areaStatus(): array
+    {
+        $halo = (array) Setting::get('halo', []);
+        $itg = (array) Setting::get('itglue', []);
+        $syn = (array) Setting::get('synergy', []);
+        $vocus = (array) Setting::get('vocus', []);
+        $ip = (array) Setting::get('ip2whois', []);
+        $smtp = (array) Setting::get('smtp', []);
+        $backup = (array) Setting::get('backup', []);
+
+        return [
+            'halopsa' => ! empty($halo['base_url']) && ! empty($halo['client_id']),
+            'itglue' => ! empty($itg['api_key']),
+            'synergy' => ! empty($syn['api_key']),
+            'vocus' => ! empty($vocus['access_key']),
+            'ip2whois' => ! empty($ip['api_key']),
+            'email' => ! empty($smtp['host']),
+            'backups' => ! empty($backup['host']),
+        ];
+    }
+
+    /** Every setting group the forms read, with stored secrets swapped for the "********" placeholder. */
+    public function settingsForForm(): array
     {
         $settings = [
             'branding' => Setting::get('branding', [
@@ -42,7 +100,7 @@ class SettingsController extends Controller
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
             ]),
-            'backup'   => Setting::get('backup', ['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00']),
+            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00'], (array) Setting::get('backup', [])),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
             'mfa' => Setting::get('mfa', [
                 'persistence_days' => 30,
@@ -55,10 +113,9 @@ class SettingsController extends Controller
                 'retention_days' => 90,
             ]),
         ];
-        // Never echo stored secrets into the page: show the placeholder instead.
-        $settings = \App\Support\Redactor::maskForForm($settings);
 
-        return view('admin.settings.index', compact('settings'));
+        // Never echo stored secrets into the page: show the placeholder instead.
+        return \App\Support\Redactor::maskForForm($settings);
     }
 
     public function update(Request $request)
@@ -132,7 +189,15 @@ class SettingsController extends Controller
             'sync_schedule.*.frequency' => 'nullable|in:hourly,daily,weekly',
             'sync_schedule.*.time' => 'nullable|date_format:H:i',
             'backup'        => 'array',
+            'backup.host'   => 'nullable|string|max:255',
+            'backup.port'   => 'nullable|integer|min:1|max:65535',
+            'backup.username' => 'nullable|string|max:255',
+            'backup.password' => 'nullable|string|max:255',
+            'backup.path'   => 'nullable|string|max:255',
+            'backup.retention' => 'nullable|integer|min:1|max:365',
+            'backup.time'   => 'nullable|date_format:H:i',
             'notifications' => 'array',
+            'notifications.disk_threshold_percent' => 'nullable|integer|min:1|max:100',
             'mfa'           => 'array',
             'mfa.persistence_days' => 'nullable|integer|min:1|max:365',
             'mfa.default_method' => 'nullable|in:authenticator_app,email_otp',
@@ -143,6 +208,18 @@ class SettingsController extends Controller
             'audit.retention_days' => 'nullable|integer|min:1|max:3650',
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
         ]);
+
+        /**
+         * Partial saves: each settings page posts only its own fields, so every posted group is merged into what is
+         * stored (recursively for keyed sub-arrays; lists such as the ticket type mappings are replaced as a whole).
+         * A tab that posts one key never wipes the others.
+         */
+        foreach (['branding', 'smtp', 'synergy', 'halo', 'itglue', 'ip2whois', 'sync_schedule', 'backup', 'notifications', 'mfa', 'audit', 'vocus'] as $group) {
+            if (isset($data[$group]) && is_array($data[$group])) {
+                $stored = Setting::get($group, []);
+                $data[$group] = $this->mergeSettings(is_array($stored) ? $stored : [], $data[$group]);
+            }
+        }
 
         /**
          * Halo API key sentinel:
@@ -312,7 +389,32 @@ class SettingsController extends Controller
             ]);
         }
 
-        return back()->with('status', empty($newValues) ? 'No setting changes detected.' : 'Settings saved.');
+        $status = empty($newValues) ? 'No setting changes detected.' : 'Settings saved.';
+
+        // Settings pages post a `_return` path (their own URL + #tab) so the person lands back on the tab they saved.
+        $return = (string) $request->input('_return', '');
+        if (preg_match('#^/admin/settings(/[a-z0-9-]+)?(\?[A-Za-z0-9=&_-]*)?(\#[a-z0-9-]+)?$#', $return)) {
+            return redirect($return)->with('status', $status);
+        }
+
+        return back()->with('status', $status);
+    }
+
+    /**
+     * Recursive merge for settings arrays: keyed arrays merge key by key, lists and scalars are replaced.
+     */
+    private function mergeSettings(array $stored, array $posted): array
+    {
+        foreach ($posted as $key => $value) {
+            if (is_array($value) && isset($stored[$key]) && is_array($stored[$key])
+                && ! array_is_list($value) && ! array_is_list($stored[$key])) {
+                $stored[$key] = $this->mergeSettings($stored[$key], $value);
+            } else {
+                $stored[$key] = $value;
+            }
+        }
+
+        return $stored;
     }
 
     public function haloTicketTypes()

@@ -297,16 +297,25 @@ class AssetTypeMappingTest extends TestCase
         $this->assertSame('renews_on', $cfg['flexible_asset_traits']['expiry']);
     }
 
-    public function test_settings_page_renders_the_mapping_cards(): void
+    public function test_settings_pages_render_the_mapping_cards(): void
     {
-        $this->actingAs($this->admin())->get(route('admin.settings'))
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->get(route('admin.settings.area', 'halopsa'))
             ->assertOk()
-            ->assertSee('haloLoadAssetTypes', false)
+            ->assertSee('data-dd-picker', false)
+            ->assertSee('halo-field-map', false)
             ->assertSee('halo[asset_type_id]', false)
             ->assertSee('halo[asset_key_fields][1]', false)
-            ->assertSee('itgLoadTypes', false)
-            ->assertSee('itglue[flexible_asset_traits][dns]', false)
+            ->assertSee('halo[asset_field_ids][domain]', false)
             ->assertSee('Advanced: manual IDs', false);
+
+        $this->actingAs($admin)->get(route('admin.settings.area', 'itglue'))
+            ->assertOk()
+            ->assertSee('itglue-trait-map', false)
+            ->assertSee('itglue[flexible_asset_traits][dns]', false)
+            ->assertSee('itglue[flexible_asset_type_id]', false)
+            ->assertSee('Advanced: manual IDs and trait keys', false);
     }
 
     // ---------------- Pusher / jobs use the configured type + mapping ----------------

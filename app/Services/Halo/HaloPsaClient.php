@@ -1207,9 +1207,12 @@ class HaloPsaClient
     /**
      * Fetch HaloPSA ticket types (cached 1h: reference data).
      */
-    public function listTicketTypes(): array
+    public function listTicketTypes(bool $refresh = false): array
     {
         $key = 'halo_tickettypes_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
+        }
 
         return Cache::remember($key, (int) config('integrations.halo.reference_data_ttl', 3600), function () {
             $result = $this->request('GET', 'tickettype', [
@@ -1223,9 +1226,12 @@ class HaloPsaClient
     /**
      * Fetch HaloPSA ticket statuses (cached 1h: reference data).
      */
-    public function listTicketStatuses(): array
+    public function listTicketStatuses(bool $refresh = false): array
     {
         $key = 'halo_ticketstatuses_' . sha1($this->baseUrl . '|' . (string) $this->tenant);
+        if ($refresh) {
+            Cache::forget($key);
+        }
 
         return Cache::remember($key, (int) config('integrations.halo.reference_data_ttl', 3600), function () {
             $result = $this->request('GET', 'status', [
@@ -1234,6 +1240,72 @@ class HaloPsaClient
 
             return array_values(array_filter($this->extractList($result, ['statuses', 'status']), 'is_array'));
         });
+    }
+
+    // ------------------------------------------------------------------
+    // Reference lists for the Settings pickers (the caller caches the normalised result)
+    // Endpoints verified against the tenant swagger: GET /Priority, /SLA, /Team, /Site, /ClientContract.
+    // ------------------------------------------------------------------
+
+    /** GET /api/Priority?includedistinct=true: one row per distinct priority. @return array<int,array> */
+    public function listPriorityRows(): array
+    {
+        return $this->extractList($this->request('GET', 'priority', ['query' => ['includedistinct' => 'true']]), ['priorities']);
+    }
+
+    /** GET /api/SLA. @return array<int,array> */
+    public function listSlaRows(): array
+    {
+        return $this->extractList($this->request('GET', 'sla'), ['slas']);
+    }
+
+    /** GET /api/Team. @return array<int,array> */
+    public function listTeamRows(): array
+    {
+        return $this->extractList($this->request('GET', 'team'), ['teams']);
+    }
+
+    /** GET /api/Site (active only, paged, capped). @return array<int,array> */
+    public function listSiteRows(int $maxPages = 10): array
+    {
+        $rows = [];
+        $pages = 0;
+        foreach ($this->paginate('site', ['order' => 'name', 'includeinactive' => 'false'], ['sites'], 100) as $page) {
+            array_push($rows, ...$page);
+            if (++$pages >= $maxPages) {
+                break;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Halo has no contract-type list endpoint (the swagger exposes none), so the distinct
+     * contracttype / contracttype_name pairs are derived from GET /ClientContract (all clients, paged, capped).
+     *
+     * @return array<int,array{id:int,name:string}>
+     */
+    public function listContractTypes(int $maxPages = 10): array
+    {
+        $types = [];
+        $pages = 0;
+        foreach ($this->paginate('clientcontract', ['includeinactive' => 'true'], ['contracts'], 100) as $page) {
+            foreach ($page as $row) {
+                $id = (int) ($row['contracttype'] ?? 0);
+                if ($id > 0 && ! isset($types[$id])) {
+                    $name = trim((string) ($row['contracttype_name'] ?? ''));
+                    $types[$id] = ['id' => $id, 'name' => $name !== '' ? $name : 'Contract type #' . $id];
+                }
+            }
+            if (++$pages >= $maxPages) {
+                break;
+            }
+        }
+        $types = array_values($types);
+        usort($types, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $types;
     }
 
     // ------------------------------------------------------------------

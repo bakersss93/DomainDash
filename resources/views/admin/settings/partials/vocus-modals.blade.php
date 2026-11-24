@@ -25,25 +25,7 @@
 @endphp
 <script type="application/json" id="vocus-ordering-data">@json($__vo)</script>
 
-{{-- PPPoE realms --}}
-<x-ui.modal id="vocus-realms-modal" title="PPPoE realms">
-    <div style="padding:16px 20px;">
-        <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 12px;">Realms offered as the "NBN Domain" on order and transfer forms. The username sent to Vocus is <code>username@realm</code>.</p>
-        <ul id="vo-realm-list" style="list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;"></ul>
-        <div style="display:flex;gap:8px;">
-            <div style="flex:1;">
-                <label for="vo-realm-input" style="{{ $__lbl }}">Add realm</label>
-                <input id="vo-realm-input" type="text" class="dd-input" style="width:100%;" placeholder="e.g. jargonconnect.com.au" maxlength="61" autocomplete="off" spellcheck="false">
-            </div>
-            <button type="button" id="vo-realm-add" class="ui-btn ui-btn--secondary ui-btn--sm" style="align-self:flex-end;">Add</button>
-        </div>
-        <p id="vo-realm-msg" role="alert" style="font-size:12px;margin:10px 0 0;min-height:1em;"></p>
-    </div>
-    <x-slot:footer>
-        <button type="button" class="ui-btn ui-btn--ghost" data-modal-close>Close</button>
-        <button type="button" id="vo-realm-save" class="ui-btn ui-btn--primary">Save realms</button>
-    </x-slot:footer>
-</x-ui.modal>
+{{-- PPPoE realms are a mapping table now (Settings > Vocus > Ordering, MappingController vocus.realms). --}}
 
 {{-- Service scopes --}}
 <x-ui.modal id="vocus-scopes-modal" title="Service scopes">
@@ -195,37 +177,6 @@
         if (j && j.errors) { var f = Object.keys(j.errors).map(function (k) { return j.errors[k]; }).reduce(function (a, b) { return a.concat(b); }, [])[0]; if (f) { return f; } }
         return (j && (j.message || j.error)) || ('Request failed (HTTP ' + status + ').');
     }
-
-    // ---- realms
-    var realms = data.realms.slice();
-    var realmList = document.getElementById('vo-realm-list');
-    var realmMsg = document.getElementById('vo-realm-msg');
-    function drawRealms() {
-        realmList.textContent = '';
-        if (!realms.length) { realmList.appendChild(el('li', 'No realms yet.', { style: 'font-size:13px;color:var(--dd-text-soft);' })); }
-        realms.forEach(function (r, i) {
-            var li = el('li', null, { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--dd-border);border-radius:6px;' });
-            li.appendChild(el('code', r));
-            var rm = el('button', 'Remove', { type: 'button', 'class': 'ui-btn ui-btn--ghost ui-btn--sm', 'aria-label': 'Remove realm ' + r });
-            rm.addEventListener('click', function () { realms.splice(i, 1); drawRealms(); });
-            li.appendChild(rm);
-            realmList.appendChild(li);
-        });
-    }
-    document.getElementById('vo-realm-add').addEventListener('click', function () {
-        var input = document.getElementById('vo-realm-input');
-        var v = input.value.trim().toLowerCase();
-        if (!/^(?=.{3,61}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]*[a-z0-9]$/.test(v)) { say(realmMsg, 'Enter a hostname such as example.com.au.'); return; }
-        if (realms.indexOf(v) !== -1) { say(realmMsg, 'That realm is already in the list.'); return; }
-        realms.push(v); input.value = ''; say(realmMsg, ''); drawRealms();
-    });
-    document.getElementById('vo-realm-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('vo-realm-add').click(); } });
-    document.getElementById('vo-realm-save').addEventListener('click', function () {
-        api('PUT', data.urls.realms, { realms: realms }).then(function (r) {
-            if (r.ok) { realms = r.json.realms; drawRealms(); say(realmMsg, 'Realms saved.', true); } else { say(realmMsg, firstError(r.json, r.status)); }
-        }).catch(function () { say(realmMsg, 'Could not reach the server.'); });
-    });
-    drawRealms();
 
     // ---- scopes
     var scopeList = document.getElementById('vo-scope-list');

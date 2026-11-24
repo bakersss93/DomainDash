@@ -1,5 +1,7 @@
 import './bootstrap';
 import './dd-list';
+import './dd-mapping-table';
+import './dd-settings';
 
 const trackedFetchHints = ['/sync', '/bulk-sync'];
 const trackedFormHints = ['/sync', '/bulk-sync'];
