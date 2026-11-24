@@ -110,13 +110,32 @@
                         'CopperPairID'      => 'Copper Pair ID',
                         'BillingProviderID' => 'Billing Provider ID',
                         'LocationReference' => 'Postcode',
+                        'AuthenticationType' => 'Authentication Type',
+                        'IPAddress'         => 'IP Address',
+                        'IPType'            => 'IP Type',
+                        'IPAssignment'      => 'IP Assignment',
+                        'RoutedSubnet'      => 'Routed Subnet',
+                        'ServiceClass'      => 'Service Class',
+                        'UNIPort'           => 'UNI-D Port',
+                        'UNIDPort'          => 'UNI-D Port',
+                        'Mapping'           => 'Mapping',
+                        'CustomerReference' => 'Customer Reference',
+                        'AnniversaryDay'    => 'Anniversary Day',
                     ];
+                    // Never display credentials, whatever Vocus returns.
+                    $hiddenKeys = ['Password', 'AccessKey', 'AliasKey'];
+                    // Anything else Vocus returns (the FIBRE catalogue has fields the
+                    // PDFs don't list) is shown with a readable label.
+                    $extra = collect($liveData)
+                        ->reject(fn ($v, $k) => isset($fields[$k]) || in_array($k, $hiddenKeys, true) || is_array($v) || $v === null || $v === '')
+                        ->mapWithKeys(fn ($v, $k) => [$k => trim(preg_replace('/(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/', ' ', (string) $k))]);
+                    $fields = $fields + $extra->all();
                 @endphp
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
                     @foreach($fields as $key => $label)
                         @if(isset($liveData[$key]) && $liveData[$key] !== '')
                             <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
-                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','BillingProviderID']) ? 'monospace' : 'inherit' }};">
+                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','BillingProviderID','IPAddress','RoutedSubnet']) ? 'monospace' : 'inherit' }};">
                                 {{ $liveData[$key] }}
                             </dd>
                         @endif
