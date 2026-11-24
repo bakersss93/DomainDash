@@ -15,12 +15,15 @@ class InternetService extends Model
         'last_transaction_id', 'last_transaction_state', 'last_fault_code', 'last_fault_message',
         'last_polled_at', 'notes', 'synced_at',
         'halo_subscription_id', 'halo_recurring_invoice_id', 'halo_recurring_line_id', 'halo_synced_at', 'halo_sync_error', 'halo_sync_hash',
+        'halo_asset_id', 'halo_asset_synced_at', 'halo_asset_sync_error', 'halo_asset_sync_hash', 'itglue_id', 'itglue_synced_at', 'itglue_sync_error', 'itglue_sync_hash',
     ];
 
     protected $casts = [
         'synced_at' => 'datetime',
         'last_polled_at' => 'datetime',
         'halo_synced_at' => 'datetime',
+        'halo_asset_synced_at' => 'datetime',
+        'itglue_synced_at' => 'datetime',
         'cost_price' => 'decimal:2',
         'sell_price' => 'decimal:2',
     ];

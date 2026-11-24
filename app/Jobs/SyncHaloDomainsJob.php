@@ -52,6 +52,12 @@ class SyncHaloDomainsJob implements ShouldQueue
             return;
         }
 
+        if ($this->mode === 'asset' && ! \App\Services\Halo\HaloAssetMapping::fromSettings()->enabled) {
+            $run->skip('Domain asset sync is turned off in Settings → HaloPSA → Assets.');
+
+            return;
+        }
+
         try {
             $requested = $this->domainIds !== null ? array_values(array_unique(array_map('intval', $this->domainIds))) : null;
 

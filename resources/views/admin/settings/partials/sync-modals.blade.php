@@ -104,6 +104,28 @@
         </div>
     </div>
 
+    {{-- Generic asset sync dialog: internet services / hosting / SSL certificates to HaloPSA or IT Glue (opened from the Sync tabs). --}}
+    <div id="assetSyncModal" role="dialog" aria-modal="true" aria-labelledby="assetSyncTitle" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:14px;max-width:1200px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--dd-border);display:flex;justify-content:space-between;align-items:center;">
+                <h2 id="assetSyncTitle" style="font-size:20px;font-weight:700;margin:0;color:var(--dd-text);">Sync assets</h2>
+                <button type="button" onclick="closeAssetSyncModal()" aria-label="Close" style="background:none;border:none;color:var(--dd-text-soft);font-size:24px;cursor:pointer;padding:0;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:24px;overflow-y:auto;flex:1;">
+                @include('admin.sync._worker-banner')
+                <div style="margin-bottom:16px;display:flex;justify-content:flex-end;gap:8px;">
+                    <button type="button" onclick="loadAssetList()" class="btn-accent" style="padding:8px 16px;font-size:14px;">Refresh List</button>
+                    <button type="button" onclick="syncAssetSelected()" class="btn-accent" style="padding:8px 16px;font-size:14px;">Sync Selected</button>
+                </div>
+                <div id="assetSyncRunPanel" aria-live="polite"></div>
+                <div id="assetSyncList" style="background:var(--dd-surface-soft);border:1px solid var(--dd-border);border-radius:10px;padding:16px;"></div>
+                <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:12px;">
+                    <button type="button" onclick="closeAssetSyncModal()" class="ui-btn ui-btn--ghost">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- IP2WHOIS Sync Modal --}}
     <div id="ip2whoisSyncModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--dd-backdrop);z-index:9999;align-items:center;justify-content:center;">
         <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:14px;max-width:900px;width:90%;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;">

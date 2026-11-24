@@ -5,6 +5,14 @@
         </x-slot>
     </x-ui.card>
 
+    @php($__assets = app(\App\Services\Sync\SyncDispatcher::class)->enabledAssetEntities('itglue'))
+    @foreach ($__assets as $__entity)
+        <x-ui.card :title="\App\Services\Assets\AssetEntity::label($__entity)" :description="'Push DomainDash ' . \App\Services\Assets\AssetEntity::plural($__entity) . ' to the mapped IT Glue flexible asset type as assets. Choose which ones in the dialog. Unchanged records are skipped.'">
+            <x-slot name="footer">
+                <x-ui.button onclick="openAssetSyncModal('itglue', '{{ $__entity }}')">Sync to IT Glue</x-ui.button>
+            </x-slot>
+        </x-ui.card>
+    @endforeach
     <x-ui.card title="Refresh from IT Glue" description="Queue a background refresh of the local organisation mirror. The Organisations tab reads from it.">
         <x-slot name="footer">
             <span class="ui-card__hint">Progress appears below.</span>

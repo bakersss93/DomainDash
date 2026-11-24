@@ -3,11 +3,17 @@
 namespace App\Services\Halo;
 
 use App\Models\Setting;
+use App\Services\Assets\AssetEntity;
 
 /**
- * Where each DomainDash data point goes in the HaloPSA asset type.
+ * Where each DomainDash data point goes in the HaloPSA asset type, per entity (domains, internet services, hosting,
+ * SSL certificates).
  *
- * Stored inside the existing `halo` setting (no migration):
+ * Structure: `halo.asset_mappings[entity]` holds the keys below plus `enabled`. Domains keep reading the historical
+ * top-level keys when `asset_mappings.domain` has never been saved, so existing installs migrate without a data
+ * migration (domains stay enabled, exactly as before). Other entities are off until configured.
+ *
+ * Keys (identical at top level for the legacy domain mapping and inside an entity mapping):
  *   asset_type_id / asset_type_name  the configured asset type (empty = legacy lookup by name "Domain")
  *   asset_field_ids[point]           Halo field id; 0 = "don't sync"; empty/invalid = built-in default
  *   asset_field_names[point]         field name shown in the picker (sent alongside the id)
@@ -39,18 +45,59 @@ final class HaloAssetMapping
         public readonly array $fieldIds,
         public readonly array $fieldNames,
         public readonly array $keyFields,
+        public readonly string $entity = AssetEntity::DOMAIN,
+        public readonly bool $enabled = true,
     ) {
     }
 
+    /** The domain mapping (what every domain pusher and the asset mirror use). */
     public static function fromSettings(): self
     {
-        $halo = Setting::get('halo', []);
-
-        return self::fromArray(is_array($halo) ? $halo : []);
+        return self::forEntity(AssetEntity::DOMAIN);
     }
 
-    public static function fromArray(array $halo): self
+    public static function forEntity(string $entity): self
     {
+        $halo = Setting::get('halo', []);
+        $halo = is_array($halo) ? $halo : [];
+        $stored = is_array($halo['asset_mappings'][$entity] ?? null) ? $halo['asset_mappings'][$entity] : null;
+
+        if ($stored !== null) {
+            return self::fromArray($stored, $entity);
+        }
+
+        // Legacy install: the single domain mapping lives in the top-level keys.
+        return $entity === AssetEntity::DOMAIN ? self::fromArray($halo, $entity) : self::fromArray([], $entity);
+    }
+
+    /** @return array<string,self> every entity => its mapping (configured or not) */
+    public static function all(): array
+    {
+        $out = [];
+        foreach (AssetEntity::KEYS as $entity) {
+            $out[$entity] = self::forEntity($entity);
+        }
+
+        return $out;
+    }
+
+    /** Ready to push: enabled and a type chosen (domains may still fall back to the type named "Domain"). */
+    public function active(): bool
+    {
+        return $this->enabled && ($this->typeId !== null || $this->entity === AssetEntity::DOMAIN);
+    }
+
+    public function points(): array
+    {
+        return AssetEntity::points($this->entity, 'halo');
+    }
+
+    public static function fromArray(array $halo, string $entity = AssetEntity::DOMAIN): self
+    {
+        $isDomain = $entity === AssetEntity::DOMAIN;
+        $points = AssetEntity::points($entity, 'halo');
+        $enabled = array_key_exists('enabled', $halo) ? filter_var($halo['enabled'], FILTER_VALIDATE_BOOLEAN) : $isDomain;
+
         $typeId = isset($halo['asset_type_id']) && is_numeric($halo['asset_type_id']) && (int) $halo['asset_type_id'] > 0
             ? (int) $halo['asset_type_id']
             : null;
@@ -60,7 +107,8 @@ final class HaloAssetMapping
         $names = is_array($halo['asset_field_names'] ?? null) ? $halo['asset_field_names'] : [];
         $ids = [];
         $fieldNames = [];
-        foreach (self::DEFAULT_FIELD_IDS as $point => $default) {
+        foreach ($points as $point => $_label) {
+            $default = $isDomain ? (self::DEFAULT_FIELD_IDS[$point] ?? 0) : 0;
             $value = $configured[$point] ?? null;
             $fromConfig = true;
             if (is_numeric($value) && (int) $value === 0) {
@@ -77,21 +125,27 @@ final class HaloAssetMapping
             }
         }
 
-        $keys = self::DEFAULT_KEY_FIELDS;
+        $keys = AssetEntity::haloKeyDefaults($entity);
         if (is_array($halo['asset_key_fields'] ?? null)) {
             $keys = [];
             foreach ([1, 2, 3] as $slot) {
                 $point = (string) ($halo['asset_key_fields'][$slot] ?? $halo['asset_key_fields'][(string) $slot] ?? '');
-                $keys[$slot] = array_key_exists($point, self::POINTS) ? $point : '';
+                $keys[$slot] = array_key_exists($point, $points) ? $point : '';
             }
         }
 
-        return new self($typeId, $typeName, $ids, $fieldNames, $keys);
+        return new self($typeId, $typeName, $ids, $fieldNames, $keys, $entity, $enabled);
     }
 
     public function typeLabel(): string
     {
-        return $this->typeName !== '' ? $this->typeName : 'Domain';
+        return $this->typeName !== '' ? $this->typeName : ($this->entity === AssetEntity::DOMAIN ? 'Domain' : AssetEntity::label($this->entity));
+    }
+
+    /** How many data points are sent to a Halo field (the rest are "don't sync"). */
+    public function mappedCount(): int
+    {
+        return count(array_filter($this->fieldIds, fn ($id) => $id > 0));
     }
 
     /**
@@ -104,7 +158,7 @@ final class HaloAssetMapping
     public function fields(array $values): array
     {
         $out = [];
-        foreach (self::POINTS as $point => $_) {
+        foreach ($this->points() as $point => $_) {
             $id = $this->fieldIds[$point] ?? 0;
             if ($id <= 0) {
                 continue;

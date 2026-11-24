@@ -34,7 +34,7 @@ class SettingsOptionsController extends Controller
         'halo.ticket-types', 'halo.statuses', 'halo.priorities', 'halo.teams', 'halo.slas', 'halo.sites',
         'halo.contract-types', 'halo.asset-types', 'halo.asset-fields', 'halo.items', 'halo.clients',
         'itglue.organisations', 'itglue.flexible-types', 'itglue.flexible-fields',
-        'dd.clients', 'dd.service-categories', 'dd.status-labels', 'dd.asset-points', 'dd.itglue-points', 'dd.ticket-classes',
+        'dd.clients', 'dd.asset-entities', 'dd.service-categories', 'dd.status-labels', 'dd.asset-points', 'dd.itglue-points', 'dd.ticket-classes',
     ];
 
     public function show(Request $request, string $source): JsonResponse
@@ -92,10 +92,12 @@ class SettingsOptionsController extends Controller
                 return [array_map(fn ($c) => ['id' => $c, 'label' => $c], MappingController::TICKET_CLASSES), false];
             case 'dd.status-labels':
                 return [array_map(fn ($c) => ['id' => $c, 'label' => $c], ['Open', 'In Progress', 'Awaiting Customer', 'On Hold', 'Resolved', 'Closed']), false];
+            case 'dd.asset-entities':
+                return [$this->points(array_combine(\App\Services\Assets\AssetEntity::KEYS, array_map(fn ($e) => \App\Services\Assets\AssetEntity::label($e), \App\Services\Assets\AssetEntity::KEYS))), false];
             case 'dd.asset-points':
-                return [$this->points(HaloAssetMapping::POINTS), false];
+                return [$this->points($this->entityPoints($request, 'halo')), false];
             case 'dd.itglue-points':
-                return [$this->points(['domain' => 'Domain name', 'name_servers' => 'Name servers', 'expiry' => 'Expiry date', 'whois' => 'WHOIS / registrant summary', 'dns' => 'DNS records']), false];
+                return [$this->points($this->entityPoints($request, 'itglue')), false];
             case 'dd.clients':
                 return [$this->ddClients($q), false];
             case 'halo.clients':
@@ -211,6 +213,16 @@ class SettingsOptionsController extends Controller
         }
 
         return $out;
+    }
+
+    /** The DomainDash values of one entity (?entity=, default domain) for the field-mapping rows. */
+    private function entityPoints(Request $request, string $provider): array
+    {
+        $entity = (string) $request->query('entity', \App\Services\Assets\AssetEntity::DOMAIN);
+
+        return \App\Services\Assets\AssetEntity::valid($entity)
+            ? \App\Services\Assets\AssetEntity::points($entity, $provider)
+            : \App\Services\Assets\AssetEntity::points(\App\Services\Assets\AssetEntity::DOMAIN, $provider);
     }
 
     private function points(array $points): array

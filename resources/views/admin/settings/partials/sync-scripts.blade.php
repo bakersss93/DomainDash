@@ -109,7 +109,7 @@
                 defaultSort: 'status',
                 filters: ddSyncFilters(),
                 statusOf: DDList.syncStatus(o.existsKey),
-                emptyText: 'No domains to show.',
+                emptyText: o.emptyText || 'No domains to show.',
             });
         }
 
@@ -402,6 +402,80 @@
                 request: (ids) => DDSync.request('/admin/sync/itglue/configurations/sync', 'POST', { items: ids.map((id) => ({ id: id, type: 'domain' })) }),
                 label: (n) => 'Sync ' + n + ' domain' + (n === 1 ? '' : 's') + ' to IT Glue',
                 reloadUrl: '/admin/sync/itglue/configurations',
+                rowsKey: 'items',
+            });
+        }
+
+        // ---- Generic asset sync (internet services / hosting / SSL certificates -> HaloPSA or IT Glue) ----
+        const DD_ASSET_PROVIDERS = { halo: 'HaloPSA', itglue: 'IT Glue' };
+        window._assetSyncCtx = null;
+
+        function openAssetSyncModal(provider, entity) {
+            window._assetSyncCtx = { provider: provider, entity: entity };
+            document.getElementById('assetSyncTitle').textContent = 'Sync to ' + DD_ASSET_PROVIDERS[provider];
+            document.getElementById('assetSyncRunPanel').replaceChildren();
+            document.getElementById('assetSyncModal').style.display = 'flex';
+            loadAssetList();
+        }
+
+        function closeAssetSyncModal() {
+            document.getElementById('assetSyncModal').style.display = 'none';
+        }
+
+        async function loadAssetList() {
+            const ctx = window._assetSyncCtx;
+            const listEl = document.getElementById('assetSyncList');
+            listEl.innerHTML = DD_SPINNER_HTML('Loading from DomainDash...');
+            try {
+                const response = await fetch('/admin/sync/assets/' + ctx.provider + '/' + ctx.entity, { headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                if (!response.ok || data.error) {
+                    listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">${ddEsc(data.error || data.message || 'Could not load the list.')}</div>`;
+                    return;
+                }
+                document.getElementById('assetSyncTitle').textContent = 'Sync ' + data.label.toLowerCase() + ' to ' + DD_ASSET_PROVIDERS[ctx.provider];
+                renderAssetList(data, ctx);
+            } catch (error) {
+                listEl.innerHTML = `<div style="text-align:center;color:var(--dd-danger-text);padding:40px;">Failed to load: ${ddEsc(error.message)}</div>`;
+            }
+        }
+
+        function renderAssetList(data, ctx) {
+            const listEl = document.getElementById('assetSyncList');
+            listEl.replaceChildren();
+            if (data.problem) {
+                const warn = document.createElement('div');
+                warn.className = 'ui-alert ui-alert--warning';
+                warn.setAttribute('role', 'alert');
+                warn.textContent = data.problem;
+                listEl.appendChild(warn);
+            }
+            const mount = document.createElement('div');
+            listEl.appendChild(mount);
+            window._assetSyncList = ddCreateDomainList(mount, data.items, {
+                storageKey: 'assets-' + ctx.provider + '-' + ctx.entity,
+                existsKey: 'exists_remote',
+                grid: '1.2fr 1fr 1.2fr 150px',
+                emptyText: 'Nothing to show.',
+                columns: [
+                    { label: 'Name', render: (r) => ddNameCell(r) },
+                    { label: 'Client', render: (r) => ddTextEl('div', r.client || 'No Client', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Details', render: (r) => ddTextEl('div', r.detail || '', 'color:var(--dd-text-soft);font-size:13px;') },
+                    { label: 'Status', render: (r, l, st) => DDList.chip(st) },
+                ],
+            });
+        }
+
+        function syncAssetSelected() {
+            const ctx = window._assetSyncCtx;
+            const base = '/admin/sync/assets/' + ctx.provider + '/' + ctx.entity;
+            return ddQueueDomainRun({
+                listVar: '_assetSyncList',
+                panelId: 'assetSyncRunPanel',
+                emptyMessage: 'Please select at least one item to sync',
+                request: (ids) => DDSync.request(base + '/sync', 'POST', { ids: ids }),
+                label: (n) => 'Sync ' + n + ' item' + (n === 1 ? '' : 's') + ' to ' + DD_ASSET_PROVIDERS[ctx.provider],
+                reloadUrl: base,
                 rowsKey: 'items',
             });
         }

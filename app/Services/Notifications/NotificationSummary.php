@@ -19,6 +19,12 @@ class NotificationSummary
         'halo/subscriptions' => 'Sync internet services to HaloPSA',
         'itglue/organizations' => 'IT Glue organisations refresh',
         'itglue/configurations' => 'Sync domains to IT Glue',
+        'halo/push-internet' => 'Sync internet service assets to HaloPSA',
+        'halo/push-hosting' => 'Sync hosting service assets to HaloPSA',
+        'halo/push-ssl' => 'Sync SSL certificate assets to HaloPSA',
+        'itglue/push-internet' => 'Sync internet service assets to IT Glue',
+        'itglue/push-hosting' => 'Sync hosting service assets to IT Glue',
+        'itglue/push-ssl' => 'Sync SSL certificate assets to IT Glue',
         'vocus/services' => 'Vocus internet services refresh',
     ];
 

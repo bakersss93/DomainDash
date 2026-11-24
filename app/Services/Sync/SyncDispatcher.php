@@ -7,6 +7,10 @@ use App\Jobs\SyncHaloClientsJob;
 use App\Jobs\SyncHaloDomainsJob;
 use App\Jobs\SyncItGlueConfigurationsJob;
 use App\Jobs\SyncItGlueOrganizationsJob;
+use App\Jobs\SyncEntityAssetsJob;
+use App\Services\Assets\AssetEntity;
+use App\Services\Halo\HaloAssetMapping;
+use App\Services\ItGlue\ItGlueAssetMapping;
 use App\Jobs\PushInternetServicesToHaloJob;
 use App\Jobs\SyncVocusServicesJob;
 use App\Models\Client;
@@ -176,6 +180,73 @@ class SyncDispatcher
     }
 
     /**
+     * Push internet services / hosting services / SSL certificates to HaloPSA or IT Glue as assets (live panel scope
+     * "{provider}/push-internet" ...). Same de-duplication as the domain pushes: with $ids = null every record that
+     * has a client is pushed and a running run is returned instead of a duplicate. The caller checks the mapping is
+     * enabled first (assetMappingProblem()); the job re-checks.
+     *
+     * @param int[]|null $ids
+     */
+    public function pushAssets(string $provider, string $entity, ?array $ids = null, ?int $clientId = null, bool $force = true, ?int $userId = null): SyncRun
+    {
+        $scope = AssetEntity::scope($entity, $provider);
+
+        if ($ids === null && ($run = SyncRun::active($provider, $scope, $clientId))) {
+            return $run;
+        }
+        if ($ids !== null && ($run = $this->identicalActiveRun($provider, $scope, $clientId, $ids))) {
+            return $run;
+        }
+
+        $run = SyncRun::queue($provider, $scope, $clientId, $userId);
+        $this->remember($run, $ids);
+        SyncEntityAssetsJob::dispatch($provider, $entity, $ids, $clientId, $force, $run->id);
+        $this->audit($provider, 'push-' . $entity, ['items' => $ids === null ? 'all' : count($ids)]);
+
+        return $run;
+    }
+
+    /** Why an entity cannot be pushed right now (null = it can): not enabled, no asset type, or not configured. */
+    public function assetMappingProblem(string $provider, string $entity): ?string
+    {
+        $halo = $provider === 'halo';
+        if ($halo && ($problem = HaloPsaClient::configurationProblem())) {
+            return $problem;
+        }
+        if (! $halo && ! ItGlueClient::isConfigured()) {
+            return 'IT Glue is not configured. Save the API key first.';
+        }
+
+        $mapping = $halo ? HaloAssetMapping::forEntity($entity) : ItGlueAssetMapping::forEntity($entity);
+        $where = 'Settings → ' . ($halo ? 'HaloPSA' : 'IT Glue') . ' → Assets';
+        if (! $mapping->enabled) {
+            return AssetEntity::label($entity) . ' asset sync is turned off. Enable it in ' . $where . '.';
+        }
+        if ($entity !== AssetEntity::DOMAIN && ! $mapping->typeId) {
+            return 'No asset type is mapped for ' . AssetEntity::plural($entity) . '. Choose one in ' . $where . '.';
+        }
+
+        return null;
+    }
+
+    /** Non-domain entities whose mapping is enabled with a type, for one provider (scheduled runs, Sync tab cards). */
+    public function enabledAssetEntities(string $provider): array
+    {
+        $out = [];
+        foreach (AssetEntity::KEYS as $entity) {
+            if ($entity === AssetEntity::DOMAIN) {
+                continue;
+            }
+            $mapping = $provider === 'halo' ? HaloAssetMapping::forEntity($entity) : ItGlueAssetMapping::forEntity($entity);
+            if ($mapping->enabled && $mapping->typeId) {
+                $out[] = $entity;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * An explicit-selection push with exactly the same ids that is still alive:
      * return it instead of queueing a duplicate (a double click must not spawn
      * two runs).
@@ -211,20 +282,29 @@ class SyncDispatcher
     /** Scheduled "sync-halo-assets": pull clients + assets, then push changed domains. */
     public function scheduleHaloPipeline(): void
     {
-        Bus::chain([
-            new SyncHaloClientsJob(),
-            new SyncHaloAssetsJob(),
-            new SyncHaloDomainsJob(null, null, false),
-        ])->dispatch();
+        $jobs = [new SyncHaloClientsJob(), new SyncHaloAssetsJob()];
+        if (HaloAssetMapping::forEntity(AssetEntity::DOMAIN)->enabled) {
+            $jobs[] = new SyncHaloDomainsJob(null, null, false);
+        }
+        foreach ($this->enabledAssetEntities('halo') as $entity) {
+            $jobs[] = new SyncEntityAssetsJob('halo', $entity, null, null, false);
+        }
+
+        Bus::chain($jobs)->dispatch();
     }
 
     /** Scheduled "sync-itglue": pull organisations, then push changed domains. */
     public function scheduleItGluePipeline(): void
     {
-        Bus::chain([
-            new SyncItGlueOrganizationsJob(),
-            new SyncItGlueConfigurationsJob(null, null, false),
-        ])->dispatch();
+        $jobs = [new SyncItGlueOrganizationsJob()];
+        if (ItGlueAssetMapping::forEntity(AssetEntity::DOMAIN)->enabled) {
+            $jobs[] = new SyncItGlueConfigurationsJob(null, null, false);
+        }
+        foreach ($this->enabledAssetEntities('itglue') as $entity) {
+            $jobs[] = new SyncEntityAssetsJob('itglue', $entity, null, null, false);
+        }
+
+        Bus::chain($jobs)->dispatch();
     }
 
     /** Latest status per provider for "Last synced X ago" widgets, plus worker health. */
@@ -262,13 +342,13 @@ class SyncDispatcher
                     'assets' => $active('halo', 'assets'),
                     'domains' => $active('halo', 'domains'),
                     'subscriptions' => $active('halo', 'subscriptions'),
-                ],
+                ] + $this->entityRuns('halo', $active),
                 'latest_by_scope' => [
                     'clients' => $latest('halo', 'clients'),
                     'assets' => $latest('halo', 'assets'),
                     'domains' => $latest('halo', 'domains'),
                     'subscriptions' => $latest('halo', 'subscriptions'),
-                ],
+                ] + $this->entityRuns('halo', $latest),
             ],
             'itglue' => [
                 'configured' => ItGlueClient::isConfigured(),
@@ -279,13 +359,25 @@ class SyncDispatcher
                 'active_by_scope' => [
                     'organizations' => $active('itglue', 'organizations'),
                     'configurations' => $active('itglue', 'configurations'),
-                ],
+                ] + $this->entityRuns('itglue', $active),
                 'latest_by_scope' => [
                     'organizations' => $latest('itglue', 'organizations'),
                     'configurations' => $latest('itglue', 'configurations'),
-                ],
+                ] + $this->entityRuns('itglue', $latest),
             ],
         ];
+    }
+
+    /** @return array<string,mixed> push-internet / push-hosting / push-ssl => run status for one provider */
+    private function entityRuns(string $provider, callable $lookup): array
+    {
+        $out = [];
+        foreach ([AssetEntity::INTERNET, AssetEntity::HOSTING, AssetEntity::SSL] as $entity) {
+            $scope = AssetEntity::scope($entity, $provider);
+            $out[$scope] = $lookup($provider, $scope);
+        }
+
+        return $out;
     }
 
     private function audit(string $service, string $function, array $extra = []): void

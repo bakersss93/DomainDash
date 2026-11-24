@@ -54,6 +54,12 @@ class SyncItGlueConfigurationsJob implements ShouldQueue
             return;
         }
 
+        if (! \App\Services\ItGlue\ItGlueAssetMapping::forEntity(\App\Services\Assets\AssetEntity::DOMAIN)->enabled) {
+            $run->skip('Domain asset sync is turned off in Settings → IT Glue → Assets.');
+
+            return;
+        }
+
         $requested = $this->domainIds !== null ? array_values(array_unique(array_map('intval', $this->domainIds))) : null;
 
         $domains = Domain::query()

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Domain;
+use App\Services\Assets\AssetEntity;
+use App\Services\ItGlue\ItGlueAssetMapping;
 use App\Services\Halo\HaloAssetMapping;
 use App\Services\Halo\HaloPsaClient;
 use App\Services\ItGlue\ItGlueClient;
@@ -22,6 +24,34 @@ use Illuminate\Http\Request;
  */
 class IntegrationMappingController extends Controller
 {
+    /** Type-name patterns used to pre-select an asset type for an entity (only when exactly one type matches). */
+    private const TYPE_NAME_HINTS = [
+        'domain' => '/^domains?$/i',
+        'internet_service' => '/internet|broadband|nbn|connectivity/i',
+        'hosting_service' => '/hosting|web\s*site|website/i',
+        'ssl_certificate' => '/ssl|certificate|\btls\b/i',
+    ];
+
+    /** ?entity=domain|internet_service|hosting_service|ssl_certificate (default domain). */
+    private function entityParam(Request $request): string
+    {
+        $entity = (string) $request->query('entity', AssetEntity::DOMAIN);
+        abort_unless(AssetEntity::valid($entity), 422, 'Unknown entity.');
+
+        return $entity;
+    }
+
+    /** @param array<int,array{id:int|string,name:string}> $types */
+    private function suggestType(string $entity, array $types, int|string|null $stored): int|string|null
+    {
+        if ($stored) {
+            return $stored;
+        }
+        $named = array_values(array_filter($types, fn ($t) => preg_match(self::TYPE_NAME_HINTS[$entity], (string) $t['name'])));
+
+        return count($named) === 1 ? $named[0]['id'] : null;
+    }
+
     // ------------------------------------------------------------------
     // HaloPSA
     // ------------------------------------------------------------------
@@ -33,15 +63,12 @@ class IntegrationMappingController extends Controller
                 return $this->fail($problem);
             }
 
+            $entity = $this->entityParam($request);
             $types = app(HaloPsaClient::class)->listAssetTypes($request->boolean('refresh'));
-            $mapping = HaloAssetMapping::fromSettings();
+            $mapping = HaloAssetMapping::forEntity($entity);
 
-            // Pre-select: the stored id, else the only type literally named "Domain".
-            $suggested = $mapping->typeId;
-            if (! $suggested) {
-                $named = array_values(array_filter($types, fn ($t) => strcasecmp($t['name'], 'Domain') === 0));
-                $suggested = count($named) === 1 ? $named[0]['id'] : null;
-            }
+            // Pre-select: the stored id, else the only type whose name fits the entity (domains: named "Domain").
+            $suggested = $this->suggestType($entity, $types, $mapping->typeId);
 
             return response()->json([
                 'types' => $types,
@@ -58,10 +85,11 @@ class IntegrationMappingController extends Controller
                 return $this->fail($problem);
             }
 
+            $entity = $this->entityParam($request);
             $type = app(HaloPsaClient::class)->getAssetTypeDetails($id, $request->boolean('refresh'));
             $fields = $type['fields'];
 
-            $suggestions = AssetFieldSuggester::halo($fields);
+            $suggestions = AssetFieldSuggester::forEntity('halo', $entity, $fields);
 
             // Resolve each key field of the type to one of its fields and, if
             // that field is suggested for a data point, to that data point.
@@ -88,7 +116,8 @@ class IntegrationMappingController extends Controller
                 'fields' => $fields,
                 'keyfields' => $keyfields,
                 'suggestions' => $suggestions,
-                'points' => HaloAssetMapping::POINTS,
+                'entity' => $entity,
+                'points' => AssetEntity::points($entity, 'halo'),
             ]);
         });
     }
@@ -138,9 +167,14 @@ class IntegrationMappingController extends Controller
                 return $this->fail('IT Glue is not configured. Save the API key first.');
             }
 
+            $entity = $this->entityParam($request);
+            $types = app(ItGlueClient::class)->listFlexibleAssetTypes($request->boolean('refresh'));
+            $stored = ItGlueAssetMapping::forEntity($entity)->typeId;
+
             return response()->json([
-                'types' => app(ItGlueClient::class)->listFlexibleAssetTypes($request->boolean('refresh')),
-                'stored_id' => ((array) \App\Models\Setting::get('itglue', []))['flexible_asset_type_id'] ?? null,
+                'types' => $types,
+                'stored_id' => $stored,
+                'suggested_id' => $this->suggestType($entity, $types, $stored),
             ]);
         });
     }
@@ -152,19 +186,15 @@ class IntegrationMappingController extends Controller
                 return $this->fail('IT Glue is not configured. Save the API key first.');
             }
 
+            $entity = $this->entityParam($request);
             $fields = app(ItGlueClient::class)->flexibleAssetTypeFields($id, $request->boolean('refresh'));
 
             return response()->json([
                 'fields' => $fields,
-                'suggestions' => AssetFieldSuggester::itglue($fields),
-                'points' => [
-                    'domain' => 'Domain name',
-                    'name_servers' => 'Name servers',
-                    'expiry' => 'Expiry date',
-                    'whois' => 'WHOIS / registrant summary',
-                    'dns' => 'DNS records',
-                ],
-                'defaults' => ItGlueClient::DEFAULT_TRAITS,
+                'suggestions' => AssetFieldSuggester::forEntity('itglue', $entity, $fields),
+                'entity' => $entity,
+                'points' => AssetEntity::points($entity, 'itglue'),
+                'defaults' => $entity === AssetEntity::DOMAIN ? ItGlueClient::DEFAULT_TRAITS : [],
             ]);
         });
     }

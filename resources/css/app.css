@@ -2628,6 +2628,25 @@ html.dark .badge-red { color: #1a0a0a; }
 .dd-mtm__backdrop { position: absolute; inset: 0; background: var(--dd-backdrop); backdrop-filter: blur(2px); }
 .dd-mtm__dialog { position: relative; width: min(30rem, 100%); max-height: calc(100vh - 2rem); overflow: visible; background: var(--dd-surface); color: var(--dd-text); border: 1px solid var(--dd-border); border-radius: var(--dd-radius-xl); box-shadow: var(--dd-shadow-overlay); padding: 1.25rem 1.5rem; }
 .dd-mtm__dialog--sm { width: min(24rem, 100%); }
+.dd-mtm__dialog--lg { width: min(44rem, 100%); }
+.dd-mtm__dialog--lg .dd-mtm__body { max-height: calc(100vh - 9rem); overflow-y: auto; padding-right: 0.25rem; }
+.dd-mtm__dialog--lg .dd-mtm__actions { position: sticky; bottom: 0; margin: 0; padding: 0.75rem 0 0; background: var(--dd-surface); border-top: 1px solid var(--dd-border); }
+/* Asset mapping dialog: DomainDash value -> field of the chosen asset type */
+.dd-fm { display: flex; flex-direction: column; gap: 0.5rem; }
+.dd-fm__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.dd-mtm__err[hidden] { display: none; }
+.dd-fm__status:empty { display: none; }
+.dd-fm__status { margin: 0; font-size: var(--dd-text-sm); color: var(--dd-text-soft); }
+.dd-fm__status.is-error { color: var(--dd-danger); }
+.dd-fm__list, .dd-fm__keys { display: flex; flex-direction: column; border: 1px solid var(--dd-border); border-radius: var(--dd-radius); background: var(--dd-surface-soft); }
+.dd-fm__keys { border: 0; background: transparent; gap: 0; margin-top: 0.5rem; }
+.dd-fm__subtitle { margin: 0; font-size: var(--dd-text-sm); font-weight: 650; text-transform: none; }
+.dd-fm__row { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); align-items: center; gap: 0.75rem; padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--dd-border); }
+.dd-fm__row:last-child { border-bottom: 0; }
+.dd-fm__keys .dd-fm__row { padding-left: 0; padding-right: 0; }
+.dd-fm__label { font-size: var(--dd-text-sm); font-weight: 550; overflow-wrap: anywhere; }
+.dd-fm__select { min-width: 0; width: 100%; }
+@media (max-width: 40rem) { .dd-fm__row { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; } }
 .dd-mtm__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 1rem; }
 .dd-mtm__title { margin: 0; font-size: var(--dd-text-lg); font-weight: 650; text-transform: none; }
 .dd-mtm__form { display: flex; flex-direction: column; gap: 0.875rem; }

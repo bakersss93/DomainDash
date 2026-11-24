@@ -43,6 +43,10 @@
             </div>
         @endif
 
+        <div style="margin-bottom:16px;max-width:520px;">
+            <x-asset-sync-card entity="hosting_service" :record="$service" />
+        </div>
+
         {{-- Service Information Cards --}}
         <div class="dd-stats-grid">
             {{-- Basic Info Card --}}

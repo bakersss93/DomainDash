@@ -4,8 +4,8 @@
     $jobs = [
         'sync_domains' => 'Sync domains from Synergy',
         'sync_hosting_services' => 'Sync hosting services',
-        'sync_halo_assets' => 'Sync domain assets to and from HaloPSA',
-        'sync_itglue' => 'Sync IT Glue domain assets',
+        'sync_halo_assets' => 'Sync enabled asset types (domains, internet, hosting, SSL) to and from HaloPSA',
+        'sync_itglue' => 'Sync enabled asset types (domains, internet, hosting, SSL) to IT Glue',
     ];
 @endphp
 <x-settings.form-card area="sync" tab="schedule" title="Scheduled syncs" :description="'Server timezone: '.date_default_timezone_get().'. Cron must run php artisan schedule:run every minute.'" save="Save schedule">

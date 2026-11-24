@@ -6,6 +6,8 @@
     'fields' => [],            // [{key,label,type:combo|select|text,source?,options?,staticOptions?,allowCustom?,required?,help?,refresh?,paramsFrom?,locked?}]
     'rows' => [],              // local mode: [{id,cells,values}]
     'fixed' => false,          // no Add/Delete (a fixed list of rows: edit only)
+    'deletable' => false,      // with fixed: keep the delete (reset) row action
+    'dialogSize' => null,      // 'lg' = wide edit dialog (asset mappings)
     'labels' => [],            // {title,add,empty,entity}
     'actions' => [],           // extra toolbar buttons [{label,url,method,reload?}]
     'searchable' => false,
@@ -25,7 +27,7 @@
 @php
     $config = [
         'id' => $id, 'mode' => $mode, 'url' => $url, 'columns' => $columns, 'fields' => $fields,
-        'rows' => $mode === 'local' ? array_values($rows) : [], 'fixed' => (bool) $fixed,
+        'rows' => $mode === 'local' ? array_values($rows) : [], 'fixed' => (bool) $fixed, 'deletable' => (bool) $deletable, 'dialogSize' => $dialogSize,
         'labels' => $labels, 'actions' => $actions, 'searchable' => (bool) $searchable,
         'perPage' => $perPage, 'emptyCells' => $emptyCells,
     ];

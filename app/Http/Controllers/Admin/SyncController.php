@@ -11,6 +11,7 @@ use App\Models\HaloClient;
 use App\Models\ItglueOrganization;
 use App\Models\SyncRun;
 use App\Services\AuditLogger;
+use App\Services\Assets\AssetEntity;
 use App\Services\Halo\HaloPsaClient;
 use App\Services\Sync\HaloRunNow;
 use App\Services\Sync\QueueHealth;
@@ -180,6 +181,79 @@ class SyncController extends Controller
     }
 
     /**
+     * Records of one non-domain entity with their asset sync state (local data only, no Halo / IT Glue call).
+     * GET /admin/sync/assets/{provider}/{entity}
+     */
+    public function assetList(string $provider, string $entity)
+    {
+        $this->assertAssetTarget($provider, $entity);
+        $cols = AssetEntity::columns($entity, $provider);
+        $model = AssetEntity::model($entity);
+
+        $items = $model::with(AssetEntity::with($entity))->get()->map(fn ($r) => [
+            'id' => $r->getKey(),
+            'name' => AssetEntity::name($entity, $r),
+            'client' => $r->client?->business_name,
+            'client_id' => $r->client_id,
+            'detail' => $this->assetDetail($entity, $r),
+            'exists_remote' => ! empty($r->{$cols['id']}),
+            'synced_at' => $r->{$cols['synced']}?->toIso8601String(),
+            'sync_error' => $r->{$cols['error']},
+        ])->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+
+        return response()->json([
+            'items' => $items,
+            'entity' => $entity,
+            'label' => AssetEntity::label($entity),
+            'problem' => $this->dispatcher->assetMappingProblem($provider, $entity),
+            'sync' => $this->dispatcher->status()[$provider],
+        ]);
+    }
+
+    /**
+     * Queue a push of the selected records of one entity as assets; returns immediately.
+     * POST /admin/sync/assets/{provider}/{entity}/sync  {ids: []}
+     */
+    public function assetSync(Request $request, string $provider, string $entity)
+    {
+        $this->assertAssetTarget($provider, $entity);
+        $ids = array_values(array_unique(array_map('intval', (array) $request->input('ids', []))));
+
+        if ($ids === []) {
+            return response()->json(['success' => false, 'error' => 'Select at least one item.'], 422);
+        }
+        if (($problem = $this->dispatcher->assetMappingProblem($provider, $entity)) !== null) {
+            return response()->json(['success' => false, 'error' => $problem], 422);
+        }
+
+        $run = $this->dispatcher->pushAssets($provider, $entity, $ids, null, true, $request->user()?->id);
+
+        return response()->json([
+            'success' => true,
+            'queued' => true,
+            'queued_count' => count($ids),
+            'synced_count' => 0,
+            'run' => $run->toStatusArray(),
+            'worker' => app(QueueHealth::class)->status(),
+        ], 202);
+    }
+
+    private function assertAssetTarget(string $provider, string $entity): void
+    {
+        abort_unless(in_array($provider, AssetEntity::PROVIDERS, true) && AssetEntity::valid($entity) && $entity !== AssetEntity::DOMAIN, 404);
+    }
+
+    private function assetDetail(string $entity, $r): string
+    {
+        return match ($entity) {
+            AssetEntity::INTERNET => trim((string) $r->service_status . ' ' . ($r->address_long ? '· ' . mb_strimwidth($r->address_long, 0, 48, '…') : '')),
+            AssetEntity::HOSTING => (string) ($r->plan ?? ''),
+            AssetEntity::SSL => $r->expire_date ? 'Expires ' . $r->expire_date->toDateString() : '',
+            default => '',
+        };
+    }
+
+    /**
      * Admin fallback: push the selected domains to Halo inside this request
      * under a hard time budget (only when no queue worker is detected).
      */
@@ -273,9 +347,11 @@ class SyncController extends Controller
      */
     public function runItems(Request $request, SyncRun $run)
     {
+        $entity = AssetEntity::fromRun($run->provider, $run->scope) ?? AssetEntity::DOMAIN;
         [$syncedCol, $errorCol] = match (true) {
             $run->provider === 'halo' && $run->scope === 'domains' => ['halo_synced_at', 'halo_sync_error'],
             $run->provider === 'itglue' && $run->scope === 'configurations' => ['itglue_synced_at', 'itglue_sync_error'],
+            $entity !== AssetEntity::DOMAIN => [AssetEntity::columns($entity, $run->provider)['synced'], AssetEntity::columns($entity, $run->provider)['error']],
             default => [null, null],
         };
 
@@ -295,7 +371,7 @@ class SyncController extends Controller
             }
         }
 
-        $rows = Domain::query()
+        $rows = ($entity === AssetEntity::DOMAIN ? Domain::query() : AssetEntity::model($entity)::query())
             ->where('updated_at', '>=', $since)
             ->where(function ($q) use ($syncedCol, $errorCol, $runStart) {
                 $q->where($syncedCol, '>=', $runStart)->orWhereNotNull($errorCol);
@@ -303,7 +379,7 @@ class SyncController extends Controller
             ->when($run->client_id, fn ($q) => $q->where('client_id', $run->client_id))
             ->orderBy('id')
             ->limit(5000)
-            ->get(['id', 'name', $syncedCol, $errorCol, 'updated_at']);
+            ->get(['id', $syncedCol, $errorCol, 'updated_at']);
 
         $items = $rows->map(function ($d) use ($syncedCol, $errorCol, $runStart) {
             $failed = $d->{$errorCol} !== null && $d->{$errorCol} !== '' && $d->updated_at >= $runStart
@@ -348,6 +424,24 @@ class SyncController extends Controller
                 ->limit(50)
                 ->get(['id', 'vocus_service_id', 'address_long', 'halo_sync_error'])
                 ->map(fn ($x) => ['id' => $x->id, 'name' => (string) ($x->vocus_service_id ?: ('#' . $x->id)), 'error' => \App\Support\SyncErrorSanitizer::clean((string) $x->halo_sync_error, 500)])
+                ->all();
+        }
+
+        $entity = AssetEntity::fromRun($run->provider, $run->scope);
+        if ($entity !== null && $entity !== AssetEntity::DOMAIN) {
+            if (($run->failed ?? 0) === 0 && $run->status !== SyncRun::FAILED) {
+                return [];
+            }
+            $errorCol = AssetEntity::columns($entity, $run->provider)['error'];
+
+            return AssetEntity::model($entity)::query()
+                ->with(AssetEntity::with($entity))
+                ->whereNotNull($errorCol)
+                ->where('updated_at', '>=', $run->created_at)
+                ->orderBy('id')
+                ->limit(50)
+                ->get()
+                ->map(fn ($r) => ['id' => $r->getKey(), 'name' => AssetEntity::name($entity, $r), 'error' => \App\Support\SyncErrorSanitizer::clean((string) $r->{$errorCol}, 500)])
                 ->all();
         }
 

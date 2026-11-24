@@ -27,12 +27,10 @@ class ItGlueClient
 
         $this->baseUrl = self::normalizeBaseUrl($cfg['base_url'] ?? null);
         $this->apiKey  = $cfg['api_key'] ?? null;
-        $this->flexibleAssetTypeId = isset($cfg['flexible_asset_type_id'])
-            ? (int) $cfg['flexible_asset_type_id']
-            : null;
-        $this->flexibleAssetTraits = is_array($cfg['flexible_asset_traits'] ?? null)
-            ? $cfg['flexible_asset_traits']
-            : self::DEFAULT_TRAITS;
+        // The Domains mapping: asset_mappings.domain, else the historical flexible_asset_* keys.
+        $domain = ItGlueAssetMapping::forEntity(\App\Services\Assets\AssetEntity::DOMAIN);
+        $this->flexibleAssetTypeId = $domain->typeId;
+        $this->flexibleAssetTraits = $domain->traits;
     }
 
     /**
@@ -469,6 +467,32 @@ class ItGlueClient
             'flexible_asset_id' => $assetId,
             'data' => $result,
         ];
+    }
+
+    /**
+     * Create or update one flexible asset of any type (internet services, hosting, SSL certificates ...).
+     * Same contract as syncDomain(): the lookup is by organisation + type + name, a failed lookup throws and can
+     * never fall through to a duplicate create, and an update always carries the full trait set.
+     *
+     * @param array<string,string> $traits trait key => value
+     * @param array|bool|null $knownAsset JSON:API asset already located by the caller; false = known not to exist
+     */
+    public function syncAsset(int $typeId, int $organizationId, string $name, array $traits, array|bool|null $knownAsset = null): array
+    {
+        $existing = $knownAsset === false
+            ? null
+            : ($knownAsset ?: $this->findDomainFlexibleAsset($organizationId, $typeId, $name));
+
+        if ($existing) {
+            $assetId = (int) $existing['id'];
+            $result = $this->updateFlexibleAsset($assetId, $name, $traits, $existing['attributes']['traits'] ?? null);
+
+            return ['success' => true, 'action' => 'updated', 'flexible_asset_id' => $assetId, 'data' => $result];
+        }
+
+        $result = $this->createFlexibleAsset($organizationId, $typeId, $name, $traits);
+
+        return ['success' => true, 'action' => 'created', 'flexible_asset_id' => (int) ($result['data']['id'] ?? 0), 'data' => $result];
     }
 
     /**

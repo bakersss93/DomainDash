@@ -243,23 +243,29 @@ function initHaloPreview(box) {
         const name = input.value.trim();
         out.replaceChildren();
         if (!name) { out.textContent = 'Enter a domain name first.'; return; }
-        const ids = {}; const names = {};
-        ['domain', 'expiry', 'nameservers', 'whois'].forEach((p) => {
-            ids[p] = (document.getElementById('halo_field_' + p) || {}).value || '';
-            names[p] = (document.getElementById('halo_field_name_' + p) || {}).value || '';
-        });
-        const keys = {};
-        [1, 2, 3].forEach((n) => { keys[n] = (document.getElementById('halo_key_field_' + n) || {}).value || ''; });
+        // The Assets tab edits mappings in a dialog and saves them itself, so the preview always uses the saved Domains mapping.
+        const typeInput = document.getElementById('halo_asset_type_id');
+        let halo = null;
+        if (typeInput) {
+            const ids = {}; const names = {};
+            ['domain', 'expiry', 'nameservers', 'whois'].forEach((p) => {
+                ids[p] = (document.getElementById('halo_field_' + p) || {}).value || '';
+                names[p] = (document.getElementById('halo_field_name_' + p) || {}).value || '';
+            });
+            const keys = {};
+            [1, 2, 3].forEach((n) => { keys[n] = (document.getElementById('halo_key_field_' + n) || {}).value || ''; });
+            halo = {
+                asset_type_id: typeInput.value || null,
+                asset_type_name: (document.getElementById('halo_asset_type_name') || {}).value || '',
+                asset_field_ids: ids, asset_field_names: names, asset_key_fields: keys,
+            };
+        }
         out.textContent = 'Building preview...';
         btn.disabled = true;
         try {
             const d = await window.DDMapping.request('POST', '/admin/settings/halo/preview-mapping', {
                 domain: name,
-                halo: {
-                    asset_type_id: (document.getElementById('halo_asset_type_id') || {}).value || null,
-                    asset_type_name: (document.getElementById('halo_asset_type_name') || {}).value || '',
-                    asset_field_ids: ids, asset_field_names: names, asset_key_fields: keys,
-                },
+                halo: halo || undefined,
             });
             out.replaceChildren();
             out.appendChild(el('p', 'dd-set-help', 'Preview for ' + d.domain + (d.client ? ' (' + d.client + ')' : '') + ' to asset type ' + d.asset_type_name + (d.asset_type_id ? ' #' + d.asset_type_id : ' (looked up by name at sync time)') + '. Nothing was sent to HaloPSA.'));

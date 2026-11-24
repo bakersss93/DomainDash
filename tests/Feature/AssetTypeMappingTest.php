@@ -303,19 +303,16 @@ class AssetTypeMappingTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.settings.area', 'halopsa'))
             ->assertOk()
-            ->assertSee('data-dd-picker', false)
-            ->assertSee('halo-field-map', false)
-            ->assertSee('halo[asset_type_id]', false)
-            ->assertSee('halo[asset_key_fields][1]', false)
-            ->assertSee('halo[asset_field_ids][domain]', false)
-            ->assertSee('Advanced: manual IDs', false);
+            ->assertSee('halo-asset-map', false)
+            ->assertSee('asset-mappings', false)
+            ->assertSee('fieldmap', false)
+            ->assertSee('Test mapping', false);
 
         $this->actingAs($admin)->get(route('admin.settings.area', 'itglue'))
             ->assertOk()
-            ->assertSee('itglue-trait-map', false)
-            ->assertSee('itglue[flexible_asset_traits][dns]', false)
-            ->assertSee('itglue[flexible_asset_type_id]', false)
-            ->assertSee('Advanced: manual IDs and trait keys', false);
+            ->assertSee('itglue-asset-map', false)
+            ->assertSee('asset-mappings', false)
+            ->assertSee('fieldmap', false);
     }
 
     // ---------------- Pusher / jobs use the configured type + mapping ----------------

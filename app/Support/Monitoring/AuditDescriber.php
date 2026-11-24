@@ -96,6 +96,9 @@ class AuditDescriber
         'POST admin/sync/itglue/refresh' => ['Started IT Glue refresh', 'sync.itglue'],
         'POST admin/sync/clients/{client}/{provider}/refresh' => ['Refreshed client {label} from {provider}', 'sync.refresh'],
         'POST admin/sync/halo/domains/run-now' => ['Ran HaloPSA domain sync now', 'sync.halo'],
+        'POST admin/sync/assets/{provider}/{entity}/sync' => ['Synced {entity} to {provider} as assets', 'sync.assets'],
+        'PUT admin/settings/asset-mappings/{provider}/{entity}' => ['Changed the {provider} asset mapping for {entity}', 'settings.asset_mapping'],
+        'DELETE admin/settings/asset-mappings/{provider}/{entity}' => ['Reset the {provider} asset mapping for {entity}', 'settings.asset_mapping'],
 
         'POST admin/settings' => ['Changed {settings} settings', 'settings.update'],
         'PUT admin/settings/vocus/plans/{plan}/halo-item' => ['Linked Vocus plan {label} to a HaloPSA item', 'vocus.plan.halo_item'],
@@ -143,6 +146,8 @@ class AuditDescriber
                 '{label}' => $label,
                 '{provider}' => (string) ($route?->parameter('provider') ?? ''),
                 '{ticketId}' => (string) ($route?->parameter('ticketId') ?? ''),
+                '{entity}' => \App\Services\Assets\AssetEntity::valid((string) $route?->parameter('entity'))
+                    ? strtolower(\App\Services\Assets\AssetEntity::plural((string) $route?->parameter('entity'))) : '',
                 '{settings}' => self::settingsGroups($request),
             ]);
 

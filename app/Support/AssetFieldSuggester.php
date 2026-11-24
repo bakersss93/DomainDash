@@ -30,6 +30,91 @@ class AssetFieldSuggester
     ];
 
     /**
+     * Name patterns for the non-domain entities, in claim order (a field goes to the first point that matches, so
+     * the specific ones come first: "IP address" is not the service address, "Service type" is not the service id).
+     *
+     * @var array<string,array<string,string>> entity => point => regex
+     */
+    private const ENTITY_RULES = [
+        'internet_service' => [
+            'avc_id' => '/\bavc\b/i',
+            'postcode' => '/post\s*-?_?code|\bzip\b/i',
+            'location_id' => '/\bloc\b|location|directory|\bdid\b/i',
+            'service_type' => '/service\s*type/i',
+            'service_id' => '/service\s*-?_?(id|no|number)\b|^\s*service\s*$/i',
+            'reference' => '/reference|\bref\b/i',
+            'ntd_port' => '/\bntd\b|\buni\b|port/i',
+            'username' => '/user\s*-?_?name|pppoe|login/i',
+            'ip_address' => '/\bip\b|ip\s*-?_?address/i',
+            'plan' => '/plan|package|speed|product/i',
+            'technology' => '/technolog|access\s*type|\bfttp\b|\bfttb\b|\bfttn\b/i',
+            'service_class' => '/class/i',
+            'status' => '/status|state/i',
+            'address' => '/address|install|site/i',
+            'client' => '/client|customer/i',
+        ],
+        'hosting_service' => [
+            'ip_address' => '/\bip\b|ip\s*-?_?address/i',
+            'renewal' => '/renew|expir|due/i',
+            'disk' => '/disk|storage/i',
+            'bandwidth' => '/bandwidth|traffic/i',
+            'username' => '/user/i',
+            'plan' => '/plan|package/i',
+            'server' => '/server|host(?!ing)/i',
+            'status' => '/status|state/i',
+            'domain' => '/domain|website|\bsite\b/i',
+        ],
+        'ssl_certificate' => [
+            'expiry' => '/expir|valid\s*(to|until)|\bend\b/i',
+            'issued' => '/issued|valid\s*from|\bstart\b|begin/i',
+            'cert_id' => '/cert\w*\s*-?_?id|serial|order/i',
+            'status' => '/status|state/i',
+            'product' => '/product|issuer|brand|type/i',
+            'common_name' => '/common\s*-?_?name|\bcn\b|hostname|domain/i',
+        ],
+    ];
+
+    private const DATE_POINTS = ['expiry', 'renewal', 'issued'];
+
+    /**
+     * Auto-suggest for any entity from field names only.
+     *
+     * Halo: field id per point; IT Glue: trait name-key per point. A point with no matching field is null
+     * ("don't sync"). Domains use the original tuned rules.
+     *
+     * @param array<int,array> $fields Halo {id,name} or IT Glue {name,name_key,kind}
+     * @return array<string,int|string|null>
+     */
+    public static function forEntity(string $provider, string $entity, array $fields): array
+    {
+        if ($entity === 'domain') {
+            return $provider === 'halo' ? self::halo($fields) : self::itglue($fields);
+        }
+
+        $rules = [];
+        foreach (self::ENTITY_RULES[$entity] ?? [] as $point => $regex) {
+            $date = in_array($point, self::DATE_POINTS, true);
+            $rules[$point] = [$regex, $date ? ['date'] : ['text', 'textbox'], $provider === 'halo' ? null : ['date', 'text', 'textbox']];
+        }
+
+        $candidates = $provider === 'halo'
+            ? array_map(fn (array $f) => ['key' => (int) $f['id'], 'text' => (string) ($f['name'] ?? ''), 'kind' => ''], $fields)
+            : array_map(fn (array $f) => [
+                'key' => (string) $f['name_key'],
+                'text' => trim(($f['name'] ?? '') . ' ' . str_replace(['-', '_'], ' ', (string) $f['name_key'])),
+                'kind' => strtolower((string) ($f['kind'] ?? '')),
+            ], $fields);
+
+        $picked = self::pick($rules, $candidates);
+        $out = [];
+        foreach (array_keys($rules) as $point) {
+            $out[$point] = $picked[$point] ?? null;
+        }
+
+        return $out;
+    }
+
+    /**
      * @param array<int,array{id:int|string,name:string}> $fields
      * @return array<string,int|null> data point => Halo field id (null = no suggestion)
      */

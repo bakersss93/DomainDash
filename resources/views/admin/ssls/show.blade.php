@@ -42,6 +42,10 @@
         </div>
     </div>
 
+    <div style="margin-bottom:16px;max-width:520px;">
+        <x-asset-sync-card entity="ssl_certificate" :record="$ssl" />
+    </div>
+
     <div style="padding:16px;border:1px solid #334155;border-radius:10px;margin-bottom:16px;">
         <h2 style="font-size:18px;margin-bottom:10px;">CSR Details</h2>
         @if($csrDetails)

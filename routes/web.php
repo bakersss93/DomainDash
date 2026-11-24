@@ -121,6 +121,13 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::put('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'update'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.update');
             Route::delete('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'destroy'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.destroy');
         });
+        // Assets tabs of HaloPSA / IT Glue: one mapping per DomainDash entity (domains, internet, hosting, SSL).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/asset-mappings/{provider}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'index'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.index');
+            Route::post('/settings/asset-mappings/{provider}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'store'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.store');
+            Route::put('/settings/asset-mappings/{provider}/{entity}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'update'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.update');
+            Route::delete('/settings/asset-mappings/{provider}/{entity}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'destroy'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.destroy');
+        });
         Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::get('/settings/halo/ticket-statuses', [SettingsController::class,'haloTicketStatuses'])->name('admin.settings.halo.ticket-statuses');
         // Asset type / field pickers for the HaloPSA + IT Glue mapping cards (admin only, read-only toward the vendors).
@@ -181,6 +188,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
             Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
             Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
+
+            Route::get('/sync/assets/{provider}/{entity}', [\App\Http\Controllers\Admin\SyncController::class, 'assetList'])->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate']);
+            Route::post('/sync/assets/{provider}/{entity}/sync', [\App\Http\Controllers\Admin\SyncController::class, 'assetSync'])->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate'])->middleware('throttle:12,1');
 
             Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
             Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
@@ -292,6 +302,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/hosting', [ServicesController::class, 'index'])->name('admin.services.hosting');
         Route::get('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'index'])->name('admin.services.hosting.purchase');
         Route::post('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'purchase'])->name('admin.services.hosting.purchase.store');
+        Route::post('/assets/{provider}/{entity}/{id}/sync', [\App\Http\Controllers\Admin\AssetSyncController::class, 'syncOne'])
+            ->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate'])->whereNumber('id')
+            ->middleware(['permission:sync.run', 'throttle:12,1'])->name('admin.assets.sync');
         Route::post('/services/hosting/sync', [ServicesController::class, 'sync'])->name('admin.services.hosting.sync');
         Route::get('/services/hosting/{service}', [ServicesController::class, 'show'])->name('admin.services.hosting.show');
         Route::get('/services/hosting/{service}/details', [ServicesController::class, 'details'])->name('admin.services.hosting.details');

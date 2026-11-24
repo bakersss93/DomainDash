@@ -652,7 +652,7 @@ class SyncReliabilityTest extends TestCase
             ->assertOk()
             ->assertSee('data-dd-worker-banner', false)
             ->assertSee('DDSync', false)
-            ->assertSee('halo[asset_field_ids][domain]', false);
+            ->assertSee('halo-asset-map', false);
 
         $this->actingAs($admin)->get(route('admin.clients.index'))
             ->assertOk()

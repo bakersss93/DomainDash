@@ -252,6 +252,8 @@
                 @endif
             </div>
 
+            <x-asset-sync-card entity="internet_service" :record="$service" />
+
             {{-- Client assignment --}}
             <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
                 <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--text);">Assigned Client</h3>

@@ -15,6 +15,10 @@
  *               required?, help?, placeholder?, refresh?, paramsFrom?:{param:'#selector'}, locked?:bool}]
  *   rows      row = {id, cells:{col:text}, values:{field: {id,label} | string}}
  *   fixed     true: no Add / Delete (the rows are a fixed list; edit only)
+ *   deletable with fixed: keep the row action that deletes ("reset") a row
+ *   dialogSize 'lg' for the wide edit dialog (asset mappings)
+ *   field types added for asset mappings: checkbox, fieldmap (DomainDash value -> remote field rows, see createFieldMap)
+ *   column.badge  {cellText: 'success|neutral|warning|danger'} renders the cell as a status badge
  *   labels    {title, add, empty, entity}
  *   actions   [{label, url, method, reload?}]   extra toolbar buttons (e.g. "Refresh from Halo")
  *   searchable  show a search box (remote: server-side q)
@@ -292,7 +296,7 @@ function openDialog({ title, size, body, footer, onClose }) {
     const prevFocus = document.activeElement;
     const root = el('div', 'dd-mtm');
     const backdrop = el('div', 'dd-mtm__backdrop');
-    const dialog = el('div', 'dd-mtm__dialog' + (size === 'sm' ? ' dd-mtm__dialog--sm' : ''), null, { role: 'dialog', 'aria-modal': 'true', tabindex: '-1' });
+    const dialog = el('div', 'dd-mtm__dialog' + (size === 'sm' ? ' dd-mtm__dialog--sm' : (size === 'lg' ? ' dd-mtm__dialog--lg' : '')), null, { role: 'dialog', 'aria-modal': 'true', tabindex: '-1' });
     const tid = nextId('dd-mtm-title');
     dialog.setAttribute('aria-labelledby', tid);
     const head = el('div', 'dd-mtm__head');
@@ -333,6 +337,176 @@ function openDialog({ title, size, body, footer, onClose }) {
     setTimeout(() => (dialog.querySelector('input, select, button.ui-btn--primary') || dialog).focus(), 0);
 
     return { close, dialog, root };
+}
+
+/* ------------------------------------------------------------------ */
+/* Field map: DomainDash value -> field of the chosen remote asset type */
+/* ------------------------------------------------------------------ */
+
+/**
+ * @param {object} f  {key, label, source, typeParam, typeField, suggestUrl ('{id}' placeholder), provider:'halo'|'itglue',
+ *   noneLabel, keyFields:bool, help}
+ * @param {object} cur {entity, points:[{key,label}], map:{point:{id,label}}, key_fields:{1..3: point}|null}
+ * @param {object} ctx {typeValue:()=>{id,label}|null, onType:(fn)=>void}
+ * One native <select> per DomainDash value, filled from the asset type's fields (loaded live, cached server side).
+ * Changing the asset type clears the mapping and suggests fields by name. All server strings use textContent.
+ */
+function createFieldMap(f, cur, ctx) {
+    cur = cur || { entity: '', points: [], map: {}, key_fields: null };
+    const wrap = el('div', 'dd-fm');
+    const none = f.noneLabel || "Don't sync";
+
+    const head = el('div', 'dd-fm__head');
+    head.appendChild(el('span', 'ui-label', f.label));
+    const suggestBtn = el('button', 'ui-btn ui-btn--secondary ui-btn--sm', f.suggestLabel || 'Suggest by name', { type: 'button' });
+    head.appendChild(suggestBtn);
+    wrap.appendChild(head);
+    const status = el('p', 'dd-fm__status', '', { role: 'status', 'aria-live': 'polite' });
+    wrap.appendChild(status);
+    const say = (m, bad) => { status.textContent = m || ''; status.classList.toggle('is-error', !!bad); };
+
+    const list = el('div', 'dd-fm__list', null, { role: 'group', 'aria-label': f.label });
+    wrap.appendChild(list);
+
+    let fields = []; // [{id,label}]
+    const selects = {};
+    const sel = (id, labelText, emptyLabel) => {
+        const row = el('div', 'dd-fm__row');
+        const lab = el('label', 'dd-fm__label', labelText, { for: id });
+        const select = el('select', 'ui-input dd-fm__select', null, { id });
+        select.appendChild(el('option', null, emptyLabel, { value: '' }));
+        row.append(lab, select);
+        return { row, select };
+    };
+
+    const ensureOption = (select, id, label) => {
+        if (id === '' || id === null || id === undefined) return;
+        if (![...select.options].some((o) => o.value === String(id))) {
+            select.appendChild(el('option', null, label || (f.provider === 'halo' ? 'Field #' + id : String(id)), { value: String(id) }));
+        }
+    };
+
+    (cur.points || []).forEach((p) => {
+        const id = nextId('dd-fm-p');
+        const { row, select } = sel(id, p.label, none);
+        const saved = (cur.map && cur.map[p.key]) || null;
+        if (saved && saved.id) ensureOption(select, saved.id, saved.label);
+        select.value = saved && saved.id ? String(saved.id) : '';
+        selects[p.key] = select;
+        list.appendChild(row);
+    });
+
+    const keySelects = {};
+    if (f.keyFields && cur.key_fields) {
+        const keys = el('div', 'dd-fm__keys');
+        keys.appendChild(el('h3', 'dd-fm__subtitle', 'Key fields'));
+        keys.appendChild(el('p', 'ui-help', 'HaloPSA shows up to three key fields per asset in its lists. Pick which DomainDash value fills each.'));
+        [1, 2, 3].forEach((slot) => {
+            const id = nextId('dd-fm-k');
+            const { row, select } = sel(id, 'Key field ' + slot, 'Leave empty');
+            (cur.points || []).forEach((p) => select.appendChild(el('option', null, p.label, { value: p.key })));
+            select.value = (cur.key_fields && cur.key_fields[slot]) || '';
+            keySelects[slot] = select;
+            keys.appendChild(row);
+        });
+        wrap.appendChild(keys);
+    }
+    if (f.help) wrap.appendChild(el('p', 'ui-help', f.help));
+
+    const fillOptions = () => {
+        Object.keys(selects).forEach((point) => {
+            const select = selects[point];
+            const keep = select.value;
+            const keepLabel = select.selectedOptions[0] ? select.selectedOptions[0].textContent : '';
+            [...select.options].slice(1).forEach((o) => o.remove());
+            fields.forEach((fl) => select.appendChild(el('option', null, fl.label, { value: fl.id })));
+            if (keep) ensureOption(select, keep, keepLabel);
+            select.value = keep;
+        });
+    };
+
+    const typeId = () => { const t = ctx.typeValue(); return t && t.id ? String(t.id) : ''; };
+
+    async function loadFields(refresh) {
+        const id = typeId();
+        fields = [];
+        if (!id) { fillOptions(); say('Choose an asset type first, then its fields appear here.'); return false; }
+        say('Loading fields...');
+        try {
+            const q = new URLSearchParams();
+            q.set(f.typeParam || 'asset_type_id', id);
+            if (refresh) q.set('refresh', '1');
+            const data = await request('GET', f.source + '?' + q.toString());
+            fields = (data.options || []).map((o) => ({ id: String(o.id), label: String(o.label) }));
+            fillOptions();
+            say(fields.length ? '' : 'This asset type has no fields that can be filled.');
+            return true;
+        } catch (e) {
+            fillOptions();
+            say(e.message, true);
+            return false;
+        }
+    }
+
+    async function suggest(refresh) {
+        const id = typeId();
+        if (!id) { say('Choose an asset type first.', true); return; }
+        suggestBtn.disabled = true;
+        say('Looking for matching fields...');
+        try {
+            const url = f.suggestUrl.replace('{id}', encodeURIComponent(id)) + '?entity=' + encodeURIComponent(cur.entity || '') + (refresh ? '&refresh=1' : '');
+            const data = await request('GET', url);
+            const byKey = {};
+            (data.fields || []).forEach((fl) => { byKey[String(fl.id !== undefined ? fl.id : fl.name_key)] = fl.name; });
+            let applied = 0;
+            Object.keys(data.suggestions || {}).forEach((point) => {
+                const v = data.suggestions[point];
+                const select = selects[point];
+                if (!select || v === null || v === undefined || v === '') return;
+                ensureOption(select, String(v), byKey[String(v)]);
+                select.value = String(v);
+                applied++;
+            });
+            (data.keyfields || []).forEach((k) => {
+                if (keySelects[k.slot] && k.suggested_point) keySelects[k.slot].value = k.suggested_point;
+            });
+            say(applied ? 'Suggested ' + applied + ' match' + (applied > 1 ? 'es' : '') + '. Review, then save.' : 'No matching fields found by name; choose them manually.');
+        } catch (e) {
+            say(e.message, true);
+        } finally {
+            suggestBtn.disabled = false;
+        }
+    }
+
+    suggestBtn.addEventListener('click', () => suggest(true));
+
+    // A different asset type means different fields: clear the old picks and suggest by name.
+    ctx.onType(async () => {
+        Object.keys(selects).forEach((p) => { selects[p].value = ''; });
+        Object.keys(keySelects).forEach((p) => { keySelects[p].value = ''; });
+        if (await loadFields(false)) await suggest(false);
+    });
+
+    loadFields(false);
+
+    return {
+        el: wrap,
+        get value() {
+            const ids = {}; const labels = {};
+            Object.keys(selects).forEach((p) => {
+                const o = selects[p].selectedOptions[0];
+                ids[p] = selects[p].value;
+                labels[p] = o && selects[p].value ? o.textContent : '';
+            });
+            let keys = null;
+            if (Object.keys(keySelects).length) {
+                keys = {};
+                Object.keys(keySelects).forEach((slot) => { keys[slot] = keySelects[slot].value; });
+            }
+            return { ids, labels, keys };
+        },
+        setError: (m) => say(m, !!m),
+    };
 }
 
 /* ------------------------------------------------------------------ */
@@ -424,6 +598,12 @@ function init(container) {
             const tr = el('tr', 'dd-mt__row');
             columns.forEach((c) => {
                 const txt = row.cells && row.cells[c.key] !== undefined ? row.cells[c.key] : '';
+                if (c.badge) {
+                    const td = el('td');
+                    td.appendChild(el('span', 'ui-badge ui-badge--dot ui-badge--' + (c.badge[txt] || 'neutral'), txt));
+                    tr.appendChild(td);
+                    return;
+                }
                 tr.appendChild(el('td', c.muted ? 'dd-mt__muted' : null, txt));
             });
             const td = el('td', 'dd-mt__actions-cell');
@@ -431,7 +611,7 @@ function init(container) {
             const edit = iconButton('pencil', 'Edit ' + labels.entity);
             edit.addEventListener('click', () => openForm(row));
             box.appendChild(edit);
-            if (!cfg.fixed) {
+            if (!cfg.fixed || cfg.deletable) {
                 const del = iconButton('trash', 'Delete ' + labels.entity, 'dd-mt__icon--danger');
                 del.addEventListener('click', () => confirmDelete(row));
                 box.appendChild(del);
@@ -532,6 +712,7 @@ function init(container) {
         formErr.hidden = true;
         body.appendChild(formErr);
         const widgets = {};
+        const listeners = {};
         fields.forEach((f) => {
             const cur = editing && row.values ? row.values[f.key] : null;
             const locked = editing && (f.locked || (cfg.fixed && f === fields[0]));
@@ -551,6 +732,27 @@ function init(container) {
                     refreshable: !!f.refresh,
                     emptyHint: f.emptyHint,
                     load: fieldOptionsLoader(f, () => widgets[f.key] && widgets[f.key].value),
+                    onChange: (v) => (listeners[f.key] || []).forEach((fn) => fn(v)),
+                });
+                widgets[f.key] = w;
+                body.appendChild(w.el);
+            } else if (f.type === 'checkbox') {
+                const fw = el('div', 'ui-field');
+                const id = nextId('dd-mtm-f');
+                const lab = el('label', 'dd-set-check', null, { for: id });
+                const box = el('input', null, null, { id, type: 'checkbox' });
+                box.checked = cur === '1' || cur === 1 || cur === true;
+                lab.appendChild(box);
+                const txt = el('span', null, f.label);
+                if (f.help) txt.appendChild(el('small', 'dd-set-help', f.help));
+                lab.appendChild(txt);
+                fw.appendChild(lab);
+                widgets[f.key] = { get value() { return box.checked ? '1' : '0'; }, get checked() { return box.checked; }, el: fw, input: box, setError: () => {} };
+                body.appendChild(fw);
+            } else if (f.type === 'fieldmap') {
+                const w = createFieldMap(f, cur, {
+                    typeValue: () => (widgets[f.typeField] && widgets[f.typeField].value) || null,
+                    onType: (fn) => { (listeners[f.typeField] = listeners[f.typeField] || []).push(fn); },
                 });
                 widgets[f.key] = w;
                 body.appendChild(w.el);
@@ -589,7 +791,7 @@ function init(container) {
         foot.append(cancel, save);
         body.appendChild(foot);
 
-        const dlg = openDialog({ title: (editing ? 'Edit ' : 'Add ') + labels.title.toLowerCase(), body });
+        const dlg = openDialog({ title: (editing ? 'Edit ' : 'Add ') + labels.title.toLowerCase(), body, size: cfg.dialogSize });
         cancel.addEventListener('click', dlg.close);
 
         body.addEventListener('submit', async (ev) => {
@@ -606,6 +808,17 @@ function init(container) {
                 if (w.locked) {
                     const v = w.get();
                     if (v) { payload[f.key] = v.id; payload[f.key + '_label'] = v.label; localValues[f.key] = v; localCells[f.key] = v.label; }
+                    return;
+                }
+                if (f.type === 'fieldmap') {
+                    const v = w.value;
+                    payload[f.key] = v.ids;
+                    payload[f.key + '_label'] = v.labels;
+                    if (v.keys) payload.key_fields = v.keys;
+                    return;
+                }
+                if (f.type === 'checkbox') {
+                    payload[f.key] = w.checked;
                     return;
                 }
                 if (f.type === 'combo') {
@@ -719,4 +932,4 @@ function boot() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
 else boot();
 
-window.DDMapping = { init, createCombo, request };
+window.DDMapping = { init, createCombo, createFieldMap, request };
