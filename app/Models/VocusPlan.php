@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class VocusPlan extends Model
 {
-    protected $fillable = ['plan_id', 'name', 'scopes', 'speed_tier', 'technology', 'mapping', 'download_mbps', 'upload_mbps', 'cost_price', 'sell_price', 'active'];
+    protected $fillable = ['plan_id', 'name', 'scopes', 'speed_tier', 'technology', 'mapping', 'download_mbps', 'upload_mbps', 'cost_price', 'sell_price', 'active', 'halo_item_id', 'halo_item_name'];
 
     protected $casts = [
         'scopes'     => 'array',
@@ -16,6 +16,7 @@ class VocusPlan extends Model
         'cost_price' => 'decimal:2',
         'sell_price' => 'decimal:2',
         'active'     => 'boolean',
+        'halo_item_id' => 'integer',
     ];
 
     public function scopeActive($query)
@@ -124,6 +125,8 @@ class VocusPlan extends Model
             'cost_price' => (string) $this->cost_price,
             'sell_price' => (string) $this->sell_price,
             'active'     => (bool) $this->active,
+            'halo_item_id'   => $this->halo_item_id ? (int) $this->halo_item_id : null,
+            'halo_item_name' => $this->halo_item_name,
         ];
     }
 }

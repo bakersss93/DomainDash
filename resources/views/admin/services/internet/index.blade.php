@@ -50,6 +50,15 @@
                     Sync
                 </button>
             </form>
+            @if(auth()->user()?->can('sync.run'))
+                <form method="POST" action="{{ route('admin.services.internet.halo-sync') }}" data-vocus-queue>
+                    @csrf
+                    <button type="submit" class="btn-accent dd-pill-btn"
+                            onclick="return confirm('Sync all internet services that have a client to HaloPSA (subscriptions and recurring invoice lines)? Unchanged services are skipped. This runs in the background.');">
+                        Sync to HaloPSA
+                    </button>
+                </form>
+            @endif
             <button type="button" class="btn-accent dd-pill-btn"
                     onclick="document.getElementById('import-ids-panel').style.display = document.getElementById('import-ids-panel').style.display === 'none' ? 'block' : 'none';">
                 Import Service IDs
@@ -94,6 +103,7 @@
                 <th>Client</th>
                 <th>Status</th>
                 <th>Transaction</th>
+                <th>Halo</th>
                 <th></th>
             </tr>
             </thead>
@@ -148,6 +158,16 @@
                             <span style="color:{{ $txColor }};">{{ $service->last_transaction_state }}</span>
                         @endif
                     </td>
+                    <td style="font-size:12px;">
+                        @php $hs = $service->haloSyncState(); @endphp
+                        @if($hs === 'error')
+                            <span title="{{ $service->halo_sync_error }}" style="color:var(--dd-status-danger-fg);">Error</span>
+                        @elseif($hs === 'synced')
+                            <span style="color:var(--dd-status-success-fg);">Synced</span>
+                        @else
+                            <span style="color:var(--dd-text-soft);">-</span>
+                        @endif
+                    </td>
                     <td>
                         <a href="{{ route('admin.services.internet.show', $service) }}"
                            style="font-size:13px;color:var(--accent);text-decoration:none;">
@@ -157,7 +177,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" style="text-align:center;padding:32px;color:var(--dd-text-soft);">
+                    <td colspan="12" style="text-align:center;padding:32px;color:var(--dd-text-soft);">
                         No internet services found. <a href="{{ route('admin.services.internet.qualify') }}" style="color:var(--accent);">Qualify an address</a> to get started.
                     </td>
                 </tr>

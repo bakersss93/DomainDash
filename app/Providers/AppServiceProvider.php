@@ -63,6 +63,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('halo-api', fn () => Limit::perMinute((int) config('integrations.halo.rate_limit_per_minute', 120)));
         RateLimiter::for('itglue-api', fn () => Limit::perMinute((int) config('integrations.itglue.rate_limit_per_minute', 400)));
 
+        \App\Models\InternetService::observe(\App\Observers\InternetServiceObserver::class);
+
         if (Schema::hasTable('settings')) {
             MailSettings::applyFromDatabase();
         }

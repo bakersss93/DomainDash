@@ -618,6 +618,44 @@
                     </details>
                 </div>
 
+                @php $haloBilling = \App\Services\Halo\HaloBillingSettings::fromArray((array) old('halo.billing', $settings['halo']['billing'] ?? [])); @endphp
+                <div id="halo-billing" style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
+                    <h4 style="margin:0 0 4px;color:var(--text,#1e293b);font-size:14px;">Billing (internet services)</h4>
+                    <p style="margin:0 0 12px;color:var(--dd-text-soft);font-size:12px;">
+                        Each Vocus internet service is billed in HaloPSA through a subscription on the client, attached to a line on the client's recurring invoice. Link every Vocus plan to a Halo item under Vocus → Plans first. DomainDash never creates recurring invoices.
+                    </p>
+                    <div style="display:grid;gap:10px;">
+                        <input type="hidden" name="halo[billing][sync_subscriptions]" value="0">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                            <input type="checkbox" name="halo[billing][sync_subscriptions]" value="1" @checked($haloBilling->syncSubscriptions)>
+                            Sync subscriptions (create / update the client's HaloPSA subscription for each service)
+                        </label>
+                        <input type="hidden" name="halo[billing][sync_lines]" value="0">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                            <input type="checkbox" name="halo[billing][sync_lines]" value="1" @checked($haloBilling->syncLines)>
+                            Add / update the recurring invoice line that bills the subscription
+                        </label>
+                        <div>
+                            <label for="halo_billing_strategy" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Which recurring invoice to bill on</label>
+                            <select id="halo_billing_strategy" name="halo[billing][strategy]" class="dd-input" style="width:100%;max-width:420px;">
+                                <option value="contract" @selected($haloBilling->strategy === 'contract')>The recurring invoice of the client's active contract</option>
+                                <option value="client" @selected($haloBilling->strategy === 'client')>Only the recurring invoice chosen on each client</option>
+                            </select>
+                            <p style="margin:4px 0 0;font-size:12px;color:var(--dd-text-soft);">A recurring invoice chosen on a client (Clients → edit) always wins. With none found, the service shows "No recurring invoice for client ... select one".</p>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+                            <div>
+                                <label for="halo_billing_contract_type" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Contract type ID (optional)</label>
+                                <input id="halo_billing_contract_type" type="number" min="1" step="1" class="dd-input" style="width:100%;" name="halo[billing][contract_type_id]" value="{{ $haloBilling->contractTypeId }}" placeholder="any type">
+                            </div>
+                            <div>
+                                <label for="halo_billing_contract_ref" style="display:block;font-size:13px;margin-bottom:4px;color:var(--text-muted);font-weight:500;">Contract reference contains (optional)</label>
+                                <input id="halo_billing_contract_ref" type="text" maxlength="120" class="dd-input" style="width:100%;" name="halo[billing][contract_ref]" value="{{ $haloBilling->contractRef }}" placeholder="e.g. Managed Services or MS-*">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-top:16px;padding:14px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--surface-muted);">
                     @php
                         $ticketTypeMappings = old('halo.ticket_type_mappings', $settings['halo']['ticket_type_mappings'] ?? []);

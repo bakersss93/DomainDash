@@ -29,6 +29,13 @@ return [
         'reference_data_ttl' => 3600,
         'ticket_list_ttl' => 60,
         'ticket_ttl' => 15,
+        // Item picker (Settings → Vocus → Plans) search results cache.
+        'item_search_ttl' => (int) env('HALO_ITEM_SEARCH_TTL', 60),
+        // Automatic subscription sync: one delayed job per service per window.
+        'subscription_debounce_seconds' => (int) env('HALO_SUBSCRIPTION_DEBOUNCE', 30),
+        // Halo's recurring_invoice_quantity_type id that takes a line's quantity from its linked subscription
+        // (tenant specific, not in the swagger). Blank = lines keep a fixed quantity of 1.
+        'recurring_quantity_type' => env('HALO_RECURRING_QUANTITY_TYPE'),
     ],
 
     'itglue' => [

@@ -7,8 +7,10 @@ use App\Jobs\SyncHaloClientsJob;
 use App\Jobs\SyncHaloDomainsJob;
 use App\Jobs\SyncItGlueConfigurationsJob;
 use App\Jobs\SyncItGlueOrganizationsJob;
+use App\Jobs\PushInternetServicesToHaloJob;
 use App\Jobs\SyncVocusServicesJob;
 use App\Models\Client;
+use App\Models\InternetService;
 use App\Models\SyncRun;
 use App\Services\AuditLogger;
 use App\Services\Halo\HaloPsaClient;
@@ -109,6 +111,51 @@ class SyncDispatcher
         $this->audit('halo', 'push-domains', ['domains' => $domainIds === null ? 'all' : count($domainIds), 'mode' => $mode]);
 
         return $run;
+    }
+
+    /**
+     * Bill internet services in Halo (subscription + recurring invoice line), live panel scope "halo/subscriptions".
+     * With $serviceIds = null every service that has a client is pushed; an identical running selection is returned
+     * instead of queueing a duplicate.
+     *
+     * @param int[]|null $serviceIds
+     */
+    public function pushHaloInternetServices(?array $serviceIds = null, bool $force = true, ?int $userId = null): SyncRun
+    {
+        if ($serviceIds === null && ($run = SyncRun::active('halo', 'subscriptions'))) {
+            return $run;
+        }
+        if ($serviceIds !== null && ($run = $this->identicalActiveRun('halo', 'subscriptions', null, $serviceIds))) {
+            return $run;
+        }
+
+        $run = SyncRun::queue('halo', 'subscriptions', null, $userId);
+        $this->remember($run, $serviceIds);
+        PushInternetServicesToHaloJob::dispatch($serviceIds, $force, $run->id);
+        $this->audit('halo', 'push-subscriptions', ['services' => $serviceIds === null ? 'all' : count($serviceIds)]);
+
+        return $run;
+    }
+
+    /**
+     * Automatic trigger (order, client assigned, plan / price / status change): one delayed job per service per
+     * debounce window. The job reads the service when it runs, so every change inside the window is covered. No
+     * SyncRun is created (the service page shows the result). Does nothing while billing sync is off.
+     */
+    public function queueInternetServiceBilling(InternetService $service): bool
+    {
+        if (! $service->client_id || ! HaloPsaClient::isConfigured() || ! \App\Services\Halo\HaloBillingSettings::fromSettings()->enabled()) {
+            return false;
+        }
+
+        $window = max(5, (int) config('integrations.halo.subscription_debounce_seconds', 30));
+        if (! \Illuminate\Support\Facades\Cache::add('halo-sub-debounce:' . $service->id, 1, $window)) {
+            return false;
+        }
+
+        PushInternetServicesToHaloJob::dispatch([$service->id], false)->delay(now()->addSeconds($window));
+
+        return true;
     }
 
     public function pushItGlueDomains(?array $domainIds = null, ?int $clientId = null, bool $force = true, ?int $userId = null): SyncRun
@@ -214,11 +261,13 @@ class SyncDispatcher
                     'clients' => $active('halo', 'clients'),
                     'assets' => $active('halo', 'assets'),
                     'domains' => $active('halo', 'domains'),
+                    'subscriptions' => $active('halo', 'subscriptions'),
                 ],
                 'latest_by_scope' => [
                     'clients' => $latest('halo', 'clients'),
                     'assets' => $latest('halo', 'assets'),
                     'domains' => $latest('halo', 'domains'),
+                    'subscriptions' => $latest('halo', 'subscriptions'),
                 ],
             ],
             'itglue' => [

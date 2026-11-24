@@ -121,6 +121,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::get('/settings/itglue/flexible-asset-types', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypes'])->name('admin.settings.itglue.types');
             Route::get('/settings/itglue/flexible-asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypeFields'])->whereNumber('id')->name('admin.settings.itglue.type-fields');
         });
+        // Halo billing: item picker search + plan/item link (JSON, Administrator area).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/halo/items', [\App\Http\Controllers\Admin\HaloBillingController::class, 'items'])->name('admin.settings.halo.items');
+            Route::put('/settings/vocus/plans/{plan}/halo-item', [\App\Http\Controllers\Admin\HaloBillingController::class, 'linkItem'])->name('admin.settings.vocus.plans.halo-item');
+        });
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
         // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
         Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {
@@ -196,6 +201,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // HaloPSA DNS Sync Routes
         Route::post('/clients/{client}/halo/sync-dns', [ClientsController::class, 'syncDnsToHalo'])->name('admin.clients.halo.syncDns');
         Route::post('/clients/{client}/halo/link-domains', [ClientsController::class, 'linkDomainsFromHalo'])->name('admin.clients.halo.linkDomains');
+        // HaloPSA recurring invoice a client's internet services are billed on
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::get('/clients/{client}/halo/recurring-invoices', [\App\Http\Controllers\Admin\HaloBillingController::class, 'clientRecurringInvoices'])->name('admin.clients.halo.recurringInvoices');
+            Route::put('/clients/{client}/halo/recurring-invoice', [\App\Http\Controllers\Admin\HaloBillingController::class, 'setClientRecurringInvoice'])->name('admin.clients.halo.recurringInvoice');
+        });
 
         // ============================================================================
         // DOMAIN PURCHASE / TRANSFER (admin only)
@@ -240,6 +250,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/internet', [InternetController::class, 'index'])->name('admin.services.internet');
         Route::post('/services/internet/sync', [InternetController::class, 'sync'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.sync');
         Route::post('/services/internet/import', [InternetController::class, 'importByIds'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.import');
+        Route::post('/services/internet/halo-sync', [\App\Http\Controllers\Admin\HaloBillingController::class, 'syncAll'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.halo-sync');
         Route::get('/services/internet/qualify', [InternetController::class, 'qualify'])->name('admin.services.internet.qualify');
         Route::post('/services/internet/qualify/lookup', [InternetController::class, 'qualifyLookup'])->name('admin.services.internet.qualify.lookup');
         Route::post('/services/internet/qualify/check', [InternetController::class, 'qualifyCheck'])->name('admin.services.internet.qualify.check');
@@ -248,6 +259,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/internet/transfer', [InternetController::class, 'transfer'])->name('admin.services.internet.transfer');
         Route::post('/services/internet/transfer', [InternetController::class, 'transferStore'])->name('admin.services.internet.transfer.store');
         Route::get('/services/internet/{service}', [InternetController::class, 'show'])->name('admin.services.internet.show');
+        Route::post('/services/internet/{service}/halo-sync', [\App\Http\Controllers\Admin\HaloBillingController::class, 'syncService'])->middleware(['permission:sync.run', 'throttle:12,1'])->name('admin.services.internet.halo-sync.one');
         Route::post('/services/internet/{service}/poll', [InternetController::class, 'pollStatus'])->name('admin.services.internet.poll');
         Route::post('/services/internet/{service}/assign-client', [InternetController::class, 'assignClient'])->name('admin.services.internet.assignClient');
         Route::post('/services/internet/{service}/status', [InternetController::class, 'setStatus'])->name('admin.services.internet.setStatus');

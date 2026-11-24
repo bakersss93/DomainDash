@@ -107,8 +107,6 @@
                         'AuthType'          => 'Authentication Type',
                         'IPAssignment'      => 'IP Type (assignment)',
                         'IPAddress'         => 'IP Address',
-                        'IPv6Address'       => 'IPv6 Address',
-                        'IPv6PrefixList'    => 'IPv6 Prefix',
                         'DirectoryID'       => 'Directory ID',
                         'LocationReference' => 'Postcode',
                         'Reference'         => 'Customer Reference',
@@ -149,7 +147,7 @@
                     $hiddenKeys = ['Password', 'AccessKey', 'AliasKey'];
                     // Anything else Vocus returns is shown with a readable label.
                     $extra = collect($liveData)
-                        ->reject(fn ($v, $k) => isset($fields[$k]) || in_array($k, $hiddenKeys, true) || is_array($v) || $v === null || $v === '')
+                        ->reject(fn ($v, $k) => isset($fields[$k]) || in_array($k, $hiddenKeys, true) || stripos((string) $k, 'IPv6') !== false || is_array($v) || $v === null || $v === '')
                         ->mapWithKeys(fn ($v, $k) => [$k => trim(preg_replace('/(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/', ' ', (string) $k))]);
                     $fields = $fields + $extra->all();
                 @endphp
@@ -157,7 +155,7 @@
                     @foreach($fields as $key => $label)
                         @if(isset($liveData[$key]) && $liveData[$key] !== '')
                             <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
-                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','NTDID','DataPortID','BillingProviderID','IPAddress','IPv6Address']) ? 'monospace' : 'inherit' }};">
+                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','NTDID','DataPortID','BillingProviderID','IPAddress']) ? 'monospace' : 'inherit' }};">
                                 {{ $liveData[$key] }}
                             </dd>
                         @endif
@@ -209,6 +207,48 @@
                     </dl>
                 @else
                     <p style="font-size:13px;color:var(--dd-text-soft);margin:0;">No price recorded (service not ordered through a configured plan).</p>
+                @endif
+            </div>
+
+            {{-- HaloPSA billing: subscription + recurring invoice line --}}
+            @php
+                $haloBilling = \App\Services\Halo\HaloBillingSettings::fromSettings();
+                $haloState = $service->haloSyncState();
+                $haloChip = match(true) {
+                    ! $haloBilling->enabled() => ['Billing sync off', 'var(--dd-status-muted-bg)', 'var(--dd-status-muted-fg)'],
+                    $haloState === 'error'    => ['Sync failed', 'var(--dd-status-danger-bg)', 'var(--dd-status-danger-fg)'],
+                    $haloState === 'synced'   => ['Synced to Halo', 'var(--dd-status-success-bg)', 'var(--dd-status-success-fg)'],
+                    default                   => ['Not synced yet', 'var(--dd-status-warning-bg)', 'var(--dd-status-warning-fg)'],
+                };
+            @endphp
+            <div id="halo-billing-card" style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;">
+                    <h3 style="font-size:14px;font-weight:600;margin:0;color:var(--text);">HaloPSA billing</h3>
+                    <span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:{{ $haloChip[1] }};color:{{ $haloChip[2] }};">{{ $haloChip[0] }}</span>
+                </div>
+                <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
+                    <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Halo item</dt>
+                    <dd style="font-size:13px;margin:0;">{{ $service->vocusPlan?->halo_item_name ?: ($service->vocusPlan?->halo_item_id ? 'Item #'.$service->vocusPlan->halo_item_id : 'Plan not linked to an item') }}</dd>
+                    <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Subscription</dt>
+                    <dd style="font-size:13px;margin:0;">{{ $service->halo_subscription_id ? '#'.$service->halo_subscription_id : '-' }}</dd>
+                    <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Recurring invoice line</dt>
+                    <dd style="font-size:13px;margin:0;">{{ $service->halo_recurring_line_id ? '#'.$service->halo_recurring_line_id.' on invoice #'.$service->halo_recurring_invoice_id : '-' }}</dd>
+                    <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Last synced</dt>
+                    <dd style="font-size:13px;margin:0;">{{ $service->halo_synced_at ? $service->halo_synced_at->diffForHumans() : 'never' }}</dd>
+                </dl>
+                @if($service->halo_sync_error)
+                    <p role="alert" style="font-size:13px;margin:10px 0 0;color:var(--dd-danger-text);word-break:break-word;">{{ $service->halo_sync_error }}</p>
+                @endif
+                @if(auth()->user()?->can('sync.run'))
+                    <form method="POST" action="{{ route('admin.services.internet.halo-sync.one', $service) }}" style="margin-top:12px;">
+                        @csrf
+                        <button type="submit" class="btn-accent" style="padding:6px 14px;font-size:13px;" @disabled(! $service->client_id || ! $haloBilling->enabled())>Sync to Halo</button>
+                        @if(! $service->client_id)
+                            <span style="font-size:12px;color:var(--dd-text-soft);margin-left:8px;">Assign a client first.</span>
+                        @elseif(! $haloBilling->enabled())
+                            <span style="font-size:12px;color:var(--dd-text-soft);margin-left:8px;">Enable billing sync in Settings → HaloPSA.</span>
+                        @endif
+                    </form>
                 @endif
             </div>
 

@@ -14,11 +14,13 @@ class InternetService extends Model
         'auth_type', 'ip_assignment', 'ip_address', 'reference', 'central_splitter',
         'last_transaction_id', 'last_transaction_state', 'last_fault_code', 'last_fault_message',
         'last_polled_at', 'notes', 'synced_at',
+        'halo_subscription_id', 'halo_recurring_invoice_id', 'halo_recurring_line_id', 'halo_synced_at', 'halo_sync_error', 'halo_sync_hash',
     ];
 
     protected $casts = [
         'synced_at' => 'datetime',
         'last_polled_at' => 'datetime',
+        'halo_synced_at' => 'datetime',
         'cost_price' => 'decimal:2',
         'sell_price' => 'decimal:2',
     ];
@@ -140,6 +142,19 @@ class InternetService extends Model
         }
 
         return number_format((float) $this->sell_price - (float) $this->cost_price, 2, '.', '');
+    }
+
+    /** Halo billing chip: not_linked (no client/plan item), error, synced, pending. */
+    public function haloSyncState(): string
+    {
+        if ($this->halo_sync_error) {
+            return 'error';
+        }
+        if ($this->halo_synced_at) {
+            return 'synced';
+        }
+
+        return 'pending';
     }
 
     public function diagnostics()

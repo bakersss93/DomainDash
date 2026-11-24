@@ -104,6 +104,78 @@
                     @enderror
                 </div>
 
+                {{-- HaloPSA recurring invoice (billing of internet services) --}}
+                @if(($client->exists ?? false) && $client->halopsa_reference)
+                    <div id="halo-ri-box" style="margin-bottom:12px;"
+                         data-list-url="{{ route('admin.clients.halo.recurringInvoices', $client) }}"
+                         data-save-url="{{ route('admin.clients.halo.recurringInvoice', $client) }}"
+                         data-selected="{{ $client->halo_recurring_invoice_id }}">
+                        <label for="halo-ri-select" style="display:block;font-size:14px;margin-bottom:4px;">HaloPSA recurring invoice (internet billing)</label>
+                        <p id="halo-ri-current" style="font-size:13px;margin:0 0 6px;color:var(--text);">
+                            @if($client->halo_recurring_invoice_id)
+                                {{ $client->halo_recurring_invoice_name ?: 'Recurring invoice' }} (id {{ $client->halo_recurring_invoice_id }})
+                            @else
+                                <span style="color:var(--dd-text-soft);">None chosen: the invoice of the client's active contract is used (Settings → HaloPSA → Billing).</span>
+                            @endif
+                        </p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <select id="halo-ri-select" class="dd-input" style="flex:1;min-width:220px;display:none;"></select>
+                            <button type="button" id="halo-ri-load" class="btn-accent" style="padding:8px 12px;white-space:nowrap;">Choose recurring invoice</button>
+                            <button type="button" id="halo-ri-save" class="btn-accent" style="padding:8px 12px;white-space:nowrap;display:none;">Save choice</button>
+                            @if($client->halo_recurring_invoice_id)
+                                <button type="button" id="halo-ri-clear" style="padding:8px 12px;border-radius:4px;border:1px solid var(--dd-danger);color:var(--dd-danger-text);background:transparent;white-space:nowrap;">Clear</button>
+                            @endif
+                        </div>
+                        <div id="halo-ri-msg" role="status" aria-live="polite" style="font-size:12px;margin-top:6px;min-height:1em;"></div>
+                    </div>
+                    <script>
+                    (function () {
+                        var box = document.getElementById('halo-ri-box');
+                        if (!box) { return; }
+                        var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                        var sel = document.getElementById('halo-ri-select'), msg = document.getElementById('halo-ri-msg');
+                        var cur = document.getElementById('halo-ri-current');
+                        function say(t, ok) { msg.textContent = t || ''; msg.style.color = ok ? 'var(--dd-status-success-fg)' : 'var(--dd-danger-text)'; }
+                        function call(method, url, body) {
+                            return fetch(url, { method: method, headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf }, body: body ? JSON.stringify(body) : undefined })
+                                .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, json: j }; }); });
+                        }
+                        function show(j) {
+                            cur.textContent = j.selected_id ? ((j.selected_name || 'Recurring invoice') + ' (id ' + j.selected_id + ')') : 'None chosen: the invoice of the client\'s active contract is used.';
+                        }
+                        document.getElementById('halo-ri-load').addEventListener('click', function () {
+                            say('Loading recurring invoices from HaloPSA...', true);
+                            call('GET', box.dataset.listUrl).then(function (r) {
+                                if (!r.ok) { say(r.json.error || r.json.message || 'Could not load recurring invoices.'); return; }
+                                sel.textContent = '';
+                                var first = document.createElement('option'); first.value = ''; first.textContent = r.json.invoices.length ? 'Select a recurring invoice' : 'No recurring invoices found for this client';
+                                sel.appendChild(first);
+                                r.json.invoices.forEach(function (i) {
+                                    var o = document.createElement('option'); o.value = String(i.id);
+                                    o.textContent = i.name + (i.contract_ref ? ' - contract ' + i.contract_ref : '') + ' (id ' + i.id + ')';
+                                    if (r.json.selected_id === i.id) { o.selected = true; }
+                                    sel.appendChild(o);
+                                });
+                                sel.style.display = ''; document.getElementById('halo-ri-save').style.display = '';
+                                say(r.json.invoices.length + ' recurring invoice(s) found.', true);
+                            }).catch(function () { say('Could not reach the server.'); });
+                        });
+                        function save(id) {
+                            call('PUT', box.dataset.saveUrl, { recurring_invoice_id: id }).then(function (r) {
+                                if (!r.ok) { var e = r.json.errors ? Object.values(r.json.errors).flat()[0] : null; say(e || r.json.error || r.json.message || 'Could not save.'); return; }
+                                show(r.json); say(id ? 'Saved. Services are queued for a Halo update.' : 'Cleared.', true);
+                            }).catch(function () { say('Could not reach the server.'); });
+                        }
+                        document.getElementById('halo-ri-save').addEventListener('click', function () {
+                            if (!sel.value) { say('Pick a recurring invoice first.'); return; }
+                            save(parseInt(sel.value, 10));
+                        });
+                        var clear = document.getElementById('halo-ri-clear');
+                        if (clear) { clear.addEventListener('click', function () { save(null); }); }
+                    })();
+                    </script>
+                @endif
+
                 {{-- ITGlue Organisation --}}
                 <div style="margin-bottom:16px;">
                     <label style="display:block;font-size:14px;margin-bottom:4px;">

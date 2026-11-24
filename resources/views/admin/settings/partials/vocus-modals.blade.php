@@ -17,7 +17,9 @@
             'tiers'  => route('admin.settings.vocus.named-tiers'),
             'importPreview' => route('admin.settings.vocus.plans.import.preview'),
             'importApply'   => route('admin.settings.vocus.plans.import.apply'),
+            'haloItems'     => route('admin.settings.halo.items'),
         ],
+        'haloConfigured' => \App\Services\Halo\HaloPsaClient::isConfigured(),
     ];
     $__lbl = 'display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);';
 @endphp
@@ -139,6 +141,29 @@
     </div>
     <x-slot:footer>
         <button type="button" class="ui-btn ui-btn--ghost" data-modal-close>Close</button>
+    </x-slot:footer>
+</x-ui.modal>
+
+{{-- Halo item picker (opened from a plan row) --}}
+<x-ui.modal id="halo-item-modal" title="Link HaloPSA item">
+    <div style="padding:16px 20px;">
+        <p id="hi-plan" style="font-size:13px;color:var(--dd-text-soft);margin:0 0 10px;"></p>
+        <p id="hi-current" style="font-size:13px;margin:0 0 10px;"></p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;">
+            <div style="flex:1;min-width:200px;">
+                <label for="hi-q" style="{{ $__lbl }}">Search items</label>
+                <input id="hi-q" type="search" class="dd-input" style="width:100%;" placeholder="Name or code" autocomplete="off" maxlength="100" role="combobox" aria-expanded="true" aria-controls="hi-list" aria-autocomplete="list">
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:6px;"><input id="hi-inactive" type="checkbox"> Include inactive</label>
+        </div>
+        <p id="hi-status" role="status" aria-live="polite" style="font-size:12px;color:var(--dd-text-soft);margin:0 0 6px;min-height:1em;"></p>
+        <ul id="hi-list" role="listbox" aria-label="HaloPSA items" style="list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;border:1px solid var(--dd-border);border-radius:8px;"></ul>
+        <div style="margin-top:8px;"><button type="button" id="hi-more" class="ui-btn ui-btn--ghost ui-btn--sm" hidden>Load more</button></div>
+        <p id="hi-msg" role="alert" style="font-size:12px;margin:10px 0 0;min-height:1em;"></p>
+    </div>
+    <x-slot:footer>
+        <button type="button" id="hi-unlink" class="ui-btn ui-btn--ghost" style="margin-right:auto;" hidden>Unlink item</button>
+        <button type="button" class="ui-btn ui-btn--ghost" data-modal-close>Cancel</button>
     </x-slot:footer>
 </x-ui.modal>
 
@@ -265,13 +290,14 @@
     function money(v) { return '$' + Number(v).toFixed(2); }
     var columns = [
         ['plan_id', 'Plan ID'], ['name', 'Name'], ['technology', 'Technology'], ['mapping', 'Mapping'], ['speed_tier', 'Speed'],
-        ['download_mbps', 'Down / Up Mbps'], ['scopes', 'Scopes'], ['cost_price', 'Cost'], ['sell_price', 'Sell'], ['active', 'Active'],
+        ['download_mbps', 'Down / Up Mbps'], ['scopes', 'Scopes'], ['cost_price', 'Cost'], ['sell_price', 'Sell'], ['halo_item_name', 'Halo item'], ['active', 'Active'],
     ];
     function sortValue(p, key) {
         if (key === 'scopes') { return p.scopes.join(','); }
         if (key === 'cost_price' || key === 'sell_price') { return Number(p[key]); }
         if (key === 'download_mbps') { return p.download_mbps || 0; }
         if (key === 'active') { return p.active ? 1 : 0; }
+        if (key === 'halo_item_name') { return (p.halo_item_name || '~').toLowerCase(); }
         return (p[key] || '').toString().toLowerCase();
     }
     function drawHead() {
@@ -302,7 +328,7 @@
         var list = visiblePlans();
         $('vo-f-count').textContent = list.length + ' of ' + plans.length + ' plans';
         if (!list.length) {
-            var tr = el('tr'); var td = el('td', plans.length ? 'No plans match the filters.' : 'No plans yet. Add one below or import the Vocus sheet.', { colspan: '11', style: 'text-align:center;padding:16px;color:var(--dd-text-soft);' });
+            var tr = el('tr'); var td = el('td', plans.length ? 'No plans match the filters.' : 'No plans yet. Add one below or import the Vocus sheet.', { colspan: '12', style: 'text-align:center;padding:16px;color:var(--dd-text-soft);' });
             tr.appendChild(td); rows.appendChild(tr);
         }
         list.forEach(function (p) {
@@ -316,6 +342,13 @@
             tr.appendChild(el('td', p.scopes.length ? p.scopes.join(', ') : 'All'));
             tr.appendChild(el('td', money(p.cost_price), { style: 'text-align:right;' }));
             tr.appendChild(el('td', money(p.sell_price), { style: 'text-align:right;' }));
+            var itemCell = el('td', null, { style: 'white-space:nowrap;' });
+            if (p.halo_item_id) { itemCell.appendChild(el('span', p.halo_item_name || ('Item #' + p.halo_item_id), { style: 'margin-right:6px;' })); }
+            else { itemCell.appendChild(el('span', 'Not linked', { style: 'margin-right:6px;color:var(--dd-text-soft);' })); }
+            var linkBtn = el('button', p.halo_item_id ? 'Change' : 'Link', { type: 'button', 'class': 'ui-btn ui-btn--ghost ui-btn--sm', 'data-modal-open': 'halo-item-modal', 'aria-label': (p.halo_item_id ? 'Change' : 'Link') + ' HaloPSA item for plan ' + p.plan_id });
+            linkBtn.addEventListener('click', function () { openItemPicker(p); });
+            itemCell.appendChild(linkBtn);
+            tr.appendChild(itemCell);
             tr.appendChild(el('td', p.active ? 'Yes' : 'No'));
             var actions = el('td', null, { style: 'white-space:nowrap;' });
             var ed = el('button', 'Edit', { type: 'button', 'class': 'ui-btn ui-btn--ghost ui-btn--sm', 'aria-label': 'Edit plan ' + p.plan_id });
@@ -370,6 +403,94 @@
         }).catch(function () { say(planMsg, 'Could not reach the server.'); });
     });
     drawPlans();
+
+    // ---- Halo item picker (debounced server-side search, one item may serve many plans)
+    var hi = { plan: null, page: 1, seq: 0, timer: null, ctrl: null, rows: [], active: -1, more: false };
+    var hiList = $('hi-list'), hiStatus = $('hi-status'), hiMsg = $('hi-msg');
+    function hiMoney(v) { return v === null || v === undefined ? '-' : '$' + Number(v).toFixed(2); }
+    function hiDraw(append) {
+        if (!append) { hiList.textContent = ''; }
+        var start = append ? hiList.children.length : 0;
+        hi.rows.slice(start).forEach(function (it, n) {
+            var idx = start + n;
+            var li = el('li', null, { role: 'option', id: 'hi-opt-' + idx, 'aria-selected': 'false', style: 'padding:8px 12px;border-bottom:1px solid var(--dd-border);cursor:pointer;' });
+            var top = el('div', null, { style: 'display:flex;justify-content:space-between;gap:8px;' });
+            top.appendChild(el('strong', it.name, { style: 'font-size:13px;' }));
+            top.appendChild(el('span', hiMoney(it.recurring && it.recurring_price ? it.recurring_price : it.price), { style: 'font-size:13px;white-space:nowrap;' }));
+            li.appendChild(top);
+            var meta = [];
+            if (it.code) { meta.push('Code ' + it.code); }
+            if (it.group) { meta.push(it.group); }
+            meta.push(it.recurring ? 'Recurring item' : 'One-off item');
+            if (it.cost !== null && it.cost !== undefined) { meta.push('Cost ' + hiMoney(it.cost)); }
+            if (it.inactive) { meta.push('Inactive'); }
+            li.appendChild(el('div', meta.join(' - '), { style: 'font-size:12px;color:var(--dd-text-soft);' }));
+            li.addEventListener('click', function () { hiPick(it); });
+            hiList.appendChild(li);
+        });
+        $('hi-more').hidden = !hi.more;
+    }
+    function hiHighlight(i) {
+        var opts = hiList.children;
+        if (!opts.length) { return; }
+        hi.active = (i + opts.length) % opts.length;
+        Array.prototype.forEach.call(opts, function (o, n) {
+            o.setAttribute('aria-selected', n === hi.active ? 'true' : 'false');
+            o.style.background = n === hi.active ? 'var(--dd-surface-soft)' : '';
+        });
+        opts[hi.active].scrollIntoView({ block: 'nearest' });
+        $('hi-q').setAttribute('aria-activedescendant', opts[hi.active].id);
+    }
+    function hiLoad(append) {
+        if (!data.haloConfigured) { say(hiMsg, 'HaloPSA is not configured. Set it up in Settings → HaloPSA first.'); return; }
+        if (hi.ctrl) { hi.ctrl.abort(); }
+        hi.ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        var seq = ++hi.seq;
+        if (!append) { hi.page = 1; }
+        var url = data.urls.haloItems + '?q=' + encodeURIComponent($('hi-q').value.trim()) + '&page=' + hi.page + ($('hi-inactive').checked ? '&include_inactive=1' : '');
+        hiStatus.textContent = 'Searching...';
+        say(hiMsg, '');
+        fetch(url, { headers: { 'Accept': 'application/json' }, signal: hi.ctrl ? hi.ctrl.signal : undefined })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, json: j }; }); })
+            .then(function (r) {
+                if (seq !== hi.seq) { return; }
+                if (!r.ok) { hiStatus.textContent = ''; say(hiMsg, firstError(r.json, r.status)); return; }
+                hi.rows = append ? hi.rows.concat(r.json.items) : r.json.items;
+                hi.more = !!r.json.has_more;
+                hiDraw(append);
+                hiStatus.textContent = hi.rows.length ? (hi.rows.length + ' of ' + r.json.total + ' items') : 'No items match.';
+                if (!append) { hi.active = -1; }
+            })
+            .catch(function (e) { if (e && e.name === 'AbortError') { return; } if (seq === hi.seq) { hiStatus.textContent = ''; say(hiMsg, 'Could not reach the server.'); } });
+    }
+    function openItemPicker(plan) {
+        hi.plan = plan; hi.rows = []; hiList.textContent = ''; $('hi-q').value = ''; say(hiMsg, '');
+        $('hi-plan').textContent = 'Plan ' + plan.plan_id + ' - ' + plan.name + '. Several plans (and technologies) can use the same item.';
+        $('hi-current').textContent = plan.halo_item_id ? 'Currently linked: ' + (plan.halo_item_name || ('Item #' + plan.halo_item_id)) : 'Not linked yet.';
+        $('hi-unlink').hidden = !plan.halo_item_id;
+        hiLoad(false);
+        setTimeout(function () { $('hi-q').focus(); }, 0);
+    }
+    function hiSave(id, doneText) {
+        api('PUT', data.urls.plan + '/' + hi.plan.id + '/halo-item', { halo_item_id: id }).then(function (r) {
+            if (!r.ok) { say(hiMsg, firstError(r.json, r.status)); return; }
+            var saved = r.json.plan;
+            plans = plans.map(function (x) { return x.id === saved.id ? saved : x; });
+            drawPlans();
+            $('halo-item-modal').style.display = 'none';
+            say(planMsg, doneText + (r.json.queued_services ? ' ' + r.json.queued_services + ' service(s) queued for a Halo update.' : ''), true);
+        }).catch(function () { say(hiMsg, 'Could not reach the server.'); });
+    }
+    function hiPick(it) { hiSave(it.id, 'Plan linked to Halo item "' + it.name + '".'); }
+    $('hi-unlink').addEventListener('click', function () { hiSave(null, 'Halo item unlinked.'); });
+    $('hi-q').addEventListener('input', function () { clearTimeout(hi.timer); hi.timer = setTimeout(function () { hiLoad(false); }, 250); });
+    $('hi-inactive').addEventListener('change', function () { hiLoad(false); });
+    $('hi-more').addEventListener('click', function () { hi.page += 1; hiLoad(true); });
+    $('hi-q').addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); hiHighlight(hi.active + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); hiHighlight(hi.active - 1); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (hi.rows[hi.active]) { hiPick(hi.rows[hi.active]); } }
+    });
 
     // ---- named tiers
     var tierBox = $('vo-tiers'), tierMsg = $('vo-tier-msg');

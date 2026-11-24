@@ -336,6 +336,21 @@ class SyncController extends Controller
             );
         }
 
+        if ($run->provider === 'halo' && $run->scope === 'subscriptions') {
+            if (($run->failed ?? 0) === 0 && $run->status !== SyncRun::FAILED) {
+                return [];
+            }
+
+            return \App\Models\InternetService::query()
+                ->whereNotNull('halo_sync_error')
+                ->where('updated_at', '>=', $run->created_at)
+                ->orderBy('vocus_service_id')
+                ->limit(50)
+                ->get(['id', 'vocus_service_id', 'address_long', 'halo_sync_error'])
+                ->map(fn ($x) => ['id' => $x->id, 'name' => (string) ($x->vocus_service_id ?: ('#' . $x->id)), 'error' => \App\Support\SyncErrorSanitizer::clean((string) $x->halo_sync_error, 500)])
+                ->all();
+        }
+
         $column = match (true) {
             $run->provider === 'halo' && $run->scope === 'domains' => 'halo_sync_error',
             $run->provider === 'itglue' && $run->scope === 'configurations' => 'itglue_sync_error',

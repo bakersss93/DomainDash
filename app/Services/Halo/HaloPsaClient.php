@@ -1235,4 +1235,258 @@ class HaloPsaClient
             return array_values(array_filter($this->extractList($result, ['statuses', 'status']), 'is_array'));
         });
     }
+
+    // ------------------------------------------------------------------
+    // Items, subscriptions (SoftwareLicence), recurring invoices
+    // Field names come from the tenant swagger (docs/review/16-halo-subscriptions-swagger-facts.md).
+    // ------------------------------------------------------------------
+
+    /** Marker DomainDash writes into a subscription's notes: the idempotency key used to find it again. */
+    public const SUBSCRIPTION_MARKER = '[[DOMAINDASH-SVC:%s]]';
+
+    private function tenantKey(): string
+    {
+        return sha1($this->baseUrl . '|' . (string) $this->tenant);
+    }
+
+    /**
+     * GET /api/Item?search=..&pageinate=true&page_size&page_no&includeinactive, normalised and cached
+     * (integrations.halo.item_search_ttl, default 60 s) per query/page.
+     *
+     * @return array{items:array<int,array>,total:int,page:int,has_more:bool}
+     */
+    public function searchItems(string $search = '', bool $includeInactive = false, int $page = 1, int $pageSize = 25, bool $refresh = false): array
+    {
+        $search = trim($search);
+        $page = max(1, $page);
+        $pageSize = max(1, min(100, $pageSize));
+        $key = 'halo_items_' . $this->tenantKey() . '_' . sha1(json_encode([$search, $includeInactive, $page, $pageSize]));
+        if ($refresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember($key, (int) config('integrations.halo.item_search_ttl', 60), function () use ($search, $includeInactive, $page, $pageSize) {
+            $query = [
+                'pageinate' => 'true',
+                'page_size' => $pageSize,
+                'page_no' => $page,
+                'order' => 'name',
+                'includeinactive' => $includeInactive ? 'true' : 'false',
+            ];
+            if ($search !== '') {
+                $query['search'] = $search;
+            }
+
+            $result = $this->request('GET', 'item', ['query' => $query]);
+            $rows = $this->extractList($result, ['items']);
+            $total = isset($result['record_count']) ? (int) $result['record_count'] : count($rows);
+            $items = array_values(array_filter(array_map([self::class, 'normalizeItem'], $rows)));
+
+            return [
+                'items' => $items,
+                'total' => $total,
+                'page' => $page,
+                'has_more' => count($rows) >= $pageSize && ($page * $pageSize) < $total,
+            ];
+        });
+    }
+
+    /** GET /api/Item/{id}, normalised (null when Halo returns nothing usable). */
+    public function getItem(int $itemId): ?array
+    {
+        return self::normalizeItem($this->request('GET', 'item/' . $itemId));
+    }
+
+    /**
+     * Only what the UI needs: id, name, code (first of internalreference / externalreference / supplier_part_code /
+     * qbosku), price (baseprice), recurring price, cost, recurring flag (isrecurringitem), group.
+     */
+    public static function normalizeItem(array $row): ?array
+    {
+        $id = (int) ($row['id'] ?? $row['Id'] ?? 0);
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($id <= 0 || $name === '') {
+            return null;
+        }
+
+        $code = '';
+        foreach (['internalreference', 'externalreference', 'supplier_part_code', 'qbosku'] as $field) {
+            if (isset($row[$field]) && trim((string) $row[$field]) !== '') {
+                $code = trim((string) $row[$field]);
+                break;
+            }
+        }
+        $num = fn ($v) => is_numeric($v) ? round((float) $v, 2) : null;
+
+        return [
+            'id' => $id,
+            'name' => $name,
+            'code' => $code,
+            'price' => $num($row['baseprice'] ?? null),
+            'recurring_price' => $num($row['recurringprice'] ?? null),
+            'cost' => $num($row['costprice'] ?? null),
+            'recurring' => (bool) ($row['isrecurringitem'] ?? false),
+            'group' => trim((string) ($row['assetgroup_name'] ?? '')),
+            'inactive' => (bool) ($row['inactive'] ?? false),
+        ];
+    }
+
+    /**
+     * Subscriptions of a client (GET /api/SoftwareLicence?client_id=..&includeinactive=true).
+     *
+     * @return array<int,array>
+     */
+    public function listSubscriptions(int $clientId, ?string $search = null): array
+    {
+        $query = ['client_id' => $clientId, 'includeinactive' => 'true'];
+        if ($search !== null && $search !== '') {
+            $query['search'] = $search;
+        }
+
+        return $this->paginateAll('softwarelicence', $query, ['licences', 'softwarelicences']);
+    }
+
+    /** GET /api/SoftwareLicence/{id}; null when it does not exist (404). */
+    public function getSubscription(int $id): ?array
+    {
+        try {
+            $row = $this->request('GET', 'softwarelicence/' . $id);
+        } catch (IntegrationApiException $e) {
+            if ($e->status === 404) {
+                return null;
+            }
+            throw $e;
+        }
+
+        return isset($row['id']) ? $row : null;
+    }
+
+    /** Find a subscription by DomainDash's marker in its notes (idempotency key). */
+    public function findSubscriptionByMarker(int $clientId, string $vocusServiceId): ?array
+    {
+        $marker = sprintf(self::SUBSCRIPTION_MARKER, $vocusServiceId);
+        foreach ($this->listSubscriptions($clientId, $vocusServiceId) as $row) {
+            if (str_contains((string) ($row['notes'] ?? ''), $marker)) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    /** POST /api/SoftwareLicence (array body, no id = create). Sent once. */
+    public function createSubscription(array $data): array
+    {
+        $result = $this->request('POST', 'softwarelicence', ['json' => [$data]]);
+
+        return self::firstRow($result);
+    }
+
+    /** POST /api/SoftwareLicence with the id in the object = update. */
+    public function updateSubscription(int $id, array $data): array
+    {
+        $result = $this->request('POST', 'softwarelicence', ['json' => [array_merge(['id' => $id], $data)]]);
+
+        return self::firstRow($result);
+    }
+
+    /**
+     * Recurring invoices of a client (GET /api/RecurringInvoice?client_id=..&includelines=..), optionally of one
+     * contract. Normalised for pickers; raw lines kept under 'lines' only when requested.
+     *
+     * @return array<int,array{id:int,name:string,contract_id:?int,contract_ref:string,client_id:?int,lines:array}>
+     */
+    public function listClientRecurringInvoices(int $clientId, ?int $contractId = null, bool $withLines = false): array
+    {
+        $query = ['client_id' => $clientId, 'includelines' => $withLines ? 'true' : 'false'];
+        if ($contractId) {
+            $query['contract_id'] = $contractId;
+        }
+
+        $out = [];
+        foreach ($this->paginateAll('recurringinvoice', $query, ['invoices']) as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'name' => trim((string) ($row['name'] ?? '')) ?: ('Recurring invoice #' . $id),
+                'contract_id' => isset($row['contract_id']) ? (int) $row['contract_id'] : null,
+                'contract_ref' => trim((string) ($row['contract_ref'] ?? '')),
+                'client_id' => isset($row['client_id']) ? (int) $row['client_id'] : null,
+                'lines' => $withLines && is_array($row['lines'] ?? null) ? $row['lines'] : [],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * The client's contracts (GET /api/ClientContract?client_id=..), active only, optionally of one contract type.
+     *
+     * @return array<int,array{id:int,ref:string,type_id:?int,type_name:string,active:bool}>
+     */
+    public function listClientContracts(int $clientId, ?int $contractTypeId = null): array
+    {
+        $query = ['client_id' => $clientId, 'includeinactive' => 'false'];
+        if ($contractTypeId) {
+            $query['contract_type'] = $contractTypeId;
+        }
+
+        $out = [];
+        foreach ($this->paginateAll('clientcontract', $query, ['contracts']) as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'ref' => trim((string) ($row['ref'] ?? '')),
+                'type_id' => isset($row['contracttype']) ? (int) $row['contracttype'] : null,
+                'type_name' => trim((string) ($row['contracttype_name'] ?? '')),
+                'active' => (bool) ($row['active'] ?? true),
+            ];
+        }
+
+        return array_values(array_filter($out, fn ($c) => $c['active']));
+    }
+
+    /** POST /api/RecurringInvoice/Lines: add lines (array of InvoiceDetail with recurring_invoice_id). Sent once. */
+    public function addRecurringInvoiceLine(int $recurringInvoiceId, array $line): array
+    {
+        $result = $this->request('POST', 'recurringinvoice/lines', [
+            'json' => [array_merge($line, ['recurring_invoice_id' => $recurringInvoiceId])],
+        ]);
+
+        return self::firstRow($result);
+    }
+
+    /** POST /api/RecurringInvoice/updatelines: update existing lines (InvoiceDetail with id). Sent once. */
+    public function updateRecurringInvoiceLine(int $recurringInvoiceId, int $lineId, array $line): array
+    {
+        $result = $this->request('POST', 'recurringinvoice/updatelines', [
+            'json' => [array_merge($line, ['id' => $lineId, 'recurring_invoice_id' => $recurringInvoiceId])],
+        ]);
+
+        return self::firstRow($result);
+    }
+
+    /** Lines of one recurring invoice (GET /api/RecurringInvoice/{id}?includedetails=true). */
+    public function getRecurringInvoiceLines(int $recurringInvoiceId): array
+    {
+        $row = $this->request('GET', 'recurringinvoice/' . $recurringInvoiceId, ['query' => ['includedetails' => 'true']]);
+
+        return array_values(array_filter((array) ($row['lines'] ?? []), 'is_array'));
+    }
+
+    /** Halo POSTs answer with the saved object or a list of them. */
+    private static function firstRow(array $result): array
+    {
+        if (array_is_list($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return $result;
+    }
 }
