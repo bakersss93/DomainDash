@@ -58,25 +58,134 @@ final class VocusOptions
     ];
 
     /**
-     * NBNCPEPlanID values (Product Catalogue FIBRE appendix 6.4) this app can order. Only the options that need
-     * no CPEDirectoryID are offered: the end-user self install and warehouse-shipped NTD / NCD variants need a
-     * shipping address created with DIR::Create (not implemented).
-     * Shape: technology => [value => [label, scopes]]. "-REPLACE" values need the NTDID being replaced.
+     * NBNCPEPlanID values (Vocus bundle sheet "RC Bundles 2025 09 15" / Product Catalogue FIBRE appendix 6.4), grouped
+     * by technology. Shape: technology => [value => [description, scopes, needsShipping?]].
+     *  - A third element true marks an option that ships hardware and so needs a CPEDirectoryID (DIR::Create with a
+     *    shipping address). That is not implemented: such options are listed but never offered or accepted.
+     *  - A value ending in "-R" (replacement) needs the NTDID being replaced.
+     *  - All FTTP NTD installs are NBN professional install only (sheet note).
      */
     public const NBN_CPE_PLANS = [
         'FTTP' => [
-            'FTTPNTDNBNPROFINSTALL-V3-1P'         => ['New 1-port NTD (V3), NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
-            'FTTPNTDNBNPROFINSTALL-V4-4P'         => ['Additional 4-port NTD (V4), NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
-            'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE' => ['Replace the NTD with a 1-port NTD (V3)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
-            'FTTPNTDNBNPROFINSTALL-V4-4P-REPLACE' => ['Replace the NTD with a 4-port NTD (V4)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V3-1P'   => ['Next Generation 1 Port NTD (NBN professional install)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V3-1P-R' => ['Next Generation 1 Port NTD - Replacement', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V4-4P'   => ['Next Generation 4 Port NTD (NBN professional install)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V4-4P-R' => ['Next Generation 4 Port NTD - Replacement', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
         ],
         'HFC' => [
-            'HFCNTDNBNPROFINSTALL' => ['New HFC NTD, NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'HFCNTDNBNPROFINSTALL'         => ['NBN Professional Install HFC NTD', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'HFCNTDNBNPROFINSTALL-MISSING' => ['NBN Professional Install HFC NTD, for a missing NTD', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'HFCNTDWHS'                    => ['HFC NTD End User Self Install', ['RESELLER-CONNECT', 'NETWORK-CONNECT'], true],
+            'HFCNTDWHS-MISSING'            => ['HFC NTD End User Self Install, for a missing NTD', ['RESELLER-CONNECT', 'NETWORK-CONNECT'], true],
         ],
         'FTTC' => [
-            'FTTCNCDNBNPROFINSTALL' => ['New FTTC NCD, NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTCNCDNBNPROFINSTALL' => ['NBN Professional Install FTTC NCD', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTCNCDRC'             => ['RC - Netcomm NDD0300 NBN FTTC NCD', ['RESELLER-CONNECT', 'NETWORK-CONNECT'], true],
         ],
     ];
+
+    /** Whether an NBNCPEPlanID is a replacement (needs the NTD being replaced): "-R" (sheet) or the older "-REPLACE". */
+    public static function isReplacementCpePlan(string $value): bool
+    {
+        return (bool) preg_match('/-(R|REPLACE)$/', $value);
+    }
+
+    /** Account mapping of the Vocus bundle plans: Tagged or Default Map (sheet column "Mapping"). */
+    public const PLAN_MAPPINGS = ['TAGGED' => 'Tagged', 'DEFAULT_MAP' => 'Default Map'];
+
+    public const DEFAULT_PLAN_MAPPING = 'DEFAULT_MAP';
+
+    /** Technologies a plan can be tagged with (FIBRE::Create ServiceType values). */
+    public const PLAN_TECHNOLOGIES = ['FTTP', 'FTTB', 'FTTN', 'FTTC', 'HFC', 'WIRELESS'];
+
+    /** The account mapping configured in Settings (default DEFAULT_MAP). */
+    public static function planMapping(): string
+    {
+        $m = self::settings()['plan_mapping'] ?? null;
+
+        return is_string($m) && isset(self::PLAN_MAPPINGS[$m]) ? $m : self::DEFAULT_PLAN_MAPPING;
+    }
+
+    /** Normalise a sheet / form mapping ("Default Map", "default_map", "Tagged") to DEFAULT_MAP / TAGGED, else null. */
+    public static function normalizeMapping(?string $value): ?string
+    {
+        $k = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $value));
+
+        return match ($k) {
+            'TAGGED'     => 'TAGGED',
+            'DEFAULTMAP', 'DEFAULT', 'DM' => 'DEFAULT_MAP',
+            default      => null,
+        };
+    }
+
+    /** Normalise a sheet / QUALIFY technology (Wireless, Fixed Wireless, FIBRE, FTTP...) to a plan technology, else null. */
+    public static function normalizeTechnology(?string $value): ?string
+    {
+        return self::createServiceType($value);
+    }
+
+    /** Lookup key for a named tier: "Home Super Fast" and "Home SuperFast" are the same tier. */
+    public static function tierKey(?string $name): string
+    {
+        return strtolower(preg_replace('/[^A-Za-z0-9]/', '', (string) $name));
+    }
+
+    /**
+     * Named tier speeds: name => [down, up] or null (unknown). Defaults come from config services.vocus.named_tiers;
+     * values saved in Settings (vocus.named_tiers) override them.
+     *
+     * @return array<string,array{0:int,1:int}|null>
+     */
+    public static function namedTiers(): array
+    {
+        $tiers  = [];
+        foreach ((array) config('services.vocus.named_tiers', []) as $name => $speeds) {
+            $tiers[(string) $name] = self::cleanSpeeds($speeds);
+        }
+        foreach ((array) (self::settings()['named_tiers'] ?? []) as $name => $speeds) {
+            if (is_string($name) && array_key_exists($name, $tiers)) {
+                $tiers[$name] = self::cleanSpeeds($speeds);
+            }
+        }
+
+        return $tiers;
+    }
+
+    /** @return array{0:int,1:int}|null */
+    private static function cleanSpeeds(mixed $speeds): ?array
+    {
+        if (! is_array($speeds)) {
+            return null;
+        }
+        $d = array_values($speeds)[0] ?? null;
+        $u = array_values($speeds)[1] ?? null;
+        $ok = fn ($v) => is_numeric($v) && (int) $v >= 1 && (int) $v <= 10000;
+
+        return $ok($d) && $ok($u) ? [(int) $d, (int) $u] : null;
+    }
+
+    /** Whether the tier text names one of the known tiers (Home Fast ...), ignoring case, spaces and punctuation. */
+    public static function namedTierSpeeds(?string $tier): ?array
+    {
+        $key = self::tierKey($tier);
+        foreach (self::namedTiers() as $name => $speeds) {
+            if (self::tierKey($name) === $key) {
+                return $speeds;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Download / upload Mbps for a speed tier text: "100/40" is parsed, a named tier is looked up. Null when unknown.
+     *
+     * @return array{0:int,1:int}|null
+     */
+    public static function speedsForTier(?string $tier): ?array
+    {
+        return \App\Models\VocusPlan::parseSpeedTier($tier) ?? self::namedTierSpeeds($tier);
+    }
 
     /**
      * Map a ServiceType seen in a QUALIFY response (or stored) to the value FIBRE::Create accepts.

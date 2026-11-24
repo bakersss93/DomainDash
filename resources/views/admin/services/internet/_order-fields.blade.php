@@ -82,18 +82,25 @@
             <select id="f-plan" name="vocus_plan_id" class="dd-input" style="width:100%;" required @disabled($plans->isEmpty())>
                 <option value="">Select a plan</option>
                 @foreach($plans as $plan)
-                    <option value="{{ $plan->id }}" data-plan-code="{{ $plan->plan_id }}" data-scopes="{{ implode(',', (array) $plan->scopes) }}" data-download="{{ $plan->download_mbps }}" data-upload="{{ $plan->upload_mbps }}" @selected((string) old('vocus_plan_id') === (string) $plan->id)>
+                    <option value="{{ $plan->id }}" data-plan-code="{{ $plan->plan_id }}" data-scopes="{{ implode(',', (array) $plan->scopes) }}" data-download="{{ $plan->download_mbps }}" data-upload="{{ $plan->upload_mbps }}" data-standard-only="{{ $plan->isHomeTier() ? '1' : '0' }}" data-sq="{{ $plan->needsSqCheck() ? '1' : '0' }}" @selected((string) old('vocus_plan_id') === (string) $plan->id)>
                         {{ $plan->name }}@if($plan->speed_tier) · {{ $plan->speed_tier }}@endif @if($plan->speedUnknown()) · speed not set @endif · ${{ number_format((float) $plan->sell_price, 2) }}/mo
                     </option>
                 @endforeach
             </select>
+            <p style="{{ $note }}">
+                Showing @if($planTechnology) <strong>{{ $planTechnology }}</strong> @endif plans on the <strong>{{ $planMapping }}</strong> mapping.
+                @if($hiddenPlanCount > 0) {{ $hiddenPlanCount }} active {{ $hiddenPlanCount === 1 ? 'plan is' : 'plans are' }} hidden because @if($planTechnology)the technology or @endif the mapping does not match. @endif
+                The mapping is set in Settings, Vocus, Plans.
+            </p>
+            <p id="f-plan-sq-note" style="{{ $note }}" aria-live="polite" hidden>Availability depends on the SQ result: not every address can take this speed.</p>
+            <p id="f-plan-std-note" style="{{ $note }}" aria-live="polite" hidden>Home tier plans only support the STANDARD service level.</p>
             <p id="f-plan-cap-note" style="{{ $note }}" aria-live="polite" hidden></p>
             <p id="f-plan-hidden-note" style="{{ $note }}" aria-live="polite" hidden></p>
             @if($plans->contains(fn ($p) => $p->speedUnknown()))
                 <p style="{{ $note }}">Plans tagged "speed not set" are never hidden by line capability. Set their download and upload speeds in Settings, Vocus, Plans.</p>
             @endif
             @if($plans->isEmpty())
-                <p style="font-size:12px;color:var(--dd-danger-text);margin:3px 0 0;">No active plans. Add plans in Settings, Vocus, Plans.</p>
+                <p style="font-size:12px;color:var(--dd-danger-text);margin:3px 0 0;">{{ $hiddenPlanCount > 0 ? 'No active plan matches this technology and mapping. Activate or add one in Settings, Vocus, Plans.' : 'No active plans. Add plans in Settings, Vocus, Plans.' }}</p>
             @endif
         </div>
         <div>
@@ -332,6 +339,22 @@
         var auth = document.getElementById('f-auth'), w = document.getElementById('f-username-wrap'), u = document.getElementById('f-username');
         if (auth && w) { var ipoe = auth.value === 'IPoE'; w.hidden = ipoe; if (u) { u.disabled = ipoe; } }
     }
+    // Home tier plans only support STANDARD (hide the other service levels); high tiers get an SQ note.
+    var level = document.getElementById('f-level');
+    var sqNote = document.getElementById('f-plan-sq-note'), stdNote = document.getElementById('f-plan-std-note');
+    function syncPlanRules() {
+        var opt = plan && plan.selectedOptions[0];
+        var stdOnly = !!opt && opt.getAttribute('data-standard-only') === '1';
+        if (sqNote) { sqNote.hidden = !(opt && opt.getAttribute('data-sq') === '1'); }
+        if (stdNote) { stdNote.hidden = !stdOnly; }
+        if (!level) { return; }
+        Array.prototype.forEach.call(level.options, function (o) {
+            var off = stdOnly && o.value !== 'STANDARD';
+            o.hidden = off; o.disabled = off;
+        });
+        if (stdOnly) { level.value = 'STANDARD'; }
+    }
+    if (plan) { plan.addEventListener('change', syncPlanRules); }
     if (plan) { plan.addEventListener('change', syncLayer); }
     if (scope) { scope.addEventListener('change', syncLayer); }
     var otype = document.getElementById('f-otype'); if (otype) { otype.addEventListener('change', syncAvc); }
@@ -345,7 +368,7 @@
             var pw = document.getElementById('f-password'); pw.type = 'text'; pw.value = out;
         });
     }
-    syncLayer(); syncAvc(); syncAuth();
+    syncLayer(); syncAvc(); syncAuth(); syncPlanRules();
 
     var user = document.getElementById('f-username');
     var realm = document.getElementById('f-realm');

@@ -74,6 +74,24 @@ return [
             // Sandbox is not in public DNS (Sandbox guide 2.1); requests are pinned to this IP.
             'ip' => env('VOCUS_SANDBOX_IP', '203.23.116.113'),
         ],
+        // Named plan speed tiers (Vocus bundle sheet "LineSpeed" values that are not "down/up"). These follow
+        // NBN's published Home tiers and can be edited in Settings, Vocus, Plans (stored in the "vocus" setting).
+        // Value: [download Mbps, upload Mbps], or null when the speed is not known (never hides the plan).
+        'named_tiers' => [
+            'Home Fast'           => [500, 50],
+            'Home Super Fast'     => [750, 50],
+            'Home Ultra Fast'     => [1000, 100],
+            'Home Hyper Fast'     => [2000, 200],
+            'Fixed Wireless Plus' => null,
+        ],
+        // Router CPEPlanIDs from the Vocus bundle sheet. Reference only: DomainDash does not ship modems yet
+        // (that needs DIR::Create and a CPEDirectoryID), so these are not offered on any form.
+        'router_cpe_plans' => [
+            'VX220NBNConnect'     => 'TPLink Vx220 Fibre, HFC, Wireless',
+            'VX220NBNConnectVDSL' => 'TPLink Vx220 VDSL (FTTB, FTTN)',
+            'VX220FTTC'           => 'TPLink Vx220 FTTC',
+            'VX220FTTCNCD'        => 'TPLink Vx220 FTTC + NCD',
+        ],
         // Optional PEM CA bundle / pinned certificate used for login + SOAP.
         'ca_bundle' => env('VOCUS_CA_BUNDLE'),
         'connection_timeout' => (int) env('VOCUS_CONNECTION_TIMEOUT', 10),

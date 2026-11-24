@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\Vocus\VocusOptions;
 use Illuminate\Database\Eloquent\Model;
 
 class VocusPlan extends Model
 {
-    protected $fillable = ['plan_id', 'name', 'scopes', 'speed_tier', 'download_mbps', 'upload_mbps', 'cost_price', 'sell_price', 'active'];
+    protected $fillable = ['plan_id', 'name', 'scopes', 'speed_tier', 'technology', 'mapping', 'download_mbps', 'upload_mbps', 'cost_price', 'sell_price', 'active'];
 
     protected $casts = [
         'scopes'     => 'array',
@@ -46,6 +47,56 @@ class VocusPlan extends Model
         return $down >= 1 && $down <= 10000 && $up >= 1 && $up <= 10000 ? [$down, $up] : null;
     }
 
+    /**
+     * Whether this plan is offered for a qualified technology and the account mapping. A plan with no technology /
+     * mapping is offered everywhere; an unknown qualified technology (manual order, no qualification) does not filter
+     * by technology.
+     */
+    public function offeredFor(?string $technology, ?string $mapping): bool
+    {
+        return $this->matchesTechnology($technology) && $this->matchesMapping($mapping);
+    }
+
+    public function matchesTechnology(?string $technology): bool
+    {
+        return $technology === null || $technology === '' || $this->technology === null || $this->technology === $technology;
+    }
+
+    public function matchesMapping(?string $mapping): bool
+    {
+        return $mapping === null || $mapping === '' || $this->mapping === null || $this->mapping === $mapping;
+    }
+
+    /** Home Fast / Super Fast / Ultra Fast / Hyper Fast tiers only support the STANDARD service level (Vocus sheet note). */
+    public function isHomeTier(): bool
+    {
+        return str_starts_with(VocusOptions::tierKey($this->speed_tier), 'home');
+    }
+
+    /** Service levels this plan may be ordered with. */
+    public function allowedServiceLevels(): array
+    {
+        return $this->isHomeTier() ? ['STANDARD'] : VocusOptions::SERVICE_LEVELS;
+    }
+
+    /**
+     * High tiers not every address can take: HFC 250/100, Home Ultra Fast and Home Hyper Fast; FTTP Home Hyper Fast and
+     * 2000/500 (Vocus sheet notes). The result of the service qualification decides, so the form shows a note.
+     */
+    public function needsSqCheck(): bool
+    {
+        $key = VocusOptions::tierKey($this->speed_tier);
+        $tech = $this->technology;
+        $named = in_array($key, ['homeultrafast', 'homehyperfast'], true);
+
+        return match ($tech) {
+            'HFC'   => $named || $key === '250100' || ($this->download_mbps === 250 && $this->upload_mbps === 100),
+            'FTTP'  => $key === 'homehyperfast' || $key === '2000500' || ($this->download_mbps === 2000 && $this->upload_mbps === 500),
+            null    => $named,
+            default => false,
+        };
+    }
+
     /** True when neither speed is known (such a plan is never hidden by line capability). */
     public function speedUnknown(): bool
     {
@@ -66,6 +117,8 @@ class VocusPlan extends Model
             'name'       => $this->name,
             'scopes'     => array_values((array) ($this->scopes ?? [])),
             'speed_tier' => $this->speed_tier,
+            'technology' => $this->technology,
+            'mapping'    => $this->mapping,
             'download_mbps' => $this->download_mbps,
             'upload_mbps'   => $this->upload_mbps,
             'cost_price' => (string) $this->cost_price,

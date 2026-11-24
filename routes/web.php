@@ -130,6 +130,10 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::post('/plans', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'storePlan'])->name('admin.settings.vocus.plans.store');
             Route::put('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updatePlan'])->name('admin.settings.vocus.plans.update');
             Route::delete('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'destroyPlan'])->name('admin.settings.vocus.plans.destroy');
+            Route::put('/plan-mapping', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateMapping'])->name('admin.settings.vocus.plan-mapping');
+            Route::put('/named-tiers', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateTiers'])->name('admin.settings.vocus.named-tiers');
+            Route::post('/plans/import/preview', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importPreview'])->name('admin.settings.vocus.plans.import.preview');
+            Route::post('/plans/import/apply', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importApply'])->name('admin.settings.vocus.plans.import.apply');
         });
         Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
         Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');

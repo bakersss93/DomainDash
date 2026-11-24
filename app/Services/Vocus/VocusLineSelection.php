@@ -203,7 +203,11 @@ final class VocusLineSelection
             if ($isNew || ($ntdId === '' && VocusQualification::dataPorts($ntds) === [] && ! array_filter(array_column($ntds, 'ntd_id')))) {
                 $out['new_line']         = true;
                 $out['params']['NTDID']  = 'NEW';
-                $out['params']['NBNCPEPlanID'] = trim((string) ($in['nbn_cpe_plan_id'] ?? '')) ?: 'HFCNTDNBNPROFINSTALL';
+                // A chosen option is validated by nbnCpePlan() (technology, scope, no shipping); none chosen = the NBN
+                // professional install default.
+                if (trim((string) ($in['nbn_cpe_plan_id'] ?? '')) === '') {
+                    $out['params']['NBNCPEPlanID'] = 'HFCNTDNBNPROFINSTALL';
+                }
 
                 return $out;
             }
@@ -261,7 +265,12 @@ final class VocusLineSelection
 
             return $out;
         }
-        if (str_ends_with($plan, '-REPLACE') && empty($out['params']['NTDID'])) {
+        if (($allowed[2] ?? false) === true) {
+            $out['errors']['nbn_cpe_plan_id'] = 'That install option ships equipment and needs a shipping address (CPEDirectoryID), which is not supported yet. Choose an NBN professional install option.';
+
+            return $out;
+        }
+        if (VocusOptions::isReplacementCpePlan($plan) && empty($out['params']['NTDID'])) {
             $out['errors']['nbn_cpe_plan_id'] = 'Replacing an NTD needs the NTD to replace. Select it in the line list.';
 
             return $out;

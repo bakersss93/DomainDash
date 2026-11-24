@@ -407,6 +407,13 @@ class InternetController extends Controller
         $token       = (string) $request->get('qualification_token', '');
         $qualification = $this->cachedQualification($token, $directoryId);
 
+        // Only plans for the qualified technology and the account mapping are offered (plans with no technology /
+        // mapping set are offered everywhere). Without a qualification there is no technology to filter by.
+        $planTech    = $this->qualifiedTechnology($qualification);
+        $planMapping = VocusOptions::planMapping();
+        $allPlans    = VocusPlan::active()->orderBy('name')->get();
+        $plans       = $allPlans->filter(fn (VocusPlan $p) => $p->offeredFor($planTech, $planMapping))->values();
+
         return [
             'qualification'       => $qualification,
             'qualification_token' => $qualification ? $token : '',
@@ -425,12 +432,29 @@ class InternetController extends Controller
             'scopes'             => VocusOptions::enabledScopes(),
             'scopeLabels'        => VocusOptions::SCOPES,
             'realms'             => VocusOptions::realms(),
-            'plans'              => VocusPlan::active()->orderBy('name')->get(),
+            'plans'              => $plans,
+            'planTechnology'     => $planTech,
+            'planMapping'        => VocusOptions::PLAN_MAPPINGS[$planMapping] ?? $planMapping,
+            'hiddenPlanCount'    => $allPlans->count() - $plans->count(),
             'vocusProblem'       => VocusWsmClient::configurationProblem(),
         ];
     }
 
     private const QUALIFICATION_CACHE = 'vocus:qualification:';
+
+    /**
+     * Technology the qualification result gives (FTTP, FTTB, FTTN, FTTC, HFC, WIRELESS), or null when there is no
+     * qualification or it names none (QUALIFY's FIBRE counts as FTTP, Fixed Wireless as WIRELESS).
+     */
+    private function qualifiedTechnology(?array $qualification): ?string
+    {
+        if (! $qualification) {
+            return null;
+        }
+
+        return VocusOptions::createServiceType((string) ($qualification['service_type'] ?? ''))
+            ?? VocusOptions::createServiceType((string) ($qualification['primary_technology'] ?? ''));
+    }
 
     /** The qualify result kept for the order form, only when it belongs to the same address. */
     private function cachedQualification(?string $token, string $directoryId): ?array
@@ -556,6 +580,20 @@ class InternetController extends Controller
         $plan = VocusPlan::active()->findOrFail((int) $validated['vocus_plan_id']);
         if (! $plan->appliesToScope($validated['scope'])) {
             throw ValidationException::withMessages(['vocus_plan_id' => 'That plan is not available for the ' . $validated['scope'] . ' scope.']);
+        }
+
+        // Server-side twin of the form filters: refused before any Vocus call.
+        $qualification = $this->cachedQualification($validated['qualification_token'] ?? null, $validated['directory_id'] ?? '');
+        $tech          = $this->qualifiedTechnology($qualification);
+        if (! $plan->matchesTechnology($tech)) {
+            throw ValidationException::withMessages(['vocus_plan_id' => "That plan is for {$plan->technology}, but this address qualified as {$tech}. Choose a {$tech} plan."]);
+        }
+        if (! $plan->matchesMapping(VocusOptions::planMapping())) {
+            throw ValidationException::withMessages(['vocus_plan_id' => 'That plan uses the ' . (VocusOptions::PLAN_MAPPINGS[$plan->mapping] ?? $plan->mapping) . ' mapping, but this account uses ' . VocusOptions::PLAN_MAPPINGS[VocusOptions::planMapping()] . '.']);
+        }
+        $level = $validated['service_level'] ?? 'STANDARD';
+        if (! in_array($level, $plan->allowedServiceLevels(), true)) {
+            throw ValidationException::withMessages(['service_level' => 'Home tier plans only support the STANDARD service level.']);
         }
 
         return $plan;

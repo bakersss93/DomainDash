@@ -471,11 +471,11 @@ class VocusLineSelectionTest extends TestCase
         $wrongTech = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'HFCNTDNBNPROFINSTALL'], false);
         $this->assertArrayHasKey('nbn_cpe_plan_id', $wrongTech['errors']);
 
-        $replaceNoNtd = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], false);
+        $replaceNoNtd = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-R'], false);
         $this->assertArrayHasKey('nbn_cpe_plan_id', $replaceNoNtd['errors']);
 
-        $replace = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], false);
-        $this->assertSame(['NTDID' => 'NTD000111222', 'NBNCPEPlanID' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], $replace['params']);
+        $replace = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-R'], false);
+        $this->assertSame(['NTDID' => 'NTD000111222', 'NBNCPEPlanID' => 'FTTPNTDNBNPROFINSTALL-V3-1P-R'], $replace['params']);
     }
 
     public function test_new_fttp_line_refuses_a_transfer(): void
