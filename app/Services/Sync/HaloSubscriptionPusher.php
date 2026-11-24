@@ -28,6 +28,15 @@ class HaloSubscriptionPusher
      */
     public function push(InternetService $service, HaloPsaClient $halo, HaloBillingSettings $cfg, bool $force = false): string
     {
+        // Monitoring: tag every integration request made for this record with its entity / reference.
+        return app(\App\Services\Monitoring\IntegrationRequestLogger::class)->withContext(
+            ['entity_type' => 'internet_service', 'reference' => (string) ($service->vocus_service_id ?? $service->id)],
+            fn () => $this->pushInner($service, $halo, $cfg, $force)
+        );
+    }
+
+    private function pushInner(InternetService $service, HaloPsaClient $halo, HaloBillingSettings $cfg, bool $force = false): string
+    {
         if (! $cfg->enabled()) {
             throw new SyncItemFailed('Billing sync is switched off in Settings → HaloPSA → Billing.');
         }

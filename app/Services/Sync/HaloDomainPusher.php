@@ -27,6 +27,15 @@ class HaloDomainPusher
      */
     public function push(Domain $domain, HaloPsaClient $halo, int $assetTypeId, bool $force = false, string $mode = self::MODE_ASSET): string
     {
+        // Monitoring: tag every integration request made for this record with its entity / reference.
+        return app(\App\Services\Monitoring\IntegrationRequestLogger::class)->withContext(
+            ['entity_type' => 'domain', 'reference' => (string) $domain->name],
+            fn () => $this->pushInner($domain, $halo, $assetTypeId, $force, $mode)
+        );
+    }
+
+    private function pushInner(Domain $domain, HaloPsaClient $halo, int $assetTypeId, bool $force = false, string $mode = self::MODE_ASSET): string
+    {
         $client = $domain->client;
         if (! $client) {
             throw new SyncItemFailed('No client assigned');

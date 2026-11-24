@@ -22,6 +22,15 @@ class ItGlueDomainPusher
      */
     public function push(Domain $domain, ItGlueClient $itglue, bool $force = false, bool $listed = false): string
     {
+        // Monitoring: tag every integration request made for this record with its entity / reference.
+        return app(\App\Services\Monitoring\IntegrationRequestLogger::class)->withContext(
+            ['entity_type' => 'domain', 'reference' => (string) $domain->name],
+            fn () => $this->pushInner($domain, $itglue, $force, $listed)
+        );
+    }
+
+    private function pushInner(Domain $domain, ItGlueClient $itglue, bool $force = false, bool $listed = false): string
+    {
         $client = $domain->client;
         if (! $client || ! $client->itglue_org_id) {
             throw new SyncItemFailed('Domain is not linked to an ITGlue organization');

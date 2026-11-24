@@ -4,113 +4,172 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\Client;
+use App\Models\IntegrationRequest;
 use App\Models\Setting;
-use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Monitoring\MonitoringFeed;
+use App\Services\Monitoring\MonitoringPruner;
+use App\Services\Monitoring\MonitoringSettings;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Admin > Monitoring (formerly "Audit & Logging"): Activity, Integration Outbound / Inbound / Errors, Jobs & Schedules.
+ * Administrator-only (role middleware on the route group + MFA policy); the checks below are defence in depth.
+ */
 class AuditLogController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(private readonly MonitoringFeed $feed)
     {
-        $filters = [
-            'action' => (string) $request->query('action', ''),
-            'user_id' => (string) $request->query('user_id', ''),
-            'client_id' => (string) $request->query('client_id', ''),
-            'function' => trim((string) $request->query('function', '')),
-            'service' => trim((string) $request->query('service', '')),
-            'failed_only' => (bool) $request->boolean('failed_only'),
-        ];
+    }
 
-        $query = AuditLog::query()->with('user')->latest();
+    public function index(Request $request, MonitoringSettings $settings)
+    {
+        $this->ensureAdmin($request);
 
-        if ($filters['action'] !== '') {
-            $query->where('action', $filters['action']);
-        }
-
-        if ($filters['user_id'] !== '') {
-            $query->where('user_id', $filters['user_id']);
-        }
-
-        if ($filters['client_id'] !== '') {
-            $query->where(function ($builder) use ($filters) {
-                $builder->where('context->client_id', (int) $filters['client_id'])
-                    ->orWhere('old_values->client_id', (int) $filters['client_id'])
-                    ->orWhere('new_values->client_id', (int) $filters['client_id']);
-            });
-        }
-
-        if ($filters['function'] !== '') {
-            $query->where(function ($builder) use ($filters) {
-                $builder->where('context->function', $filters['function'])
-                    ->orWhere('description', 'like', '%'.$filters['function'].'%');
-            });
-        }
-
-        if ($filters['service'] !== '') {
-            $query->where(function ($builder) use ($filters) {
-                $builder->where('context->service', $filters['service'])
-                    ->orWhere('description', 'like', '%'.$filters['service'].'%');
-            });
-        }
-
-        if ($filters['failed_only']) {
-            $query->where(function ($builder) {
-                $builder->where('action', 'like', '%failed%')
-                    ->orWhere('description', 'like', '%failed%');
-            });
-        }
-
-        $logs = $query->paginate(50)->withQueryString();
-        $actionOptions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
+        $tab = MonitoringFeed::isTab((string) $request->query('tab')) ? (string) $request->query('tab') : 'activity';
         $functionOptions = $this->distinctContextValues('function');
         $serviceOptions = $this->distinctContextValues('service');
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'email']);
-        $clients = Client::query()->orderBy('business_name')->get(['id', 'business_name']);
-
-        $auditSettings = Setting::get('audit', [
-            'retention_days' => 90,
-        ]);
-        $retentionDays = (int) ($auditSettings['retention_days'] ?? 90);
-
-        $dbBytes = $this->estimateAuditDatabaseSizeBytes();
+        $monitoring = $settings->all();
+        $retentionDays = $monitoring['retention']['activity'];
+        $dbBytes = $this->estimateTableSizeBytes((new AuditLog())->getTable(), ['description', 'old_values', 'new_values', 'context', 'user_agent']);
+        $requestsBytes = $this->estimateTableSizeBytes('integration_requests', ['url', 'request_headers', 'request_body', 'response_headers', 'response_body', 'error_message']);
         $logFileBytes = $this->logFileSizeBytes();
 
+        $providers = collect(IntegrationRequest::PROVIDERS)->except('api')->all();
+        $tabs = [
+            'activity' => ['label' => 'Activity', 'providers' => $serviceOptions->mapWithKeys(fn ($s) => [$s => MonitoringFeed::moduleLabel($s)])->all(), 'providerLabel' => 'Module', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'Changes users and the system made: who did what, with old and new values.'],
+            'outbound' => ['label' => 'Integration Outbound', 'providers' => $providers, 'providerLabel' => 'Provider', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'Requests DomainDash sent to HaloPSA, IT Glue, Synergy Wholesale, Vocus and IP2WHOIS. Level: ' . $monitoring['outbound_level'] . '.'],
+            'inbound' => ['label' => 'Integration Inbound', 'providers' => [], 'providerLabel' => null, 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'API requests received with an API key (for example from an automation platform). Level: ' . $monitoring['inbound_level'] . '.'],
+            'errors' => ['label' => 'Integration Errors', 'providers' => $providers, 'providerLabel' => 'Module', 'statuses' => [], 'hint' => 'Failed integration requests and records whose last sync failed.'],
+            'jobs' => ['label' => 'Jobs & Schedules', 'providers' => collect($providers)->only(['halo', 'itglue', 'vocus'])->all(), 'providerLabel' => 'Provider', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed or partial', 'active' => 'Queued or running'], 'hint' => 'Background sync runs (scheduled and manual) with their item counts.'],
+        ];
+
         return view('admin.audit.index', compact(
-            'logs',
-            'filters',
-            'actionOptions',
-            'functionOptions',
-            'serviceOptions',
-            'users',
-            'clients',
-            'retentionDays',
-            'dbBytes',
-            'logFileBytes'
+            'tab', 'tabs', 'monitoring', 'retentionDays', 'dbBytes', 'requestsBytes', 'logFileBytes', 'functionOptions', 'serviceOptions'
         ));
     }
 
-    public function updateRetention(Request $request): RedirectResponse
+    /** JSON list for one tab: server-side search, filters and "1-50 of N" paging. */
+    public function data(Request $request, string $tab): JsonResponse
     {
+        $this->ensureAdmin($request);
+        abort_unless(MonitoringFeed::isTab($tab), 404);
+
+        $filters = [
+            'q' => mb_substr(trim((string) $request->query('q', '')), 0, 120),
+            'status' => (string) $request->query('status', ''),
+            'provider' => (string) $request->query('provider', ''),
+            'from' => (string) $request->query('from', ''),
+            'to' => (string) $request->query('to', ''),
+            'debug' => $request->boolean('debug'),
+        ];
+
+        return response()->json($this->feed->page($tab, $filters, (int) $request->query('page', 1)));
+    }
+
+    public function show(Request $request, string $tab, string $id): JsonResponse
+    {
+        $this->ensureAdmin($request);
+        abort_unless(MonitoringFeed::isTab($tab), 404);
+
+        $detail = $this->feed->detail($tab, $id);
+        abort_if($detail === null, 404);
+
+        return response()->json($detail);
+    }
+
+    public function export(Request $request, string $tab, string $id)
+    {
+        $this->ensureAdmin($request);
+        abort_unless(MonitoringFeed::isTab($tab), 404);
+
+        $payload = $this->feed->export($tab, $id);
+        abort_if($payload === null, 404);
+
+        AuditLogger::logSystem('monitoring.entry_exported', "Exported {$tab} log entry {$id} to JSON: {$payload['title']}", [
+            'service' => 'monitoring', 'function' => 'export', 'reference' => "{$tab}:{$id}",
+        ]);
+
+        $filename = 'monitoring-' . preg_replace('/[^A-Za-z0-9_-]/', '-', "{$tab}-{$id}") . '.json';
+        $json = (string) json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+
+        return response()->streamDownload(function () use ($json) {
+            echo $json;
+        }, $filename, ['Content-Type' => 'application/json; charset=utf-8', 'X-Content-Type-Options' => 'nosniff']);
+    }
+
+    public function destroy(Request $request, string $tab, string $id): JsonResponse
+    {
+        $this->ensureAdmin($request);
+        abort_unless(MonitoringFeed::isTab($tab), 404);
+
+        $result = $this->feed->delete($tab, $id);
+        if ($result === null) {
+            return response()->json(['message' => 'This entry cannot be deleted (the activity trail is only removed by retention) or no longer exists.'], 404);
+        }
+
+        AuditLogger::logSystem('monitoring.entry_deleted', "Deleted {$tab} log entry: {$result['summary']}", [
+            'service' => 'monitoring', 'function' => 'delete', 'reference' => "{$tab}:{$id}",
+        ], ['old_values' => ['entry' => $result['summary']]]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function updateRetention(Request $request, MonitoringSettings $settings): RedirectResponse
+    {
+        $this->ensureAdmin($request);
+
         $validated = $request->validate([
             'retention_days' => 'required|integer|min:1|max:3650',
+            'retention_days_outbound' => 'nullable|integer|min:1|max:3650',
+            'retention_days_inbound' => 'nullable|integer|min:1|max:3650',
+            'retention_days_jobs' => 'nullable|integer|min:1|max:3650',
+            'outbound_level' => 'nullable|in:errors,all',
+            'inbound_level' => 'nullable|in:errors,all',
+            'verbose' => 'nullable|boolean',
+            'mask_pii' => 'nullable|boolean',
             'prune_now' => 'nullable|boolean',
         ]);
 
-        Setting::put('audit', [
-            'retention_days' => (int) $validated['retention_days'],
-        ]);
+        $current = Setting::get('audit', []);
+        $current = is_array($current) ? $current : [];
 
-        $deleted = 0;
-        if ($request->boolean('prune_now')) {
-            $deleted = AuditLogger::pruneOlderThanDays((int) $validated['retention_days']);
+        $next = array_merge($current, array_filter([
+            'retention_days' => (int) $validated['retention_days'],
+            'retention_days_outbound' => isset($validated['retention_days_outbound']) ? (int) $validated['retention_days_outbound'] : null,
+            'retention_days_inbound' => isset($validated['retention_days_inbound']) ? (int) $validated['retention_days_inbound'] : null,
+            'retention_days_jobs' => isset($validated['retention_days_jobs']) ? (int) $validated['retention_days_jobs'] : null,
+            'outbound_level' => $validated['outbound_level'] ?? null,
+            'inbound_level' => $validated['inbound_level'] ?? null,
+        ], fn ($v) => $v !== null));
+        foreach (['verbose', 'mask_pii'] as $flag) {
+            if ($request->has($flag)) {
+                $next[$flag] = $request->boolean($flag);
+            }
         }
 
+        Setting::put('audit', $next);
+        $settings->flush();
+
+        AuditLogger::logSystem('monitoring.settings', 'Changed monitoring settings.', ['service' => 'monitoring', 'function' => 'settings'], [
+            'old_values' => array_intersect_key($current, $next),
+            'new_values' => $next,
+        ]);
+
+        $deleted = $request->boolean('prune_now') ? array_sum(app(MonitoringPruner::class)->prune()) : 0;
+
         return back()->with('status', $deleted > 0
-            ? "Audit retention saved. Pruned {$deleted} older log entries."
-            : 'Audit retention saved.');
+            ? "Monitoring settings saved. Pruned {$deleted} older log entries."
+            : 'Monitoring settings saved.');
+    }
+
+    private function ensureAdmin(Request $request): void
+    {
+        abort_unless($request->user()?->hasRole('Administrator'), 403);
     }
 
     /**
@@ -119,7 +178,7 @@ class AuditLogController extends Controller
      */
     private function distinctContextValues(string $key): \Illuminate\Support\Collection
     {
-        return \Illuminate\Support\Facades\Cache::remember(
+        return Cache::remember(
             "audit:filter-options:{$key}",
             now()->addMinutes(10),
             fn () => AuditLog::query()
@@ -136,19 +195,20 @@ class AuditLogController extends Controller
     }
 
     /**
-     * Size of the audit table, computed by the database rather than by loading
-     * every row into PHP (which exhausts memory on large tables).
+     * Size of a table, computed by the database rather than by loading every row into PHP.
+     *
+     * @param string[] $textColumns used for the portable estimate on non-MySQL drivers
      */
-    private function estimateAuditDatabaseSizeBytes(): int
+    private function estimateTableSizeBytes(string $table, array $textColumns): int
     {
-        return (int) \Illuminate\Support\Facades\Cache::remember('audit:db-size', now()->addMinutes(10), function (): int {
-            $connection = AuditLog::query()->getConnection();
-            $table = $connection->getTablePrefix() . (new AuditLog())->getTable();
+        return (int) Cache::remember("monitoring:size:{$table}", now()->addMinutes(10), function () use ($table, $textColumns): int {
+            $connection = DB::connection();
+            $prefixed = $connection->getTablePrefix() . $table;
 
             if (in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)) {
                 $row = $connection->selectOne(
                     'SELECT data_length + index_length AS bytes FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
-                    [$table]
+                    [$prefixed]
                 );
 
                 if ($row !== null && $row->bytes !== null) {
@@ -156,11 +216,9 @@ class AuditLogController extends Controller
                 }
             }
 
-            // Portable estimate: stored text lengths plus a fixed per-row overhead.
-            return (int) AuditLog::query()->toBase()->selectRaw(
-                'COALESCE(SUM(200 + COALESCE(LENGTH(description), 0) + COALESCE(LENGTH(old_values), 0)'
-                . ' + COALESCE(LENGTH(new_values), 0) + COALESCE(LENGTH(context), 0) + COALESCE(LENGTH(user_agent), 0)), 0) AS bytes'
-            )->value('bytes');
+            $sum = implode(' + ', array_map(fn ($c) => "COALESCE(LENGTH({$c}), 0)", $textColumns));
+
+            return (int) DB::table($table)->selectRaw("COALESCE(SUM(200 + {$sum}), 0) AS bytes")->value('bytes');
         });
     }
 

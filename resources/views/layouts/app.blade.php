@@ -269,7 +269,7 @@
                             </li>
                             <li class="nav-item">
                                 <a href="{{ route('admin.audit.index') }}" class="nav-link {{ request()->routeIs('admin.audit.*') ? 'active' : '' }}" @if(request()->routeIs('admin.audit.*')) aria-current="page" @endif>
-                                    Audit & Logging
+                                    Monitoring
                                 </a>
                             </li>
                             @can('domain-pricing.view')

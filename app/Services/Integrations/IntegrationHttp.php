@@ -21,13 +21,18 @@ class IntegrationHttp
 {
     public const RETRY_STATUSES = [429, 500, 502, 503, 504];
 
-    public static function pending(string $baseUrl = '', array $headers = []): PendingRequest
+    public static function pending(string $baseUrl = '', array $headers = [], ?string $provider = null): PendingRequest
     {
         $request = Http::connectTimeout((int) config('integrations.http.connect_timeout', 5))
             ->timeout((int) config('integrations.http.timeout', 30));
 
         if ($baseUrl !== '') {
             $request = $request->baseUrl($baseUrl);
+        }
+
+        // Monitoring: every attempt is recorded in integration_requests (level + redaction handled there).
+        if ($provider !== null) {
+            $request = $request->withMiddleware(app(\App\Services\Monitoring\IntegrationRequestLogger::class)->middleware($provider));
         }
 
         return $headers === [] ? $request : $request->withHeaders($headers);

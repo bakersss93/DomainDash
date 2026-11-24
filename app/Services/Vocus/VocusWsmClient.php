@@ -542,11 +542,15 @@ class VocusWsmClient
             $previousTimeout = ini_get('default_socket_timeout');
             @ini_set('default_socket_timeout', (string) max(1, $this->timeout()));
 
+            $startedAt = microtime(true);
+
             try {
                 $result = $this->soap()->__soapCall($operation, [$soapVar]);
+                $this->recordCall($operation, $xml, $productId, $params, $result, null, $startedAt);
 
                 return $this->parseResponse($result);
             } catch (SoapFault $e) {
+                $this->recordCall($operation, $xml, $productId, $params, null, $e, $startedAt);
                 $fault = $this->extractFault($e);
 
                 // Session expired - drop it, log in again and retry once.
@@ -591,6 +595,37 @@ class VocusWsmClient
                     @ini_set('default_socket_timeout', (string) $previousTimeout);
                 }
             }
+        }
+    }
+
+    /**
+     * Monitoring: record one WSM call (request XML redacted by the logger). Never throws.
+     */
+    protected function recordCall(string $operation, string $xml, string $productId, array $params, mixed $result, ?\Throwable $fault, float $startedAt): void
+    {
+        try {
+            $reference = null;
+            foreach (['ServiceID', 'ServiceId', 'serviceId'] as $field) {
+                if (isset($params[$field]) && is_scalar($params[$field])) {
+                    $reference = (string) $params[$field];
+                    break;
+                }
+            }
+
+            app(\App\Services\Monitoring\IntegrationRequestLogger::class)->logSoap(
+                'vocus',
+                $operation,
+                $this->endpointUrl(),
+                $xml,
+                $result,
+                $fault,
+                (int) round((microtime(true) - $startedAt) * 1000),
+                $reference ?? $productId,
+                $reference !== null ? 'internet_service' : 'product',
+                is_object($result) ? (string) ($result->ResponseType ?? '') ?: null : null,
+            );
+        } catch (\Throwable) {
+            // monitoring must never break the WSM call
         }
     }
 

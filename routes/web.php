@@ -155,6 +155,13 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/https/force', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'force'])->name('admin.https.force');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
         Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');
+        // Monitoring tabs (JSON): server-side search / paging, detail, export, delete. Administrator + MFA only.
+        Route::middleware('throttle:120,1')->prefix('audit')->group(function () {
+            Route::get('/data/{tab}', [AuditLogController::class, 'data'])->name('admin.audit.data');
+            Route::get('/entry/{tab}/{id}', [AuditLogController::class, 'show'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.show');
+            Route::get('/entry/{tab}/{id}/export', [AuditLogController::class, 'export'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.export');
+            Route::delete('/entry/{tab}/{id}', [AuditLogController::class, 'destroy'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.destroy');
+        });
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
         Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'storeTemplate'])->name('admin.notifications.templates.store');
         Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');

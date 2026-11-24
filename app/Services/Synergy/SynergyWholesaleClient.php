@@ -225,9 +225,13 @@ class SynergyWholesaleClient
             @ini_set('default_socket_timeout', (string) $timeout);
         }
 
+        $startedAt = microtime(true);
+
         try {
             $response = $soap->__soapCall($operation, [$payload]);
         } catch (SoapFault $e) {
+            $this->recordCall($operation, $payload, null, $e, $startedAt);
+
             throw new SynergyApiException(
                 "Synergy {$operation} request failed: " . $e->getMessage(),
                 null,
@@ -243,11 +247,46 @@ class SynergyWholesaleClient
 
         $result = is_array($response) ? $response : (array) $response;
 
+        $this->recordCall($operation, $payload, $result, null, $startedAt);
+
         if (empty($opts['skipStatusCheck'])) {
             $this->assertSuccess($operation, $result, $opts);
         }
 
         return $result;
+    }
+
+    /**
+     * Monitoring: record one SOAP call (credentials redacted by the logger). Never throws.
+     */
+    protected function recordCall(string $operation, array $payload, ?array $result, ?\Throwable $fault, float $startedAt): void
+    {
+        try {
+            $reference = null;
+            foreach (['domainName', 'domain', 'identifier', 'hostingId', 'certificateId', 'id'] as $field) {
+                if (isset($payload[$field]) && is_scalar($payload[$field])) {
+                    $reference = (string) $payload[$field];
+                    break;
+                }
+            }
+
+            $status = is_array($result) && isset($result['status']) && is_string($result['status']) ? $result['status'] : null;
+
+            app(\App\Services\Monitoring\IntegrationRequestLogger::class)->logSoap(
+                'synergy',
+                $operation,
+                (string) ($this->resolveEndpoint() ?? 'synergy-wholesale-soap'),
+                $payload,
+                $result,
+                $fault,
+                (int) round((microtime(true) - $startedAt) * 1000),
+                $reference,
+                $reference !== null ? 'domain' : null,
+                $status,
+            );
+        } catch (\Throwable) {
+            // monitoring must never break the API call
+        }
     }
 
     protected function assertSuccess(string $operation, array $result, array $opts): void

@@ -99,7 +99,7 @@ class ItGlueClient
             $method,
             $url,
             function () use ($method, $url, $query, $json) {
-                $pending = IntegrationHttp::pending('', $this->headers());
+                $pending = IntegrationHttp::pending('', $this->headers(), self::PROVIDER);
 
                 if ($json !== null) {
                     $pending = $pending->withBody(json_encode($json), 'application/vnd.api+json');

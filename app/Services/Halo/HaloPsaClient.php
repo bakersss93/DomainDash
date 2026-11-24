@@ -167,7 +167,7 @@ class HaloPsaClient
             self::PROVIDER,
             'POST',
             $tokenUrl,
-            fn () => IntegrationHttp::pending()->asForm()->post($tokenUrl, [
+            fn () => IntegrationHttp::pending('', [], self::PROVIDER)->asForm()->post($tokenUrl, [
                 'grant_type'    => 'client_credentials',
                 'client_id'     => $this->clientId,
                 'client_secret' => $this->clientSecret,
@@ -254,7 +254,7 @@ class HaloPsaClient
 
     private function dispatch(string $method, string $url, array $options)
     {
-        $pending = IntegrationHttp::pending()
+        $pending = IntegrationHttp::pending('', [], self::PROVIDER)
             ->withToken($this->getAccessToken())
             ->acceptJson();
 

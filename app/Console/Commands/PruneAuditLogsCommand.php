@@ -2,23 +2,23 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Setting;
-use App\Services\AuditLogger;
+use App\Services\Monitoring\MonitoringPruner;
 use Illuminate\Console\Command;
 
 class PruneAuditLogsCommand extends Command
 {
     protected $signature = 'domaindash:audit-prune';
 
-    protected $description = 'Prunes audit logs based on configured retention settings';
+    protected $description = 'Prunes activity, integration request and sync run history based on the per-category retention settings';
 
-    public function handle(): int
+    public function handle(MonitoringPruner $pruner): int
     {
-        $auditSettings = Setting::get('audit', ['retention_days' => 90]);
-        $retentionDays = (int) ($auditSettings['retention_days'] ?? 90);
+        $deleted = $pruner->prune();
 
-        $deleted = AuditLogger::pruneOlderThanDays($retentionDays);
-        $this->info("Pruned {$deleted} audit log row(s) using {$retentionDays}-day retention.");
+        $this->info(sprintf(
+            'Pruned %d activity, %d outbound, %d inbound and %d job row(s) using the configured retention.',
+            $deleted['activity'], $deleted['outbound'], $deleted['inbound'], $deleted['jobs']
+        ));
 
         return self::SUCCESS;
     }

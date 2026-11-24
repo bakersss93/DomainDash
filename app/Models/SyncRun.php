@@ -190,8 +190,19 @@ class SyncRun extends Model
         return static::lastSuccessful($provider, $scope, $clientId)?->finished_at;
     }
 
+    /** Monitoring: tie integration request rows recorded from now on to this run (null clears). Never throws. */
+    private function linkMonitoring(?int $runId): void
+    {
+        try {
+            app(\App\Services\Monitoring\IntegrationRequestLogger::class)->setRun($runId);
+        } catch (\Throwable) {
+            // monitoring is optional
+        }
+    }
+
     public function markRunning(?int $total = null): self
     {
+        $this->linkMonitoring($this->id);
         $this->forceFill([
             'status' => self::RUNNING,
             'started_at' => $this->started_at ?? now(),
@@ -236,6 +247,7 @@ class SyncRun extends Model
 
     public function finish(?string $error = null): self
     {
+        $this->linkMonitoring(null);
         if (in_array($this->status, [self::OK, self::PARTIAL, self::FAILED, self::SKIPPED], true) && $this->finished_at) {
             return $this;
         }
@@ -259,6 +271,7 @@ class SyncRun extends Model
 
     public function fail(string $error): self
     {
+        $this->linkMonitoring(null);
         $this->forceFill([
             'status' => self::FAILED,
             'error' => SyncErrorSanitizer::clean($error, 1000),

@@ -14,6 +14,7 @@ class ApiKeyAuth
 {
     public function handle(Request $request, Closure $next, ...$scopes): Response
     {
+        $request->attributes->set('monitoring_started_at', microtime(true));
         $raw = (string) $request->header('x-api-key', '');
         if ($raw === '') {
             return $this->reject($request, null, 'API key required', 401);
@@ -57,6 +58,7 @@ class ApiKeyAuth
         }
 
         $status = 500;
+        $resp = null;
         try {
             $resp = $next($request);
             $status = $resp->getStatusCode();
@@ -66,20 +68,29 @@ class ApiKeyAuth
             $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
             throw $e;
         } finally {
-            $this->log($request, $key, $status);
+            $this->log($request, $key, $status, $resp);
         }
     }
 
     protected function reject(Request $request, ?ApiKey $key, string $message, int $status, ?int $retryAfter = null): Response
     {
-        $this->log($request, $key, $status);
         $headers = $retryAfter !== null ? ['Retry-After' => (string) max(1, $retryAfter)] : [];
+        $response = response()->json(['message' => $message], $status, $headers);
+        $this->log($request, $key, $status, $response);
 
-        return response()->json(['message' => $message], $status, $headers);
+        return $response;
     }
 
-    protected function log(Request $request, ?ApiKey $key, int $status): void
+    protected function log(Request $request, ?ApiKey $key, int $status, ?Response $response = null): void
     {
+        // Monitoring > Integration Inbound (redacted request / response detail; never breaks the request).
+        try {
+            app(\App\Services\Monitoring\IntegrationRequestLogger::class)
+                ->logInbound($request, $key, $status, $response, $request->attributes->get('monitoring_started_at'));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         try {
             DB::table('api_access_logs')->insert([
                 'api_key_id' => $key?->id,

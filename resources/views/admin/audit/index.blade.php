@@ -1,672 +1,519 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="ui-page">
-    <x-ui.page-header title="Audit & Logging" subtitle="Who did what, and when. Retention and filters below." />
+<div class="ui-page" id="monitoring-page">
+    <x-ui.page-header title="Monitoring" subtitle="Who changed what, what DomainDash exchanged with your integrations, and how background jobs ran.">
+        <x-slot name="actions">
+            <x-ui.button variant="secondary" size="sm" type="button" id="mon-settings-toggle" aria-expanded="false" aria-controls="mon-settings">Logging settings</x-ui.button>
+        </x-slot>
+    </x-ui.page-header>
 
-    <div class="dd-card" style="margin-bottom: 1rem;">
-        <h2 style="margin-bottom: 0.75rem;">Retention & Storage</h2>
-        <form method="POST" action="{{ route('admin.audit.retention') }}" class="dd-audit-retention-form">
-            @csrf
-            <div class="dd-audit-field">
-                <label style="display:block;font-size:12px;margin-bottom:4px;">Retention days</label>
-                <input type="number" name="retention_days" min="1" max="3650" value="{{ $retentionDays }}" required>
-            </div>
-            <label class="dd-audit-checkbox-label">
-                <input type="checkbox" class="dd-audit-checkbox" name="prune_now" value="1">
-                Prune now
-            </label>
-            <button type="submit" class="ui-btn ui-btn--primary">Save retention</button>
-        </form>
-        <div style="margin-top:0.8rem;color:var(--dd-text-soft);">
-            <div>Audit DB size (estimated): {{ number_format($dbBytes / 1024, 1) }} KB</div>
-            <div>Laravel log file size: {{ number_format($logFileBytes / 1024, 1) }} KB</div>
-        </div>
+    @if (session('status'))
+        <x-ui.alert variant="success" :dismissible="true">{{ session('status') }}</x-ui.alert>
+    @endif
+    @if ($errors->any())
+        <x-ui.alert variant="danger" title="Settings not saved">{{ $errors->first() }}</x-ui.alert>
+    @endif
+
+    <section id="mon-settings" class="mon-settings" hidden>
+        <x-ui.card title="Logging settings" description="What is recorded and for how long. Secrets are never stored, whatever the level.">
+            <form method="POST" action="{{ route('admin.audit.retention') }}" class="mon-settings__grid">
+                @csrf
+                <x-ui.field label="Keep activity (days)" name="retention_days" type="number" :value="$monitoring['retention']['activity']" min="1" max="3650" required />
+                <x-ui.field label="Keep outbound requests (days)" name="retention_days_outbound" type="number" :value="$monitoring['retention']['outbound']" min="1" max="3650" />
+                <x-ui.field label="Keep inbound requests (days)" name="retention_days_inbound" type="number" :value="$monitoring['retention']['inbound']" min="1" max="3650" />
+                <x-ui.field label="Keep job history (days)" name="retention_days_jobs" type="number" :value="$monitoring['retention']['jobs']" min="1" max="3650" />
+
+                <x-ui.field label="Outbound request logging" name="outbound_level" as="select" help="Errors only keeps the table small; All requests is for troubleshooting.">
+                    <option value="errors" @selected($monitoring['outbound_level'] === 'errors')>Errors only</option>
+                    <option value="all" @selected($monitoring['outbound_level'] === 'all')>All requests</option>
+                </x-ui.field>
+                <x-ui.field label="Inbound request logging" name="inbound_level" as="select">
+                    <option value="all" @selected($monitoring['inbound_level'] === 'all')>All requests</option>
+                    <option value="errors" @selected($monitoring['inbound_level'] === 'errors')>Errors only</option>
+                </x-ui.field>
+
+                <div class="mon-settings__checks">
+                    <input type="hidden" name="mask_pii" value="0">
+                    <label class="mon-check"><input type="checkbox" name="mask_pii" value="1" @checked($monitoring['mask_pii'])> Mask customer e-mail and phone values in stored request bodies</label>
+                    <input type="hidden" name="verbose" value="0">
+                    <label class="mon-check"><input type="checkbox" name="verbose" value="1" @checked($monitoring['verbose'])> Verbose debug logging (page views, routine job and command events, queue heartbeat)</label>
+                    <label class="mon-check"><input type="checkbox" name="prune_now" value="1"> Apply retention now</label>
+                </div>
+
+                <div class="mon-settings__foot">
+                    <x-ui.button type="submit" variant="primary">Save settings</x-ui.button>
+                    <p class="ui-help">
+                        Activity table about {{ number_format($dbBytes / 1024, 1) }} KB, integration requests about {{ number_format($requestsBytes / 1024, 1) }} KB,
+                        Laravel log file {{ number_format($logFileBytes / 1024, 1) }} KB.
+                    </p>
+                </div>
+            </form>
+        </x-ui.card>
+    </section>
+
+    <div class="mon-tabs" role="tablist" aria-label="Monitoring sections">
+        @foreach ($tabs as $key => $def)
+            <button type="button" role="tab" class="mon-tab" id="mon-tab-{{ $key }}" data-mon-tab="{{ $key }}" aria-controls="mon-panel" aria-selected="{{ $tab === $key ? 'true' : 'false' }}" tabindex="{{ $tab === $key ? '0' : '-1' }}">{{ $def['label'] }}</button>
+        @endforeach
     </div>
 
-    <div class="dd-card" style="margin-bottom: 1rem;">
-        <h2 style="margin-bottom: 0.75rem;">Filters</h2>
-        <form method="GET" class="dd-audit-filter-grid">
-            <div class="dd-audit-field">
-                <label for="audit-action" class="ui-label">Event</label>
-                <select id="audit-action" name="action">
-                    <option value="">All events</option>
-                    @foreach($actionOptions as $action)
-                        <option value="{{ $action }}" {{ $filters['action'] === $action ? 'selected' : '' }}>{{ $action }}</option>
-                    @endforeach
-                </select>
+    <x-ui.card id="mon-panel" role="tabpanel" aria-labelledby="mon-tab-{{ $tab }}" :flush="true">
+        <div class="mon-toolbar">
+            <p id="mon-hint" class="mon-hint"></p>
+            <div class="mon-filters">
+                <input type="search" id="mon-q" class="ui-input mon-q" placeholder="Search" aria-label="Search this log" autocomplete="off">
+                <select id="mon-provider" class="ui-input" aria-label="Filter" hidden></select>
+                <select id="mon-status" class="ui-input" aria-label="Status filter"></select>
+                <label class="mon-date">From <input type="date" id="mon-from" class="ui-input" aria-label="From date"></label>
+                <label class="mon-date">To <input type="date" id="mon-to" class="ui-input" aria-label="To date"></label>
+                <label class="mon-check" id="mon-debug-wrap" hidden><input type="checkbox" id="mon-debug"> Include debug events</label>
             </div>
-            <div class="dd-audit-field">
-                <label for="audit-user_id" class="ui-label">User</label>
-                <select id="audit-user_id" name="user_id">
-                    <option value="">All users</option>
-                    @foreach($users as $user)
-                        <option value="{{ $user->id }}" {{ $filters['user_id'] === (string) $user->id ? 'selected' : '' }}>
-                            {{ $user->name }} ({{ $user->email }})
-                        </option>
-                    @endforeach
-                </select>
+            <div class="mon-pager" aria-label="Pagination">
+                <span id="mon-range" class="mon-range" aria-live="polite">0 of 0</span>
+                <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm ui-btn--icon" id="mon-prev" aria-label="Previous page">&lsaquo;</button>
+                <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm ui-btn--icon" id="mon-next" aria-label="Next page">&rsaquo;</button>
+                <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm ui-btn--icon" id="mon-refresh" aria-label="Refresh" title="Refresh"><x-ui.icon name="refresh" :size="16" /></button>
             </div>
-            <div class="dd-audit-field">
-                <label for="audit-client_id" class="ui-label">Client</label>
-                <select id="audit-client_id" name="client_id">
-                    <option value="">All clients</option>
-                    @foreach($clients as $client)
-                        <option value="{{ $client->id }}" {{ $filters['client_id'] === (string) $client->id ? 'selected' : '' }}>{{ $client->business_name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="dd-audit-field">
-                <label for="audit-service" class="ui-label">Service</label>
-                <select id="audit-service" name="service">
-                    <option value="">All services</option>
-                    @foreach($serviceOptions as $serviceOption)
-                        <option value="{{ $serviceOption }}" {{ $filters['service'] === $serviceOption ? 'selected' : '' }}>{{ $serviceOption }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="dd-audit-field">
-                <label for="audit-function" class="ui-label">Function</label>
-                <select id="audit-function" name="function">
-                    <option value="">All functions</option>
-                    @foreach($functionOptions as $functionOption)
-                        <option value="{{ $functionOption }}" {{ $filters['function'] === $functionOption ? 'selected' : '' }}>{{ $functionOption }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <label class="dd-audit-checkbox-label dd-audit-field">
-                <input type="checkbox" class="dd-audit-checkbox" name="failed_only" value="1" {{ $filters['failed_only'] ? 'checked' : '' }}>
-                Failed only
-            </label>
-            <div class="dd-audit-actions">
-                <button type="submit" class="ui-btn ui-btn--primary">Apply</button>
-                <a href="{{ route('admin.audit.index') }}" class="ui-btn ui-btn--secondary">Reset</a>
-            </div>
-        </form>
-    </div>
+        </div>
 
-    <div class="dd-card">
-        <h2 style="margin-bottom: 0.75rem;">Event Timeline</h2>
-        <div style="margin-bottom:0.75rem;max-width:360px;">
-            <label for="audit-live-search" class="ui-label" style="margin-bottom:4px;">Live search in current results</label>
-            <input id="audit-live-search" type="text" placeholder="Type to filter visible rows...">
-        </div>
-        <p id="audit-live-empty" style="display:none; margin:0 0 0.75rem; color:var(--dd-text-soft);">No rows match the live search.</p>
-        <div style="overflow:auto;">
-            <table class="dd-table" style="width:100%; min-width:1200px;">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Event</th>
-                        <th>User</th>
-                        <th>Client</th>
-                        <th>Service / Function</th>
-                        <th>Description</th>
-                        <th>Entity</th>
-                        <th>Changes</th>
-                    </tr>
-                </thead>
-                <tbody id="audit-log-body">
-                    @forelse($logs as $log)
-                        @php
-                            $context = $log->context ?? [];
-                            $clientId = $context['client_id'] ?? $log->new_values['client_id'] ?? $log->old_values['client_id'] ?? null;
-                            $service = $context['service'] ?? '-';
-                            $function = $context['function'] ?? '-';
-                            $eventPayload = [
-                                'timestamp' => $log->created_at?->toDateTimeString(),
-                                'event' => $log->action,
-                                'user' => $log->user_email ?? optional($log->user)->email ?? '-',
-                                'service' => $service,
-                                'function' => $function,
-                                'entity' => class_basename($log->auditable_type) . ' #' . ($log->auditable_id ?? '-'),
-                                'description' => $log->description ?? '-',
-                                'client_id' => $clientId,
-                                'ip_address' => $log->ip_address,
-                                'user_agent' => $log->user_agent,
-                                'context' => $context,
-                                'old_values' => $log->old_values ?? [],
-                                'new_values' => $log->new_values ?? [],
-                            ];
-                        @endphp
-                        <tr data-audit-row>
-                            <td>{{ $log->created_at?->toDateTimeString() }}</td>
-                            <td>{{ $log->action }}</td>
-                            <td>{{ $log->user_email ?? optional($log->user)->email ?? '-' }}</td>
-                            <td>{{ $clientId ?? '-' }}</td>
-                            <td>{{ $service }} / {{ $function }}</td>
-                            <td>{{ $log->description ?? '-' }}</td>
-                            <td>{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id ?? '-' }}</td>
-                            <td>
-                                <button
-                                    type="button"
-                                    class="dd-account-password-btn dd-audit-view-btn"
-                                    data-payload='@json($eventPayload)'
-                                >
-                                    View
-                                </button>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" style="text-align:center;color:var(--dd-text-soft);">No audit events match the current filters.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        <div style="margin-top: 1rem;">
-            {{ $logs->links() }}
-        </div>
-    </div>
+        <x-ui.table :compact="true">
+            <thead><tr id="mon-head"></tr></thead>
+            <tbody id="mon-body"><tr><td class="mon-msg">Loading&hellip;</td></tr></tbody>
+        </x-ui.table>
+        <noscript><p class="mon-msg">JavaScript is required to browse the logs.</p></noscript>
+    </x-ui.card>
 </div>
 
-<dialog id="audit-event-modal" class="dd-audit-modal" aria-labelledby="auditEventTitle">
-    <div class="dd-audit-modal-panel">
-        <div class="dd-account-modal-header dd-audit-modal-header">
-            <div>
-                <h2 id="auditEventTitle">Audit Event Details</h2>
-                <p id="audit-event-headline" class="dd-audit-modal-headline">Event details and change history.</p>
-            </div>
-            <button type="button" class="dd-account-modal-close" id="audit-event-close" aria-label="Close audit event details">&times;</button>
-        </div>
-        <div class="dd-audit-tablist" role="tablist" aria-label="Audit details tabs">
-            <button type="button" class="dd-audit-tab is-active" data-tab="details" role="tab" aria-selected="true">Details</button>
-            <button type="button" class="dd-audit-tab" data-tab="changes" role="tab" aria-selected="false">Changes</button>
-            <button type="button" class="dd-audit-tab" data-tab="difference" role="tab" aria-selected="false">Difference</button>
-        </div>
-
-        <section class="dd-audit-tab-panel is-active" data-tab-panel="details" role="tabpanel">
-            <div class="dd-account-modal-grid">
-                <div><strong>Timestamp:</strong> <span id="audit-event-time"></span></div>
-                <div><strong>Event:</strong> <span id="audit-event-action"></span></div>
-                <div><strong>User:</strong> <span id="audit-event-user"></span></div>
-                <div><strong>Service / Function:</strong> <span id="audit-event-scope"></span></div>
-                <div><strong>Entity:</strong> <span id="audit-event-entity"></span></div>
-                <div><strong>Description:</strong> <span id="audit-event-description"></span></div>
-                <div><strong>Client:</strong> <span id="audit-event-client"></span></div>
-                <div><strong>IP Address:</strong> <span id="audit-event-ip"></span></div>
-                <div style="grid-column: 1 / -1;"><strong>User Agent:</strong> <span id="audit-event-user-agent"></span></div>
-            </div>
-        </section>
-
-        <section class="dd-audit-tab-panel" data-tab-panel="changes" role="tabpanel" hidden>
-            <div><strong>Changed Fields:</strong></div>
-            <div id="audit-event-diff-empty" style="display:none;margin-top:8px;color:var(--text-muted);">No field-level changes were captured for this event.</div>
-            <div style="overflow:auto;">
-                <table id="audit-event-diff-table" class="dd-table" style="width:100%;margin-top:8px;">
-                    <thead>
-                        <tr>
-                            <th>Field</th>
-                            <th>Previous Value</th>
-                            <th>New Value</th>
-                        </tr>
-                    </thead>
-                    <tbody id="audit-event-diff-body"></tbody>
-                </table>
-            </div>
-            <div style="margin-top:12px;">
-                <strong>Context Payload:</strong>
-                <pre id="audit-event-context" class="dd-audit-code"></pre>
-            </div>
-        </section>
-
-        <section class="dd-audit-tab-panel" data-tab-panel="difference" role="tabpanel" hidden>
-            <div><strong>Old vs New (line view):</strong></div>
-            <div id="audit-event-lines-empty" style="display:none;margin-top:8px;color:var(--text-muted);">No differences captured for this event.</div>
-            <pre id="audit-event-diff-lines" class="dd-audit-code dd-audit-diff-lines"></pre>
-        </section>
+<x-ui.modal id="mon-detail" title="Details" size="lg">
+    <div class="mon-detail">
+        <p id="mon-detail-meta" class="mon-meta"></p>
+        <div id="mon-detail-tabs" class="mon-tabs mon-tabs--inner" role="tablist" aria-label="Entry sections"></div>
+        <div id="mon-detail-body" class="mon-detail__body" role="tabpanel" tabindex="0"></div>
+        <p id="mon-detail-error" class="ui-error" role="alert" hidden></p>
     </div>
-</dialog>
+    <x-slot name="footer">
+        <a id="mon-export" class="ui-btn ui-btn--secondary" href="#" download>Export to JSON</a>
+        <button type="button" id="mon-delete" class="ui-btn ui-btn--danger" hidden>Delete</button>
+        <button type="button" class="ui-btn ui-btn--ghost" data-modal-close>Close</button>
+    </x-slot>
+</x-ui.modal>
+
+<span id="mon-ico-success" class="mon-ico mon-ico--success" hidden><x-ui.icon name="check-circle" :size="20" /></span>
+<span id="mon-ico-failed" class="mon-ico mon-ico--failed" hidden><x-ui.icon name="x-circle" :size="20" /></span>
+
+<script type="application/json" id="mon-config">@json([
+    'tab' => $tab,
+    'tabs' => $tabs,
+    'urls' => [
+        'data' => route('admin.audit.data', ['tab' => '__TAB__']),
+        'show' => route('admin.audit.show', ['tab' => '__TAB__', 'id' => '__ID__']),
+        'export' => route('admin.audit.export', ['tab' => '__TAB__', 'id' => '__ID__']),
+        'destroy' => route('admin.audit.destroy', ['tab' => '__TAB__', 'id' => '__ID__']),
+    ],
+])</script>
 
 <style>
-.dd-audit-retention-form {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
-}
-
-.dd-audit-filter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 0.9rem;
-    align-items: end;
-}
-
-.dd-audit-field {
-    min-width: 0;
-}
-
-.dd-audit-field select,
-.dd-audit-field input[type="text"],
-.dd-audit-field input[type="number"] {
-    width: 100%;
-}
-
-.dd-audit-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.dd-audit-checkbox-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.95rem;
-    white-space: nowrap;
-    padding-bottom: 0.2rem;
-}
-
-
-
-
-.dd-audit-modal {
-    width: min(1100px, 94vw);
-    border: 0;
-    padding: 0;
-    background: transparent;
-}
-
-.dd-audit-modal::backdrop {
-    background: rgba(2, 6, 23, 0.75);
-}
-
-.dd-audit-modal-panel {
-    border: 1px solid var(--border-subtle);
-    border-radius: 16px;
-    background: var(--surface-elevated);
-    color: var(--text);
-    box-shadow: 0 24px 44px rgba(2, 6, 23, 0.6);
-    padding: 20px;
-    max-height: 84vh;
-    overflow: auto;
-    position: relative;
-}
-
-.dd-audit-modal-header {
-    margin-bottom: 4px;
-    padding-right: 52px;
-}
-
-.dd-audit-modal .dd-account-modal-close {
-    border: 1px solid var(--border-subtle);
-    background: var(--surface-muted);
-    color: var(--text);
-    width: 34px;
-    height: 34px;
-    border-radius: 999px;
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.dd-audit-modal-headline {
-    margin: 6px 0 0;
-    color: var(--text-muted);
-}
-
-.dd-audit-tablist {
-    display: flex;
-    gap: 8px;
-    margin: 14px 0 16px;
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.dd-audit-tab {
-    border: 0;
-    border-bottom: 3px solid transparent;
-    background: transparent;
-    color: var(--text-muted);
-    padding: 10px 2px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.dd-audit-tab.is-active {
-    color: var(--text);
-    border-bottom-color: var(--accent);
-}
-
-.dd-audit-tab-panel {
-    animation: ddAuditFadeIn 140ms ease-out;
-}
-
-.dd-audit-code {
-    margin-top: 8px;
-    white-space: pre-wrap;
-    background: var(--surface-muted);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    padding: 12px;
-    overflow: auto;
-}
-
-.dd-audit-diff-lines {
-    max-height: 46vh;
-}
-
-.dd-audit-diff-line {
-    display: block;
-    padding: 3px 6px;
-    border-radius: 6px;
-}
-
-.dd-audit-diff-line--added {
-    background: color-mix(in srgb, #22c55e 24%, transparent);
-}
-
-.dd-audit-diff-line--removed {
-    background: color-mix(in srgb, #ef4444 24%, transparent);
-}
-
-@keyframes ddAuditFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
+    #monitoring-page [hidden], #mon-detail [hidden], .mon-ico[hidden] { display: none !important; }
+    .mon-settings { margin-bottom: 1rem; }
+    .mon-settings__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; }
+    .mon-settings__checks, .mon-settings__foot { grid-column: 1 / -1; display: grid; gap: .5rem; }
+    .mon-settings__foot { grid-template-columns: auto 1fr; align-items: center; gap: 1rem; }
+    .mon-check { display: flex; gap: .5rem; align-items: center; font-size: 13px; color: var(--dd-text); }
+    .mon-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--dd-border); margin-bottom: 1rem; overflow-x: auto; }
+    .mon-tabs--inner { margin: 0 0 .75rem; }
+    .mon-tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; padding: .6rem .9rem; font: inherit; font-size: 14px; font-weight: 500; color: var(--dd-text-soft); cursor: pointer; white-space: nowrap; display: inline-flex; gap: .4rem; align-items: center; }
+    .mon-tab:hover { color: var(--dd-text); }
+    .mon-tab[aria-selected="true"] { color: var(--dd-accent-text); border-bottom-color: var(--dd-accent); }
+    .mon-tab:focus-visible, .mon-row:focus-visible { outline: 2px solid var(--dd-accent); outline-offset: -2px; }
+    .mon-toolbar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; padding: .75rem 1rem; border-bottom: 1px solid var(--dd-border); }
+    .mon-hint { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--dd-text-soft); }
+    .mon-filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; flex: 1 1 360px; }
+    .mon-filters .ui-input { width: auto; min-width: 0; }
+    .mon-q { flex: 1 1 200px; min-width: 160px !important; }
+    .mon-date { display: inline-flex; gap: .3rem; align-items: center; font-size: 12px; color: var(--dd-text-soft); }
+    .mon-pager { display: flex; gap: .4rem; align-items: center; margin-left: auto; }
+    .mon-range { font-size: 13px; color: var(--dd-text-soft); font-variant-numeric: tabular-nums; min-width: 6.5rem; text-align: right; }
+    .mon-row { cursor: pointer; }
+    .mon-row:hover td { background: var(--dd-surface-muted); }
+    .mon-cell-wrap { white-space: normal; word-break: break-word; max-width: 38ch; }
+    .mon-sub { display: block; font-size: 12px; color: var(--dd-text-soft); }
+    .mon-msg { padding: 1.5rem 1rem; text-align: center; color: var(--dd-text-soft); }
+    .mon-msg button { margin-left: .5rem; }
+    .mon-meta { margin: 0 0 .75rem; font-size: 13px; color: var(--dd-text-soft); }
+    .mon-detail__body { display: grid; gap: .75rem; max-height: 60vh; overflow: auto; }
+    .mon-block { display: grid; grid-template-columns: 140px 1fr; gap: .5rem 1rem; align-items: start; font-size: 14px; }
+    .mon-label { color: var(--dd-text-soft); font-size: 13px; }
+    .mon-value { min-width: 0; word-break: break-word; color: var(--dd-text); }
+    .mon-code { margin: 0; padding: .6rem .75rem; background: var(--dd-surface-muted); border: 1px solid var(--dd-border); border-radius: 6px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; color: var(--dd-text); }
+    .mon-kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mon-kv th, .mon-kv td { text-align: left; padding: 3px 8px 3px 0; vertical-align: top; word-break: break-word; border-bottom: 1px solid var(--dd-border); }
+    .mon-kv th { color: var(--dd-text-soft); font-weight: 500; width: 34%; }
+    .mon-old { color: var(--dd-danger-text); }
+    .mon-new { color: var(--dd-success); }
+    .mon-title-ico { display: inline-flex; vertical-align: -4px; margin-right: .4rem; }
+    .mon-ico--success { color: var(--dd-success); }
+    .mon-ico--failed { color: var(--dd-danger-text); }
+    @media (max-width: 640px) {
+        .mon-block { grid-template-columns: 1fr; }
+        .mon-pager { margin-left: 0; }
+        .mon-settings__foot { grid-template-columns: 1fr; }
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 </style>
 
 <script>
 (function () {
-    const searchInput = document.getElementById('audit-live-search');
-    const body = document.getElementById('audit-log-body');
-    const noResults = document.getElementById('audit-live-empty');
-    const modal = document.getElementById('audit-event-modal');
-    const close = document.getElementById('audit-event-close');
-    const tabs = Array.from(document.querySelectorAll('.dd-audit-tab'));
-    const panels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+    'use strict';
+    var cfg = JSON.parse(document.getElementById('mon-config').textContent);
+    var COLUMNS = {
+        activity: [['When', 'when'], ['User', 'user'], ['Module', 'module'], ['Description', 'description'], ['Reference', 'reference'], ['Status', 'status']],
+        outbound: [['ID', 'id'], ['When', 'when'], ['Provider', 'provider'], ['Description', 'request'], ['Reference', 'reference'], ['Status', 'http'], ['Time', 'duration']],
+        inbound: [['ID', 'id'], ['When', 'when'], ['API key', 'actor'], ['Request', 'request'], ['Status', 'http'], ['IP', 'ip']],
+        errors: [['When', 'when'], ['Module', 'module'], ['Entity', 'entity'], ['Reference', 'reference'], ['Error', 'error']],
+        jobs: [['ID', 'id'], ['Started', 'when'], ['Provider', 'provider'], ['Scope', 'scope'], ['Client', 'reference'], ['Items', 'counts'], ['Duration', 'duration_s'], ['Status', 'job']]
+    };
+    var state = {};
+    Object.keys(cfg.tabs).forEach(function (t) { state[t] = { page: 1, q: '', status: '', provider: '', from: '', to: '', debug: false, last: null }; });
+    var tab = cfg.tab;
+    var detail = { tab: null, id: null, deletable: false, armed: null };
+    var searchTimer = null;
+    var seq = 0;
 
-    function applyLiveSearch() {
-        if (!searchInput || !body) {
-            return;
+    function $(id) { return document.getElementById(id); }
+    function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined && text !== null) n.textContent = text;
+        return n;
+    }
+    function fill(url, tabKey, id) {
+        return url.replace('__TAB__', encodeURIComponent(tabKey)).replace('__ID__', id === undefined ? '' : encodeURIComponent(id));
+    }
+    function csrf() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+    function fmtTime(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        return isNaN(d.getTime()) ? String(iso) : d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function badge(text, variant) {
+        var b = el('span', 'ui-badge ui-badge--dot ui-badge--' + variant, text);
+        return b;
+    }
+    function httpBadge(row) {
+        var code = row.status_code;
+        if (code === null || code === undefined || code === '') return badge('No response', 'danger');
+        return badge(String(code), code >= 500 ? 'danger' : (code >= 400 ? 'warning' : 'success'));
+    }
+    function statusBadge(row) {
+        if (row.status === 'failed') return badge('Failed', 'danger');
+        if (row.status === 'active') return badge('Running', 'info');
+        return badge('Success', 'success');
+    }
+    var JOB_VARIANT = { queued: 'neutral', running: 'info', ok: 'success', partial: 'warning', failed: 'danger', skipped: 'neutral' };
+
+    function cell(kind, row) {
+        var td = el('td');
+        switch (kind) {
+            case 'when': td.textContent = fmtTime(row.when); td.style.whiteSpace = 'nowrap'; break;
+            case 'status': td.appendChild(statusBadge(row)); break;
+            case 'http': td.appendChild(httpBadge(row)); break;
+            case 'job': td.appendChild(badge(row.run_status.charAt(0).toUpperCase() + row.run_status.slice(1), JOB_VARIANT[row.run_status] || 'neutral')); break;
+            case 'duration': td.textContent = row.duration_ms === null || row.duration_ms === undefined ? '' : row.duration_ms + ' ms'; td.style.whiteSpace = 'nowrap'; break;
+            case 'duration_s': td.textContent = row.duration === null || row.duration === undefined ? '' : row.duration + ' s'; td.style.whiteSpace = 'nowrap'; break;
+            case 'request':
+                td.className = 'mon-cell-wrap';
+                td.textContent = (row.method ? row.method + ' ' : '') + (row.description || '');
+                break;
+            case 'description':
+            case 'error':
+            case 'reference':
+            case 'counts':
+                td.className = 'mon-cell-wrap';
+                td.textContent = row[kind] === null || row[kind] === undefined ? '' : String(row[kind]);
+                break;
+            default: td.textContent = row[kind] === null || row[kind] === undefined ? '' : String(row[kind]);
         }
+        return td;
+    }
 
-        const term = searchInput.value.trim().toLowerCase();
-        const rows = Array.from(body.querySelectorAll('tr[data-audit-row]'));
-        let shown = 0;
+    function renderHead() {
+        var tr = $('mon-head');
+        tr.textContent = '';
+        COLUMNS[tab].forEach(function (c) { var th = el('th', null, c[0]); th.scope = 'col'; tr.appendChild(th); });
+    }
 
-        rows.forEach((row) => {
-            const text = (row.textContent || '').toLowerCase();
-            const visible = term === '' || text.includes(term);
-            row.style.display = visible ? '' : 'none';
-            if (visible) {
-                shown += 1;
-            }
+    function message(text, retry) {
+        var body = $('mon-body');
+        body.textContent = '';
+        var tr = el('tr'), td = el('td', 'mon-msg', text);
+        td.colSpan = COLUMNS[tab].length;
+        if (retry) {
+            var b = el('button', 'ui-btn ui-btn--secondary ui-btn--sm', 'Retry');
+            b.type = 'button';
+            b.addEventListener('click', load);
+            td.appendChild(b);
+        }
+        tr.appendChild(td);
+        body.appendChild(tr);
+    }
+
+    function renderRows(data) {
+        var body = $('mon-body');
+        body.textContent = '';
+        if (!data.rows.length) { message('No entries match.'); return; }
+        data.rows.forEach(function (row) {
+            var tr = el('tr', 'mon-row');
+            tr.tabIndex = 0;
+            tr.setAttribute('role', 'button');
+            tr.dataset.id = row.id;
+            COLUMNS[tab].forEach(function (c) { tr.appendChild(cell(c[1], row)); });
+            body.appendChild(tr);
         });
-
-        if (noResults) {
-            noResults.style.display = rows.length > 0 && shown === 0 ? 'block' : 'none';
-        }
     }
 
-    function normaliseValue(value) {
-        if (value === null || typeof value === 'undefined' || value === '') {
-            return '-';
-        }
-
-        if (typeof value === 'object') {
-            return JSON.stringify(value);
-        }
-
-        return String(value);
+    function renderPager(data) {
+        $('mon-range').textContent = data.total === 0 ? '0 of 0' : data.from + '–' + data.to + ' of ' + data.total;
+        $('mon-prev').disabled = data.page <= 1;
+        $('mon-next').disabled = data.page >= data.last_page;
     }
 
-    function isPlainObject(value) {
-        return Object.prototype.toString.call(value) === '[object Object]';
+    function params() {
+        var s = state[tab], p = new URLSearchParams();
+        p.set('page', s.page);
+        ['q', 'status', 'provider', 'from', 'to'].forEach(function (k) { if (s[k]) p.set(k, s[k]); });
+        if (s.debug) p.set('debug', '1');
+        return p.toString();
     }
 
-    function summariseAuditObject(value) {
-        if (!isPlainObject(value)) {
-            return normaliseValue(value);
-        }
-
-        const label = value.domain || value.name || value.record || value.host || value.type || 'item';
-        const idPart = typeof value.id !== 'undefined' && value.id !== null ? `#${value.id}` : null;
-        const detailParts = Object.entries(value)
-            .filter(([key]) => !['id', 'name', 'domain', 'record', 'host'].includes(key))
-            .filter(([, entryValue]) => entryValue !== null && typeof entryValue !== 'undefined' && entryValue !== '')
-            .map(([key, entryValue]) => `${key}=${normaliseValue(entryValue)}`);
-        const headline = idPart ? `${label} (${idPart})` : label;
-
-        if (detailParts.length === 0) {
-            return headline;
-        }
-
-        return `${headline} | ${detailParts.join(', ')}`;
+    function load() {
+        var mine = ++seq, s = state[tab];
+        $('mon-body').setAttribute('aria-busy', 'true');
+        message('Loading…');
+        fetch(fill(cfg.urls.data, tab) + '?' + params(), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+            .then(function (data) {
+                if (mine !== seq) return;
+                s.last = data;
+                if (data.page > data.last_page && data.total > 0) { s.page = data.last_page; load(); return; }
+                renderRows(data);
+                renderPager(data);
+            })
+            .catch(function (err) {
+                if (mine !== seq) return;
+                message('Could not load this log (' + err.message + ').', true);
+                $('mon-range').textContent = '0 of 0';
+            })
+            .then(function () { if (mine === seq) $('mon-body').removeAttribute('aria-busy'); });
     }
 
-    function flattenDiffValues(value, path = '', output = {}) {
-        if (Array.isArray(value)) {
-            if (value.length === 0 && path) {
-                output[path] = [];
-                return output;
-            }
+    function applyTab(next, push) {
+        tab = next;
+        var def = cfg.tabs[tab], s = state[tab];
+        document.querySelectorAll('[data-mon-tab]').forEach(function (b) {
+            var on = b.dataset.monTab === tab;
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+            b.tabIndex = on ? 0 : -1;
+        });
+        $('mon-panel').setAttribute('aria-labelledby', 'mon-tab-' + tab);
+        $('mon-hint').textContent = def.hint || '';
 
-            value.forEach((entry, index) => {
-                const nextPath = path ? `${path}[${index}]` : `[${index}]`;
-                if (isPlainObject(entry)) {
-                    output[nextPath] = summariseAuditObject(entry);
-                    return;
-                }
-
-                if (Array.isArray(entry)) {
-                    flattenDiffValues(entry, nextPath, output);
-                    return;
-                }
-
-                output[nextPath] = entry;
-            });
-            return output;
+        var prov = $('mon-provider');
+        prov.textContent = '';
+        var provKeys = Object.keys(def.providers || {});
+        prov.hidden = provKeys.length === 0;
+        if (provKeys.length) {
+            prov.setAttribute('aria-label', def.providerLabel || 'Filter');
+            var all = el('option', null, 'All ' + String(def.providerLabel || 'providers').toLowerCase() + 's');
+            all.value = '';
+            prov.appendChild(all);
+            provKeys.forEach(function (k) { var o = el('option', null, def.providers[k]); o.value = k; prov.appendChild(o); });
+            prov.value = s.provider;
         }
-
-        if (isPlainObject(value)) {
-            // Keep domain-like entities on one line to avoid noisy key-by-key expansion in sync and DNS audit entries.
-            const hasEntityIdentity = (
-                (typeof value.id !== 'undefined' && value.id !== null)
-                && (value.domain || value.name || value.record || value.host)
-            );
-            if (hasEntityIdentity && path) {
-                output[path] = summariseAuditObject(value);
-                return output;
-            }
-
-            const entries = Object.entries(value).filter(([, entryValue]) => typeof entryValue !== 'function');
-            if (entries.length === 0 && path) {
-                output[path] = {};
-                return output;
-            }
-
-            entries.forEach(([key, entryValue]) => {
-                const nextPath = path ? `${path}.${key}` : key;
-                flattenDiffValues(entryValue, nextPath, output);
-            });
-            return output;
+        var st = $('mon-status');
+        st.textContent = '';
+        var stKeys = Object.keys(def.statuses || {});
+        st.hidden = stKeys.length === 0;
+        if (stKeys.length) {
+            var allS = el('option', null, 'Any status');
+            allS.value = '';
+            st.appendChild(allS);
+            stKeys.forEach(function (k) { var o = el('option', null, def.statuses[k]); o.value = k; st.appendChild(o); });
+            st.value = s.status;
         }
+        $('mon-q').value = s.q;
+        $('mon-from').value = s.from;
+        $('mon-to').value = s.to;
+        $('mon-debug-wrap').hidden = tab !== 'activity';
+        $('mon-debug').checked = s.debug;
 
-        if (path) {
-            output[path] = value;
+        renderHead();
+        if (push) {
+            try { var u = new URL(window.location.href); u.searchParams.set('tab', tab); window.history.replaceState(null, '', u.toString()); } catch (e) { /* ignore */ }
         }
-
-        return output;
+        load();
     }
 
-    function getChangedFieldKeys(payload) {
-        const oldValues = payload.old_values && typeof payload.old_values === 'object' ? payload.old_values : {};
-        const newValues = payload.new_values && typeof payload.new_values === 'object' ? payload.new_values : {};
-        const oldFlat = flattenDiffValues(oldValues);
-        const newFlat = flattenDiffValues(newValues);
-        const allKeys = Array.from(new Set(Object.keys(oldFlat).concat(Object.keys(newFlat)))).sort();
-        const changedKeys = allKeys.filter((key) => normaliseValue(oldFlat[key]) !== normaliseValue(newFlat[key]));
-
-        return {
-            changedKeys,
-            oldFlat,
-            newFlat,
+    // ---- toolbar wiring ----
+    document.querySelectorAll('[data-mon-tab]').forEach(function (b) {
+        b.addEventListener('click', function () { applyTab(b.dataset.monTab, true); });
+        b.addEventListener('keydown', function (e) {
+            var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-mon-tab]'));
+            var i = tabs.indexOf(b), n = null;
+            if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+            if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+            if (n) { e.preventDefault(); n.focus(); applyTab(n.dataset.monTab, true); }
+        });
+    });
+    function bindFilter(id, key, delay) {
+        var node = $(id);
+        var handler = function () {
+            var s = state[tab];
+            s[key] = node.type === 'checkbox' ? node.checked : node.value;
+            s.page = 1;
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(load, delay);
         };
+        node.addEventListener(node.type === 'search' ? 'input' : 'change', handler);
     }
-
-    function renderDiff(payload) {
-        const diffBody = document.getElementById('audit-event-diff-body');
-        const diffTable = document.getElementById('audit-event-diff-table');
-        const diffEmpty = document.getElementById('audit-event-diff-empty');
-
-        if (!diffBody || !diffTable || !diffEmpty) {
-            return;
-        }
-
-        diffBody.innerHTML = '';
-        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
-
-        if (changedKeys.length === 0) {
-            diffTable.style.display = 'none';
-            diffEmpty.style.display = 'block';
-            return;
-        }
-
-        diffTable.style.display = '';
-        diffEmpty.style.display = 'none';
-
-        changedKeys.forEach((key) => {
-            const row = document.createElement('tr');
-            const oldValue = normaliseValue(oldFlat[key]);
-            const newValue = normaliseValue(newFlat[key]);
-            const fieldCell = document.createElement('td');
-            const oldCell = document.createElement('td');
-            const newCell = document.createElement('td');
-            fieldCell.textContent = key;
-            oldCell.textContent = oldValue;
-            newCell.textContent = newValue;
-            row.appendChild(fieldCell);
-            row.appendChild(oldCell);
-            row.appendChild(newCell);
-            diffBody.appendChild(row);
-        });
-    }
-
-    function renderDifferenceLines(payload) {
-        const linesContainer = document.getElementById('audit-event-diff-lines');
-        const emptyState = document.getElementById('audit-event-lines-empty');
-        if (!linesContainer || !emptyState) {
-            return;
-        }
-
-        linesContainer.innerHTML = '';
-        const { changedKeys, oldFlat, newFlat } = getChangedFieldKeys(payload);
-
-        if (changedKeys.length === 0) {
-            linesContainer.hidden = true;
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        linesContainer.hidden = false;
-        emptyState.style.display = 'none';
-
-        changedKeys.forEach((key) => {
-            const oldLine = document.createElement('span');
-            oldLine.className = 'dd-audit-diff-line dd-audit-diff-line--removed';
-            oldLine.textContent = `- ${key}: ${normaliseValue(oldFlat[key])}`;
-            linesContainer.appendChild(oldLine);
-
-            const newLine = document.createElement('span');
-            newLine.className = 'dd-audit-diff-line dd-audit-diff-line--added';
-            newLine.textContent = `+ ${key}: ${normaliseValue(newFlat[key])}`;
-            linesContainer.appendChild(newLine);
-        });
-    }
-
-    function activateTab(tabName) {
-        tabs.forEach((tab) => {
-            const isActive = tab.dataset.tab === tabName;
-            tab.classList.toggle('is-active', isActive);
-            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        });
-
-        panels.forEach((panel) => {
-            const isActive = panel.dataset.tabPanel === tabName;
-            panel.classList.toggle('is-active', isActive);
-            panel.hidden = !isActive;
-        });
-    }
-
-    function openEventModal(button) {
-        if (!modal) {
-            return;
-        }
-
-        const payload = button.dataset.payload ? JSON.parse(button.dataset.payload) : {};
-
-        document.getElementById('audit-event-time').textContent = payload.timestamp || '-';
-        document.getElementById('audit-event-action').textContent = payload.event || '-';
-        document.getElementById('audit-event-user').textContent = payload.user || '-';
-        document.getElementById('audit-event-scope').textContent = `${payload.service || '-'} / ${payload.function || '-'}`;
-        document.getElementById('audit-event-entity').textContent = payload.entity || '-';
-        document.getElementById('audit-event-description').textContent = payload.description || '-';
-        document.getElementById('audit-event-client').textContent = payload.client_id || '-';
-        document.getElementById('audit-event-ip').textContent = payload.ip_address || '-';
-        document.getElementById('audit-event-user-agent').textContent = payload.user_agent || '-';
-        document.getElementById('audit-event-context').textContent = JSON.stringify(payload.context || {}, null, 2);
-        document.getElementById('audit-event-headline').textContent = payload.description || 'Event details and change history.';
-
-        renderDiff(payload);
-        renderDifferenceLines(payload);
-        activateTab('details');
-
-        if (typeof modal.showModal === 'function') {
-            modal.showModal();
-            return;
-        }
-
-        modal.setAttribute('open', 'open');
-    }
-
-    function closeEventModal() {
-        if (!modal) {
-            return;
-        }
-
-        if (typeof modal.close === 'function') {
-            modal.close();
-            return;
-        }
-
-        modal.removeAttribute('open');
-    }
-
-    document.querySelectorAll('.dd-audit-view-btn').forEach((button) => {
-        button.addEventListener('click', () => openEventModal(button));
-    });
-    tabs.forEach((tab) => {
-        tab.addEventListener('click', () => activateTab(tab.dataset.tab || 'details'));
+    bindFilter('mon-q', 'q', 300);
+    bindFilter('mon-provider', 'provider', 0);
+    bindFilter('mon-status', 'status', 0);
+    bindFilter('mon-from', 'from', 0);
+    bindFilter('mon-to', 'to', 0);
+    bindFilter('mon-debug', 'debug', 0);
+    $('mon-prev').addEventListener('click', function () { if (state[tab].page > 1) { state[tab].page--; load(); } });
+    $('mon-next').addEventListener('click', function () { var d = state[tab].last; if (d && state[tab].page < d.last_page) { state[tab].page++; load(); } });
+    $('mon-refresh').addEventListener('click', load);
+    $('mon-settings-toggle').addEventListener('click', function () {
+        var box = $('mon-settings'), open = box.hidden;
+        box.hidden = !open;
+        this.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
-    close?.addEventListener('click', closeEventModal);
-    modal?.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            closeEventModal();
+    // ---- detail modal ----
+    function renderBlock(block) {
+        var wrap = el('div', 'mon-block');
+        wrap.appendChild(el('div', 'mon-label', block.label));
+        var val = el('div', 'mon-value');
+        var v = block.value;
+        if (block.type === 'time') {
+            val.textContent = fmtTime(v);
+            if (v) val.title = String(v);
+        } else if (block.type === 'code') {
+            if (v === null || v === undefined || v === '') { val.textContent = '—'; } else { val.appendChild(el('pre', 'mon-code', String(v))); }
+        } else if (block.type === 'headers') {
+            var keys = Object.keys(v || {});
+            if (!keys.length) { val.textContent = '—'; } else {
+                var t = el('table', 'mon-kv'), tb = el('tbody');
+                keys.forEach(function (k) { var r = el('tr'); r.appendChild(el('th', null, k)); r.appendChild(el('td', null, String(v[k]))); tb.appendChild(r); });
+                t.appendChild(tb);
+                val.appendChild(t);
+            }
+        } else if (block.type === 'diff') {
+            if (!v || !v.length) { val.textContent = 'No field-level changes were captured for this entry.'; } else {
+                var dt = el('table', 'mon-kv'), head = el('thead'), hr = el('tr');
+                ['Field', 'Old value', 'New value'].forEach(function (h) { hr.appendChild(el('th', null, h)); });
+                head.appendChild(hr); dt.appendChild(head);
+                var dbd = el('tbody');
+                v.forEach(function (d) {
+                    var r = el('tr');
+                    r.appendChild(el('td', null, d.field));
+                    r.appendChild(el('td', 'mon-old', d.old === '' ? '—' : d.old));
+                    r.appendChild(el('td', 'mon-new', d.new === '' ? '—' : d.new));
+                    dbd.appendChild(r);
+                });
+                dt.appendChild(dbd);
+                val.appendChild(dt);
+            }
+        } else if (block.type === 'lines') {
+            if (!v || !v.length) { val.textContent = 'None recorded (outbound logging is set to errors only).'; } else { val.appendChild(el('pre', 'mon-code', v.join('\n'))); }
+        } else {
+            val.textContent = v === null || v === undefined || v === '' ? '—' : String(v);
         }
-    });
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && modal && modal.hasAttribute('open')) {
-            closeEventModal();
+        wrap.appendChild(val);
+        return wrap;
+    }
+
+    function showTab(data, index) {
+        var body = $('mon-detail-body');
+        body.textContent = '';
+        data.tabs[index].blocks.forEach(function (b) { body.appendChild(renderBlock(b)); });
+        $('mon-detail-tabs').querySelectorAll('[role=tab]').forEach(function (b, i) { b.setAttribute('aria-selected', i === index ? 'true' : 'false'); b.tabIndex = i === index ? 0 : -1; });
+    }
+
+    function openDetail(row) {
+        var id = row.dataset.id;
+        var modal = $('mon-detail');
+        detail = { tab: tab, id: id, deletable: false, armed: null };
+        $('mon-detail-error').hidden = true;
+        $('mon-detail-meta').textContent = '';
+        $('mon-detail-tabs').textContent = '';
+        $('mon-detail-body').textContent = 'Loading…';
+        $('mon-detail-title').textContent = 'Loading…';
+        $('mon-export').hidden = true;
+        $('mon-delete').hidden = true;
+        modal.style.display = 'flex';
+        modal.__returnFocus = row;
+        modal.querySelector('[role="dialog"]').focus();
+
+        fetch(fill(cfg.urls.show, tab, id), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+            .then(function (data) {
+                var title = $('mon-detail-title');
+                title.textContent = '';
+                if (data.status === 'success' || data.status === 'failed') {
+                    var ico = $('mon-ico-' + data.status).cloneNode(true);
+                    ico.removeAttribute('id'); ico.hidden = false; ico.classList.add('mon-title-ico');
+                    ico.setAttribute('role', 'img'); ico.setAttribute('aria-label', data.status === 'success' ? 'Succeeded' : 'Failed');
+                    title.appendChild(ico);
+                }
+                title.appendChild(document.createTextNode(data.title));
+                $('mon-detail-meta').textContent = (data.meta || []).map(function (m) { return m.label + ': ' + m.value; }).join('  ·  ');
+
+                var tabsEl = $('mon-detail-tabs');
+                data.tabs.forEach(function (t, i) {
+                    var b = el('button', 'mon-tab', t.label);
+                    b.type = 'button'; b.setAttribute('role', 'tab');
+                    if (t.badge) { b.appendChild(badge(t.badge.text, t.badge.variant)); }
+                    b.addEventListener('click', function () { showTab(data, i); });
+                    tabsEl.appendChild(b);
+                });
+                showTab(data, 0);
+                var exp = $('mon-export');
+                exp.href = fill(cfg.urls.export, detail.tab, id);
+                exp.hidden = false;
+                detail.deletable = !!data.deletable;
+                var del = $('mon-delete');
+                del.hidden = !detail.deletable;
+                del.textContent = 'Delete';
+            })
+            .catch(function (err) {
+                $('mon-detail-title').textContent = 'Could not load this entry';
+                $('mon-detail-body').textContent = '';
+                var e = $('mon-detail-error'); e.textContent = err.message === 'HTTP 404' ? 'This entry no longer exists.' : 'Request failed (' + err.message + ').'; e.hidden = false;
+            });
+    }
+
+    $('mon-body').addEventListener('click', function (e) { var r = e.target.closest('.mon-row'); if (r) openDetail(r); });
+    $('mon-body').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { var r = e.target.closest('.mon-row'); if (r) { e.preventDefault(); openDetail(r); } } });
+
+    $('mon-delete').addEventListener('click', function () {
+        var btn = this;
+        if (!detail.armed) {
+            btn.textContent = 'Click again to confirm';
+            detail.armed = setTimeout(function () { detail.armed = null; btn.textContent = 'Delete'; }, 4000);
+            return;
         }
+        clearTimeout(detail.armed); detail.armed = null;
+        btn.disabled = true;
+        fetch(fill(cfg.urls.destroy, detail.tab, detail.id), { method: 'DELETE', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf() }, credentials: 'same-origin' })
+            .then(function (res) { return res.json().catch(function () { return {}; }).then(function (d) { if (!res.ok) throw new Error(d.message || 'HTTP ' + res.status); }); })
+            .then(function () { $('mon-detail').style.display = 'none'; load(); })
+            .catch(function (err) { var e = $('mon-detail-error'); e.textContent = 'Delete failed: ' + err.message; e.hidden = false; btn.textContent = 'Delete'; })
+            .then(function () { btn.disabled = false; });
     });
 
-    searchInput?.addEventListener('input', applyLiveSearch);
+    applyTab(tab, false);
 })();
 </script>
 @endsection
