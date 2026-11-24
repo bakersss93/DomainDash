@@ -15,7 +15,7 @@
                 help="An invoice chosen on a client (Clients > edit) always wins." :wide="true" />
 
             <div class="dd-set-field">
-                <div data-dd-picker='@json(["source" => route("admin.settings.options", "halo.contract-types"), "label" => "Contract type (optional)", "idInput" => "#halo_billing_contract_type", "placeholder" => "Any contract type", "help" => "Only contracts of this type are considered. HaloPSA has no contract-type list, so types come from your existing contracts.", "emptyHint" => "No contract types found in HaloPSA.", "fallbackLabel" => "Contract type"])'></div>
+                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.contract-types"), "label" => "Contract type (optional)", "idInput" => "#halo_billing_contract_type", "placeholder" => "Any contract type", "help" => "Only contracts of this type are considered. HaloPSA has no contract-type list, so types come from your existing contracts.", "emptyHint" => "No contract types found in HaloPSA.", "fallbackLabel" => "Contract type"]) }}"></div>
                 <input type="hidden" id="halo_billing_contract_type" name="halo[billing][contract_type_id]" value="{{ $haloBilling->contractTypeId }}">
             </div>
 

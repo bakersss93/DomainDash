@@ -23,7 +23,7 @@
     <x-ui.card title="Domain asset type and fields" description="Choose the HaloPSA asset type that holds domains, then which Halo field receives each DomainDash value. Asset types and fields are read live from HaloPSA (cached 10 minutes).">
         <div class="dd-set-stack">
             <div>
-                <div data-dd-picker='@json(["source" => route("admin.settings.options", "halo.asset-types"), "label" => "Asset type for domains", "idInput" => "#halo_asset_type_id", "nameInput" => "#halo_asset_type_name", "placeholder" => "Type to search asset types", "help" => "Blank falls back to the asset type named Domain.", "emptyHint" => "No asset types. Save the connection first.", "syncFromInput" => true, "fallbackLabel" => "Asset type"])'></div>
+                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.asset-types"), "label" => "Asset type for domains", "idInput" => "#halo_asset_type_id", "nameInput" => "#halo_asset_type_name", "placeholder" => "Type to search asset types", "help" => "Blank falls back to the asset type named Domain.", "emptyHint" => "No asset types. Save the connection first.", "syncFromInput" => true, "fallbackLabel" => "Asset type"]) }}"></div>
                 <input type="hidden" id="halo_asset_type_name" name="halo[asset_type_name]" value="{{ old('halo.asset_type_name', $haloRaw['asset_type_name'] ?? '') }}">
             </div>
 

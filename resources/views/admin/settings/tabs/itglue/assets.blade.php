@@ -20,7 +20,7 @@
     <x-ui.card title="Flexible asset type and fields" description="Choose the IT Glue flexible asset type that holds domains, then which of its fields receives each value. Types and fields are read live from IT Glue (cached 10 minutes).">
         <div class="dd-set-stack">
             <div>
-                <div data-dd-picker='@json(["source" => route("admin.settings.options", "itglue.flexible-types"), "label" => "Flexible asset type for domains", "idInput" => "#itglue_flexible_asset_type_id", "nameInput" => "#itglue_flexible_asset_type_name", "placeholder" => "Type to search", "help" => "Required for syncing domains to IT Glue.", "emptyHint" => "No flexible asset types. Save the connection first.", "syncFromInput" => true, "fallbackLabel" => "Flexible asset type"])'></div>
+                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "itglue.flexible-types"), "label" => "Flexible asset type for domains", "idInput" => "#itglue_flexible_asset_type_id", "nameInput" => "#itglue_flexible_asset_type_name", "placeholder" => "Type to search", "help" => "Required for syncing domains to IT Glue.", "emptyHint" => "No flexible asset types. Save the connection first.", "syncFromInput" => true, "fallbackLabel" => "Flexible asset type"]) }}"></div>
                 <input type="hidden" id="itglue_flexible_asset_type_name" name="itglue[flexible_asset_type_name]" value="{{ old('itglue.flexible_asset_type_name', $i['flexible_asset_type_name'] ?? '') }}">
             </div>
 

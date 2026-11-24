@@ -102,7 +102,7 @@
 <span id="mon-ico-success" class="mon-ico mon-ico--success" hidden><x-ui.icon name="check-circle" :size="20" /></span>
 <span id="mon-ico-failed" class="mon-ico mon-ico--failed" hidden><x-ui.icon name="x-circle" :size="20" /></span>
 
-<script type="application/json" id="mon-config">@json([
+@php $monConfig = [
     'tab' => $tab,
     'tabs' => $tabs,
     'urls' => [
@@ -111,7 +111,8 @@
         'export' => route('admin.audit.export', ['tab' => '__TAB__', 'id' => '__ID__']),
         'destroy' => route('admin.audit.destroy', ['tab' => '__TAB__', 'id' => '__ID__']),
     ],
-])</script>
+]; @endphp
+<script type="application/json" id="mon-config">{!! json_encode($monConfig, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 
 <style>
     #monitoring-page [hidden], #mon-detail [hidden], .mon-ico[hidden] { display: none !important; }
