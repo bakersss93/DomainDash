@@ -3,7 +3,6 @@
 @section('content')
     @include('admin.sync._live')
     <div class="dd-set-page">
-        @include('admin.sync._worker-banner')
 
         <x-ui.page-header title="Settings" subtitle="Pick an area. Each one has its own page, with tabs for the detail." />
 

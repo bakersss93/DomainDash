@@ -6,6 +6,7 @@
       body
       <x-slot name="footer">footer buttons</x-slot>
   </x-ui.card>
+  The body is only rendered when it has content. Footer: put <span class="ui-card__hint"> helper text first (left) then buttons (right).
   `flush` removes body padding (tables edge-to-edge).
 --}}
 <section {{ $attributes->class(['ui-card', 'ui-card--flush' => $flush]) }}>
@@ -25,7 +26,9 @@
         </div>
     @endif
 
-    <div class="ui-card__body">{{ $slot }}</div>
+    @if (trim((string) $slot) !== '')
+        <div class="ui-card__body">{{ $slot }}</div>
+    @endif
 
     @isset($footer)
         <div class="ui-card__footer">{{ $footer }}</div>

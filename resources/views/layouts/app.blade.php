@@ -70,15 +70,6 @@
             }
         } catch (e) {}
     </script>
-@php
-    $unreadNotifications = \App\Models\UserNotification::query()
-        ->where('user_id', auth()->id())
-        ->whereNull('read_at')
-        ->latest()
-        ->limit(20)
-        ->get();
-    $unreadNotificationsCount = $unreadNotifications->count();
-@endphp
 <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow-lg">Skip to main content</a>
 
 <div class="app-shell">
@@ -303,44 +294,7 @@
                     </button>
                 </form>
 
-                <button type="button" class="topbar-icon-btn notif-trigger" id="open-notifications-modal" aria-label="Open notifications ({{ $unreadNotificationsCount }} unread)">
-                    <x-ui.icon name="bell" />
-                    @if ($unreadNotificationsCount > 0)
-                        <span class="badge-red" aria-hidden="true">{{ $unreadNotificationsCount }}</span>
-                    @endif
-                </button>
-
-                <dialog id="notifications-modal" class="notif-modal" aria-labelledby="notifications-title">
-                    <div class="notif-modal-panel">
-                        <div class="notif-modal-header">
-                            <h2 id="notifications-title" style="margin:0;font-size:1rem;">Notifications</h2>
-                            <button type="button" id="close-notifications-modal" class="topbar-icon-btn" aria-label="Close notifications">
-                                <x-ui.icon name="x" />
-                            </button>
-                        </div>
-                        <div class="notif-list">
-                            @forelse($unreadNotifications as $notification)
-                                <div class="notif-item">
-                                    <div class="notif-item__title">{{ $notification->title }}</div>
-                                    <div class="notif-item__message">{{ $notification->message }}</div>
-                                    <div class="notif-item__actions">
-                                        @if($notification->link_url)
-                                            <a href="{{ $notification->link_url }}" class="ui-link" style="font-size:0.8125rem;">Open</a>
-                                        @else
-                                            <span></span>
-                                        @endif
-                                        <form method="POST" action="{{ route('notifications.read', $notification) }}">
-                                            @csrf
-                                            <button type="submit" class="ui-btn ui-btn--secondary ui-btn--sm">Mark as read</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="notif-empty">No unread notifications.</div>
-                            @endforelse
-                        </div>
-                    </div>
-                </dialog>
+                @include('layouts.partials.notification-centre')
 
                 <div class="user-menu">
                     <details>
@@ -416,20 +370,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const openButton = document.getElementById('open-notifications-modal');
-        const closeButton = document.getElementById('close-notifications-modal');
-        const notifModal = document.getElementById('notifications-modal');
-
-        if (openButton && closeButton && notifModal) {
-            openButton.addEventListener('click', function () { notifModal.showModal(); });
-            closeButton.addEventListener('click', function () { notifModal.close(); });
-            notifModal.addEventListener('click', function (event) {
-                if (event.target === notifModal) {
-                    notifModal.close();
-                }
-            });
-        }
-
         // Nav sections that start expanded expose that state to assistive tech.
         document.querySelectorAll('.nav-section.expanded > .nav-toggle').forEach(function (el) {
             el.setAttribute('aria-expanded', 'true');

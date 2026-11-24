@@ -39,7 +39,8 @@
         }
 
         async function ddRefreshMirror(url, btn) {
-            const mount = btn.parentElement.nextElementSibling;
+            const sib = btn.parentElement.nextElementSibling;
+            const mount = (sib && sib.hasAttribute('data-dd-runs')) ? sib : btn.closest('.dd-tabs__panel').querySelector('[data-dd-runs]');
             btn.disabled = true;
             try {
                 const r = await DDSync.request(url, 'POST');

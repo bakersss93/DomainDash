@@ -68,4 +68,12 @@ return [
         ],
         'certbot_timeout' => 900,
     ],
+
+    /*
+    | Notification centre (topbar bell). The summary endpoint result is cached per user for a few seconds so
+    | several open tabs polling do not each hit the database; set 0 to disable.
+    */
+    'notifications' => [
+        'cache_seconds' => (int) env('NOTIFICATIONS_CACHE_SECONDS', 5),
+    ],
 ];

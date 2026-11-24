@@ -33,6 +33,8 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
+        Route::get('/notifications/summary', [UserNotificationController::class, 'summary'])->name('notifications.summary');
+        Route::post('/notifications/read-all', [UserNotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -162,6 +164,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::get('/entry/{tab}/{id}/export', [AuditLogController::class, 'export'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.export');
             Route::delete('/entry/{tab}/{id}', [AuditLogController::class, 'destroy'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.destroy');
         });
+        // Notification centre: admin summary (alerts + in-progress + notifications) and per-user alert snooze.
+        Route::get('/notifications/summary', [UserNotificationController::class, 'summary'])->name('admin.notifications.summary');
+        Route::post('/notifications/alerts/snooze', [UserNotificationController::class, 'snoozeAlert'])->name('admin.notifications.alerts.snooze');
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
         Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'storeTemplate'])->name('admin.notifications.templates.store');
         Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');
