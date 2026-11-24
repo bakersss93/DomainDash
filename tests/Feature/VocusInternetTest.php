@@ -100,7 +100,7 @@ class VocusInternetTest extends TestCase
             'vocus_plan_id' => $this->plan()->id, 'scope' => 'RESELLER-CONNECT',
             'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222', 'directory_id' => 'LOC000340636851',
             'location_reference' => '3000', 'service_type' => 'FTTC', 'copper_pair_id' => 'CPI300010022999',
-            'ca_date' => '2019-11-10', 'realm' => 'wba.samplewsm.com.au', 'service_level' => 'STANDARD',
+            'ca_date' => now()->subDays(3)->format('Y-m-d'), 'order_type' => 'TRANSFER', 'realm' => 'wba.samplewsm.com.au', 'service_level' => 'STANDARD',
             'avc_id' => 'AVC000340636851', 'cvc_id' => 'AggCVC000000999',
         ], $override);
     }
@@ -127,7 +127,7 @@ class VocusInternetTest extends TestCase
             'CustomerName' => 'Yogesh Shinde', 'Phone' => '0433111222', 'CVCID' => 'AggCVC000000999',
             'LocationReference' => '3000', 'DirectoryID' => 'LOC000340636851', 'AVCID' => 'AVC000340636851',
             'Realm' => 'wba.samplewsm.com.au', 'ServiceLevel' => 'STANDARD', 'ServiceType' => 'FTTC',
-            'CopperPairID' => 'CPI300010022999', 'CADate' => '20191110',
+            'CopperPairID' => 'CPI300010022999', 'CADate' => now()->subDays(3)->format('Ymd'),
         ] as $id => $value) {
             $this->assertStringContainsString('<std:Param id="' . $id . '">' . $value . '</std:Param>', $xml, $id);
         }
@@ -161,19 +161,53 @@ class VocusInternetTest extends TestCase
             ->assertSessionHasErrors('cvc_id');
     }
 
-    public function test_new_order_does_not_send_avc_cvc_or_order_type(): void
+    public function test_new_ncl2_order_sends_order_type_new_and_cvc_but_never_avc_or_cadate(): void
     {
         $soap = $this->fakeClient([(object) ['TransactionID' => 'EF1', 'ResponseType' => 'ASYNC']]);
-        $data = $this->transferData();
-        unset($data['ca_date']);
+        $data = $this->transferData(['ctag' => '0']);
+        unset($data['ca_date'], $data['order_type']);
 
         $this->actingAs($this->admin())->post(route('admin.services.internet.order.store'), $data)->assertSessionHasNoErrors();
 
         $xml = $this->xmlOf($soap);
+        $this->assertStringContainsString('<std:Param id="OrderType">NEW</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="CVCID">AggCVC000000999</std:Param>', $xml); // compulsory for NCL2 (FIBRE 4.1.2.2)
+        $this->assertStringContainsString('<std:Param id="CTAG">0</std:Param>', $xml);
         $this->assertStringNotContainsString('AVCID', $xml);
-        $this->assertStringNotContainsString('CVCID', $xml);
-        $this->assertStringNotContainsString('OrderType', $xml);
+        $this->assertStringNotContainsString('CADate', $xml);
+        foreach (['Username', 'Password', 'AuthType', 'IPAssignment'] as $layer3Only) {
+            $this->assertStringNotContainsString($layer3Only, $xml, $layer3Only);
+        }
         $this->assertSame('NEW', InternetService::firstOrFail()->order_type);
+
+        $missing = $this->transferData(['cvc_id' => '']);
+        unset($missing['ca_date'], $missing['order_type']);
+        $this->actingAs($this->admin())->post(route('admin.services.internet.order.store'), $missing)->assertSessionHasErrors('cvc_id');
+    }
+
+    public function test_transfer_needs_the_avc_id_but_connect_outstanding_does_not(): void
+    {
+        $soap = $this->fakeClient([(object) ['TransactionID' => 'EF2', 'ResponseType' => 'ASYNC']]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $this->transferData(['avc_id' => '']))->assertSessionHasErrors('avc_id');
+        $this->assertSame([], $soap->calls);
+
+        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $this->transferData(['avc_id' => '', 'order_type' => 'OUTSTANDING']))->assertSessionHasNoErrors();
+        $xml = $this->xmlOf($soap);
+        $this->assertStringContainsString('<std:Param id="OrderType">OUTSTANDING</std:Param>', $xml);
+        $this->assertStringNotContainsString('AVCID', $xml);
+        $this->assertSame('OUTSTANDING', InternetService::firstOrFail()->order_type);
+    }
+
+    public function test_ca_date_must_be_today_or_earlier_and_not_older_than_45_days(): void
+    {
+        $this->fakeClient([]);
+        $admin = $this->admin();
+        foreach ([now()->subDays(46), now()->addDay()] as $bad) {
+            $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $this->transferData(['ca_date' => $bad->format('Y-m-d')]))->assertSessionHasErrors('ca_date');
+        }
+        $this->assertDatabaseCount('internet_services', 0);
     }
 
     public function test_rejected_order_leaves_no_local_record_and_reports_through_the_error_flash(): void
@@ -382,7 +416,8 @@ class VocusInternetTest extends TestCase
         $this->assertStringContainsString('<std:Param id="Main.StreetType">AV</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Main.Unit1stNumber">2</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Main.Unit1stSuffix">A</std:Param>', $xml);
-        $this->assertStringContainsString('<std:Param id="Main.AddressType">U</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="Main.Unit1stType">U</std:Param>', $xml, 'DIR 5.2 names it Unit1stType');
+        $this->assertStringNotContainsString('Main.AddressType', $xml);
         $this->assertStringContainsString('<std:Param id="Main.Street1stNumberSuffix">B</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Main.State">TAS</std:Param>', $xml);
     }

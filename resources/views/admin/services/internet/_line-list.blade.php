@@ -60,7 +60,8 @@
             </div>
             @forelse($ntd['ports'] as $p)
                 @php
-                    $free  = \App\Services\Vocus\VocusQualification::isSelectablePort($p) && $p['port_number'] !== null;
+                    // A transfer moves the port the service uses now (in use); a new order never picks a port.
+                    $free  = \App\Services\Vocus\VocusQualification::isSelectablePort($p, (bool) $transfer) && $p['port_number'] !== null;
                     $inUse = $p['available'] === false;
                     $voice = $p['port_type'] === 'VOICE';
                     $cap   = \App\Services\Vocus\VocusQualification::ntdCapability($ntd);
@@ -69,7 +70,7 @@
                     @if($selectable)
                         <input type="radio" name="line_pick" form="line-pick-none"
                                data-ntd="{{ $ntd['ntd_id'] }}" data-max-down="{{ $cap['download'] }}" data-max-up="{{ $cap['upload'] }}" data-index="{{ $ntd['index'] }}" data-port="{{ $p['port_number'] }}" data-pname="{{ $p['port_name'] }}"
-                               data-wire="{{ $free ? $wire($ntd, $p) : '' }}" @disabled(! $free) @checked($choice === 'existing' && (string) $cPort === (string) $p['port_number'] && (string) $cNtd === (string) $ntd['ntd_id'])>
+                               data-wire="{{ $free ? $p['port_number'] : '' }}" @disabled(! $free) @checked($choice === 'existing' && (string) $cPort === (string) $p['port_number'] && (string) $cNtd === (string) $ntd['ntd_id'])>
                     @endif
                     <span style="flex:1;">
                         <strong>{{ \App\Services\Vocus\VocusQualification::portLabel($p) }}</strong>
@@ -82,6 +83,7 @@
                             <span style="{{ $badge }}background:var(--dd-status-muted-bg);color:var(--dd-status-muted-fg);margin-left:6px;">Availability unknown</span>
                         @endif
                         @if($voice && $selectable)<span style="font-size:12px;color:var(--dd-text-soft);margin-left:6px;">Voice port: not selectable for a data service</span>@endif
+                        @if($selectable && ! $transfer && $free)<span style="display:block;font-size:12px;color:var(--dd-text-soft);margin-top:2px;">Choosing this selects the NTD. Vocus picks the free UNI-D port itself.</span>@endif
                         @if($p['epid'])<span style="display:block;font-size:12px;color:var(--dd-text-soft);margin-top:2px;">EPID {{ $p['epid'] }}</span>@endif
                     </span>
                 </label>
@@ -90,7 +92,7 @@
             @endforelse
         </div>
     @empty
-        <x-ui.alert variant="info">No NTD or ports were returned. NBN will install an NTD at this address, and an installation appointment may be required.</x-ui.alert>
+        <x-ui.alert variant="info">No NTD or ports were returned. NBN will install an NTD at this address and books an installation appointment on the first available date.</x-ui.alert>
     @endforelse
 @else
     <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 8px;">{{ $q['service_type'] ?: 'This technology' }} has no copper pair or NTD port to choose.</p>
@@ -98,13 +100,18 @@
 
 @if($selectable && $allowNew && $group !== \App\Services\Vocus\VocusQualification::GROUP_OTHER)
     <label style="{{ $card }}cursor:pointer;border-style:dashed;">
-        @php $newCap = \App\Services\Vocus\VocusQualification::lineCapability($q, true); @endphp
+        @php $newCap = \App\Services\Vocus\VocusQualification::lineCapability($q, true); $isHfc = str_contains(strtoupper((string) ($q['service_type'] ?? '')), 'HFC'); @endphp
         <input type="radio" name="line_pick" form="line-pick-none" data-choice="new" data-max-down="{{ $newCap['download'] }}" data-max-up="{{ $newCap['upload'] }}" @checked($choice === 'new')>
-        <span><strong>Order a new line{{ $group === \App\Services\Vocus\VocusQualification::GROUP_NTD ? ' / port' : '' }}</strong>
+        <span><strong>{{ $group === \App\Services\Vocus\VocusQualification::GROUP_NTD ? ($isHfc ? 'Order a new NTD' : 'Order a new line') : 'Order a new line' }}</strong>
             <span style="display:block;color:var(--dd-text-soft);font-size:12px;margin-top:3px;">
-                {{ $group === \App\Services\Vocus\VocusQualification::GROUP_NTD ? 'NTD install or a new port: no port is requested and an appointment may be needed.' : 'No existing copper pair: none is sent and an installation appointment may be needed.' }}
-                @if($group === \App\Services\Vocus\VocusQualification::GROUP_COPPER && ($newCap['download'] !== null || $newCap['upload'] !== null))Plans are limited to the best line returned (up to {{ $newCap['download'] ?? '?' }}/{{ $newCap['upload'] ?? '?' }} Mbps).@endif
-                The Vocus documents do not describe a separate "new line" parameter, so none is sent unless configured (VOCUS_NEW_LINE_PARAM).
+                @if($group === \App\Services\Vocus\VocusQualification::GROUP_COPPER)
+                    A new copper pair is ordered from NBN Co (sent as CopperPairID NEW; the phone service is not continued). An installation appointment is booked on the first available date.
+                    @if($newCap['download'] !== null || $newCap['upload'] !== null)Plans are limited to the best line returned (up to {{ $newCap['download'] ?? '?' }}/{{ $newCap['upload'] ?? '?' }} Mbps).@endif
+                @elseif($isHfc)
+                    A new NTD with NBN professional install (sent as NTDID NEW).
+                @else
+                    A new connection: Vocus selects the NTD and a free UNI-D port, and NBN books any installation appointment on the first available date.
+                @endif
             </span></span>
     </label>
 @endif

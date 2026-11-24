@@ -13,6 +13,7 @@ use App\Services\Sync\QueueHealth;
 use App\Services\Sync\SyncDispatcher;
 use App\Services\Vocus\VocusLineSelection;
 use App\Services\Vocus\VocusOptions;
+use App\Services\Vocus\VocusQualification;
 use App\Services\Vocus\VocusWsmClient;
 use App\Services\Vocus\VocusWsmException;
 use App\Support\VocusAddressParser;
@@ -27,11 +28,8 @@ use Illuminate\Validation\ValidationException;
 
 class InternetController extends Controller
 {
-    /** ServiceLevel values documented in the Vocus Data Types Definition. */
-    public const SERVICE_LEVELS = [
-        'STANDARD', 'ENHANCED4', 'ENHANCED6', 'ENHANCED8', 'ENHANCED12',
-        'ENHANCED4-24/7', 'ENHANCED6-24/7', 'ENHANCED8-24/7', 'ENHANCED12-24/7',
-    ];
+    /** ServiceLevel values documented in the Vocus Data Types Definition (see VocusOptions::SERVICE_LEVELS). */
+    public const SERVICE_LEVELS = VocusOptions::SERVICE_LEVELS;
 
     /** Documented ServiceID charset and length (Data Types: a-z A-Z 0-9 dash underscore dot, 1..30). */
     private const SERVICE_ID_REGEX = '/^[A-Za-z0-9._-]{1,30}$/';
@@ -341,6 +339,10 @@ class InternetController extends Controller
             'loc_id'       => ['nullable', 'string', 'regex:/^LOC\d{12}$/'],
             'directory_id' => ['required_without:loc_id', 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'address_long' => 'nullable|string|max:255',
+            // Optional FIBRE QUALIFY params (catalogue 4.2.1): AVCID to verify a transfer, CVCID for NCL2, CarrierID (FNN).
+            'avc_id'       => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'cvc_id'       => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'carrier_id'   => ['nullable', 'regex:' . VocusOptions::CARRIER_ID_REGEX],
         ], [
             'loc_id.regex'                  => 'An NBN LOC ID is "LOC" followed by 12 digits, for example LOC001122334455.',
             'directory_id.required_without' => 'Choose an address or enter an NBN LOC ID.',
@@ -353,7 +355,12 @@ class InternetController extends Controller
                 return response()->json(['error' => $problem], 422);
             }
 
-            $result = app(VocusWsmClient::class)->qualifyAddress($directoryId);
+            $result = app(VocusWsmClient::class)->qualifyAddress(
+                $directoryId,
+                $request->input('avc_id') ?: null,
+                $request->input('cvc_id') ?: null,
+                $request->input('carrier_id') ?: null,
+            );
 
             $q     = $result['qualification'];
             $token = Str::random(32);
@@ -366,6 +373,9 @@ class InternetController extends Controller
                 'address_long'        => $request->input('address_long'),
                 'result'              => $q['result'],
                 'service_type'        => $q['service_type'],
+                // QUALIFY says FIBRE where Create needs FTTP (catalogue 4.2.1 vs 4.1.1.2).
+                'create_service_type' => VocusOptions::createServiceType($q['service_type'] ?? $q['primary_technology'] ?? null),
+                'result_info'         => VocusQualification::RESULTS[strtoupper((string) $q['result'])] ?? null,
                 'service_class'       => $q['service_class'],
                 'zone'                => $q['zone'],
                 'qualification'       => $q,
@@ -403,12 +413,15 @@ class InternetController extends Controller
             'service_class'       => (string) ($qualification['service_class'] ?? $request->get('service_class', '')),
             'directory_id'       => $directoryId,
             'address_long'       => $address,
-            'service_type'       => (string) $request->get('service_type', ''),
+            'service_type'       => (string) (VocusOptions::createServiceType((string) $request->get('service_type', '')) ?? $request->get('service_type', '')),
             'copper_pair_id'     => (string) $request->get('copper_pair_id', ''),
             'location_reference' => preg_match('/^\d{4}$/', $postcode) ? $postcode : '',
             'suburb'             => (string) $request->get('suburb', ''),
             'state'              => (string) $request->get('state', ''),
-            'serviceLevels'      => self::SERVICE_LEVELS,
+            'serviceLevels'      => VocusOptions::SERVICE_LEVELS,
+            'authTypes'          => VocusOptions::AUTH_TYPES,
+            'ipAssignments'      => VocusOptions::IP_ASSIGNMENTS,
+            'nbnCpePlans'        => VocusOptions::NBN_CPE_PLANS,
             'scopes'             => VocusOptions::enabledScopes(),
             'scopeLabels'        => VocusOptions::SCOPES,
             'realms'             => VocusOptions::realms(),
@@ -441,6 +454,10 @@ class InternetController extends Controller
             'uni_port'            => 'nullable|integer|min:1|max:99',
             'port_name'           => 'nullable|string|max:30',
             'service_class'       => ['nullable', 'regex:/^\d{1,2}$/'],
+            'voiceband_continuity' => ['nullable', Rule::in(['TRUE', 'FALSE'])],
+            'carrier_id'          => ['nullable', 'regex:' . VocusOptions::CARRIER_ID_REGEX],
+            'central_splitter'    => ['nullable', Rule::in(['TRUE', 'FALSE'])],
+            'nbn_cpe_plan_id'     => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9-]+$/'],
         ];
     }
 
@@ -448,7 +465,7 @@ class InternetController extends Controller
     private function resolveLine(array &$validated, bool $transfer): array
     {
         $qualification = $this->cachedQualification($validated['qualification_token'] ?? null, $validated['directory_id']);
-        $line = VocusLineSelection::resolve($qualification, $validated['service_type'], $validated, $transfer);
+        $line = VocusLineSelection::resolve($qualification, $validated['service_type'], $validated, $transfer, $validated['scope']);
         if ($line['errors']) {
             throw ValidationException::withMessages($line['errors']);
         }
@@ -473,8 +490,13 @@ class InternetController extends Controller
             || str_starts_with(strtoupper((string) $plan?->plan_id), 'NCL2');
     }
 
-    /** Rules shared by the new-order and transfer forms (mirrors the hints shown on the forms). */
-    private function sharedRules(): array
+    /**
+     * Rules shared by the new-order and transfer forms. Limits mirror the Vocus Data Types Definition
+     * (ServiceID 1..30, CustomerName 1..40, Phone integer(10), LocationReference 1..30, Reference 2..30,
+     * Username user_id 2..22, Password 2..30) and the FIBRE catalogue (4.1.1 / 4.1.2 cardinalities).
+     * $layer3 is false for Network-Connect / NCL2, where Create has no Username, Password, AuthType or IPAssignment.
+     */
+    private function sharedRules(bool $layer3 = true): array
     {
         $realms = VocusOptions::realms();
 
@@ -485,11 +507,16 @@ class InternetController extends Controller
             'phone'              => ['required', 'regex:/^\d{10}$/'],
             'directory_id'       => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'location_reference' => ['required', 'regex:/^\d{4}$/'],
-            'service_type'       => ['required', 'string', 'regex:/^[A-Za-z0-9 \/+_-]{2,20}$/'],
-            // With no realm configured neither realm nor username can be sent.
+            'service_type'       => ['required', Rule::in(VocusOptions::SERVICE_TYPES)],
+            // Realm is 1..1 on every Create (both scopes); with no realm configured it cannot be sent.
             'realm'              => $realms === [] ? ['prohibited'] : ['required', Rule::in($realms)],
-            'username'           => $realms === [] ? ['prohibited'] : ['nullable', 'regex:' . VocusOptions::USERNAME_REGEX],
-            'service_level'      => ['nullable', Rule::in(self::SERVICE_LEVELS)],
+            'username'           => $realms === [] || ! $layer3 ? ['prohibited'] : ['nullable', 'regex:' . VocusOptions::USERNAME_REGEX],
+            // Password is 1..1 on RESELLER-CONNECT Create and transfer.
+            'password'           => $layer3 ? ['required', 'regex:' . VocusOptions::PASSWORD_REGEX] : ['prohibited'],
+            'auth_type'          => $layer3 ? ['nullable', Rule::in(VocusOptions::AUTH_TYPES)] : ['prohibited'],
+            'ip_assignment'      => $layer3 ? ['nullable', Rule::in(VocusOptions::IP_ASSIGNMENTS)] : ['prohibited'],
+            'reference'          => ['nullable', 'regex:' . VocusOptions::REFERENCE_REGEX],
+            'service_level'      => ['nullable', Rule::in(VocusOptions::SERVICE_LEVELS)],
             'address_long'       => 'nullable|string|max:255',
             'client_id'          => 'nullable|exists:clients,id',
             'notes'              => 'nullable|string|max:500',
@@ -507,8 +534,19 @@ class InternetController extends Controller
         'realm.in'                 => 'That realm is not configured in Settings.',
         'realm.prohibited'         => 'No PPPoE realm is configured in Settings.',
         'username.prohibited'      => 'No PPPoE realm is configured in Settings.',
-        'username.regex'           => 'The username must be 4 to 22 characters: letters, digits or underscore (the realm is added for you).',
-        'password.regex'           => 'The password may only contain letters, digits, dash and dot (2 to 50 characters).',
+        'username.regex'           => 'The username must be 2 to 22 characters: letters, digits or underscore (the realm is added for you).',
+        'username.prohibited'      => 'Network-Connect (Layer 2) orders have no PPPoE username.',
+        'password.required'        => 'A password is required for a Reseller-Connect service.',
+        'password.regex'           => 'The password may only contain letters, digits, dash and dot (2 to 30 characters).',
+        'password.prohibited'      => 'Network-Connect (Layer 2) orders have no PPPoE password.',
+        'auth_type.in'             => 'The authentication type must be PPPoE or IPoE.',
+        'ip_assignment.in'         => 'The IP type must be CGNAT, STATIC or DYNAMIC.',
+        'reference.regex'          => 'The customer reference must be 2 to 30 characters: letters, digits, dash, underscore or dot.',
+        'service_type.in'          => 'The technology must be one of ' . 'FTTP, WIRELESS, FTTB, FTTN, HFC or FTTC. Start from Qualify Address.',
+        'avc_id.required'          => 'The AVC ID of the service being transferred is required to verify a TRANSFER order. Use "Connect outstanding" if there is none.',
+        'ca_date.after_or_equal'   => 'The customer authority date cannot be older than 45 days.',
+        'ca_date.before_or_equal'  => 'The customer authority date cannot be in the future.',
+        'rsp_stag.required'        => 'The RSP S-Tag is required for an NCL2 Plus plan.',
         'cvc_id.required'          => 'The CVC (AggCVC) ID is required for Layer 2 / Network-Connect (NCL2) transfers.',
     ];
 
@@ -532,8 +570,22 @@ class InternetController extends Controller
         }
     }
 
-    /** Parameters common to NEW and TRANSFER (Examples 4.1.4 / 4.2.4). Password is added by the caller. */
-    private function baseParams(array $validated, string $serviceId): array
+    /** Normalise the technology to the value FIBRE::Create accepts (QUALIFY returns FIBRE for FTTP). */
+    private function normaliseServiceType(Request $request): void
+    {
+        $type = (string) $request->input('service_type');
+        $request->merge([
+            'service_type' => VocusOptions::createServiceType($type) ?? strtoupper(trim($type)),
+            'auth_type'    => $request->filled('auth_type') ? (strtoupper((string) $request->input('auth_type')) === 'IPOE' ? 'IPoE' : (strtoupper((string) $request->input('auth_type')) === 'PPPOE' ? 'PPPoE' : $request->input('auth_type'))) : null,
+            'ip_assignment' => $request->filled('ip_assignment') ? strtoupper((string) $request->input('ip_assignment')) : null,
+        ]);
+    }
+
+    /**
+     * Parameters common to NEW and TRANSFER / OUTSTANDING (Product Catalogue FIBRE 4.1.1 / 4.1.2).
+     * Layer 3 (Reseller-Connect) adds Username (PPPoE only), Password, AuthType and IPAssignment; Layer 2 has none of them.
+     */
+    private function baseParams(array $validated, string $serviceId, bool $layer3 = true): array
     {
         $params = [
             'ServiceID'         => $serviceId,
@@ -547,8 +599,51 @@ class InternetController extends Controller
 
         if (! empty($validated['realm'])) {
             $params['Realm'] = $validated['realm'];
-            if ($username = VocusOptions::composeUsername($validated['username'] ?? null, $validated['realm'])) {
-                $params['Username'] = $username;
+        }
+        if (! empty($validated['reference'])) {
+            $params['Reference'] = $validated['reference'];
+        }
+        if ($layer3) {
+            $ipoe = ($validated['auth_type'] ?? null) === 'IPoE';
+            if (! empty($validated['realm']) && ! $ipoe && ($username = VocusOptions::composeUsername($validated['username'] ?? null, $validated['realm']))) {
+                $params['Username'] = $username; // blank: Vocus auto-generates the PPPoE username
+            }
+            if (! empty($validated['password'])) {
+                $params['Password'] = $validated['password'];
+            }
+            if (! empty($validated['auth_type'])) {
+                $params['AuthType'] = $validated['auth_type'];
+            }
+            if (! empty($validated['ip_assignment'])) {
+                $params['IPAssignment'] = $validated['ip_assignment'];
+            }
+        }
+
+        return $params;
+    }
+
+    /** Layer 2 extras on a Create (catalogue 4.1.2): CVCID (compulsory for NCL2), CTAG, RSPSTAG / RSPCTAG (NCL2 Plus). */
+    private function layer2Rules(bool $layer2, ?VocusPlan $plan): array
+    {
+        if (! $layer2) {
+            return [];
+        }
+        $plus = str_contains(strtoupper((string) $plan?->plan_id), 'PLUS');
+
+        return [
+            'cvc_id'   => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'ctag'     => ['nullable', 'integer', 'min:0', 'max:4094'],
+            'rsp_stag' => [Rule::requiredIf($plus), 'nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'rsp_ctag' => ['nullable', 'integer', 'min:0', 'max:4094'],
+        ];
+    }
+
+    private function layer2Params(array $validated): array
+    {
+        $params = [];
+        foreach (['cvc_id' => 'CVCID', 'ctag' => 'CTAG', 'rsp_stag' => 'RSPSTAG', 'rsp_ctag' => 'RSPCTAG'] as $field => $param) {
+            if (isset($validated[$field]) && $validated[$field] !== '') {
+                $params[$param] = (string) $validated[$field];
             }
         }
 
@@ -557,9 +652,12 @@ class InternetController extends Controller
 
     public function orderStore(Request $request)
     {
-        $validated = $request->validate($this->sharedRules() + $this->lineRules() + [
+        $this->normaliseServiceType($request);
+        $plan   = VocusPlan::find((int) $request->input('vocus_plan_id'));
+        $layer2 = $this->isLayer2Order($request, $plan);
+
+        $validated = $request->validate($this->sharedRules(! $layer2) + $this->lineRules() + $this->layer2Rules($layer2, $plan) + [
             'copper_pair_id' => 'nullable|string|max:15',
-            'password'       => ['nullable', 'regex:' . VocusOptions::PASSWORD_REGEX],
         ], self::SHARED_MESSAGES);
 
         $plan      = $this->planFor($validated);
@@ -567,12 +665,9 @@ class InternetController extends Controller
         $this->assertPlanFitsLine($plan, $validated);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
-        $params = $this->baseParams($validated, $serviceId) + $linePrms;
-        if (! empty($validated['password'])) {
-            $params['Password'] = $validated['password'];
-        }
+        // OrderType defaults to NEW; sent explicitly. CVCID / CTAG / RSPSTAG belong to Layer 2 NEW orders (4.1.2.2).
+        $params = ['OrderType' => 'NEW'] + $this->baseParams($validated, $serviceId, ! $layer2) + $linePrms + $this->layer2Params($validated);
 
-        // AVC / CVC are not part of a NEW order (Examples 4.1.4).
         return $this->placeOrder($request, $validated, $plan, $serviceId, $params, 'NEW', 'internet.order', 'internet-order', 'Order');
     }
 
@@ -610,12 +705,16 @@ class InternetController extends Controller
             'realm'              => $validated['realm'] ?? null,
             'username'           => $params['Username'] ?? null,
             'service_level'      => $validated['service_level'] ?? 'STANDARD',
+            'auth_type'          => $params['AuthType'] ?? null,
+            'ip_assignment'      => $params['IPAssignment'] ?? null,
+            'reference'          => $params['Reference'] ?? null,
+            'central_splitter'   => $params['CentralSplitter'] ?? null,
             'copper_pair_id'     => $validated['copper_pair_id'] ?? null,
             'ntd_id'             => $validated['ntd_id'] ?? null,
             'uni_port'           => $validated['uni_port'] ?? null,
             'service_class'      => $validated['service_class'] ?? null,
-            'avc_id'             => $validated['avc_id'] ?? null,
-            'cvc_id'             => $validated['cvc_id'] ?? null,
+            'avc_id'             => $params['AVCID'] ?? null,
+            'cvc_id'             => $params['CVCID'] ?? null,
             'address_long'       => $validated['address_long'] ?? null,
             'notes'              => $validated['notes'] ?? null,
         ]);
@@ -661,25 +760,27 @@ class InternetController extends Controller
         return view('admin.services.internet.transfer', $this->orderFormData($request) + [
             'avc_id' => (string) $request->get('avc_id', ''),
             'cvc_id' => (string) $request->get('cvc_id', ''),
+            'transferOrderTypes' => VocusOptions::TRANSFER_ORDER_TYPES,
         ]);
     }
 
     /**
-     * Transfer order. Examples 4.2.4: "Since this is a TRANSFERS order, client need
-     * to specify the OrderType as TRANSFER and also the CopperPairID to move", with
-     * ServiceID, OrderType, CustomerName, Phone, CVCID (AggCVC), LocationReference,
-     * DirectoryID, AVCID, Realm, ServiceLevel, ServiceType, CopperPairID and CADate
-     * (YYYYMMDD). Layer 2 (NCL2) additionally needs the AVC and CVC IDs.
+     * Transfer order (Product Catalogue FIBRE 4.1.1.3 / 4.1.2.3). OrderType is TRANSFER (AVCID verified, compulsory
+     * since April 2025) or OUTSTANDING (connect outstanding, no AVCID). CADate is compulsory, YYYYMMDD, today or
+     * earlier and not older than 45 days. The line to move is CopperPairID (FTTB/N, FTTC), DataPortNumber 1..4
+     * (FTTP, Wireless) or NTDID (HFC). Layer 2 adds CVCID (compulsory for NCL2), CTAG, RSPSTAG / RSPCTAG.
      */
     public function transferStore(Request $request)
     {
-        $layer2 = $this->isLayer2Order($request, VocusPlan::find((int) $request->input('vocus_plan_id')));
+        $this->normaliseServiceType($request);
+        $plan   = VocusPlan::find((int) $request->input('vocus_plan_id'));
+        $layer2 = $this->isLayer2Order($request, $plan);
 
-        $validated = $request->validate($this->sharedRules() + $this->lineRules() + [
+        $validated = $request->validate($this->sharedRules(! $layer2) + $this->lineRules() + $this->layer2Rules($layer2, $plan) + [
             'copper_pair_id' => 'nullable|string|max:15',
-            'ca_date'        => 'required|date_format:Y-m-d',
-            'avc_id'         => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
-            'cvc_id'         => [Rule::requiredIf($layer2), 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'order_type'     => ['required', Rule::in(array_keys(VocusOptions::TRANSFER_ORDER_TYPES))],
+            'ca_date'        => ['required', 'date_format:Y-m-d', 'after_or_equal:' . now()->subDays(45)->format('Y-m-d'), 'before_or_equal:' . now()->format('Y-m-d')],
+            'avc_id'         => [Rule::requiredIf($request->input('order_type') === 'TRANSFER'), 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
         ], self::SHARED_MESSAGES);
 
         $plan      = $this->planFor($validated);
@@ -687,18 +788,13 @@ class InternetController extends Controller
         $this->assertPlanFitsLine($plan, $validated);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
-        $params = ['OrderType' => 'TRANSFER'] + $this->baseParams($validated, $serviceId) + $linePrms + [
-            // CADate must be YYYYMMDD format for Vocus
-            'CADate'       => str_replace('-', '', $validated['ca_date']),
+        $params = ['OrderType' => $validated['order_type']] + $this->baseParams($validated, $serviceId, ! $layer2) + $linePrms + $this->layer2Params($validated) + [
+            'CADate' => str_replace('-', '', $validated['ca_date']),
         ];
-
-        foreach (['avc_id' => 'AVCID', 'cvc_id' => 'CVCID'] as $field => $param) {
-            if (! empty($validated[$field])) {
-                $params[$param] = $validated[$field];
-            }
+        if (! empty($validated['avc_id']) && $validated['order_type'] === 'TRANSFER') {
+            $params['AVCID'] = $validated['avc_id'];
         }
-
-        return $this->placeOrder($request, $validated, $plan, $serviceId, $params, 'TRANSFER', 'internet.transfer', 'internet-transfer', 'Transfer');
+        return $this->placeOrder($request, $validated, $plan, $serviceId, $params, $validated['order_type'], 'internet.transfer', 'internet-transfer', 'Transfer');
     }
 
     // -------------------------------------------------------------------------
@@ -746,6 +842,12 @@ class InternetController extends Controller
                     $service->last_fault_message = $result['fault_message'] ? mb_substr($result['fault_message'], 0, 500) : null;
                 } else {
                     $service->last_fault_code = $service->last_fault_message = null;
+                }
+
+                // A SUCCESS on Create carries the provisioning results (AVCID, CVCID, NTDID, DataPortID, NBNInstanceID,
+                // IPAssignment, IPAddress ...: FIBRE 4.1.1.2 response params); keep what is in the known columns.
+                if ($state === 'SUCCESS') {
+                    $service->applyLiveParams(array_diff_key($result['params'], ['ServiceStatus' => 1, 'TransactionState' => 1]));
                 }
 
                 // SUCCESS may be the result of a suspend or cancel, so the new
@@ -877,8 +979,11 @@ class InternetController extends Controller
     {
         $request->validate(['type' => 'required|in:AUTH-LOG,DISCONNECT']);
 
-        // The AUTH-LOG / DISCONNECT plan form for FIBRE is not documented (the OPER
-        // catalogue is not available), so never invent a plan: use the service's own.
+        // Product Catalogue OPER 2.1 / 4.2.3 / 4.3.1: OPER "will use the same PlanID as the product that will be
+        // manipulated", and AUTH-LOG / DISCONNECT are supported for FIBRE RESELLER-CONNECT only.
+        if ($service->isLayer2()) {
+            return back()->with('error', 'Authentication log and disconnect are only available for Reseller-Connect (Layer 3) services.');
+        }
         $planId = $service->plan_id;
         if (! $planId) {
             return back()->with('error', 'This service has no plan on record yet. Refresh it from Vocus (Sync) before running diagnostics.');

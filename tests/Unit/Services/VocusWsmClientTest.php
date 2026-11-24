@@ -344,7 +344,8 @@ class VocusWsmClientTest extends TestCase
         $this->assertStringContainsString('<std:Param id="Main.StreetType">DR</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Main.Suburb">SUMMERTOWN</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Main.State">SA</std:Param>', $xml);
-        $this->assertStringContainsString('<std:Param id="Main.Postcode">5141</std:Param>', $xml, 'spelling used by the Examples lookup sample');
+        $this->assertStringContainsString('<std:Param id="Main.Postcode">5141</std:Param>', $xml, 'DIR catalogue 5.2 spells it Main.Postcode');
+        $this->assertStringNotContainsString('Main.PostCode', $xml);
         $this->assertStringContainsString('<std:Param id="SearchMode">DEFAULT</std:Param>', $xml);
         $this->assertStringNotContainsString('Street1stNumber', $xml, 'the documented lookup is street level; the number filters locally');
 
@@ -388,20 +389,20 @@ class VocusWsmClientTest extends TestCase
 
         $this->assertCount(3, $soap->calls);
         $this->assertStringContainsString('<std:Param id="Main.Street1stNumber">4</std:Param>', $this->xmlOf($soap, 1), '2nd attempt sends the number');
-        $this->assertStringContainsString('id="Main.PostCode"', $this->xmlOf($soap, 2), '3rd attempt uses the alternate postcode spelling');
+        $this->assertStringNotContainsString('Main.Postcode', $this->xmlOf($soap, 2), '3rd attempt drops the optional postcode');
         $this->assertCount(3, $res['attempts']);
         $this->assertSame('LOC5', $res['addresses'][0]['directory_id']);
     }
 
     public function test_lookup_reports_no_records_after_every_variant_and_raises_a_fault_only_if_all_faulted(): void
     {
-        $soap = new FakeSoap([$this->emptyResponse(), $this->emptyResponse(), $this->emptyResponse(), $this->emptyResponse()]);
+        $soap = new FakeSoap([$this->emptyResponse(), $this->emptyResponse(), $this->emptyResponse()]);
         $client = $this->clientWith($soap, ['access_key' => 'AK', 'cert_path' => 'c.p12']);
         $res = $client->findAddresses(\App\Support\VocusAddressParser::parse('4 cummins dr, summertown sa 5141'));
         $this->assertSame([], $res['addresses']);
-        $this->assertCount(4, $res['attempts']);
+        $this->assertCount(3, $res['attempts']);
 
-        $client = $this->clientWith(new FakeSoap([$this->fault('WSM-4220'), $this->fault('WSM-4220'), $this->fault('WSM-4220'), $this->fault('WSM-4220')]),
+        $client = $this->clientWith(new FakeSoap([$this->fault('WSM-4220'), $this->fault('WSM-4220'), $this->fault('WSM-4220')]),
             ['access_key' => 'AK', 'cert_path' => 'c.p12']);
         $this->expectException(VocusWsmException::class);
         $client->findAddresses(\App\Support\VocusAddressParser::parse('4 cummins dr, summertown sa 5141'));
@@ -418,6 +419,85 @@ class VocusWsmClientTest extends TestCase
 
         $this->assertSame(['C'], array_column(VocusWsmClient::refineAddresses($all, ['Main.Street1stNumber' => 4]), 'directory_id'));
         $this->assertSame(['B'], array_column(VocusWsmClient::refineAddresses($all, ['Main.Street1stNumber' => 99, 'Main.Unit1stNumber' => 2]), 'directory_id'));
+    }
+
+    public function test_broadband_lookup_uses_only_documented_params_with_unit1sttype(): void
+    {
+        $p = VocusWsmClient::broadbandLookupParams([
+            'Main.AddressType' => 'U', 'Main.Unit1stNumber' => '2', 'Main.PropertyName' => 'WORLD CENTER', 'Main.Street2ndNumber' => '9',
+            'Main.StreetName' => 'MAIN', 'Main.StreetType' => 'ST', 'Main.Suburb' => 'X', 'Main.State' => 'VIC', 'Main.PostCode' => '3000', 'Main.Country' => '61',
+        ]);
+        // DIR catalogue 5.2: Main.Unit1stType (not AddressType), Main.Postcode, no PropertyName / Street2nd / Country.
+        $this->assertSame(['Main.Unit1stNumber' => '2', 'Main.StreetName' => 'MAIN', 'Main.StreetType' => 'ST', 'Main.Suburb' => 'X', 'Main.State' => 'VIC', 'Main.Unit1stType' => 'U', 'Main.Postcode' => '3000'], $p);
+    }
+
+    public function test_auth_log_uses_the_service_plan_and_reads_either_record_name(): void
+    {
+        $record = '<AuthLogRecord><ServiceID>S1</ServiceID><DateTime>20260101120000</DateTime><AuthResult>PASS</AuthResult><Reason>Accepted</Reason></AuthLogRecord>';
+        $soap = new FakeSoap([(object) ['TransactionID' => 'T9', 'ResponseType' => 'SYNC', 'Parameters' => (object) ['Param' => (object) ['id' => 'AuthLogRecord', '_' => $record]]]]);
+        $res = $this->clientWith($soap, ['access_key' => 'AK', 'cert_path' => 'c.p12'])->getAuthLog('S1', 'RC-100-20');
+
+        $xml = $this->xmlOf($soap);
+        $this->assertStringContainsString('<ProductID>OPER</ProductID>', $xml);
+        $this->assertStringContainsString('<PlanID>RC-100-20</PlanID>', $xml, 'OPER 2.1: the PlanID of the product being manipulated');
+        $this->assertStringContainsString('<Scope>AUTH-LOG</Scope>', $xml);
+        $this->assertStringContainsString('<std:Param id="ProductID">FIBRE</std:Param>', $xml);
+        $this->assertSame([['datetime' => '20260101120000', 'auth_result' => 'PASS', 'reason' => 'Accepted']], $res['records']);
+    }
+
+    public function test_disconnect_sends_optional_session_id_with_the_service_plan(): void
+    {
+        $soap = new FakeSoap([$this->ok(), $this->ok()]);
+        $client = $this->clientWith($soap, ['access_key' => 'AK', 'cert_path' => 'c.p12']);
+        $client->disconnectSession('S1', 'RC-100-20');
+        $client->disconnectSession('S1', 'RC-100-20', 'SESS-1');
+
+        $this->assertStringContainsString('<Scope>DISCONNECT</Scope>', $this->xmlOf($soap, 0));
+        $this->assertStringNotContainsString('SessionID', $this->xmlOf($soap, 0));
+        $this->assertStringContainsString('<std:Param id="SessionID">SESS-1</std:Param>', $this->xmlOf($soap, 1));
+    }
+
+    public function test_notifications_need_a_start_point_and_clamp_the_page_size(): void
+    {
+        $soap = new FakeSoap([(object) ['TransactionID' => 'T1', 'ResponseType' => 'SYNC', 'Parameters' => (object) ['Param' => [
+            (object) ['id' => 'LastRecordID', '_' => '77'], (object) ['id' => 'HasMore', '_' => 'TRUE'],
+        ]]]]);
+        $client = $this->clientWith($soap, ['access_key' => 'AK', 'cert_path' => 'c.p12']);
+
+        $res = $client->getNotifications(null, '70', 500);
+        $this->assertStringContainsString('<Scope>NOTIFICATIONS</Scope>', $this->xmlOf($soap));
+        $this->assertStringContainsString('<std:Param id="StartRecordID">70</std:Param>', $this->xmlOf($soap));
+        $this->assertStringContainsString('<std:Param id="MaxRecordCount">100</std:Param>', $this->xmlOf($soap));
+        $this->assertSame('77', $res['last_record_id']);
+        $this->assertTrue($res['has_more']);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $client->getNotifications();
+    }
+
+    public function test_qualify_sends_optional_carrier_service_type_and_product_code(): void
+    {
+        $soap = new FakeSoap([$this->ok()]);
+        $this->clientWith($soap, ['access_key' => 'AK', 'cert_path' => 'c.p12'])->qualifyAddress('LOC1', 'AVC1', 'CVC1', '0299998888', 'FTTP', 'NETWORK-CONNECT');
+        $xml = $this->xmlOf($soap);
+        foreach (['DirectoryID' => 'LOC1', 'AVCID' => 'AVC1', 'CVCID' => 'CVC1', 'CarrierID' => '0299998888', 'ServiceType' => 'FTTP', 'ProductCode' => 'NETWORK-CONNECT'] as $id => $v) {
+            $this->assertStringContainsString('<std:Param id="' . $id . '">' . $v . '</std:Param>', $xml, $id);
+        }
+    }
+
+    public function test_catalogue_error_codes_have_friendly_messages(): void
+    {
+        foreach (['FIBRE-2115', 'FIBRE-4220', 'DIR-1181', 'OPER-5555', 'NETWORK-4223'] as $code) {
+            $this->assertArrayHasKey($code, VocusWsmClient::FRIENDLY_ERRORS, $code);
+        }
+        $client = $this->clientWith(new FakeSoap([$this->fault('FIBRE-2115')]), ['access_key' => 'AK', 'cert_path' => 'c.p12']);
+        try {
+            $client->getService('S1');
+            $this->fail('expected a fault');
+        } catch (VocusWsmException $e) {
+            $this->assertSame('FIBRE-2115', $e->errorCode);
+            $this->assertStringContainsString('already exists', $e->getMessage());
+        }
     }
 
     public function test_alias_key_is_sent_but_empty_alias_is_not(): void

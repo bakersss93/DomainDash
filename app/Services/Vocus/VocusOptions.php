@@ -18,11 +18,81 @@ final class VocusOptions
         'NETWORK-CONNECT'  => 'Network-Connect (Layer 2, NCL2)',
     ];
 
-    /** Customer username: the unique part only (portal rule 4-22 characters A-z 0-9 _). */
-    public const USERNAME_REGEX = '/^[A-Za-z0-9_]{4,22}$/';
+    /**
+     * Customer username: the unique part only. Data Types "Username": the user_id part "must be between 2 to 22
+     * characters", characters a-z A-Z 0-9 underscore; the realm is appended by composeUsername().
+     */
+    public const USERNAME_REGEX = '/^[A-Za-z0-9_]{2,22}$/';
 
-    /** Customer password: A-z 0-9 - . (WSM Password data type is 2..50). */
-    public const PASSWORD_REGEX = '/^[A-Za-z0-9.-]{2,50}$/';
+    /**
+     * Customer password. Data Types "Password": string 2..30 (the older XSD allowed 50; the current Data Types
+     * Definition says 30). Characters A-z 0-9 - . are the portal rule; the catalogue does not list a charset.
+     */
+    public const PASSWORD_REGEX = '/^[A-Za-z0-9.-]{2,30}$/';
+
+    /** Reference: string 2..30, a-z A-Z 0-9 dash underscore dot (Data Types "Reference"). */
+    public const REFERENCE_REGEX = '/^[A-Za-z0-9._-]{2,30}$/';
+
+    /** CarrierID (the FNN for voiceband continuity): integer 2..15 digits (Data Types "CarrierID"). */
+    public const CARRIER_ID_REGEX = '/^\d{2,15}$/';
+
+    /** ServiceLevel (Data Types "ServiceLevel"; default STANDARD). Note "24x7", not "24/7". */
+    public const SERVICE_LEVELS = [
+        'STANDARD', 'ENHANCED4', 'ENHANCED6', 'ENHANCED8', 'ENHANCED12',
+        'ENHANCED4-24x7', 'ENHANCED6-24x7', 'ENHANCED8-24x7', 'ENHANCED12-24x7',
+    ];
+
+    /** FIBRE::Create ServiceType (Product Catalogue FIBRE 4.1.1.2): FTTP, WIRELESS, FTTB, FTTN, HFC, FTTC. */
+    public const SERVICE_TYPES = ['FTTP', 'WIRELESS', 'FTTB', 'FTTN', 'HFC', 'FTTC'];
+
+    /** FIBRE::Create AuthType (RESELLER-CONNECT only; PPPoE when omitted). Data Types "AuthType" also lists NA (read only). */
+    public const AUTH_TYPES = ['PPPoE', 'IPoE'];
+
+    /** FIBRE::Create IPAssignment (RESELLER-CONNECT only; CGNAT when omitted). */
+    public const IP_ASSIGNMENTS = ['CGNAT', 'STATIC', 'DYNAMIC'];
+
+    /** FIBRE::Create OrderType for transfers (consolidated table 6.1: NEW, TRANSFER or OUTSTANDING). */
+    public const TRANSFER_ORDER_TYPES = [
+        'TRANSFER'    => 'Transfer (AVC ID is verified)',
+        'OUTSTANDING' => 'Connect outstanding (no AVC ID needed)',
+    ];
+
+    /**
+     * NBNCPEPlanID values (Product Catalogue FIBRE appendix 6.4) this app can order. Only the options that need
+     * no CPEDirectoryID are offered: the end-user self install and warehouse-shipped NTD / NCD variants need a
+     * shipping address created with DIR::Create (not implemented).
+     * Shape: technology => [value => [label, scopes]]. "-REPLACE" values need the NTDID being replaced.
+     */
+    public const NBN_CPE_PLANS = [
+        'FTTP' => [
+            'FTTPNTDNBNPROFINSTALL-V3-1P'         => ['New 1-port NTD (V3), NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V4-4P'         => ['Additional 4-port NTD (V4), NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE' => ['Replace the NTD with a 1-port NTD (V3)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+            'FTTPNTDNBNPROFINSTALL-V4-4P-REPLACE' => ['Replace the NTD with a 4-port NTD (V4)', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+        ],
+        'HFC' => [
+            'HFCNTDNBNPROFINSTALL' => ['New HFC NTD, NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+        ],
+        'FTTC' => [
+            'FTTCNCDNBNPROFINSTALL' => ['New FTTC NCD, NBN professional install', ['RESELLER-CONNECT', 'NETWORK-CONNECT']],
+        ],
+    ];
+
+    /**
+     * Map a ServiceType seen in a QUALIFY response (or stored) to the value FIBRE::Create accepts.
+     * QUALIFY returns "FIBRE, WIRELESS, FTTB, FTTN, HFC, FTTC or N/A" (4.2.1) while Create wants FTTP for fibre.
+     */
+    public static function createServiceType(?string $qualifyType): ?string
+    {
+        $t = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $qualifyType));
+
+        return match (true) {
+            $t === 'FIBRE' || $t === 'FTTP'                                     => 'FTTP',
+            in_array($t, ['WIRELESS', 'FIXEDWIRELESS', 'FW'], true)             => 'WIRELESS',
+            in_array($t, ['FTTB', 'FTTN', 'HFC', 'FTTC'], true)                 => $t,
+            default                                                             => null,
+        };
+    }
 
     /** Contact name: first and last name, 4-39 characters, letters / digits / space. */
     public const CONTACT_NAME_REGEX = '/^(?=.{4,39}$)[A-Za-z0-9]+(?: [A-Za-z0-9]+)+$/';

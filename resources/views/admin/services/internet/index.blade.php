@@ -33,7 +33,7 @@
             </select>
             <select name="service_type" class="dd-input dd-input-inline">
                 <option value="" {{ ($typeFilter ?? '') === '' ? 'selected' : '' }}>All technologies</option>
-                @foreach(['FTTP','FTTC','FTTB','FTTN','HFC','FIXED-WIRELESS'] as $type)
+                @foreach(['FTTP','FTTC','FTTB','FTTN','HFC','WIRELESS'] as $type)
                     <option value="{{ $type }}" {{ ($typeFilter ?? '') === $type ? 'selected' : '' }}>{{ $type }}</option>
                 @endforeach
             </select>

@@ -36,7 +36,8 @@ class VocusWsmClient
      * Short, user-safe messages for the documented error codes (Main doc 5.1 and
      * the TCAS catalogue). The vendor says faultstring "is less reliable", so the
      * ErrorCode drives the message. WSM-4010 is NOT in the supplied documents; its
-     * text is inferred from production behaviour (rejected Access Key).
+     * text is inferred from production behaviour (rejected Access Key). The FIBRE-, DIR-, OPER- and NETWORK- codes
+     * are from the product catalogues (FIBRE 3, DIR 3, OPER 3, NETWORK 3).
      */
     const FRIENDLY_ERRORS = [
         'WSM-0000' => 'Vocus reported an internal error. Try again later or open a Vocus support ticket.',
@@ -61,10 +62,55 @@ class VocusWsmClient
         'TCAS-4310' => 'This Vocus transaction has expired (transactions are kept for 7 days after completion). Refresh the live service record instead.',
         'TCAS-5030' => 'A Vocus supporting system failed while looking up the transaction. Open a Vocus support ticket.',
         'TCAS-5050' => 'The Vocus transaction lookup is not implemented.',
+        // Product Catalogue FIBRE section 3.
+        'FIBRE-0000' => 'Vocus reported an internal error on the NBN service. Try again later or open a Vocus support ticket.',
+        'FIBRE-2110' => 'Vocus could not provision the NBN service.',
+        'FIBRE-2111' => 'Vocus does not know this service ID (invalid or unknown service).',
+        'FIBRE-2115' => 'This service ID already exists at Vocus.',
+        'FIBRE-2118' => 'The NBN appointment is not valid or does not exist.',
+        'FIBRE-2170' => 'That plan change is not valid.',
+        'FIBRE-2200' => 'The service is in a stage where it cannot be modified.',
+        'FIBRE-2205' => 'Vocus could not update the service status.',
+        'FIBRE-2210' => 'A modem or other CPE cannot be added at this stage of the service.',
+        'FIBRE-4220' => 'Vocus rejected the NBN request: a parameter is invalid.',
+        'FIBRE-4222' => 'Vocus does not know this plan ID.',
+        'FIBRE-4223' => 'The NBN request scope is missing or invalid.',
+        'FIBRE-5010' => 'The NBN operation was only partially completed. Check the transaction steps and open a Vocus support ticket.',
+        'FIBRE-5030' => 'A Vocus supporting system reported an error. Open a Vocus support ticket with the transaction ID.',
+        'FIBRE-5050' => 'This NBN feature is not implemented by Vocus yet.',
+        'FIBRE-5555' => 'Vocus does not support this action for this service.',
+        // Product Catalogue DIR section 3.
+        'DIR-0000' => 'Vocus reported an internal error in the address directory.',
+        'DIR-1181' => 'Vocus did not find that address.',
+        'DIR-2000' => 'That Vocus DirectoryID does not exist.',
+        'DIR-4220' => 'Vocus rejected the address parameters.',
+        'DIR-4222' => 'Invalid Vocus directory PlanID.',
+        'DIR-4223' => 'The Vocus directory request scope is invalid.',
+        'DIR-5030' => 'A Vocus supporting system failed during the address lookup. Open a Vocus support ticket.',
+        'DIR-5050' => 'This Vocus directory feature is not implemented.',
+        // Product Catalogue OPER section 3.
+        'OPER-0000' => 'Vocus reported an internal error running the diagnostic.',
+        'OPER-2111' => 'Vocus does not know this service (invalid or unknown service).',
+        'OPER-2200' => 'Vocus could not validate the service credentials or status for this diagnostic.',
+        'OPER-4220' => 'Vocus rejected the diagnostic parameters.',
+        'OPER-4222' => 'The diagnostic plan ID does not exist at Vocus.',
+        'OPER-4223' => 'The diagnostic scope is missing or invalid.',
+        'OPER-5010' => 'The diagnostic was only partially completed. Open a Vocus support ticket.',
+        'OPER-5030' => 'A Vocus supporting system failed during the diagnostic. Open a Vocus support ticket.',
+        'OPER-5050' => 'This diagnostic is not implemented.',
+        'OPER-5555' => 'This diagnostic is not supported for this service.',
+        // Product Catalogue NETWORK section 3.
+        'NETWORK-0000' => 'Vocus reported an internal error on the network request.',
+        'NETWORK-2110' => 'Vocus could not provision the network item.',
+        'NETWORK-2111' => 'Vocus does not know this CVC or network item.',
+        'NETWORK-4220' => 'Vocus rejected the network request: a parameter is invalid.',
+        'NETWORK-4222' => 'Invalid Vocus network PlanID.',
+        'NETWORK-4223' => 'The network request scope is missing or invalid.',
+        'NETWORK-5555' => 'Vocus does not support this network action.',
     ];
 
     /** Codes whose own faultstring is informative (it names what was invalid), so it is appended. */
-    const RAW_DETAIL_CODES = ['WSM-4000', 'WSM-4220', 'TCAS-4220'];
+    const RAW_DETAIL_CODES = ['WSM-4000', 'WSM-4220', 'TCAS-4220', 'FIBRE-2110', 'FIBRE-2170', 'FIBRE-4220', 'DIR-4220', 'OPER-4220', 'NETWORK-4220'];
 
     /**
      * Nothing touches the network here: the session login and SOAP client are
@@ -745,11 +791,41 @@ class VocusWsmClient
     // Address / Directory operations
     // -------------------------------------------------------------------------
 
-    /** Params that narrow a lookup to one building/unit; the documented lookup request omits them. */
+    /** Params that narrow a lookup to one building/unit; the street-level lookup omits them and narrows locally. */
     const LOOKUP_DETAIL_KEYS = [
-        'Main.Unit1stNumber', 'Main.Unit1stSuffix', 'Main.AddressType', 'Main.Street1stNumber',
-        'Main.Street1stNumberSuffix', 'Main.Street2ndNumber', 'Main.FloorType', 'Main.FloorNumber', 'Main.PropertyName',
+        'Main.Unit1stNumber', 'Main.Unit1stSuffix', 'Main.Unit1stType', 'Main.Street1stNumber',
+        'Main.Street1stNumberSuffix', 'Main.FloorType', 'Main.FloorNumber', 'Main.FloorSuffix', 'Main.LotNumber',
     ];
+
+    /**
+     * Every request param DIR::Get PlanID BROADBAND accepts (Product Catalogue DIR 5.2). Unlike DIR::Create it has
+     * Main.Unit1stType (not Main.AddressType), no PropertyName / Unit2nd / Street2nd params and Main.Postcode with a
+     * lower-case "c".
+     */
+    const BROADBAND_LOOKUP_PARAMS = [
+        'Main.LotNumber', 'Main.Unit1stNumber', 'Main.Unit1stSuffix', 'Main.Unit1stType', 'Main.FloorNumber',
+        'Main.FloorSuffix', 'Main.FloorType', 'Main.Street1stNumber', 'Main.Street1stNumberSuffix', 'Main.StreetName',
+        'Main.StreetType', 'Main.StreetSuffix', 'Main.Suburb', 'Main.State', 'Main.Postcode',
+    ];
+
+    /**
+     * Convert the address parser's DIR::Create style keys (Main.AddressType, Main.PostCode) to the documented
+     * BROADBAND lookup keys and drop anything the lookup does not define.
+     *
+     * @param array<string,string|int> $params
+     * @return array<string,string|int>
+     */
+    public static function broadbandLookupParams(array $params): array
+    {
+        if (isset($params['Main.AddressType']) && ! isset($params['Main.Unit1stType'])) {
+            $params['Main.Unit1stType'] = $params['Main.AddressType'];
+        }
+        if (isset($params['Main.PostCode']) && ! isset($params['Main.Postcode'])) {
+            $params['Main.Postcode'] = $params['Main.PostCode'];
+        }
+
+        return array_intersect_key($params, array_flip(self::BROADBAND_LOOKUP_PARAMS));
+    }
 
     /**
      * One DIR::Get / PlanID BROADBAND call (Examples 4.1.1) and the parsed records.
@@ -757,7 +833,9 @@ class VocusWsmClient
      */
     public function lookupAddress(array $addressParts): array
     {
-        $params = array_merge($addressParts, ['SearchMode' => 'DEFAULT']);
+        // SearchMode=DEFAULT is sent by the Examples lookup sample (4.1.1) although the DIR catalogue (5.2) does not
+        // list it; it is the only SearchMode value seen anywhere and is kept as the sample has it.
+        $params = array_merge(self::broadbandLookupParams($addressParts), ['SearchMode' => 'DEFAULT']);
         $result = $this->call('Get', 'DIR', $params, 'BROADBAND');
 
         [$addresses, $diagnostics] = self::parseAddressRecords($result['params']);
@@ -784,8 +862,7 @@ class VocusWsmClient
      * (street name/type, suburb, state, postcode, no street number: the sample
      * response lists every unit of the street) and narrows locally by the
      * requested number; only when that finds nothing it retries with the street
-     * number/unit sent, with the alternate PostCode spelling, and without the
-     * postcode. Each attempt is logged. A Vocus fault is raised only when no
+     * number/unit sent and without the postcode (Main.Postcode is optional, DIR 5.2). Each attempt is logged. A Vocus fault is raised only when no
      * attempt succeeded.
      *
      * @param array<string,string|int> $params Main.* parameters (Main.PostCode spelling)
@@ -793,21 +870,19 @@ class VocusWsmClient
      */
     public function findAddresses(array $params): array
     {
+        $params  = self::broadbandLookupParams($params);
         $details = array_intersect_key($params, array_flip(self::LOOKUP_DETAIL_KEYS));
         $base    = array_diff_key($params, $details);
-        $post    = $base['Main.PostCode'] ?? $base['Main.Postcode'] ?? null;
-        unset($base['Main.PostCode'], $base['Main.Postcode']);
+        $post    = $base['Main.Postcode'] ?? null;
+        unset($base['Main.Postcode']);
 
-        $primary = (string) config('services.vocus.lookup_postcode_param', 'Main.Postcode');
-        $alt     = $primary === 'Main.Postcode' ? 'Main.PostCode' : 'Main.Postcode';
-        $with    = fn (array $p, string $key) => $post !== null && $post !== '' ? $p + [$key => $post] : $p;
+        $with = fn (array $p) => $post !== null && $post !== '' ? $p + ['Main.Postcode' => $post] : $p;
 
-        $variants = [['documented request (street level)', $with($base, $primary)]];
+        $variants = [['documented request (street level)', $with($base)]];
         if ($details !== []) {
-            $variants[] = ['with street number / unit', $with($base + $details, $primary)];
+            $variants[] = ['with street number / unit', $with($base + $details)];
         }
         if ($post !== null && $post !== '') {
-            $variants[] = ['alternate PostCode spelling', $with($base, $alt)];
             $variants[] = ['without postcode', $base];
         }
 
@@ -937,9 +1012,21 @@ class VocusWsmClient
     /**
      * Service qualification against an NBN address.
      */
-    public function qualifyAddress(string $directoryId, ?string $avcId = null, ?string $cvcId = null): array
+    public function qualifyAddress(string $directoryId, ?string $avcId = null, ?string $cvcId = null, ?string $carrierId = null, ?string $serviceType = null, ?string $productCode = null): array
     {
+        // FIBRE catalogue 4.2.1. CarrierID: needed to check voiceband continuity on FTTB/N and required for FTTC.
+        // ServiceType: qualify a specific technology (FTTP for Fibre On Demand / primary / original). ProductCode:
+        // RESELLER-CONNECT (default), NETWORK-CONNECT, RESELLER-CONNECT-PLUS or NETWORK-CONNECT-PLUS.
         $params = ['DirectoryID' => $directoryId];
+        if ($carrierId) {
+            $params['CarrierID'] = $carrierId;
+        }
+        if ($serviceType) {
+            $params['ServiceType'] = $serviceType;
+        }
+        if ($productCode) {
+            $params['ProductCode'] = $productCode;
+        }
         if ($avcId) {
             $params['AVCID'] = $avcId;
         }
@@ -1010,16 +1097,51 @@ class VocusWsmClient
     }
 
     /**
-     * Retrieve NBN event notifications since a start time (Examples 4.1.6:
-     * FIBRE / Get / NOTIFICATIONS with StartDateTime, format YYYYMMDDHHMMSS).
+     * FIBRE / Get / NOTIFICATIONS (Product Catalogue FIBRE 4.2.6): order and appointment updates up to 60 days old.
+     * Send StartDateTime (AEST, YYYYMMDDHHMMSS) or StartRecordID (the LastRecordID of the previous call), plus an
+     * optional MaxRecordCount (default 20, maximum 100). The response carries MasterConversationRecord and
+     * MasterAppointmentRecord CDATA records, LastRecordID and HasMore. Not used by the application yet.
+     * Note: ConversationRecord TransactionSubState COMPLETE does not mean the order is complete: only TCAS
+     * scope RESPONSE returning SUCCESS does.
      *
-     * Not used by the application yet (no callback / notification feature) and
-     * not verified against production: earlier variants were rejected and the
-     * FIBRE product catalogue is not available. Kept as the documented shape.
+     * @return array{transaction_id:?string,last_record_id:?string,has_more:bool,conversations:array,appointments:array,params:array}
      */
-    public function getNotifications(string $startDateTime): array
+    public function getNotifications(?string $startDateTime = null, ?string $startRecordId = null, ?int $maxRecordCount = null): array
     {
-        return $this->call('Get', 'FIBRE', ['StartDateTime' => $startDateTime], null, 'NOTIFICATIONS');
+        if (($startDateTime === null || $startDateTime === '') && ($startRecordId === null || $startRecordId === '')) {
+            throw new \InvalidArgumentException('NOTIFICATIONS needs a StartDateTime or a StartRecordID.');
+        }
+        $params = array_filter([
+            'StartDateTime'  => $startDateTime,
+            'StartRecordID'  => $startRecordId,
+            'MaxRecordCount' => $maxRecordCount !== null ? (string) max(1, min(100, $maxRecordCount)) : null,
+        ], fn ($v) => $v !== null && $v !== '');
+
+        $result = $this->call('Get', 'FIBRE', $params, null, 'NOTIFICATIONS');
+        $p      = $result['params'];
+
+        return [
+            'transaction_id' => $result['transaction_id'],
+            'last_record_id' => isset($p['LastRecordID']) ? (string) $p['LastRecordID'] : null,
+            'has_more'       => strtoupper((string) ($p['HasMore'] ?? '')) === 'TRUE',
+            'conversations'  => VocusQualification::records($p['MasterConversationRecord'] ?? null, 'MasterConversationRecord'),
+            'appointments'   => VocusQualification::records($p['MasterAppointmentRecord'] ?? null, 'MasterAppointmentRecord'),
+            'params'         => $p,
+        ];
+    }
+
+    /**
+     * NETWORK / Get / AGGCVC (Product Catalogue NETWORK 4.2.1): the Aggregated CVCs available to an NCL2 customer.
+     * No param lists them all; CVCID returns one; State filters. Not wired into the UI yet.
+     *
+     * @return list<array<string,string>> CVCRecord fields
+     */
+    public function getAggregatedCvcs(?string $cvcId = null, ?string $state = null): array
+    {
+        $params = array_filter(['CVCID' => $cvcId, 'State' => $state], fn ($v) => $v !== null && $v !== '');
+        $result = $this->call('Get', 'NETWORK', $params, null, 'AGGCVC');
+
+        return VocusQualification::records($result['params']['CVCRecord'] ?? null, 'CVCRecord');
     }
 
     // -------------------------------------------------------------------------
@@ -1079,7 +1201,10 @@ class VocusWsmClient
     // -------------------------------------------------------------------------
 
     /**
-     * Retrieve authentication log for a service (last 48 hours).
+     * OPER / Get / AUTH-LOG (Product Catalogue OPER 4.2.3): up to 2 days of authentication attempts. Supported for
+     * FIBRE RESELLER-CONNECT only. "ProductID OPER will use the same PlanID as the product that will be manipulated"
+     * (OPER 2.1), so PlanID is the service's own plan; ServiceID and ProductID (FIBRE) go in as params.
+     * The catalogue names the response param AuthLogRecord, the Data Types and Examples AuthUsageRecord: both read.
      */
     public function getAuthLog(string $serviceId, string $planId): array
     {
@@ -1088,23 +1213,13 @@ class VocusWsmClient
             'ProductID' => 'FIBRE',
         ], $planId, 'AUTH-LOG');
 
-        // Parse AuthUsageRecord CDATA entries
         $records = [];
-        $raw = $result['params']['AuthUsageRecord'] ?? [];
-        if (!is_array($raw)) {
-            $raw = [$raw];
-        }
-        foreach ($raw as $cdata) {
-            if (!$cdata) {
-                continue;
-            }
-            $cdata = preg_replace('/^<!\[CDATA\[|\]\]>$/', '', trim($cdata));
-            $xml = @simplexml_load_string($cdata);
-            if ($xml) {
+        foreach (['AuthLogRecord', 'AuthUsageRecord'] as $element) {
+            foreach (VocusQualification::records($result['params'][$element] ?? null, $element) as $r) {
                 $records[] = [
-                    'datetime'    => (string) ($xml->DateTime ?? ''),
-                    'auth_result' => (string) ($xml->AuthResult ?? ''),
-                    'reason'      => (string) ($xml->Reason ?? ''),
+                    'datetime'    => $r['DateTime'] ?? '',
+                    'auth_result' => $r['AuthResult'] ?? '',
+                    'reason'      => $r['Reason'] ?? '',
                 ];
             }
         }
@@ -1116,13 +1231,16 @@ class VocusWsmClient
     }
 
     /**
-     * Disconnect the current online session for a service.
+     * OPER / Set / DISCONNECT (OPER 4.3.1): kick the online session(s) of a FIBRE RESELLER-CONNECT service. Without a
+     * SessionID every session of the ServiceID is disconnected; it can take up to 5 minutes. PlanID is the service's plan.
      */
-    public function disconnectSession(string $serviceId, string $planId): array
+    public function disconnectSession(string $serviceId, string $planId, ?string $sessionId = null): array
     {
-        return $this->call('Set', 'OPER', [
-            'ServiceID' => $serviceId,
-            'ProductID' => 'FIBRE',
-        ], $planId, 'DISCONNECT');
+        $params = ['ServiceID' => $serviceId, 'ProductID' => 'FIBRE'];
+        if ($sessionId) {
+            $params['SessionID'] = $sessionId;
+        }
+
+        return $this->call('Set', 'OPER', $params, $planId, 'DISCONNECT');
     }
 }

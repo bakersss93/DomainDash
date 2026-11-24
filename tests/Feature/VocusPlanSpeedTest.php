@@ -115,7 +115,9 @@ class VocusPlanSpeedTest extends TestCase
         return array_merge([
             'vocus_plan_id' => $plan->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
             'directory_id' => self::LOC, 'location_reference' => '3000', 'service_type' => 'FTTN', 'qualification_token' => $token,
-            'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'service_level' => 'STANDARD',
+            'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
+            // FTTN NEW orders: VoicebandContinuity and CentralSplitter are compulsory (FIBRE 4.1.1.2).
+            'voiceband_continuity' => 'FALSE', 'central_splitter' => 'FALSE',
         ], $o);
     }
 
@@ -209,10 +211,11 @@ class VocusPlanSpeedTest extends TestCase
         $this->assertSame(['download' => 100, 'upload' => 40], VocusLineSelection::capability($q, ['line_choice' => 'new']));
     }
 
-    public function test_tc2_speed_is_used_only_when_there_is_no_download_range(): void
+    public function test_tc2_speed_is_never_used_as_a_line_speed(): void
     {
+        // Data Types CopperPairRecord: TC2Speed is "Traffic Class 2 supported speed", not a theoretical line rate.
         $noRange = Q::fromParams(['ServiceType' => 'FTTN', 'CopperPairRecord' => "<![CDATA[<CopperPairRecord><CopperPairID>C1</CopperPairID><TC2Speed>25</TC2Speed><TC2Speed>50</TC2Speed></CopperPairRecord>]]>"]);
-        $this->assertSame(['download' => 50, 'upload' => null], Q::lineCapability($noRange, false, 'C1'));
+        $this->assertSame(['download' => null, 'upload' => null], Q::lineCapability($noRange, false, 'C1'));
 
         $withRange = Q::fromParams(['ServiceType' => 'FTTN', 'CopperPairRecord' => "<![CDATA[<CopperPairRecord><CopperPairID>C1</CopperPairID><DownloadSpeed>12-25</DownloadSpeed><TC2Speed>100</TC2Speed></CopperPairRecord>]]>"]);
         $this->assertSame(25, Q::lineCapability($withRange, false, 'C1')['download']);
@@ -223,6 +226,10 @@ class VocusPlanSpeedTest extends TestCase
         $this->assertSame(['download' => 1000, 'upload' => 400], Q::lineCapability($this->ntdQualification(), false, null, 'NTD1', 1));
         $this->assertSame(['download' => null, 'upload' => null], Q::lineCapability($this->ntdQualification(), true));
         $this->assertSame(['download' => null, 'upload' => null], Q::lineCapability($this->ntdQualification(false), false, null, 'NTD1', 1));
+
+        // The NTDRecord speed meaning is undocumented: the cap can be switched off.
+        config(['services.vocus.ntd_speed_is_cap' => false]);
+        $this->assertSame(['download' => null, 'upload' => null], Q::lineCapability($this->ntdQualification(), false, null, 'NTD1', 1));
     }
 
     public function test_plan_problem_only_blocks_when_both_speeds_are_known(): void

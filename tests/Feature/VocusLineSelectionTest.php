@@ -131,7 +131,7 @@ class VocusLineSelectionTest extends TestCase
     {
         return array_merge([
             'vocus_plan_id' => $this->plan()->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
-            'directory_id' => 'LOC001122334455', 'location_reference' => '3000', 'realm' => 'jargonconnect.com.au', 'username' => 'yshinde',
+            'directory_id' => 'LOC001122334455', 'location_reference' => '3000', 'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x',
             'service_level' => 'STANDARD',
         ], $o);
     }
@@ -246,14 +246,16 @@ class VocusLineSelectionTest extends TestCase
 
         $html = $this->actingAs($admin)->get(route('admin.services.internet.order', [
             'directory_id' => 'LOC001122334455', 'service_type' => 'FTTP', 'location_reference' => '3000', 'qualification_token' => $token,
-        ]))->assertOk()->assertSee('Select line / port')->assertSee('Order a new line / port')->assertSee('In use')->assertSee('Free')->getContent();
+        ]))->assertOk()->assertSee('Select line / port')->assertSee('Order a new line')->assertSee('In use')->assertSee('Free')->getContent();
 
         // Ports 1 and 3 are in use: their radios are disabled; 2 and 4 are selectable.
         $this->assertMatchesRegularExpression('/data-port="1"[^>]*\sdisabled/', $html);
         $this->assertMatchesRegularExpression('/data-port="3"[^>]*\sdisabled/', $html);
         $this->assertDoesNotMatchRegularExpression('/data-port="2"[^>]*\sdisabled/', $html);
         $this->assertDoesNotMatchRegularExpression('/data-port="4"[^>]*\sdisabled/', $html);
-        $this->assertStringContainsString('data-wire="1-UNID-2"', $html);
+        // A new order never sends a port: the radios only choose the NTD (data-wire is the port number, used for transfers).
+        $this->assertStringContainsString('data-wire="2"', $html);
+        $this->assertStringContainsString('Vocus picks the free UNI-D port itself', $html);
     }
 
     public function test_transfer_form_has_no_new_line_option(): void
@@ -265,7 +267,14 @@ class VocusLineSelectionTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.services.internet.transfer', [
             'directory_id' => 'LOC001122334455', 'service_type' => 'FTTP', 'location_reference' => '3000', 'qualification_token' => $token,
-        ]))->assertOk()->assertSee('Select line / port')->assertDontSee('Order a new line');
+        ]))->assertOk()->assertSee('Select line / port')->assertDontSee('Order a new line')->getContent();
+
+        // A transfer moves the port the service uses now, so in-use ports stay selectable.
+        $html = $this->actingAs($admin)->get(route('admin.services.internet.transfer', [
+            'directory_id' => 'LOC001122334455', 'service_type' => 'FTTP', 'location_reference' => '3000', 'qualification_token' => $token,
+        ]))->getContent();
+        $this->assertDoesNotMatchRegularExpression('/data-port="1"[^>]*\sdisabled/', $html);
+        $this->assertStringContainsString('data-wire="1"', $html);
     }
 
     public function test_single_free_port_and_single_copper_pair_are_preselected_but_several_are_not(): void
@@ -294,7 +303,7 @@ class VocusLineSelectionTest extends TestCase
         // The note is in the markup either way (it is shown by script); the JSON flag decides.
         $this->assertTrue(Q::fromParams(['ServiceType' => 'FTTP'])['needs_ntd_install']);
         $this->actingAs($admin)->get(route('admin.services.internet.order', ['directory_id' => 'LOC001122334455', 'service_type' => 'FTTP', 'qualification_token' => $token]))
-            ->assertSee('No NTD or ports were returned')->assertSee('installation appointment may be required');
+            ->assertSee('No NTD or ports were returned')->assertSee('first available date');
     }
 
     // ---------------------------------------------------------------- Create payload
@@ -318,43 +327,158 @@ class VocusLineSelectionTest extends TestCase
         $this->assertSame('CPI2', InternetService::firstOrFail()->copper_pair_id);
     }
 
-    public function test_ntd_order_sends_configured_port_param_and_stores_ntd_and_port(): void
+    public function test_new_fttp_order_has_no_port_param_and_sends_ntdid_only_when_an_ntd_is_chosen(): void
+    {
+        $admin = $this->admin();
+        $soap = $this->fakeClient([$this->fttpQualify(), $this->ok(), $this->ok()]);
+        [$token] = $this->qualify($admin, $this->fttpQualify());
+        $base = $this->order(['service_type' => 'FTTP', 'qualification_token' => $token]);
+
+        // FIBRE 4.1.1.1: "UNI-D Port: auto selected. A free port is required", so no choice is needed and no port is sent.
+        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base)->assertSessionHasNoErrors();
+        $xml = $this->xmlOf($soap, 1);
+        foreach (['DataPortID', 'DataPortNumber', 'NTDID', 'CopperPairID'] as $absent) {
+            $this->assertStringNotContainsString($absent, $xml, $absent);
+        }
+        $this->assertStringContainsString('<std:Param id="OrderType">NEW</std:Param>', $xml);
+
+        // Several NTDs on the premises: NTDID selects the one to provision. The chosen port number is not sent.
+        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => 2])->assertSessionHasNoErrors();
+        $xml = $this->xmlOf($soap, 2);
+        $this->assertStringContainsString('<std:Param id="NTDID">NTD000111222</std:Param>', $xml);
+        $this->assertStringNotContainsString('DataPort', $xml);
+        $svc = InternetService::orderBy('id', 'desc')->firstOrFail();
+        $this->assertSame('NTD000111222', $svc->ntd_id);
+        $this->assertNull($svc->uni_port, 'Vocus auto-selects the port on a new order');
+        $this->assertSame('3', $svc->service_class);
+
+        // An NTD that was not in the qualification result is refused before anything is sent.
+        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD999'])->assertSessionHasErrors('ntd_id');
+        $this->assertCount(3, $soap->calls);
+    }
+
+    public function test_transfer_sends_data_port_number_one_to_four_and_may_move_an_in_use_port(): void
     {
         $admin = $this->admin();
         $soap = $this->fakeClient([$this->fttpQualify(), $this->ok()]);
         [$token] = $this->qualify($admin, $this->fttpQualify());
-        $base = $this->order(['service_type' => 'FTTP', 'qualification_token' => $token]);
+        $base = $this->order(['service_type' => 'FTTP', 'qualification_token' => $token, 'order_type' => 'TRANSFER', 'avc_id' => 'AVC000111222333', 'ca_date' => now()->format('Y-m-d')]);
 
-        // No choice with free ports on offer, an in-use port and a voice/unknown port are all refused.
-        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base)->assertSessionHasErrors('uni_port');
-        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => 1])->assertSessionHasErrors('uni_port');
+        // The port is mandatory on a transfer, 1 to 4, and has to be one Vocus listed.
+        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $base)->assertSessionHasErrors('uni_port');
+        foreach ([0, 5] as $bad) {
+            $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => $bad])->assertSessionHasErrors('uni_port');
+        }
         $this->assertCount(1, $soap->calls);
 
-        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => 2])->assertSessionHasNoErrors();
+        // Port 1 is in use in this qualification: that is the service being moved.
+        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $base + ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => 1])->assertSessionHasNoErrors();
         $xml = $this->xmlOf($soap, 1);
-        $this->assertStringContainsString('<std:Param id="DataPortID">1-UNID-2</std:Param>', $xml);
-        $this->assertStringNotContainsString('CopperPairID', $xml);
-        $svc = InternetService::firstOrFail();
-        $this->assertSame('NTD000111222', $svc->ntd_id);
-        $this->assertSame('UNI-D-2', $svc->uni_port);
-        $this->assertSame('3', $svc->service_class);
+        $this->assertStringContainsString('<std:Param id="OrderType">TRANSFER</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="DataPortNumber">1</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="NTDID">NTD000111222</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="AVCID">AVC000111222333</std:Param>', $xml);
+        $this->assertStringNotContainsString('DataPortID', $xml);
+        $this->assertSame('UNI-D-1', InternetService::firstOrFail()->uni_port);
     }
 
-    public function test_port_param_name_format_and_off_switch_are_configurable(): void
+    public function test_transfer_port_param_name_is_configurable(): void
     {
-        config(['services.vocus.order_port_param' => 'NBNPortID', 'services.vocus.order_port_format' => '{ntd_id}:{port_name}']);
-        $r = VocusLineSelection::resolve(Q::fromParams(['ServiceType' => 'FTTP', 'NBNPortRecord' => array_column($this->portRecords(2, []), 1)]), 'FTTP',
-            ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => '2'], false);
-        $this->assertSame(['NBNPortID' => 'NTD000111222:UNI-D 2'], $r['params']);
-
-        config(['services.vocus.send_port_param' => false]);
-        $r = VocusLineSelection::resolve(Q::fromParams(['ServiceType' => 'FTTP', 'NBNPortRecord' => array_column($this->portRecords(2, []), 1)]), 'FTTP',
-            ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => '2'], false);
-        $this->assertSame([], $r['params']);
-        $this->assertSame('UNI-D-2', $r['record']['uni_port'], 'the choice is still stored locally');
+        config(['services.vocus.transfer_port_param' => 'DataPortID']);
+        $q = Q::fromParams(['ServiceType' => 'FTTP', 'NBNPortRecord' => array_column($this->portRecords(2, [1]), 1)]);
+        $r = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => '1'], true);
+        $this->assertSame('1', $r['params']['DataPortID']);
+        $this->assertSame([], $r['errors']);
     }
 
-    public function test_new_line_omits_line_and_port_params_and_is_refused_for_transfers(): void
+    public function test_wireless_new_order_sends_no_line_params_and_transfer_sends_the_port(): void
+    {
+        $q = Q::fromParams(['ServiceType' => 'WIRELESS', 'NBNPortRecord' => array_column($this->portRecords(1, []), 1)]);
+        $new = VocusLineSelection::resolve($q, 'WIRELESS', ['line_choice' => 'new'], false);
+        $this->assertSame([], $new['params']);
+        $this->assertSame([], $new['errors']);
+
+        $tr = VocusLineSelection::resolve($q, 'WIRELESS', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => '1'], true);
+        $this->assertSame(['DataPortNumber' => '1'], $tr['params'], 'NTDID is only for FTTP / HFC');
+    }
+
+    public function test_new_copper_pair_is_sent_as_new_with_voiceband_continuity_false(): void
+    {
+        $q = Q::fromParams(['ServiceType' => 'FTTN', 'CopperPairRecord' => $this->pair('CPI1')]);
+
+        $r = VocusLineSelection::resolve($q, 'FTTN', ['line_choice' => 'new', 'central_splitter' => 'TRUE'], false);
+        $this->assertSame([], $r['errors']);
+        $this->assertSame(['CopperPairID' => 'NEW', 'CentralSplitter' => 'TRUE', 'VoicebandContinuity' => 'FALSE'], $r['params']);
+        $this->assertNull($r['record']['copper_pair_id']);
+        $this->assertTrue($r['new_line']);
+
+        // The pair is compulsory: nothing chosen is an error even when no pairs were listed.
+        $none = VocusLineSelection::resolve(Q::fromParams(['ServiceType' => 'FTTC']), 'FTTC', [], false);
+        $this->assertArrayHasKey('copper_pair_id', $none['errors']);
+        // FTTC has no continuity / splitter params.
+        $fttc = VocusLineSelection::resolve(Q::fromParams(['ServiceType' => 'FTTC']), 'FTTC', ['line_choice' => 'new'], false);
+        $this->assertSame(['CopperPairID' => 'NEW'], $fttc['params']);
+    }
+
+    public function test_fttb_fttn_existing_pair_needs_continuity_choice_carrier_id_and_splitter(): void
+    {
+        $q = Q::fromParams(['ServiceType' => 'FTTB', 'CopperPairRecord' => $this->pair('CPI1')]);
+        $in = ['line_choice' => 'existing', 'copper_pair_id' => 'CPI1'];
+
+        $r = VocusLineSelection::resolve($q, 'FTTB', $in, false);
+        $this->assertArrayHasKey('voiceband_continuity', $r['errors']);
+        $this->assertArrayHasKey('central_splitter', $r['errors']);
+
+        $r = VocusLineSelection::resolve($q, 'FTTB', $in + ['voiceband_continuity' => 'TRUE', 'central_splitter' => 'FALSE'], false);
+        $this->assertArrayHasKey('carrier_id', $r['errors'], 'CarrierID (the FNN) is required with continuity TRUE');
+
+        $r = VocusLineSelection::resolve($q, 'FTTB', $in + ['voiceband_continuity' => 'TRUE', 'carrier_id' => '0299998888', 'central_splitter' => 'FALSE'], false);
+        $this->assertSame([], $r['errors']);
+        $this->assertSame(['CopperPairID' => 'CPI1', 'CentralSplitter' => 'FALSE', 'VoicebandContinuity' => 'TRUE', 'CarrierID' => '0299998888'], $r['params']);
+
+        $r = VocusLineSelection::resolve($q, 'FTTB', $in + ['voiceband_continuity' => 'FALSE', 'carrier_id' => '0299998888', 'central_splitter' => 'TRUE'], false);
+        $this->assertArrayNotHasKey('CarrierID', $r['params']);
+
+        // A transfer sends only the pair ("Voiceband Continuity: inherited from the original NEW order").
+        $t = VocusLineSelection::resolve($q, 'FTTB', $in, true);
+        $this->assertSame(['CopperPairID' => 'CPI1'], $t['params']);
+    }
+
+    public function test_hfc_orders_send_ntdid_or_new_with_the_professional_install_plan(): void
+    {
+        $q = Q::fromParams(['ServiceType' => 'HFC', 'NTDRecord' => $this->ntdRecord()[1], 'NBNPortRecord' => array_column($this->portRecords(1, []), 1)]);
+
+        $new = VocusLineSelection::resolve($q, 'HFC', ['line_choice' => 'new'], false);
+        $this->assertSame(['NTDID' => 'NEW', 'NBNCPEPlanID' => 'HFCNTDNBNPROFINSTALL'], $new['params']);
+
+        $existing = VocusLineSelection::resolve($q, 'HFC', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => '1'], false);
+        $this->assertSame(['NTDID' => 'NTD000111222'], $existing['params']);
+
+        $unchosen = VocusLineSelection::resolve($q, 'HFC', [], false);
+        $this->assertArrayHasKey('ntd_id', $unchosen['errors'], 'NTDID is compulsory for HFC');
+
+        $transfer = VocusLineSelection::resolve($q, 'HFC', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222'], true);
+        $this->assertSame(['NTDID' => 'NTD000111222'], $transfer['params']);
+    }
+
+    public function test_nbn_cpe_plan_is_validated_against_the_technology_and_replace_needs_the_ntd(): void
+    {
+        $q = Q::fromParams(['ServiceType' => 'FTTP', 'NTDRecord' => $this->ntdRecord()[1], 'NBNPortRecord' => array_column($this->portRecords(4, []), 1)]);
+
+        $ok = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V4-4P'], false);
+        $this->assertSame(['NBNCPEPlanID' => 'FTTPNTDNBNPROFINSTALL-V4-4P'], $ok['params']);
+
+        $wrongTech = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'HFCNTDNBNPROFINSTALL'], false);
+        $this->assertArrayHasKey('nbn_cpe_plan_id', $wrongTech['errors']);
+
+        $replaceNoNtd = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'new', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], false);
+        $this->assertArrayHasKey('nbn_cpe_plan_id', $replaceNoNtd['errors']);
+
+        $replace = VocusLineSelection::resolve($q, 'FTTP', ['line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'nbn_cpe_plan_id' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], false);
+        $this->assertSame(['NTDID' => 'NTD000111222', 'NBNCPEPlanID' => 'FTTPNTDNBNPROFINSTALL-V3-1P-REPLACE'], $replace['params']);
+    }
+
+    public function test_new_fttp_line_refuses_a_transfer(): void
     {
         $admin = $this->admin();
         $soap = $this->fakeClient([$this->fttpQualify(), $this->ok()]);
@@ -362,27 +486,24 @@ class VocusLineSelectionTest extends TestCase
         $base = $this->order(['service_type' => 'FTTP', 'qualification_token' => $token]);
 
         $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $base + ['line_choice' => 'new'])->assertSessionHasNoErrors();
-        $xml = $this->xmlOf($soap, 1);
-        foreach (['DataPortID', 'CopperPairID', 'NBNNewLine'] as $absent) {
-            $this->assertStringNotContainsString($absent, $xml);
-        }
-
-        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $base + ['line_choice' => 'new', 'ca_date' => now()->format('Y-m-d')])
+        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $base + ['line_choice' => 'new', 'order_type' => 'TRANSFER', 'avc_id' => 'AVC000111222333', 'ca_date' => now()->format('Y-m-d')])
             ->assertSessionHasErrors('line_choice');
         $this->assertCount(2, $soap->calls);
     }
 
-    public function test_transfer_with_a_chosen_port_sends_the_port_param(): void
+    public function test_qualify_fibre_is_ordered_as_fttp(): void
     {
+        // QUALIFY says FIBRE; Create wants FTTP (FIBRE 4.2.1 vs 4.1.1.2).
+        $this->assertSame('FTTP', \App\Services\Vocus\VocusOptions::createServiceType('FIBRE'));
+        $this->assertSame('WIRELESS', \App\Services\Vocus\VocusOptions::createServiceType('Fixed Wireless'));
+        $this->assertNull(\App\Services\Vocus\VocusOptions::createServiceType('N/A'));
+        $this->assertSame(Q::GROUP_NTD, Q::group('FIBRE'));
+
         $admin = $this->admin();
         $soap = $this->fakeClient([$this->fttpQualify(), $this->ok()]);
         [$token] = $this->qualify($admin, $this->fttpQualify());
-
-        $this->actingAs($admin)->post(route('admin.services.internet.transfer.store'), $this->order(['service_type' => 'FTTP', 'qualification_token' => $token,
-            'line_choice' => 'existing', 'ntd_id' => 'NTD000111222', 'uni_port' => 4, 'ca_date' => now()->format('Y-m-d')]))->assertSessionHasNoErrors();
-        $xml = $this->xmlOf($soap, 1);
-        $this->assertStringContainsString('<std:Param id="OrderType">TRANSFER</std:Param>', $xml);
-        $this->assertStringContainsString('<std:Param id="DataPortID">1-UNID-4</std:Param>', $xml);
+        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->order(['service_type' => 'FIBRE', 'qualification_token' => $token, 'line_choice' => 'new']))->assertSessionHasNoErrors();
+        $this->assertStringContainsString('<std:Param id="ServiceType">FTTP</std:Param>', $this->xmlOf($soap, 1));
     }
 
     public function test_qualification_for_another_address_is_not_used(): void

@@ -411,7 +411,8 @@ function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
     const group = q.technology_group || 'OTHER';
 
     const head = h('div', 'display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;');
-    head.appendChild(h('span', 'padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:' + (passed ? 'var(--dd-status-success-bg)' : 'var(--dd-status-danger-bg)') + ';color:' + (passed ? 'var(--dd-status-success-fg)' : 'var(--dd-status-danger-fg)') + ';', passed ? '✓ PASS' : '✗ FAIL'));
+    head.appendChild(h('span', 'padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:' + (passed ? 'var(--dd-status-success-bg)' : 'var(--dd-status-danger-bg)') + ';color:' + (passed ? 'var(--dd-status-success-fg)' : 'var(--dd-status-danger-fg)') + ';', passed ? '✓ PASS' : '✗ ' + (data.result || 'NOT QUALIFIED')));
+    if (!passed && data.result_info) el.appendChild(h('p', 'font-size:13px;color:var(--dd-text-soft);margin:0 0 8px;', data.result_info));
     if (data.service_type) head.appendChild(h('span', 'padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);', data.service_type));
     if (data.zone) head.appendChild(h('span', 'font-size:13px;color:var(--dd-text-soft);', 'Zone: ' + data.zone));
     el.appendChild(head);
@@ -421,13 +422,16 @@ function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
     const facts = [];
     if (q.service_class) {
         const info = q.service_class_info;
-        facts.push(['Service class', q.service_class + (info ? ' (' + info.label + ')' : '')]);
+        facts.push(['Service class', q.service_class + (info ? ' (' + info.label + '): ' + info.description : '')]);
     }
     if (q.primary_technology) facts.push(['Primary technology', q.primary_technology]);
     if (q.connection_type) facts.push(['Connection type', q.connection_type]);
     if (q.development_charge !== null && q.development_charge !== undefined) facts.push(['Development charge', yesNo(q.development_charge)]);
     if (q.hfc_self_install !== null && q.hfc_self_install !== undefined) facts.push(['HFC self install', yesNo(q.hfc_self_install)]);
     if (q.copper_disconnection_date) facts.push(['Copper disconnection date', q.copper_disconnection_date]);
+    if (q.data_port_available !== null && q.data_port_available !== undefined) facts.push(['Free data port at the premises', yesNo(q.data_port_available)]);
+    if (q.alternative_technology) facts.push(['Fibre on Demand', 'An alternative technology is on offer']);
+    if (q.activation_date) facts.push(['NBN planned availability', q.activation_date]);
     if (facts.length) {
         const dl = h('dl', 'display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0 0 10px;font-size:13px;');
         facts.forEach(f => { dl.appendChild(h('dt', 'color:var(--dd-text-soft);', f[0])); dl.appendChild(h('dd', 'margin:0;color:var(--dd-text);', f[1])); });
@@ -446,7 +450,7 @@ function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
         const params = new URLSearchParams({
             directory_id: directoryId,
             address_long: addressLong,
-            service_type: data.service_type || '',
+            service_type: data.create_service_type || data.service_type || '',
             service_class: q.service_class || '',
             qualification_token: data.qualification_token || '',
             location_reference: fromLoc ? '' : lookupMeta.postcode,

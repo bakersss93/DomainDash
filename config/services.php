@@ -87,24 +87,18 @@ return [
         'session_ttl' => (int) env('VOCUS_SESSION_TTL', 540),
         // Minimum seconds between manual TCAS polls of the same service (Examples 4.1.6:
         // overall order progress every 6-8 hours; excessive polling can trigger a ban).
-        // DIR::Get postcode param spelling. The Examples (4.1.1) lookup sample writes "Main.Postcode"; the
-        // XSD / DIR::Create use "Main.PostCode". The lookup retries the other spelling when nothing is found.
-        'lookup_postcode_param' => env('VOCUS_LOOKUP_POSTCODE_PARAM', 'Main.Postcode'),
+        // DIR::Get BROADBAND takes "Main.Postcode" (Product Catalogue DIR 5.2); DIR::Create takes "Main.PostCode".
         'poll_cooldown_seconds' => (int) env('VOCUS_POLL_COOLDOWN', 300),
-        // NTD port selection on a Create order (FTTP / HFC / Fixed Wireless).
-        // UNVERIFIED: the Vocus PDFs document the CopperPairID Create param (Examples 4.1.4 / 4.2.4) but NOT
-        // how an NTD port is chosen on an order. The only port identifier in the specification is the data type
-        // DataPortID ("NBN Data Port ID eg. 1-UNID-2"), so that is the default. Confirm with Vocus (sandbox)
-        // before relying on it; change the name / format here or switch it off with VOCUS_SEND_PORT_PARAM=false.
-        // Placeholders: {ntd_index} (1-based NTD position in the qualify result), {port} (PortNumber),
-        // {port_name}, {ntd_id}. Risk if wrong: Vocus rejects the order (unknown param) or ignores the choice.
-        'send_port_param' => filter_var(env('VOCUS_SEND_PORT_PARAM', true), FILTER_VALIDATE_BOOLEAN),
-        'order_port_param' => env('VOCUS_ORDER_PORT_PARAM', 'DataPortID'),
-        'order_port_format' => env('VOCUS_ORDER_PORT_FORMAT', '{ntd_index}-UNID-{port}'),
-        // "Order a new line" (no existing copper pair / new NTD port). UNVERIFIED: no param is documented, so by
-        // default the line / port param is simply omitted. Set both only if Vocus confirms a param for it.
-        'new_line_param' => env('VOCUS_NEW_LINE_PARAM'),
-        'new_line_value' => env('VOCUS_NEW_LINE_VALUE', 'TRUE'),
+        // UNI-D port on a TRANSFER / OUTSTANDING order (FTTP and Fixed Wireless). Product Catalogue FIBRE
+        // 4.1.1.3 / 4.1.2.3: param "DataPortNumber", mandatory (1..1), integer 1 to 4. (The consolidated table in
+        // appendix 6.1 calls the same thing "DataPortID"; the per-scope tables and the Data Types agree on
+        // DataPortNumber, so that is the default. Override only if Vocus tells you otherwise.)
+        // A NEW order has no port param: "UNI-D Port: Auto selected. A free port is required" (4.1.1.1).
+        'transfer_port_param' => env('VOCUS_TRANSFER_PORT_PARAM', 'DataPortNumber'),
+        // Whether the NTDRecord Upload/DownloadSpeed values cap the plans offered on an FTTP / HFC / Wireless
+        // line. UNVERIFIED: the Data Types list the fields but do not define them (unlike the copper pair
+        // record, which says "theoretical speed in Mbps"). Set false to never filter plans by NTD speed.
+        'ntd_speed_is_cap' => filter_var(env('VOCUS_NTD_SPEED_IS_CAP', true), FILTER_VALIDATE_BOOLEAN),
         // Minutes the qualify result is kept so the order / transfer form can list the lines and ports.
         'qualification_ttl_minutes' => (int) env('VOCUS_QUALIFICATION_TTL', 60),
         // Wall-clock budget of one queued sync job before it hands the remainder to a follow-up job.

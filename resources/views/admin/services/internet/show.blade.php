@@ -92,6 +92,7 @@
             @endif
             @if($liveData)
                 @php
+                    // Get SERVICE response params (Product Catalogue FIBRE 4.2.2) with readable labels.
                     $fields = [
                         'ServiceID'         => 'Service ID',
                         'ServiceStatus'     => 'Status',
@@ -103,38 +104,50 @@
                         'CustomerName'      => 'Customer',
                         'Phone'             => 'Phone',
                         'Username'          => 'PPPoE Username',
+                        'AuthType'          => 'Authentication Type',
+                        'IPAssignment'      => 'IP Type (assignment)',
+                        'IPAddress'         => 'IP Address',
+                        'IPv6Address'       => 'IPv6 Address',
+                        'IPv6PrefixList'    => 'IPv6 Prefix',
                         'DirectoryID'       => 'Directory ID',
+                        'LocationReference' => 'Postcode',
+                        'Reference'         => 'Customer Reference',
+                        'Label'             => 'Label',
                         'NBNInstanceID'     => 'NBN Instance (PRI)',
                         'AVCID'             => 'AVC ID',
                         'CVCID'             => 'CVC ID',
+                        'CSA'               => 'CSA',
+                        'CTAG'              => 'C-Tag',
+                        'STAG'              => 'S-Tag',
+                        'RSPCTAG'           => 'RSP C-Tag',
+                        'RSPSTAG'           => 'RSP S-Tag',
                         'CopperPairID'      => 'Copper Pair ID',
-                        'BillingProviderID' => 'Billing Provider ID',
-                        'LocationReference' => 'Postcode',
-                        'AuthenticationType' => 'Authentication Type',
-                        'IPAddress'         => 'IP Address',
-                        'IPType'            => 'IP Type',
-                        'IPAssignment'      => 'IP Assignment',
-                        'RoutedSubnet'      => 'Routed Subnet',
-                        'ServiceClass'      => 'Service Class',
-                        'UNIPort'           => 'UNI-D Port',
+                        'VoicebandContinuity' => 'Voiceband Continuity',
+                        'CarrierID'         => 'Continued phone number (FNN)',
+                        'CentralSplitter'   => 'Central Splitter',
+                        'StabilityProfile'  => 'Stability Profile',
+                        'Battery'           => 'Battery',
+                        'BatteryMonitor'    => 'Battery Monitor',
                         'NTDID'             => 'NTD ID',
-                        'DataPortID'        => 'Data Port ID (UNI-D)',
-                        'DataPortNumber'    => 'Data Port Number',
-                        'PortName'          => 'Port Name',
+                        'DataPortID'        => 'UNI-D Port (Data Port ID)',
+                        'NBNCRD'            => 'NBN Customer Requested Date',
+                        'TrafficClass1'     => 'Traffic Class 1',
+                        'TrafficClass2'     => 'Traffic Class 2',
+                        'AnniversaryDay'    => 'Anniversary Day',
+                        'BillingProviderID' => 'Billing Provider ID',
+                        'BundleReference'   => 'Bundle Reference',
+                        'CPEDirectoryID'    => 'CPE Directory ID',
+                        'CPEServiceID'      => 'CPE Service ID',
+                        'CPEPlanID'         => 'CPE Plan',
+                        'NBNCPEServiceID'   => 'NBN CPE Service ID',
+                        'NBNCPEPlanID'      => 'NBN CPE Plan',
                         'AppointmentSlot'   => 'Appointment Slot',
-                        'AppointmentDate'   => 'Appointment Date',
                         'StartDateTime'     => 'Appointment Start',
                         'EndDateTime'       => 'Appointment End',
-                        'AppointmentStatus' => 'Appointment Status',
-                        'UNIDPort'          => 'UNI-D Port',
-                        'Mapping'           => 'Mapping',
-                        'CustomerReference' => 'Customer Reference',
-                        'AnniversaryDay'    => 'Anniversary Day',
                     ];
                     // Never display credentials, whatever Vocus returns.
                     $hiddenKeys = ['Password', 'AccessKey', 'AliasKey'];
-                    // Anything else Vocus returns (the FIBRE catalogue has fields the
-                    // PDFs don't list) is shown with a readable label.
+                    // Anything else Vocus returns is shown with a readable label.
                     $extra = collect($liveData)
                         ->reject(fn ($v, $k) => isset($fields[$k]) || in_array($k, $hiddenKeys, true) || is_array($v) || $v === null || $v === '')
                         ->mapWithKeys(fn ($v, $k) => [$k => trim(preg_replace('/(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/', ' ', (string) $k))]);
@@ -144,7 +157,7 @@
                     @foreach($fields as $key => $label)
                         @if(isset($liveData[$key]) && $liveData[$key] !== '')
                             <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
-                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','NTDID','DataPortID','BillingProviderID','IPAddress','RoutedSubnet']) ? 'monospace' : 'inherit' }};">
+                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','NTDID','DataPortID','BillingProviderID','IPAddress','IPv6Address']) ? 'monospace' : 'inherit' }};">
                                 {{ $liveData[$key] }}
                             </dd>
                         @endif
@@ -157,6 +170,8 @@
                         'Service ID' => $service->vocus_service_id, 'Status' => $service->service_status, 'Scope' => $service->service_scope,
                         'Plan' => $service->plan_id, 'Technology' => $service->service_type, 'Service Level' => $service->service_level,
                         'Order Type' => $service->order_type, 'Customer' => $service->customer_name, 'Phone' => $service->phone,
+                        'Authentication Type' => $service->auth_type, 'IP Type (assignment)' => $service->ip_assignment, 'IP Address' => $service->ip_address,
+                        'Customer Reference' => $service->reference, 'Central Splitter' => $service->central_splitter,
                         'PPPoE Username' => $service->username, 'Realm' => $service->realm, 'Directory ID' => $service->directory_id,
                         'NBN Instance (PRI)' => $service->nbn_instance_id, 'AVC ID' => $service->avc_id, 'CVC ID' => $service->cvc_id,
                         'Copper Pair ID' => $service->copper_pair_id, 'NTD ID' => $service->ntd_id, 'UNI-D Port' => $service->uni_port,
@@ -270,7 +285,10 @@
     {{-- Diagnostics --}}
     <div style="margin-top:20px;background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;color:var(--text);">Diagnostics</h3>
-        <div style="display:flex;gap:8px;margin-bottom:16px;">
+        @if($service->isLayer2())
+            <p style="font-size:12px;color:var(--dd-text-soft);margin:0 0 12px;">The authentication log and session disconnect are only available for Reseller-Connect (Layer 3) services.</p>
+        @endif
+        <div style="display:@if($service->isLayer2()) none @else flex @endif;gap:8px;margin-bottom:16px;">
             <form method="POST" action="{{ route('admin.services.internet.diagnostic', $service) }}">
                 @csrf
                 <input type="hidden" name="type" value="AUTH-LOG">

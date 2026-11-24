@@ -142,12 +142,14 @@ class VocusOrderingUxTest extends TestCase
         $admin = $this->admin();
         $post = fn (array $o) => $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData($o));
 
-        foreach (['abc', str_repeat('a', 23), 'bad name', 'bad-name', 'user@realm'] as $u) {
+        foreach (['a', str_repeat('a', 23), 'bad name', 'bad-name', 'user@realm'] as $u) {
             $post(['username' => $u])->assertSessionHasErrors('username');
         }
-        foreach (['p', 'bad pass!', 'bad_underscore', 'quote"'] as $pw) {
+        foreach (['p', 'bad pass!', 'bad_underscore', 'quote"', str_repeat('a', 31)] as $pw) {
             $post(['password' => $pw])->assertSessionHasErrors('password');
         }
+        $post(['password' => ''])->assertSessionHasErrors('password'); // Password is 1..1 on RESELLER-CONNECT
+        $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData(['username' => 'ab', 'password' => str_repeat('a', 30)]))->assertSessionHasNoErrors('username');
         $post(['realm' => 'unknown.example.com'])->assertSessionHasErrors('realm');
         $post(['realm' => ''])->assertSessionHasErrors('realm');
         $this->assertDatabaseCount('internet_services', 0);
@@ -297,11 +299,11 @@ class VocusOrderingUxTest extends TestCase
 
     // ------------------------------------------------------------ order payload and form shape
 
-    public function test_create_request_carries_only_documented_parameters(): void
+    public function test_create_request_carries_the_catalogue_parameters(): void
     {
         $soap = $this->fakeClient([$this->ok()]);
 
-        $this->actingAs($this->admin())->post(route('admin.services.internet.order.store'), $this->orderData(['avc_id' => 'AVC1', 'cvc_id' => 'CVC1', 'order_type' => 'TRANSFER']))
+        $this->actingAs($this->admin())->post(route('admin.services.internet.order.store'), $this->orderData(['avc_id' => 'AVC1', 'cvc_id' => 'CVC1', 'order_type' => 'TRANSFER', 'reference' => 'CUST-0042', 'auth_type' => 'PPPoE', 'ip_assignment' => 'STATIC']))
             ->assertSessionHasNoErrors();
 
         $xml = $this->xmlOf($soap);
@@ -311,10 +313,13 @@ class VocusOrderingUxTest extends TestCase
         foreach ([
             'CustomerName' => 'Yogesh Shinde', 'Phone' => '0433111222', 'DirectoryID' => 'LOC001122334455', 'LocationReference' => '3000',
             'ServiceType' => 'FTTC', 'ServiceLevel' => 'STANDARD', 'CopperPairID' => 'CPI300010022999',
+            // FIBRE catalogue 4.1.1: OrderType NEW, Reference, AuthType PPPoE | IPoE and IPAssignment CGNAT | STATIC | DYNAMIC.
+            'OrderType' => 'NEW', 'Reference' => 'CUST-0042', 'AuthType' => 'PPPoE', 'IPAssignment' => 'STATIC',
         ] as $id => $value) {
             $this->assertStringContainsString('<std:Param id="' . $id . '">' . $value . '</std:Param>', $xml, $id);
         }
-        foreach (['AVCID', 'CVCID', 'OrderType', 'CADate', 'CentralSplitter', 'IPType', 'AuthType', 'CustomerReference'] as $absent) {
+        // A NEW order never carries the transfer-only params; there is no param called IPType / CustomerReference.
+        foreach (['AVCID', 'CVCID', 'CADate', 'CentralSplitter', 'IPType', 'CustomerReference', 'AuthenticationType'] as $absent) {
             $this->assertStringNotContainsString($absent, $xml, $absent);
         }
         $this->assertMatchesRegularExpression('/^[A-Za-z0-9._-]{1,30}$/', InternetService::firstOrFail()->vocus_service_id);
@@ -330,18 +335,19 @@ class VocusOrderingUxTest extends TestCase
         $this->assertMatchesRegularExpression('/^DD-[A-Z2-9]{8}-[A-Z2-9]{4}$/', VocusOptions::generateServiceId('FFF6A2EBBC31021'));
     }
 
-    public function test_transfer_form_shows_avc_and_new_order_form_does_not_and_technology_is_read_only(): void
+    public function test_transfer_form_shows_avc_and_order_type_and_new_order_form_does_not(): void
     {
         $admin = $this->admin();
         $this->plan();
         $q = ['directory_id' => 'LOC001122334455', 'service_type' => 'FTTC', 'location_reference' => '3000', 'address_long' => '1 EXAMPLE ST MELBOURNE VIC'];
 
         $order = $this->actingAs($admin)->get(route('admin.services.internet.order', $q))->assertOk();
-        $order->assertDontSee('AVC ID')->assertDontSee('CVC')->assertDontSee('Vocus Service ID')->assertDontSee('<option value="FTTP"', false);
+        $order->assertDontSee('AVC ID')->assertDontSee('Transfer type')->assertDontSee('Vocus Service ID')->assertDontSee('<option value="FTTP"', false);
+        $order->assertSee('name="auth_type"', false)->assertSee('name="ip_assignment"', false)->assertSee('name="reference"', false);
         $order->assertSee('name="service_type" value="FTTC"', false)->assertSee('readonly', false);
 
         $this->actingAs($admin)->get(route('admin.services.internet.transfer', $q + ['avc_id' => 'AVC000340636851']))->assertOk()
-            ->assertSee('AVC ID')->assertSee('CVC (AggCVC) ID')->assertSee('AVC000340636851');
+            ->assertSee('AVC ID')->assertSee('Transfer type')->assertSee('OUTSTANDING')->assertSee('CVC (AggCVC) ID')->assertSee('AVC000340636851');
     }
 
     public function test_qualify_page_has_loc_search_and_no_layer_two_section(): void

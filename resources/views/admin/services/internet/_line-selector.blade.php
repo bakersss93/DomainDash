@@ -3,8 +3,9 @@
   Needs: $qualification (VocusQualification output or null), $qualification_token, $service_class, $copper_pair_id,
   $transfer (bool), $lbl, $note, $req, and the form's old() input.
 
-  COPPER: CopperPairID is the documented Create param (Examples 4.1.4 / 4.2.4).
-  NTD: the port Create param is NOT documented; see config services.vocus.order_port_param (unverified).
+  Product Catalogue FIBRE 4.1: COPPER sends CopperPairID (an id, or NEW). NTD: a NEW order has no port param (Vocus
+  auto-selects a free UNI-D port; FTTP may send NTDID, HFC sends NTDID or NEW); a transfer sends DataPortNumber 1-4
+  (FTTP, Wireless) or NTDID (HFC).
 --}}
 @php
 
@@ -12,10 +13,9 @@
     $group    = $q['technology_group'] ?? null;
     $pairs    = $q['copper_pairs'] ?? [];
     $ntds     = $q['ntds'] ?? [];
-    $sendPort = (bool) config('services.vocus.send_port_param', true) && trim((string) config('services.vocus.order_port_param')) !== '';
-    $portParm = trim((string) config('services.vocus.order_port_param'));
-    $portFmt  = (string) config('services.vocus.order_port_format', '{ntd_index}-UNID-{port}');
-    $wire     = fn ($ntd, $p) => strtr($portFmt, ['{ntd_index}' => $ntd['index'], '{port}' => $p['port_number'], '{port_name}' => (string) $p['port_name'], '{ntd_id}' => (string) $ntd['ntd_id']]);
+    $techType = \App\Services\Vocus\VocusOptions::createServiceType((string) ($q['service_type'] ?? old('service_type', $service_type ?? ''))) ?? 'FTTP';
+    $portParm = trim((string) config('services.vocus.transfer_port_param', 'DataPortNumber')) ?: 'DataPortNumber';
+    $wire     = fn ($ntd, $p) => (string) $p['port_number'];
 
     // Everything selectable, so a single option can be preselected (never guess between several).
     $options = [];
@@ -26,7 +26,7 @@
     } elseif ($group === \App\Services\Vocus\VocusQualification::GROUP_NTD) {
         foreach ($ntds as $ntd) {
             foreach ($ntd['ports'] as $p) {
-                if (\App\Services\Vocus\VocusQualification::isSelectablePort($p) && $p['port_number'] !== null) { $options[] = ['ntd' => $ntd['ntd_id'], 'port' => $p['port_number']]; }
+                if (\App\Services\Vocus\VocusQualification::isSelectablePort($p, (bool) $transfer) && $p['port_number'] !== null) { $options[] = ['ntd' => $ntd['ntd_id'], 'port' => $p['port_number']]; }
             }
         }
     }
@@ -58,13 +58,20 @@
 
 <div style="grid-column:1/-1;">
 @if(! $q)
-    {{-- No qualification kept (opened without the qualify step, or it expired): manual copper pair entry as before. --}}
+    {{-- No qualification kept (opened without the qualify step, or it expired): manual entry. --}}
     <label for="f-copper" style="{{ $lbl }}">Copper Pair ID @if($transfer){!! $req !!}@endif</label>
     <input id="f-copper" type="text" name="copper_pair_id" value="{{ old('copper_pair_id', $copper_pair_id) }}"
            class="dd-input" style="width:100%;font-family:monospace;" maxlength="15" @if($transfer) required @endif
            @if($copper_pair_id !== '') readonly @endif>
-    <p style="{{ $note }}">@if($transfer)Required: the copper pair to move.@else Filled from qualify for copper technologies; blank otherwise.@endif
-        Run <a href="{{ route('admin.services.internet.qualify') }}">Qualify Address</a> again to choose from the available lines and ports.</p>
+    <p style="{{ $note }}">FTTB / FTTN / FTTC: the copper pair (CopperPairID is compulsory@if(! $transfer); type NEW to order a new pair@endif). Leave blank for other technologies.</p>
+    @if($transfer)
+        <label for="f-port" style="{{ $lbl }};margin-top:8px;">UNI-D port to move (FTTP / Wireless)</label>
+        <input id="f-port" type="number" name="uni_port" min="1" max="4" value="{{ old('uni_port') }}" class="dd-input" style="width:8rem;">
+        <label for="f-ntd" style="{{ $lbl }};margin-top:8px;">NTD ID (HFC, or FTTP with several NTDs)</label>
+        <input id="f-ntd" type="text" name="ntd_id" value="{{ old('ntd_id') }}" class="dd-input" style="width:100%;font-family:monospace;" maxlength="30">
+        <p style="{{ $note }}">Sent as {{ $portParm }} (1 to 4) and NTDID.</p>
+    @endif
+    <p style="{{ $note }}">Run <a href="{{ route('admin.services.internet.qualify') }}">Qualify Address</a> again to choose from the available lines and ports.</p>
 @elseif($group === \App\Services\Vocus\VocusQualification::GROUP_OTHER)
     <span style="{{ $lbl }}">Line / port</span>
     <x-ui.alert variant="info">{{ $q['service_type'] ?: 'This technology' }} has no copper pair or NTD port to choose. The order is placed without a line or port selection.</x-ui.alert>
@@ -87,12 +94,13 @@
 
     <div id="lc-appt" hidden style="margin-top:8px;">
         <x-ui.alert variant="info" title="New installation">
-            @if($group === \App\Services\Vocus\VocusQualification::GROUP_NTD)NBN will need to install an NTD or connect a new port at this address, so an installation appointment may be required.@else A new copper line is a new connection, so an installation appointment may be required.@endif
-            The Vocus documents do not list appointment fields on the order request; the appointment slot and times come back from Vocus after the order (AppointmentSlot, StartDateTime, EndDateTime) and appear on the service page.
+            NBN books the technician appointment itself on the first available date when the order needs one. Create takes no appointment
+            fields (Product Catalogue FIBRE 4.1); the slot and times come back from Vocus after the order (AppointmentSlot, StartDateTime,
+            EndDateTime) and can be changed afterwards with FIBRE::Set APPOINTMENT-UPDATE (not offered in DomainDash yet).
         </x-ui.alert>
     </div>
-    @if(($q['service_type'] ?? '') !== '' && stripos((string) $q['service_type'], 'FTTC') !== false)
-        <p style="{{ $note }}">FTTC: for class 33 Vocus can ship an NCD for end-user self install (Examples 4.1.3 / 4.1.4, CPEDirectoryID / CPEPlanId / NBNCPEPlanId). This form does not send those yet.</p>
+    @if($techType === 'FTTC')
+        <p style="{{ $note }}">FTTC: NCD self install needs a shipping address created with DIR::Create (CPEDirectoryID). That is not implemented, so only the NBN professional install option is offered.</p>
     @endif
 
     <x-ui.modal id="line-modal" title="Select line / port" size="lg">
@@ -108,7 +116,8 @@
     <script>
     (function () {
         var $ = function (id) { return document.getElementById(id); };
-        var sendPort = @json($sendPort), portParam = @json($portParm), group = @json($group), required = @json($needsChoice || $transfer);
+        var portParam = @json($portParm), group = @json($group), tech = @json($techType), isTransfer = @json((bool) $transfer),
+            required = @json($transfer || $group === \App\Services\Vocus\VocusQualification::GROUP_COPPER || $techType === 'HFC');
         var modal = $('line-modal');
         // Max Mbps of the chosen line (null = unknown). Nothing chosen: the best line returned (copper) or unknown (NTD).
         var best = @json(['down' => $bestCap['download'], 'up' => $bestCap['upload']]);
@@ -123,22 +132,23 @@
             var c = $('lc-choice').value, sum = $('lc-summary'), wire = $('lc-wire'), open = $('lc-open');
             wire.textContent = '';
             if (c === 'new') {
-                sum.textContent = group === 'COPPER' ? 'Order a new line (no existing copper pair)' : 'Order a new line / port (NTD install or new port)';
+                sum.textContent = group === 'COPPER' ? 'Order a new line (new copper pair)' : (tech === 'HFC' ? 'Order a new NTD (professional install)' : 'Order a new line (Vocus selects the NTD and a free port)');
+                wire.textContent = group === 'COPPER' ? 'Sent to Vocus as CopperPairID NEW.' : (tech === 'HFC' ? 'Sent to Vocus as NTDID NEW.' : 'No line or port parameter is sent: Vocus auto-selects.');
                 open.textContent = 'Change';
             } else if (group === 'COPPER' && $('lc-copper').value) {
                 sum.textContent = 'Copper pair ' + $('lc-copper').value;
                 wire.textContent = 'Sent to Vocus as CopperPairID.';
                 open.textContent = 'Change';
-            } else if (group === 'NTD' && $('lc-port').value) {
-                var p = picked();
-                sum.textContent = ($('lc-pname').value || ('UNI-D ' + $('lc-port').value)) + (($('lc-ntd').value) ? ' on NTD ' + $('lc-ntd').value : '');
-                var w = p ? p.getAttribute('data-wire') : '';
-                wire.textContent = sendPort && w ? 'Sent to Vocus as ' + portParam + ' ' + w + ' (port parameter not documented by Vocus: unverified).' : 'The port choice is stored here but not sent to Vocus (port parameter disabled).';
+            } else if (group === 'NTD' && ($('lc-port').value || $('lc-ntd').value)) {
+                sum.textContent = (isTransfer ? ($('lc-pname').value || ('UNI-D ' + $('lc-port').value)) : 'NTD') + (($('lc-ntd').value) ? ' on NTD ' + $('lc-ntd').value : '');
+                if (isTransfer && tech !== 'HFC') { wire.textContent = 'Sent to Vocus as ' + portParam + ' ' + $('lc-port').value + (tech === 'FTTP' && $('lc-ntd').value ? ' and NTDID.' : '.'); }
+                else { wire.textContent = 'Sent to Vocus as NTDID' + (isTransfer || tech === 'HFC' || tech === 'FTTP' ? '' : '') + '.'; }
                 open.textContent = 'Change';
             } else {
-                sum.textContent = required ? 'Nothing selected yet.' : 'No line or port needed: Vocus returned none for this address.';
+                sum.textContent = required ? 'Nothing selected yet.' : (isTransfer ? 'Nothing selected yet.' : 'Optional: Vocus auto-selects the NTD and a free port.');
                 open.textContent = 'Select line / port';
             }
+            document.dispatchEvent(new CustomEvent('dd:line-render', { detail: { choice: c } }));
             $('lc-appt').hidden = !(c === 'new' || @json($q['needs_ntd_install'] ?? false));
         }
         var initial = null;
@@ -168,11 +178,12 @@
         var form = $('lc-open').closest('form');
         if (form) {
             form.addEventListener('submit', function (e) {
-                if (required && !$('lc-choice').value) { e.preventDefault(); $('lc-open').click(); }
+                if (required && !$('lc-choice').value && !($('lc-ntd').value)) { e.preventDefault(); $('lc-open').click(); }
             });
         }
         render();
     })();
     </script>
 @endif
+@include('admin.services.internet._line-extras', ['transfer' => $transfer, 'techType' => $techType])
 </div>
