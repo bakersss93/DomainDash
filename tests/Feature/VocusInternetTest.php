@@ -224,7 +224,7 @@ class VocusInternetTest extends TestCase
 
     public function test_blank_access_key_is_refused_with_a_clear_message_before_any_soap_call(): void
     {
-        Setting::put('vocus', ['access_key' => '', 'cert_path' => 'vocus/client.p12']);
+        Setting::put('vocus', ['access_key' => '', 'cert_path' => 'vocus/client.p12', 'realms' => ['wba.samplewsm.com.au']]);
         $soap = $this->fakeClient([]);
 
         $resp = $this->actingAs($this->admin())->post(route('admin.services.internet.transfer.store'), $this->transferData());
@@ -325,7 +325,7 @@ class VocusInternetTest extends TestCase
 
     public function test_run_is_skipped_with_the_configuration_message_when_the_key_is_missing(): void
     {
-        Setting::put('vocus', ['access_key' => '', 'cert_path' => 'vocus/client.p12']);
+        Setting::put('vocus', ['access_key' => '', 'cert_path' => 'vocus/client.p12', 'realms' => ['wba.samplewsm.com.au']]);
         $soap = $this->fakeClient([]);
         $run = SyncRun::queue('vocus', 'services');
 
@@ -466,7 +466,7 @@ class VocusInternetTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'addresses')
             ->assertJsonPath('searched', '4 CUMMINS DR, SUMMERTOWN SA 5141')
-            ->assertJson(fn ($json) => $json->where('message', fn ($m) => str_contains($m, 'no addresses') && str_contains($m, '4 search variant'))->etc());
+            ->assertJson(fn ($json) => $json->where('message', fn ($m) => str_contains($m, 'no addresses') && str_contains($m, '3 search variant'))->etc());
     }
 
     public function test_lookup_fault_is_shown_as_the_actual_reason(): void

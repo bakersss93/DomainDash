@@ -39,7 +39,7 @@ class HtmlSanitizerTest extends TestCase
 
     public function test_plain_text_content_survives(): void
     {
-        $this->assertStringContainsString('Hello world', HtmlSanitizer::clean('<p>Hello <strong>world</strong></p>'));
+        $this->assertSame('Hello world', strip_tags(HtmlSanitizer::clean('<p>Hello <strong>world</strong></p>'))); // safe formatting tags are kept
     }
 
     public function test_empty_input_returns_empty_string(): void

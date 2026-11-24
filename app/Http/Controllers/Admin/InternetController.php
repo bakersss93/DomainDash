@@ -46,7 +46,8 @@ class InternetController extends Controller
             $q->where('client_id', $clientId);
         }
 
-        $statusFilter = $request->has('status') ? $request->get('status') : 'ACTIVE';
+        // ?status= (the "All statuses" option) arrives as null after ConvertEmptyStringsToNull: normalise it to ''.
+        $statusFilter = $request->has('status') ? (string) $request->get('status') : 'ACTIVE';
         if ($statusFilter !== '') {
             $q->where('service_status', $statusFilter);
         }

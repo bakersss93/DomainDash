@@ -31,6 +31,7 @@ class NoiseReductionTest extends TestCase
         $job = \Mockery::mock(Job::class);
         $job->shouldReceive('resolveName')->andReturn($name);
         $job->shouldReceive('getQueue')->andReturn('default');
+        $job->shouldReceive('payload')->andReturn([]); // read by Laravel's log-context listener on JobProcessing
 
         return $job;
     }

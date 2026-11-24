@@ -66,17 +66,27 @@ class HaloSubscriptionPusher
             return $this->skip($service, null); // never billed, nothing to end
         }
 
-        $invoiceId = $cfg->syncLines ? $this->recurringInvoiceId($client, $haloClientId, $halo, $cfg, $service) : null;
-
         $sell = (float) ($service->sell_price ?? $plan->sell_price);
         $cost = (float) ($service->cost_price ?? $plan->cost_price);
         $start = $service->created_at?->toDateString() ?? now()->toDateString();
         $name = $this->subscriptionName($service, (string) $plan->name);
 
-        $hash = hash('sha256', json_encode([
+        $hashFor = fn ($invoice) => hash('sha256', json_encode([
             $haloClientId, (int) $plan->halo_item_id, $name, round($sell, 2), round($cost, 2), $ended, $start,
-            $invoiceId, $cfg->fingerprint(), $this->reference($service),
+            $invoice, $cfg->fingerprint(), $this->reference($service),
         ]));
+
+        // Unchanged data is skipped before ANY remote call: the invoice used last time (or picked on the client) stands in
+        // for the contract lookup, which is only repeated when something else changed.
+        if (! $force && ! $service->halo_sync_error && $hasBilling && $service->halo_sync_hash) {
+            $known = $cfg->syncLines ? ((int) ($client->halo_recurring_invoice_id ?: $service->halo_recurring_invoice_id) ?: null) : null;
+            if ($service->halo_sync_hash === $hashFor($known)) {
+                return 'skipped';
+            }
+        }
+
+        $invoiceId = $cfg->syncLines ? $this->recurringInvoiceId($client, $haloClientId, $halo, $cfg, $service) : null;
+        $hash = $hashFor($invoiceId);
         if (! $force && $service->halo_sync_hash === $hash && ! $service->halo_sync_error && $hasBilling) {
             return 'skipped';
         }

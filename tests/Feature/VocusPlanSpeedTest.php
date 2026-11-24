@@ -313,7 +313,7 @@ class VocusPlanSpeedTest extends TestCase
         $fast = $this->plan('P-100', 100, 40);
 
         $this->actingAs($this->admin())->post(route('admin.services.internet.transfer.store'), $this->orderData($fast, $token, [
-            'line_choice' => 'existing', 'copper_pair_id' => 'CPI-SLOW', 'ca_date' => now()->format('Y-m-d'),
+            'order_type' => 'TRANSFER', 'avc_id' => 'AVC000000000001', 'line_choice' => 'existing', 'copper_pair_id' => 'CPI-SLOW', 'ca_date' => now()->format('Y-m-d'),
         ]))->assertSessionHasErrors('vocus_plan_id');
         $this->assertCount(0, $soap->calls);
     }

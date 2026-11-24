@@ -32,7 +32,13 @@ class DashboardController extends Controller
             ->limit(100)
             ->get(['id', 'name', 'email', 'mfa_preference']);
 
-        $balanceResponse = $synergy->balanceQuery();
+        // The registrar being unreachable (or ext-soap missing) must not take the whole dashboard down.
+        try {
+            $balanceResponse = $synergy->balanceQuery();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Dashboard: Synergy balance unavailable', ['message' => $e->getMessage()]);
+            $balanceResponse = ['status' => 'Unavailable: ' . $e->getMessage()];
+        }
         [$availableBalance, $balanceCurrency, $balanceStatus] = $this->balanceMetrics($balanceResponse);
 
         $domainsWithoutClient = Domain::query()

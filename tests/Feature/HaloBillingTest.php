@@ -86,6 +86,10 @@ class HaloBillingTest extends TestCase
         $invoices ??= [['id' => 700, 'name' => 'Managed services', 'client_id' => 42, 'contract_id' => 55, 'contract_ref' => 'MS-1']];
         $contracts ??= [['id' => 55, 'ref' => 'MS-1', 'client_id' => 42, 'contracttype' => 3, 'contracttype_name' => 'Managed', 'active' => true]];
 
+        // A fresh factory: stubs registered by an earlier fakeHalo() call would otherwise win (first match) and so would
+        // the requests it recorded, which the assertions below read.
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::preventStrayRequests();
         Http::fake([
             'halo.example.com/auth/token*' => Http::response(['access_token' => 't', 'expires_in' => 3600]),
             'halo.example.com/api/item/9*' => Http::response(['id' => 9, 'name' => 'NBN 100/20', 'baseprice' => 80, 'costprice' => 40]),
@@ -130,7 +134,7 @@ class HaloBillingTest extends TestCase
         $this->assertSame(9, $json['items'][0]['id']);
         $this->assertSame('NBN100', $json['items'][0]['code']);
         $this->assertTrue($json['items'][0]['recurring']);
-        $this->assertSame(80.0, $json['items'][0]['price']);
+        $this->assertEquals(80.0, $json['items'][0]['price']); // JSON does not keep the .0
         $this->assertFalse($json['items'][1]['recurring']);
         $this->assertStringNotContainsString('secret-api-key', json_encode($json));
         $count = Http::recorded(fn (HttpRequest $r) => str_contains($r->url(), '/api/item') && str_contains($r->url(), 'search=nbn'))->count();
@@ -175,8 +179,8 @@ class HaloBillingTest extends TestCase
         $this->assertSame(42, $sub['client_id']);
         $this->assertSame(9, $sub['item_id']);
         $this->assertSame(1, $sub['count']);
-        $this->assertSame(80.0, $sub['price']);
-        $this->assertSame(40.0, $sub['purchase_price']);
+        $this->assertEquals(80.0, $sub['price']); // JSON does not keep the .0
+        $this->assertEquals(40.0, $sub['purchase_price']); // JSON does not keep the .0
         $this->assertTrue($sub['is_active']);
         $this->assertStringContainsString('[[DOMAINDASH-SVC:DD-1]]', $sub['notes']);
 
@@ -198,11 +202,10 @@ class HaloBillingTest extends TestCase
         $this->fakeHalo();
         $service = $this->service();
         $this->push($service);
-        Http::fake(); // from here any request would be recorded below
-        Http::preventStrayRequests(false);
+        $before = Http::recorded()->count();
 
         $this->assertSame('skipped', $this->push($service));
-        Http::assertNothingSent();
+        $this->assertSame($before, Http::recorded()->count(), 'an unchanged push makes no remote call');
     }
 
     public function test_price_change_updates_existing_subscription_and_line_instead_of_creating(): void
@@ -221,10 +224,10 @@ class HaloBillingTest extends TestCase
 
         $sub = $this->posts('/api/softwarelicence')[0];
         $this->assertSame(501, $sub['id']);
-        $this->assertSame(95.0, $sub['price']);
+        $this->assertEquals(95.0, $sub['price']); // JSON does not keep the .0
         $line = $this->posts('/api/recurringinvoice/updatelines')[0];
         $this->assertSame(801, $line['id']);
-        $this->assertSame(95.0, $line['unit_price']);
+        $this->assertEquals(95.0, $line['unit_price']); // JSON does not keep the .0
         $this->assertSame([], $this->posts('/api/recurringinvoice/lines'), 'no second line is added');
     }
 

@@ -131,11 +131,14 @@
         function render() {
             var c = $('lc-choice').value, sum = $('lc-summary'), wire = $('lc-wire'), open = $('lc-open');
             wire.textContent = '';
+            @if(! $transfer)
             if (c === 'new') {
                 sum.textContent = group === 'COPPER' ? 'Order a new line (new copper pair)' : (tech === 'HFC' ? 'Order a new NTD (professional install)' : 'Order a new line (Vocus selects the NTD and a free port)');
                 wire.textContent = group === 'COPPER' ? 'Sent to Vocus as CopperPairID NEW.' : (tech === 'HFC' ? 'Sent to Vocus as NTDID NEW.' : 'No line or port parameter is sent: Vocus auto-selects.');
                 open.textContent = 'Change';
-            } else if (group === 'COPPER' && $('lc-copper').value) {
+            } else
+            @endif
+            if (group === 'COPPER' && $('lc-copper').value) {
                 sum.textContent = 'Copper pair ' + $('lc-copper').value;
                 wire.textContent = 'Sent to Vocus as CopperPairID.';
                 open.textContent = 'Change';

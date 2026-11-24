@@ -69,7 +69,10 @@ class VocusOrderingUxTest extends TestCase
 
     private function plan(array $o = []): VocusPlan
     {
-        return VocusPlan::create($o + ['plan_id' => 'RC-100-20', 'name' => 'Fast 100', 'speed_tier' => '100/20', 'cost_price' => '50.00', 'sell_price' => '79.95', 'active' => true, 'scopes' => null]);
+        // firstOrCreate: orderData() asks for the default plan again after a test already created it (plan_id is unique).
+        $attrs = $o + ['plan_id' => 'RC-100-20', 'name' => 'Fast 100', 'speed_tier' => '100/20', 'cost_price' => '50.00', 'sell_price' => '79.95', 'active' => true, 'scopes' => null];
+
+        return VocusPlan::firstOrCreate(['plan_id' => $attrs['plan_id']], $attrs);
     }
 
     private function orderData(array $o = []): array
@@ -138,7 +141,7 @@ class VocusOrderingUxTest extends TestCase
 
     public function test_username_password_and_realm_rules(): void
     {
-        $this->fakeClient([]);
+        $soap = $this->fakeClient([$this->ok()]); // only the one valid order below reaches Vocus
         $admin = $this->admin();
         $post = fn (array $o) => $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData($o));
 
@@ -152,7 +155,9 @@ class VocusOrderingUxTest extends TestCase
         $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData(['username' => 'ab', 'password' => str_repeat('a', 30)]))->assertSessionHasNoErrors('username');
         $post(['realm' => 'unknown.example.com'])->assertSessionHasErrors('realm');
         $post(['realm' => ''])->assertSessionHasErrors('realm');
-        $this->assertDatabaseCount('internet_services', 0);
+        // Every rejected request was stopped by validation; only the one valid order was placed.
+        $this->assertDatabaseCount('internet_services', 1);
+        $this->assertCount(1, $soap->calls);
     }
 
     public function test_password_is_never_flashed_back_or_stored(): void
@@ -193,7 +198,7 @@ class VocusOrderingUxTest extends TestCase
 
         $this->assertSame(['RESELLER-CONNECT'], VocusOptions::enabledScopes());
         $page = $this->actingAs($admin)->get(route('admin.services.internet.order'))->assertOk();
-        $page->assertSee('name="scope" value="RESELLER-CONNECT"', false)->assertDontSee('NETWORK-CONNECT', false);
+        $page->assertSee('name="scope" value="RESELLER-CONNECT"', false)->assertDontSee('value="NETWORK-CONNECT"', false); // the page script may still mention the scope name; it must not be offered
 
         $this->fakeClient([]);
         $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData(['scope' => 'NETWORK-CONNECT']))->assertSessionHasErrors('scope');
@@ -276,7 +281,7 @@ class VocusOrderingUxTest extends TestCase
         $this->assertSame('29.95', $service->margin);
         $this->assertStringContainsString('<PlanID>RC-100-20</PlanID>', $this->xmlOf($soap));
 
-        $this->actingAs($admin)->get(route('admin.services.internet'))->assertOk()->assertSee('$50.00', false)->assertSee('$79.95', false)->assertSee('$29.95', false);
+        $this->actingAs($admin)->get(route('admin.services.internet', ['status' => '']))->assertOk()->assertSee('$50.00', false)->assertSee('$79.95', false)->assertSee('$29.95', false);
         $this->actingAs($admin)->get(route('admin.services.internet.show', $service))->assertOk()->assertSee('Margin')->assertSee('$29.95', false);
     }
 
@@ -342,7 +347,7 @@ class VocusOrderingUxTest extends TestCase
         $q = ['directory_id' => 'LOC001122334455', 'service_type' => 'FTTC', 'location_reference' => '3000', 'address_long' => '1 EXAMPLE ST MELBOURNE VIC'];
 
         $order = $this->actingAs($admin)->get(route('admin.services.internet.order', $q))->assertOk();
-        $order->assertDontSee('AVC ID')->assertDontSee('Transfer type')->assertDontSee('Vocus Service ID')->assertDontSee('<option value="FTTP"', false);
+        $order->assertDontSee('AVC ID')->assertDontSee('Transfer type')->assertDontSee('name="vocus_service_id"', false)->assertDontSee('<option value="FTTP"', false);
         $order->assertSee('name="auth_type"', false)->assertSee('name="ip_assignment"', false)->assertSee('name="reference"', false);
         $order->assertSee('name="service_type" value="FTTC"', false)->assertSee('readonly', false);
 
