@@ -88,6 +88,9 @@
                 <th>Address</th>
                 <th>Technology</th>
                 <th>Plan</th>
+                <th style="text-align:right;">Cost</th>
+                <th style="text-align:right;">Sell</th>
+                <th style="text-align:right;">Margin</th>
                 <th>Client</th>
                 <th>Status</th>
                 <th>Transaction</th>
@@ -109,14 +112,23 @@
                         @endif
                     </td>
                     <td style="font-size:13px;">{{ $service->plan_id ?? '-' }}</td>
+                    <td style="text-align:right;font-size:13px;white-space:nowrap;">{{ $service->cost_price !== null ? '$'.number_format((float) $service->cost_price, 2) : '-' }}</td>
+                    <td style="text-align:right;font-size:13px;white-space:nowrap;">{{ $service->sell_price !== null ? '$'.number_format((float) $service->sell_price, 2) : '-' }}</td>
+                    <td style="text-align:right;font-size:13px;white-space:nowrap;">
+                        @if($service->margin !== null)
+                            <span style="color:{{ (float) $service->margin < 0 ? 'var(--dd-status-danger-fg)' : 'var(--dd-status-success-fg)' }};">${{ number_format((float) $service->margin, 2) }}</span>
+                        @else
+                            -
+                        @endif
+                    </td>
                     <td>{{ optional($service->client)->business_name ?? optional($service->client)->name ?? '—' }}</td>
                     <td>
                         @php
                             $color = match($service->service_status) {
-                                'ACTIVE'   => ['bg'=>'#dcfce7','text'=>'#15803d'],
-                                'SUSPEND'  => ['bg'=>'#fef9c3','text'=>'#854d0e'],
-                                'INACTIVE' => ['bg'=>'#fee2e2','text'=>'#b91c1c'],
-                                default    => ['bg'=>'#f1f5f9','text'=>'#475569'],
+                                'ACTIVE'   => ['bg'=>'var(--dd-status-success-bg)','text'=>'var(--dd-status-success-fg)'],
+                                'SUSPEND'  => ['bg'=>'var(--dd-status-warning-bg)','text'=>'var(--dd-status-warning-fg)'],
+                                'INACTIVE' => ['bg'=>'var(--dd-status-danger-bg)','text'=>'var(--dd-status-danger-fg)'],
+                                default    => ['bg'=>'var(--dd-status-muted-bg)','text'=>'var(--dd-status-muted-fg)'],
                             };
                         @endphp
                         <span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:{{ $color['bg'] }};color:{{ $color['text'] }};">
@@ -127,10 +139,10 @@
                         @if($service->last_transaction_state)
                             @php
                                 $txColor = match($service->last_transaction_state) {
-                                    'SUCCESS'    => '#15803d',
-                                    'FAILED'     => '#b91c1c',
-                                    'QUEUED','PROCESSING' => '#d97706',
-                                    default      => '#6b7280',
+                                    'SUCCESS'    => 'var(--dd-status-success-fg)',
+                                    'FAILED'     => 'var(--dd-status-danger-fg)',
+                                    'QUEUED','PROCESSING' => 'var(--dd-status-warning-fg)',
+                                    default      => 'var(--dd-status-muted-fg)',
                                 };
                             @endphp
                             <span style="color:{{ $txColor }};">{{ $service->last_transaction_state }}</span>
@@ -145,7 +157,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" style="text-align:center;padding:32px;color:var(--dd-text-soft);">
+                    <td colspan="11" style="text-align:center;padding:32px;color:var(--dd-text-soft);">
                         No internet services found. <a href="{{ route('admin.services.internet.qualify') }}" style="color:var(--accent);">Qualify an address</a> to get started.
                     </td>
                 </tr>

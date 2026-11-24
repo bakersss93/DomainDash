@@ -122,6 +122,15 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::get('/settings/itglue/flexible-asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypeFields'])->whereNumber('id')->name('admin.settings.itglue.type-fields');
         });
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
+        Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {
+            Route::put('/realms', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateRealms'])->name('admin.settings.vocus.realms');
+            Route::put('/scopes', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateScopes'])->name('admin.settings.vocus.scopes');
+            Route::get('/plans', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'plans'])->name('admin.settings.vocus.plans');
+            Route::post('/plans', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'storePlan'])->name('admin.settings.vocus.plans.store');
+            Route::put('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updatePlan'])->name('admin.settings.vocus.plans.update');
+            Route::delete('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'destroyPlan'])->name('admin.settings.vocus.plans.destroy');
+        });
         Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
         Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
         Route::post('/https/upload', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'upload'])->name('admin.https.upload');

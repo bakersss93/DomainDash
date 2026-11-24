@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="ui-page">
-    <x-ui.page-header title="Dashboard" subtitle="Domains, hosting and SSL certificates assigned to you." />
+    <x-ui.page-header title="Dashboard" subtitle="Domains, hosting, SSL certificates and internet services assigned to you." />
 
     <form method="GET" class="ui-toolbar" role="search">
         <label for="dashboard-search" class="sr-only">Search services</label>
@@ -15,15 +15,16 @@
         $expiringSsl = $sslCertificates->filter(fn ($c) => $c->isExpiringSoon())->count();
     @endphp
 
-    @if(! $domains->isEmpty() || ! $hostingServices->isEmpty() || ! $sslCertificates->isEmpty())
+    @if(! $domains->isEmpty() || ! $hostingServices->isEmpty() || ! $sslCertificates->isEmpty() || ! $internetServices->isEmpty())
         <div class="ui-stat-grid" style="margin-bottom:1.5rem;">
             <x-ui.stat label="Domains" :value="$domains->count()" :hint="$expiringDomains.' expiring soon'" :variant="$expiringDomains ? 'warning' : null" />
             <x-ui.stat label="Hosting services" :value="$hostingServices->count()" />
             <x-ui.stat label="SSL certificates" :value="$sslCertificates->count()" :hint="$expiringSsl.' expiring soon'" :variant="$expiringSsl ? 'warning' : null" />
+            <x-ui.stat label="Internet services" :value="$internetServices->count()" />
         </div>
     @endif
 
-    @if($domains->isEmpty() && $hostingServices->isEmpty() && $sslCertificates->isEmpty())
+    @if($domains->isEmpty() && $hostingServices->isEmpty() && $sslCertificates->isEmpty() && $internetServices->isEmpty())
         <x-ui.card>
             <x-ui.empty-state
                 title="No services found"
@@ -77,6 +78,33 @@
                                 <td>{{ $service->username ?? '-' }}</td>
                                 <td>{{ optional($service->client)->business_name ?? '-' }}</td>
                                 <td>{{ optional($service->next_renewal_due)->toDateString() ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </x-ui.table>
+            </x-ui.card>
+        @endif
+
+        @if($internetServices->isNotEmpty())
+            <x-ui.card title="Internet Services" :flush="true">
+                <x-ui.table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Address</th>
+                            <th scope="col">Technology</th>
+                            <th scope="col">Plan</th>
+                            <th scope="col">Monthly price</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($internetServices as $connection)
+                            <tr>
+                                <td class="font-medium">{{ $connection->address_long ?? '-' }}</td>
+                                <td>{{ $connection->service_type ?? '-' }}</td>
+                                <td>{{ $connection->vocusPlan?->name ?? $connection->plan_id ?? '-' }}</td>
+                                <td>{{ $connection->sell_price !== null ? '$'.number_format((float) $connection->sell_price, 2).' / month' : '-' }}</td>
+                                <td>{{ $connection->last_transaction_state && in_array($connection->last_transaction_state, ['QUEUED', 'PROCESSING'], true) ? 'Being connected' : ucfirst(strtolower((string) $connection->service_status)) }}</td>
                             </tr>
                         @endforeach
                     </tbody>

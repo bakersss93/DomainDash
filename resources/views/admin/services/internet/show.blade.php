@@ -17,10 +17,10 @@
         <div style="display:flex;gap:8px;">
             @php
                 $statusColor = match($service->service_status) {
-                    'ACTIVE'   => ['bg'=>'#dcfce7','text'=>'#15803d'],
-                    'SUSPEND'  => ['bg'=>'#fef9c3','text'=>'#854d0e'],
-                    'INACTIVE' => ['bg'=>'#fee2e2','text'=>'#b91c1c'],
-                    default    => ['bg'=>'#f1f5f9','text'=>'#475569'],
+                    'ACTIVE'   => ['bg'=>'var(--dd-status-success-bg)','text'=>'var(--dd-status-success-fg)'],
+                    'SUSPEND'  => ['bg'=>'var(--dd-status-warning-bg)','text'=>'var(--dd-status-warning-fg)'],
+                    'INACTIVE' => ['bg'=>'var(--dd-status-danger-bg)','text'=>'var(--dd-status-danger-fg)'],
+                    default    => ['bg'=>'var(--dd-status-muted-bg)','text'=>'var(--dd-status-muted-fg)'],
                 };
             @endphp
             <span style="padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;background:{{ $statusColor['bg'] }};color:{{ $statusColor['text'] }};">
@@ -148,6 +148,25 @@
 
         {{-- Service management panel --}}
         <div style="display:flex;flex-direction:column;gap:16px;">
+
+            {{-- Pricing snapshot taken at order time (admin only) --}}
+            <div style="background:var(--surface-muted);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
+                <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--text);">Pricing (AUD / month)</h3>
+                @if($service->cost_price !== null || $service->sell_price !== null)
+                    <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
+                        <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Plan</dt>
+                        <dd style="font-size:13px;margin:0;">{{ $service->vocusPlan?->name ?? $service->plan_id }}</dd>
+                        <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Cost</dt>
+                        <dd style="font-size:13px;margin:0;">${{ number_format((float) $service->cost_price, 2) }}</dd>
+                        <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Sell</dt>
+                        <dd style="font-size:13px;margin:0;">${{ number_format((float) $service->sell_price, 2) }}</dd>
+                        <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Margin</dt>
+                        <dd style="font-size:13px;margin:0;font-weight:600;color:{{ (float) $service->margin < 0 ? 'var(--dd-status-danger-fg)' : 'var(--dd-status-success-fg)' }};">${{ number_format((float) $service->margin, 2) }}</dd>
+                    </dl>
+                @else
+                    <p style="font-size:13px;color:var(--dd-text-soft);margin:0;">No price recorded (service not ordered through a configured plan).</p>
+                @endif
+            </div>
 
             {{-- Client assignment --}}
             <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">

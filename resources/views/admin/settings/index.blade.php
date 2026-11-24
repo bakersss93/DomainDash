@@ -406,6 +406,8 @@
                     </small>
                 </div>
 
+                @include('admin.settings.partials.vocus-ordering')
+
                 </div>
             </div>
 
@@ -1318,6 +1320,8 @@
                 </div>
             </div>
         </form>
+
+        @include('admin.settings.partials.vocus-modals')
 
         {{-- SMTP test card --}}
         <div class="dd-settings-panel" style="margin-top:16px;overflow:hidden;">

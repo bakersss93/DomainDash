@@ -11,7 +11,7 @@
             <a href="{{ route('admin.settings') }}">Open settings</a>
         </x-ui.alert>
     @endif
-    <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 24px;">Submit a new NBN connection request via Vocus Wholesale.</p>
+    <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 16px;">Submit a new NBN connection request via Vocus Wholesale.</p>
 
     @if($errors->any())
         <x-ui.alert variant="danger" class="mb-4"><strong>Please correct the following errors:</strong>
@@ -22,139 +22,13 @@
             </ul></x-ui.alert>
     @endif
 
-    <form method="POST" action="{{ route('admin.services.internet.order') }}">
+    <form method="POST" action="{{ route('admin.services.internet.order.store') }}">
         @csrf
-
-        {{-- Address --}}
-        <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:16px;">
-            <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Service Address</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div style="grid-column:1/-1;">
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Address</label>
-                    <input type="text" name="address_long" value="{{ old('address_long', $address_long) }}"
-                           class="dd-input" style="width:100%;" readonly
-                           placeholder="Pre-filled from qualify step">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Directory ID <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="directory_id" value="{{ old('directory_id', $directory_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" required>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Postcode / Location Reference <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="location_reference" value="{{ old('location_reference') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. 3000" maxlength="10" required>
-                </div>
-            </div>
-        </div>
-
-        {{-- Service details --}}
-        <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:16px;">
-            <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Service Details</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Vocus Service ID <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="vocus_service_id" value="{{ old('vocus_service_id') }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="e.g. 0712345678" required maxlength="30">
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Typically the phone number or unique identifier.</p>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Plan ID <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="plan_id" value="{{ old('plan_id') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. NBN-25/10" required maxlength="30">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Technology <span style="color:var(--dd-danger-text);">*</span></label>
-                    <select name="service_type" class="dd-input" style="width:100%;" required>
-                        <option value="">Select…</option>
-                        @foreach(['FTTP','FTTC','FTTB','FTTN','HFC','FIXED-WIRELESS'] as $t)
-                            <option value="{{ $t }}" {{ old('service_type', $service_type) === $t ? 'selected' : '' }}>{{ $t }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Service Scope <span style="color:var(--dd-danger-text);">*</span></label>
-                    <select name="scope" class="dd-input" style="width:100%;" required>
-                        <option value="RESELLER-CONNECT" {{ old('scope') === 'RESELLER-CONNECT' ? 'selected' : '' }}>RESELLER-CONNECT</option>
-                        <option value="NETWORK-CONNECT" {{ old('scope') === 'NETWORK-CONNECT' ? 'selected' : '' }}>NETWORK-CONNECT</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Service Level</label>
-                    <select name="service_level" class="dd-input" style="width:100%;">
-                        @foreach($serviceLevels as $level)
-                            <option value="{{ $level }}" {{ old('service_level', 'STANDARD') === $level ? 'selected' : '' }}>{{ $level }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Copper Pair ID</label>
-                    <input type="text" name="copper_pair_id" value="{{ old('copper_pair_id', $copper_pair_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Pre-filled from qualify (if FTTN/FTTB/FTTC)" maxlength="15">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">AVC ID</label>
-                    <input type="text" name="avc_id" value="{{ old('avc_id', $avc_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Layer 2 / FTTP" maxlength="30">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC (AggCVC) ID</label>
-                    <input type="text" name="cvc_id" value="{{ old('cvc_id', $cvc_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Required for Layer 2 / NCL2" maxlength="30">
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Required when the scope is NETWORK-CONNECT or the plan is an NCL2 plan.</p>
-                </div>
-            </div>
-        </div>
-
-        {{-- Customer details --}}
-        <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:16px;">
-            <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Customer Details</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Customer Name <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="customer_name" value="{{ old('customer_name') }}"
-                           class="dd-input" style="width:100%;" placeholder="Full name on account" required maxlength="40">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Phone <span style="color:var(--dd-danger-text);">*</span></label>
-                    <input type="text" name="phone" value="{{ old('phone') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. 0412345678" inputmode="numeric" pattern="\d{10}" title="10 digits" required maxlength="10">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">PPPoE Realm</label>
-                    <input type="text" name="realm" value="{{ old('realm') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. wba.example.com.au" maxlength="61">
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">The realm only (up to 61 characters), not the full username. Leave blank if not required.</p>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">PPPoE Password</label>
-                    <input type="password" name="password" autocomplete="new-password"
-                           class="dd-input" style="width:100%;" placeholder="Optional" minlength="2" maxlength="50">
-                </div>
-            </div>
-        </div>
-
-        {{-- Link to client --}}
-        <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:16px;">
-            <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Link to Client (optional)</h3>
-            <select name="client_id" class="dd-input" style="width:100%;">
-                <option value="">— None —</option>
-                @foreach(\App\Models\Client::orderBy('business_name')->get() as $client)
-                    <option value="{{ $client->id }}" {{ old('client_id') == $client->id ? 'selected' : '' }}>
-                        {{ $client->business_name ?? $client->name }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Notes --}}
-        <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
-            <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;">Internal Notes</h3>
-            <textarea name="notes" class="dd-input" style="width:100%;min-height:80px;resize:vertical;" placeholder="Optional internal notes…" maxlength="500">{{ old('notes') }}</textarea>
-        </div>
+        @include('admin.services.internet._order-fields', ['mode' => 'order'])
 
         <div style="display:flex;gap:10px;align-items:center;">
             <button type="submit" class="btn-accent" style="padding:10px 24px;font-size:14px;font-weight:600;"
+                    @disabled($plans->isEmpty() || count($scopes) === 0)
                     onclick="return confirm('Submit this NBN order to Vocus? This will initiate a real service order.');">
                 Submit Order →
             </button>

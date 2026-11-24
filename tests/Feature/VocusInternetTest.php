@@ -8,6 +8,7 @@ use App\Jobs\SyncVocusServicesJob;
 use App\Models\InternetService;
 use App\Models\Setting;
 use App\Models\SyncRun;
+use App\Models\VocusPlan;
 use App\Models\User;
 use App\Services\Sync\SyncDispatcher;
 use App\Services\Vocus\VocusRateLimiter;
@@ -37,7 +38,7 @@ class VocusInternetTest extends TestCase
 
         Cache::flush();
         \App\Casts\EncryptedSettingValue::$decryptFailures = [];
-        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox']);
+        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['wba.samplewsm.com.au']]);
     }
 
     private function admin(): User
@@ -88,10 +89,15 @@ class VocusInternetTest extends TestCase
         return (string) ($payload->enc_value ?? $payload->data);
     }
 
+    private function plan(string $planId = 'NCL2-DSCP-MAP'): VocusPlan
+    {
+        return VocusPlan::firstOrCreate(['plan_id' => $planId], ['name' => 'Test plan', 'cost_price' => '50.00', 'sell_price' => '79.95', 'active' => true]);
+    }
+
     private function transferData(array $override = []): array
     {
         return array_merge([
-            'vocus_service_id' => 'SVC-T1', 'plan_id' => 'NCL2-DSCP-MAP', 'scope' => 'RESELLER-CONNECT',
+            'vocus_plan_id' => $this->plan()->id, 'scope' => 'RESELLER-CONNECT',
             'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222', 'directory_id' => 'LOC000340636851',
             'location_reference' => '3000', 'service_type' => 'FTTC', 'copper_pair_id' => 'CPI300010022999',
             'ca_date' => '2019-11-10', 'realm' => 'wba.samplewsm.com.au', 'service_level' => 'STANDARD',
@@ -115,8 +121,10 @@ class VocusInternetTest extends TestCase
         $this->assertStringContainsString('<Scope>RESELLER-CONNECT</Scope>', $xml);
         $this->assertStringContainsString('<std:Param id="OrderType">TRANSFER</std:Param>', $xml);
         $this->assertStringNotContainsString('CHURN', $xml);
+        $this->assertMatchesRegularExpression('/<std:Param id="ServiceID">DD-000340636851-[A-Z2-9]{4}<\/std:Param>/', $xml);
+        $this->assertStringNotContainsString('id="Username"', $xml); // blank username: Vocus applies its default
         foreach ([
-            'ServiceID' => 'SVC-T1', 'CustomerName' => 'Yogesh Shinde', 'Phone' => '0433111222', 'CVCID' => 'AggCVC000000999',
+            'CustomerName' => 'Yogesh Shinde', 'Phone' => '0433111222', 'CVCID' => 'AggCVC000000999',
             'LocationReference' => '3000', 'DirectoryID' => 'LOC000340636851', 'AVCID' => 'AVC000340636851',
             'Realm' => 'wba.samplewsm.com.au', 'ServiceLevel' => 'STANDARD', 'ServiceType' => 'FTTC',
             'CopperPairID' => 'CPI300010022999', 'CADate' => '20191110',
@@ -124,7 +132,8 @@ class VocusInternetTest extends TestCase
             $this->assertStringContainsString('<std:Param id="' . $id . '">' . $value . '</std:Param>', $xml, $id);
         }
 
-        $row = InternetService::where('vocus_service_id', 'SVC-T1')->firstOrFail();
+        $row = InternetService::where('order_type', 'TRANSFER')->firstOrFail();
+        $this->assertSame('NCL2-DSCP-MAP', $row->plan_id);
         $this->assertSame('TRANSFER', $row->order_type);
         $this->assertSame('AG99182AC', $row->last_transaction_id);
         $this->assertSame('QUEUED', $row->last_transaction_state);
@@ -152,19 +161,19 @@ class VocusInternetTest extends TestCase
             ->assertSessionHasErrors('cvc_id');
     }
 
-    public function test_new_order_passes_avc_and_cvc_ids_for_layer_two(): void
+    public function test_new_order_does_not_send_avc_cvc_or_order_type(): void
     {
         $soap = $this->fakeClient([(object) ['TransactionID' => 'EF1', 'ResponseType' => 'ASYNC']]);
-        $data = $this->transferData(['vocus_service_id' => 'SVC-N1']);
+        $data = $this->transferData();
         unset($data['ca_date']);
 
         $this->actingAs($this->admin())->post(route('admin.services.internet.order.store'), $data)->assertSessionHasNoErrors();
 
         $xml = $this->xmlOf($soap);
-        $this->assertStringContainsString('<std:Param id="AVCID">AVC000340636851</std:Param>', $xml);
-        $this->assertStringContainsString('<std:Param id="CVCID">AggCVC000000999</std:Param>', $xml);
+        $this->assertStringNotContainsString('AVCID', $xml);
+        $this->assertStringNotContainsString('CVCID', $xml);
         $this->assertStringNotContainsString('OrderType', $xml);
-        $this->assertSame('NEW', InternetService::where('vocus_service_id', 'SVC-N1')->value('order_type'));
+        $this->assertSame('NEW', InternetService::firstOrFail()->order_type);
     }
 
     public function test_rejected_order_leaves_no_local_record_and_reports_through_the_error_flash(): void

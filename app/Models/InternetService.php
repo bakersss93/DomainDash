@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class InternetService extends Model
 {
     protected $fillable = [
-        'vocus_service_id', 'client_id', 'plan_id', 'service_scope', 'service_status',
+        'vocus_service_id', 'client_id', 'plan_id', 'vocus_plan_id', 'cost_price', 'sell_price', 'service_scope', 'service_status',
         'service_type', 'order_type', 'customer_name', 'phone', 'directory_id',
         'location_reference', 'address_long', 'nbn_instance_id', 'avc_id', 'cvc_id',
         'copper_pair_id', 'realm', 'username', 'service_level', 'billing_provider_id',
@@ -18,6 +18,8 @@ class InternetService extends Model
     protected $casts = [
         'synced_at' => 'datetime',
         'last_polled_at' => 'datetime',
+        'cost_price' => 'decimal:2',
+        'sell_price' => 'decimal:2',
     ];
 
     /** Column widths, so a long value from Vocus can never abort a save ("Data too long"). */
@@ -115,6 +117,21 @@ class InternetService extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function vocusPlan()
+    {
+        return $this->belongsTo(VocusPlan::class);
+    }
+
+    /** sell - cost, or null while either side of the snapshot is missing. Admin-only: never show to clients. */
+    public function getMarginAttribute(): ?string
+    {
+        if ($this->cost_price === null || $this->sell_price === null) {
+            return null;
+        }
+
+        return number_format((float) $this->sell_price - (float) $this->cost_price, 2, '.', '');
     }
 
     public function diagnostics()

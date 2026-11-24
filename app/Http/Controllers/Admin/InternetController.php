@@ -7,9 +7,11 @@ use App\Models\Client;
 use App\Models\InternetService;
 use App\Models\InternetServiceDiagnostic;
 use App\Models\SyncRun;
+use App\Models\VocusPlan;
 use App\Services\AuditLogger;
 use App\Services\Sync\QueueHealth;
 use App\Services\Sync\SyncDispatcher;
+use App\Services\Vocus\VocusOptions;
 use App\Services\Vocus\VocusWsmClient;
 use App\Services\Vocus\VocusWsmException;
 use App\Support\VocusAddressParser;
@@ -18,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InternetController extends Controller
 {
@@ -290,6 +293,10 @@ class InternetController extends Controller
                 'addresses'      => $result['addresses'],
                 'transaction_id' => $result['transaction_id'],
                 'searched'       => $this->describeSearch($params),
+                // Read-only address parts carried through to the order form (LocationReference is the postcode).
+                'postcode'       => (string) ($params['Main.PostCode'] ?? $params['Main.Postcode'] ?? ''),
+                'suburb'         => (string) ($params['Main.Suburb'] ?? ''),
+                'state'          => (string) ($params['Main.State'] ?? ''),
             ];
 
             if ($result['addresses'] === []) {
@@ -317,28 +324,37 @@ class InternetController extends Controller
     }
 
     /**
-     * AJAX: run service qualification against a Vocus DirectoryID. For Layer 2
-     * (Network-Connect / NCL2) the AVC and CVC (AggCVC) IDs are sent as well
-     * (Examples 4.2.2).
+     * AJAX: run service qualification (FIBRE / Get / QUALIFY) against a Vocus DirectoryID.
+     * The DirectoryID is either chosen from the address search or, for an NBN LOC ID
+     * (LOC + 12 digits), typed directly: for NBN products the DirectoryID is the LOC ID
+     * (Examples 4.1.1 / 4.1.2: "Vocus Address ID LOC000340636851"). AVC / CVC are not
+     * sent: they only belong to transfers (Examples 4.2).
      */
     public function qualifyCheck(Request $request)
     {
+        $request->merge(['loc_id' => strtoupper(trim((string) $request->input('loc_id')))]);
+
         $request->validate([
-            'directory_id' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'loc_id'       => ['nullable', 'string', 'regex:/^LOC\d{12}$/'],
+            'directory_id' => ['required_without:loc_id', 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'address_long' => 'nullable|string|max:255',
-            'avc_id'       => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
-            'cvc_id'       => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+        ], [
+            'loc_id.regex'                  => 'An NBN LOC ID is "LOC" followed by 12 digits, for example LOC001122334455.',
+            'directory_id.required_without' => 'Choose an address or enter an NBN LOC ID.',
         ]);
+
+        $directoryId = $request->filled('directory_id') ? (string) $request->input('directory_id') : (string) $request->input('loc_id');
 
         try {
             if ($problem = VocusWsmClient::configurationProblem()) {
                 return response()->json(['error' => $problem], 422);
             }
 
-            $vocus  = app(VocusWsmClient::class);
-            $result = $vocus->qualifyAddress($request->directory_id, $request->input('avc_id') ?: null, $request->input('cvc_id') ?: null);
+            $result = app(VocusWsmClient::class)->qualifyAddress($directoryId);
 
             return response()->json([
+                'directory_id'   => $directoryId,
+                'address_long'   => $request->input('address_long'),
                 'result'         => $result['params']['Result'] ?? null,
                 'service_type'   => $result['params']['ServiceType'] ?? null,
                 'service_class'  => $result['params']['ServiceClass'] ?? null,
@@ -354,20 +370,31 @@ class InternetController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // New order
+    // New order / transfer
     // -------------------------------------------------------------------------
 
     private function orderFormData(Request $request): array
     {
+        $postcode = (string) $request->get('location_reference', '');
+        $address  = (string) $request->get('address_long', '');
+        if (! preg_match('/^\d{4}$/', $postcode) && preg_match('/\b(\d{4})\s*$/', $address, $m)) {
+            $postcode = $m[1];
+        }
+
         return [
-            'directory_id'   => $request->get('directory_id', ''),
-            'address_long'   => $request->get('address_long', ''),
-            'service_type'   => $request->get('service_type', ''),
-            'copper_pair_id' => $request->get('copper_pair_id', ''),
-            'avc_id'         => $request->get('avc_id', ''),
-            'cvc_id'         => $request->get('cvc_id', ''),
-            'serviceLevels'  => self::SERVICE_LEVELS,
-            'vocusProblem'   => VocusWsmClient::configurationProblem(),
+            'directory_id'       => (string) $request->get('directory_id', ''),
+            'address_long'       => $address,
+            'service_type'       => (string) $request->get('service_type', ''),
+            'copper_pair_id'     => (string) $request->get('copper_pair_id', ''),
+            'location_reference' => preg_match('/^\d{4}$/', $postcode) ? $postcode : '',
+            'suburb'             => (string) $request->get('suburb', ''),
+            'state'              => (string) $request->get('state', ''),
+            'serviceLevels'      => self::SERVICE_LEVELS,
+            'scopes'             => VocusOptions::enabledScopes(),
+            'scopeLabels'        => VocusOptions::SCOPES,
+            'realms'             => VocusOptions::realms(),
+            'plans'              => VocusPlan::active()->orderBy('name')->get(),
+            'vocusProblem'       => VocusWsmClient::configurationProblem(),
         ];
     }
 
@@ -376,40 +403,67 @@ class InternetController extends Controller
         return view('admin.services.internet.order', $this->orderFormData($request));
     }
 
-    private function isLayer2Order(Request $request): bool
+    private function isLayer2Order(Request $request, ?VocusPlan $plan): bool
     {
         return $request->input('scope') === 'NETWORK-CONNECT'
-            || str_starts_with(strtoupper((string) $request->input('plan_id')), 'NCL2');
+            || str_starts_with(strtoupper((string) $plan?->plan_id), 'NCL2');
     }
 
-    public function orderStore(Request $request)
+    /** Rules shared by the new-order and transfer forms (mirrors the hints shown on the forms). */
+    private function sharedRules(): array
     {
-        $layer2 = $this->isLayer2Order($request);
+        $realms = VocusOptions::realms();
 
-        $validated = $request->validate([
-            'vocus_service_id'  => ['required', 'regex:' . self::SERVICE_ID_REGEX, 'unique:internet_services,vocus_service_id'],
-            'plan_id'           => 'required|string|min:2|max:30',
-            'scope'             => 'required|in:RESELLER-CONNECT,NETWORK-CONNECT',
-            'customer_name'     => 'required|string|min:1|max:40',
-            'phone'             => ['required', 'regex:/^\d{10}$/'],
-            'directory_id'      => 'required|string|max:30',
-            'location_reference'=> 'required|string|max:10',
-            'service_type'      => 'required|string|max:20',
-            'realm'             => 'nullable|string|max:61',
-            'service_level'     => ['nullable', Rule::in(self::SERVICE_LEVELS)],
-            'copper_pair_id'    => 'nullable|string|max:15',
-            'avc_id'            => ['nullable', 'string', 'max:30'],
-            'cvc_id'            => [Rule::requiredIf($layer2), 'nullable', 'string', 'max:30'],
-            'address_long'      => 'nullable|string|max:255',
-            'password'          => 'nullable|string|min:2|max:50',
-            'client_id'         => 'nullable|exists:clients,id',
-            'notes'             => 'nullable|string|max:500',
-        ], [
-            'cvc_id.required' => 'The CVC (AggCVC) ID is required for Layer 2 / Network-Connect (NCL2) services.',
-        ]);
+        return [
+            'vocus_plan_id'      => ['required', 'integer', Rule::exists('vocus_plans', 'id')->where('active', true)],
+            'scope'              => ['required', Rule::in(VocusOptions::enabledScopes())],
+            'customer_name'      => ['required', 'string', 'regex:' . VocusOptions::CONTACT_NAME_REGEX],
+            'phone'              => ['required', 'regex:/^\d{10}$/'],
+            'directory_id'       => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'location_reference' => ['required', 'regex:/^\d{4}$/'],
+            'service_type'       => ['required', 'string', 'regex:/^[A-Za-z0-9 \/+_-]{2,20}$/'],
+            // With no realm configured neither realm nor username can be sent.
+            'realm'              => $realms === [] ? ['prohibited'] : ['required', Rule::in($realms)],
+            'username'           => $realms === [] ? ['prohibited'] : ['nullable', 'regex:' . VocusOptions::USERNAME_REGEX],
+            'service_level'      => ['nullable', Rule::in(self::SERVICE_LEVELS)],
+            'address_long'       => 'nullable|string|max:255',
+            'client_id'          => 'nullable|exists:clients,id',
+            'notes'              => 'nullable|string|max:500',
+        ];
+    }
 
+    private const SHARED_MESSAGES = [
+        'vocus_plan_id.required'   => 'Choose a plan.',
+        'vocus_plan_id.exists'     => 'That plan is not available. Choose an active plan.',
+        'scope.in'                 => 'That service scope is not enabled in Settings.',
+        'customer_name.regex'      => 'Contact name must be a first and last name, 4 to 39 characters (letters, digits and spaces).',
+        'phone.regex'              => 'Contact phone must be 10 digits.',
+        'location_reference.regex' => 'The postcode (LocationReference) must be 4 digits. Use the address from the qualify step.',
+        'realm.required'           => 'Choose the NBN domain (realm).',
+        'realm.in'                 => 'That realm is not configured in Settings.',
+        'realm.prohibited'         => 'No PPPoE realm is configured in Settings.',
+        'username.prohibited'      => 'No PPPoE realm is configured in Settings.',
+        'username.regex'           => 'The username must be 4 to 22 characters: letters, digits or underscore (the realm is added for you).',
+        'password.regex'           => 'The password may only contain letters, digits, dash and dot (2 to 50 characters).',
+        'cvc_id.required'          => 'The CVC (AggCVC) ID is required for Layer 2 / Network-Connect (NCL2) transfers.',
+    ];
+
+    /** Resolve the chosen plan and make sure it is valid for the chosen scope. */
+    private function planFor(array $validated): VocusPlan
+    {
+        $plan = VocusPlan::active()->findOrFail((int) $validated['vocus_plan_id']);
+        if (! $plan->appliesToScope($validated['scope'])) {
+            throw ValidationException::withMessages(['vocus_plan_id' => 'That plan is not available for the ' . $validated['scope'] . ' scope.']);
+        }
+
+        return $plan;
+    }
+
+    /** Parameters common to NEW and TRANSFER (Examples 4.1.4 / 4.2.4). Password is added by the caller. */
+    private function baseParams(array $validated, string $serviceId): array
+    {
         $params = [
-            'ServiceID'         => $validated['vocus_service_id'],
+            'ServiceID'         => $serviceId,
             'CustomerName'      => $validated['customer_name'],
             'Phone'             => $validated['phone'],
             'DirectoryID'       => $validated['directory_id'],
@@ -418,13 +472,35 @@ class InternetController extends Controller
             'ServiceLevel'      => $validated['service_level'] ?? 'STANDARD',
         ];
 
-        foreach (['realm' => 'Realm', 'copper_pair_id' => 'CopperPairID', 'avc_id' => 'AVCID', 'cvc_id' => 'CVCID', 'password' => 'Password'] as $field => $param) {
+        if (! empty($validated['realm'])) {
+            $params['Realm'] = $validated['realm'];
+            if ($username = VocusOptions::composeUsername($validated['username'] ?? null, $validated['realm'])) {
+                $params['Username'] = $username;
+            }
+        }
+
+        return $params;
+    }
+
+    public function orderStore(Request $request)
+    {
+        $validated = $request->validate($this->sharedRules() + [
+            'copper_pair_id' => 'nullable|string|max:15',
+            'password'       => ['nullable', 'regex:' . VocusOptions::PASSWORD_REGEX],
+        ], self::SHARED_MESSAGES);
+
+        $plan      = $this->planFor($validated);
+        $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
+
+        $params = $this->baseParams($validated, $serviceId);
+        foreach (['copper_pair_id' => 'CopperPairID', 'password' => 'Password'] as $field => $param) {
             if (! empty($validated[$field])) {
                 $params[$param] = $validated[$field];
             }
         }
 
-        return $this->placeOrder($validated, $params, 'NEW', 'internet.order', 'internet-order', 'Order');
+        // AVC / CVC are not part of a NEW order (Examples 4.1.4).
+        return $this->placeOrder($request, $validated, $plan, $serviceId, $params, 'NEW', 'internet.order', 'internet-order', 'Order');
     }
 
     /**
@@ -432,17 +508,24 @@ class InternetController extends Controller
      * order at Vocus with no local trace), place the order, then record the
      * transaction. If Vocus rejects the order the record is removed again.
      * The record stays INACTIVE with transaction state QUEUED until polled.
+     * The plan id and the cost / sell price are snapshotted on the record.
      */
-    private function placeOrder(array $validated, array $params, string $orderType, string $auditAction, string $auditFunction, string $label)
+    private function placeOrder(Request $request, array $validated, VocusPlan $plan, string $serviceId, array $params, string $orderType, string $auditAction, string $auditFunction, string $label)
     {
+        // Never flash the PPPoE password back into the session.
+        $input = $request->except(['password', '_token']);
+
         if ($problem = VocusWsmClient::configurationProblem()) {
-            return back()->withInput()->with('error', $problem);
+            return back()->withInput($input)->with('error', $problem);
         }
 
         $service = InternetService::create([
-            'vocus_service_id'   => $validated['vocus_service_id'],
+            'vocus_service_id'   => $serviceId,
             'client_id'          => $validated['client_id'] ?? null,
-            'plan_id'            => $validated['plan_id'],
+            'plan_id'            => $plan->plan_id,
+            'vocus_plan_id'      => $plan->id,
+            'cost_price'         => $plan->cost_price,
+            'sell_price'         => $plan->sell_price,
             'service_scope'      => $validated['scope'],
             'service_status'     => 'INACTIVE',
             'service_type'       => $validated['service_type'],
@@ -452,6 +535,7 @@ class InternetController extends Controller
             'directory_id'       => $validated['directory_id'],
             'location_reference' => $validated['location_reference'],
             'realm'              => $validated['realm'] ?? null,
+            'username'           => $params['Username'] ?? null,
             'service_level'      => $validated['service_level'] ?? 'STANDARD',
             'copper_pair_id'     => $validated['copper_pair_id'] ?? null,
             'avc_id'             => $validated['avc_id'] ?? null,
@@ -461,12 +545,12 @@ class InternetController extends Controller
         ]);
 
         try {
-            $response = app(VocusWsmClient::class)->orderService($validated['plan_id'], $validated['scope'], $params);
+            $response = app(VocusWsmClient::class)->orderService($plan->plan_id, $validated['scope'], $params);
         } catch (\Throwable $e) {
             $service->delete(); // nothing was ordered
-            Log::warning('Vocus order rejected', ['service_id' => $validated['vocus_service_id'], 'order_type' => $orderType, 'message' => $e->getMessage()]);
+            Log::warning('Vocus order rejected', ['service_id' => $serviceId, 'order_type' => $orderType, 'message' => $e->getMessage()]);
 
-            return back()->withInput()->with('error', "{$label} failed: " . $this->friendlyError($e, 'Vocus could not be reached.'));
+            return back()->withInput($input)->with('error', "{$label} failed: " . $this->friendlyError($e, 'Vocus could not be reached.'));
         }
 
         try {
@@ -476,17 +560,20 @@ class InternetController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('Vocus order placed but the transaction id could not be saved', [
-                'service_id' => $validated['vocus_service_id'], 'transaction_id' => $response['transaction_id'],
+                'service_id' => $serviceId, 'transaction_id' => $response['transaction_id'],
             ]);
         }
 
-        AuditLogger::logSystem($auditAction, "NBN service {$label} submitted: {$validated['vocus_service_id']}.", [
+        AuditLogger::logSystem($auditAction, "NBN service {$label} submitted: {$serviceId}.", [
             'service'  => 'vocus',
             'function' => $auditFunction,
-        ], ['new_values' => ['vocus_service_id' => $validated['vocus_service_id'], 'order_type' => $orderType, 'transaction_id' => $response['transaction_id']]]);
+        ], ['new_values' => [
+            'vocus_service_id' => $serviceId, 'order_type' => $orderType, 'transaction_id' => $response['transaction_id'],
+            'plan_id' => $plan->plan_id, 'cost_price' => (string) $plan->cost_price, 'sell_price' => (string) $plan->sell_price,
+        ]]);
 
         return redirect()->route('admin.services.internet.show', $service)
-            ->with('status', "{$label} submitted. Transaction ID: {$response['transaction_id']}. Status will update as Vocus processes it.");
+            ->with('status', "{$label} submitted. Service ID {$serviceId}, transaction ID {$response['transaction_id']}. Status will update as Vocus processes it.");
     }
 
     // -------------------------------------------------------------------------
@@ -495,7 +582,10 @@ class InternetController extends Controller
 
     public function transfer(Request $request)
     {
-        return view('admin.services.internet.transfer', $this->orderFormData($request));
+        return view('admin.services.internet.transfer', $this->orderFormData($request) + [
+            'avc_id' => (string) $request->get('avc_id', ''),
+            'cvc_id' => (string) $request->get('cvc_id', ''),
+        ]);
     }
 
     /**
@@ -507,51 +597,31 @@ class InternetController extends Controller
      */
     public function transferStore(Request $request)
     {
-        $layer2 = $this->isLayer2Order($request);
+        $layer2 = $this->isLayer2Order($request, VocusPlan::find((int) $request->input('vocus_plan_id')));
 
-        $validated = $request->validate([
-            'vocus_service_id'  => ['required', 'regex:' . self::SERVICE_ID_REGEX, 'unique:internet_services,vocus_service_id'],
-            'plan_id'           => 'required|string|min:2|max:30',
-            'scope'             => 'required|in:RESELLER-CONNECT,NETWORK-CONNECT',
-            'customer_name'     => 'required|string|min:1|max:40',
-            'phone'             => ['required', 'regex:/^\d{10}$/'],
-            'directory_id'      => 'required|string|max:30',
-            'location_reference'=> 'required|string|max:10',
-            'service_type'      => 'required|string|max:20',
-            'copper_pair_id'    => 'required|string|max:15',
-            'ca_date'           => 'required|date_format:Y-m-d',
-            'realm'             => 'nullable|string|max:61',
-            'service_level'     => ['nullable', Rule::in(self::SERVICE_LEVELS)],
-            'avc_id'            => ['nullable', 'string', 'max:30'],
-            'cvc_id'            => [Rule::requiredIf($layer2), 'nullable', 'string', 'max:30'],
-            'address_long'      => 'nullable|string|max:255',
-            'client_id'         => 'nullable|exists:clients,id',
-            'notes'             => 'nullable|string|max:500',
-        ], [
-            'cvc_id.required' => 'The CVC (AggCVC) ID is required for Layer 2 / Network-Connect (NCL2) transfers.',
-        ]);
+        $validated = $request->validate($this->sharedRules() + [
+            'copper_pair_id' => 'required|string|max:15',
+            'ca_date'        => 'required|date_format:Y-m-d',
+            'avc_id'         => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'cvc_id'         => [Rule::requiredIf($layer2), 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+        ], self::SHARED_MESSAGES);
 
-        $params = [
-            'ServiceID'         => $validated['vocus_service_id'],
-            'OrderType'         => 'TRANSFER',
-            'CustomerName'      => $validated['customer_name'],
-            'Phone'             => $validated['phone'],
-            'DirectoryID'       => $validated['directory_id'],
-            'LocationReference' => $validated['location_reference'],
-            'ServiceType'       => $validated['service_type'],
-            'ServiceLevel'      => $validated['service_level'] ?? 'STANDARD',
-            'CopperPairID'      => $validated['copper_pair_id'],
+        $plan      = $this->planFor($validated);
+        $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
+
+        $params = ['OrderType' => 'TRANSFER'] + $this->baseParams($validated, $serviceId) + [
+            'CopperPairID' => $validated['copper_pair_id'],
             // CADate must be YYYYMMDD format for Vocus
-            'CADate'            => str_replace('-', '', $validated['ca_date']),
+            'CADate'       => str_replace('-', '', $validated['ca_date']),
         ];
 
-        foreach (['realm' => 'Realm', 'avc_id' => 'AVCID', 'cvc_id' => 'CVCID'] as $field => $param) {
+        foreach (['avc_id' => 'AVCID', 'cvc_id' => 'CVCID'] as $field => $param) {
             if (! empty($validated[$field])) {
                 $params[$param] = $validated[$field];
             }
         }
 
-        return $this->placeOrder($validated, $params, 'TRANSFER', 'internet.transfer', 'internet-transfer', 'Transfer');
+        return $this->placeOrder($request, $validated, $plan, $serviceId, $params, 'TRANSFER', 'internet.transfer', 'internet-transfer', 'Transfer');
     }
 
     // -------------------------------------------------------------------------

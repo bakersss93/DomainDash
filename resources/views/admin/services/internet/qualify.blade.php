@@ -120,21 +120,20 @@
         </div>
     </div>
 
-    {{-- Layer 2 (Network-Connect / NCL2): AVC and AggCVC IDs are sent with the qualification (Examples 4.2.2) --}}
-    <details style="margin-bottom:20px;">
-        <summary style="cursor:pointer;font-size:13px;color:var(--dd-text-soft);">Layer 2 / Network-Connect (NCL2): AVC and CVC IDs</summary>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-            <div>
-                <label for="q-avc" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">AVC ID</label>
-                <input id="q-avc" type="text" maxlength="30" placeholder="e.g. AVC000340636851" style="width:100%;font-family:monospace;">
+    {{-- Alternative: qualify straight from an NBN LOC ID (the DirectoryID for NBN products); skips the address search --}}
+    <div style="background:var(--dd-surface-soft);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 6px;">Or search by NBN LOC ID</h3>
+        <p style="font-size:12px;color:var(--dd-text-soft);margin:0 0 10px;">If you already know the location ID (LOC followed by 12 digits), qualify it directly without an address search.</p>
+        <form id="loc-form" style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;" novalidate>
+            <div style="flex:1;min-width:14rem;">
+                <label for="loc-id" class="sr-only">NBN LOC ID</label>
+                <input id="loc-id" type="text" maxlength="15" placeholder="e.g. LOC001122334455" autocomplete="off" spellcheck="false"
+                       style="width:100%;font-family:monospace;text-transform:uppercase;" aria-describedby="loc-error">
+                <p id="loc-error" role="alert" style="display:none;font-size:12px;color:var(--dd-danger-text);margin:4px 0 0;"></p>
             </div>
-            <div>
-                <label for="q-cvc" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC (AggCVC) ID</label>
-                <input id="q-cvc" type="text" maxlength="30" placeholder="e.g. AggCVC000000999" style="width:100%;font-family:monospace;">
-            </div>
-        </div>
-        <p style="font-size:12px;color:var(--dd-text-soft);margin:6px 0 0;">Leave blank for Layer 3 / Reseller-Connect. Enter these before selecting an address; they are passed on to the order and transfer forms.</p>
-    </details>
+            <button type="submit" class="btn-accent" style="padding:9px 18px;white-space:nowrap;">Qualify LOC ID</button>
+        </form>
+    </div>
 
     {{-- Step 2: Qualification result --}}
     <div id="qualify-section" style="display:none;background:var(--dd-surface-soft);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;">
@@ -148,6 +147,7 @@
 
 <script>
 let selectedAddress = null;
+let lookupMeta = { postcode: '', suburb: '', state: '' };
 
 function clearResults() {
     document.getElementById('address-results').style.display = 'none';
@@ -205,6 +205,7 @@ function doLookup(params) {
     .then(r => r.json().catch(() => ({ error: 'Unexpected response from the server (HTTP ' + r.status + ').' })))
     .then(data => {
         document.getElementById('address-loading').style.display = 'none';
+        lookupMeta = { postcode: data.postcode || '', suburb: data.suburb || '', state: data.state || '' };
 
         if (data.error || data.errors || (data.message && !data.addresses)) {
             const el = document.getElementById('address-error');
@@ -259,23 +260,18 @@ function selectAddress(addr) {
     event.currentTarget.style.background = 'var(--dd-accent-soft)';
     event.currentTarget.style.borderColor = 'var(--accent)';
 
-    runQualify(addr.directory_id, addr.address_long);
+    runQualify({ directory_id: addr.directory_id, address_long: addr.address_long });
 }
 
-function runQualify(directoryId, addressLong) {
+function runQualify(target) {
     const section = document.getElementById('qualify-section');
     section.style.display = 'block';
     document.getElementById('qualify-loading').style.display = 'block';
     document.getElementById('qualify-error').style.display = 'none';
     document.getElementById('qualify-result').style.display = 'none';
 
-    const body = new URLSearchParams({
-        _token: '{{ csrf_token() }}',
-        directory_id: directoryId,
-        address_long: addressLong,
-        avc_id: document.getElementById('q-avc').value.trim(),
-        cvc_id: document.getElementById('q-cvc').value.trim(),
-    });
+    const body = new URLSearchParams({ _token: '{{ csrf_token() }}' });
+    Object.keys(target).forEach(k => body.set(k, target[k] || ''));
 
     fetch('{{ route('admin.services.internet.qualify.check') }}', {
         method: 'POST',
@@ -293,7 +289,7 @@ function runQualify(directoryId, addressLong) {
             return;
         }
 
-        renderQualifyResult(data, directoryId, addressLong);
+        renderQualifyResult(data, data.directory_id || target.directory_id || target.loc_id, data.address_long || target.address_long || '', !!target.loc_id);
     })
     .catch(() => {
         document.getElementById('qualify-loading').style.display = 'none';
@@ -303,11 +299,29 @@ function runQualify(directoryId, addressLong) {
     });
 }
 
+// Qualify straight from an NBN LOC ID (LOC + 12 digits, case-insensitive). The server validates the same pattern.
+document.getElementById('loc-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const input = document.getElementById('loc-id');
+    const err = document.getElementById('loc-error');
+    const loc = input.value.trim().toUpperCase();
+    input.value = loc;
+    if (!/^LOC\d{12}$/.test(loc)) {
+        err.textContent = 'An NBN LOC ID is "LOC" followed by 12 digits, for example LOC001122334455.';
+        err.style.display = 'block';
+        return;
+    }
+    err.style.display = 'none';
+    clearResults();
+    lookupMeta = { postcode: '', suburb: '', state: '' };
+    runQualify({ loc_id: loc });
+});
+
 function qEsc(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function renderQualifyResult(data, directoryId, addressLong) {
+function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
     const el = document.getElementById('qualify-result');
     const passed = data.result === 'PASS';
 
@@ -331,8 +345,9 @@ function renderQualifyResult(data, directoryId, addressLong) {
             address_long: addressLong,
             service_type: data.service_type || '',
             copper_pair_id: (data.copper_pairs && data.copper_pairs[0]) ? (data.copper_pairs[0].CopperPairID || data.copper_pairs[0].copperPairId || '') : '',
-            avc_id: document.getElementById('q-avc').value.trim(),
-            cvc_id: document.getElementById('q-cvc').value.trim(),
+            location_reference: fromLoc ? '' : lookupMeta.postcode,
+            suburb: fromLoc ? '' : lookupMeta.suburb,
+            state: fromLoc ? '' : lookupMeta.state,
         });
         orderButtons = `<div style="display:flex;gap:8px;margin-top:16px;">
             <a href="{{ route('admin.services.internet.order') }}?${params.toString()}"
@@ -355,6 +370,7 @@ function renderQualifyResult(data, directoryId, addressLong) {
             ${data.zone ? `<span style="font-size:13px;color:var(--dd-text-soft);">Zone: ${qEsc(data.zone)}</span>` : ''}
             ${data.service_class ? `<span style="font-size:13px;color:var(--dd-text-soft);">Class ${qEsc(data.service_class)}</span>` : ''}
         </div>
+        <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 6px;">${qEsc(directoryId)}${addressLong ? ' · ' + qEsc(addressLong) : ''}</p>
         ${copperPairs}
         ${orderButtons}
     `;
