@@ -34,7 +34,7 @@ export default {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
-                // Re-skin legacy Jetstream utility colours onto the brand: indigo -> Jargon green,
+                // Re-skin legacy Jetstream utility colours onto the brand: indigo -> brand green,
                 // gray -> the charcoal-tinted neutral scale (matches --dd-* neutrals).
                 indigo: {
                     50: '#f0f7f2', 100: '#dcede2', 200: '#bbdac6', 300: '#8fc2a3', 400: '#5ea67c',

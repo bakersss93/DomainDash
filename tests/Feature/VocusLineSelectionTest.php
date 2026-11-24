@@ -34,7 +34,7 @@ class VocusLineSelectionTest extends TestCase
 
         $this->withoutVite();
         Cache::flush();
-        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['jargonconnect.com.au']]);
+        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['wba.example.com.au']]);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -131,7 +131,7 @@ class VocusLineSelectionTest extends TestCase
     {
         return array_merge([
             'vocus_plan_id' => $this->plan()->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
-            'directory_id' => 'LOC001122334455', 'location_reference' => '3000', 'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x',
+            'directory_id' => 'LOC001122334455', 'location_reference' => '3000', 'realm' => 'wba.example.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x',
             'service_level' => 'STANDARD',
         ], $o);
     }

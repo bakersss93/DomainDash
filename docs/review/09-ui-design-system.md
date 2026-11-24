@@ -17,7 +17,7 @@ Method: read `tailwind.config.js`, `resources/css/app.css`, `resources/js/app.js
 | 3 | **Pages redefined the design tokens locally.** `clients/index`, `services/show`, `dns/index` each re-declared `--dd-card-bg`, `--dd-card-border`, `--dd-pill-*` with hard-coded hex for light and dark. `services/show` even overrode the global `--dd-accent` with `#4ade80` (bright green vs the cyan used elsewhere). | style blocks of those pages |
 | 4 | **Hard-coded dark theme.** `dd-account-*` (users create/edit, 320 lines duplicated in two files), the clients search input and the domains/purchase inputs used fixed dark hex (`#0f172a`, `#1e293b`, `#f8fafc`...) with `!important`, so they looked wrong in light mode; others had `html.dark { ... }` re-declarations. | 12+15+4+... `html.dark` rules |
 | 5 | **No responsive shell.** Fixed 260px sidebar, no off-canvas behaviour: at 390px the content column was about 130px wide (see `dashboard-light-390`). | before screenshots |
-| 6 | **Logo broken.** `Storage::url('')` rendered a broken image when no logo was uploaded; the Jargon logo only existed at the repo root. | sidebar "Logo" alt text |
+| 6 | **Logo broken.** `Storage::url('')` rendered a broken image when no logo was uploaded; the original logo only existed at the repo root. | sidebar "Logo" alt text |
 | 7 | **Flash messages.** `session('status')` was always rendered green (even for errors such as "Unable to refresh DNS ..."). `session('success')` / `session('error')` (set by `ClientsController`, `ServicesController`) were never displayed anywhere. Eight pages re-rendered `status` a second time on top of the layout banner. | `DnsController:59`, `ClientsController:104,160` |
 | 8 | **Accessibility gaps.** No global focus style (several inputs set `outline:none` with no replacement); sidebar toggles were `<div onclick>` (not focusable); form labels without `for` (audit filters, tickets); icon-only controls were emoji with only `title`; placeholder/muted greys `#9ca3af` on white (2.5:1). Input borders about 1.5:1. | audit |
 
@@ -37,7 +37,7 @@ Method: read `tailwind.config.js`, `resources/css/app.css`, `resources/js/app.js
 
 ### 1.3 Brand
 
-`Jargon-Charcoal-v2-rectangle.png` (962 x 381): charcoal `#2b2b30`-ish background, brand green `#86b57a`, white wordmark. The previous UI used cyan (`#06b6d4`) as the accent, unrelated to the brand. The redesign takes **charcoal for the shell and green for the primary action colour**, and copies the logo to `public/images/jargon-logo.png` (the default when no logo is uploaded in Settings).
+The default palette uses a charcoal shell (`#2b2b30`-ish) with a green primary action colour (`#86b57a` family). The previous UI used cyan (`#06b6d4`) as the accent. Businesses override colours and upload their own logo in Settings → Branding; when no logo is uploaded a neutral DomainDash mark (`public/images/domaindash-mark.svg`) is shown.
 
 ## 2. The design system
 

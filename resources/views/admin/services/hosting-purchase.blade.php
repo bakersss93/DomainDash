@@ -84,7 +84,7 @@
 
         <div class="dd-alert-box dd-alert-box--info">
             <p style="margin: 0; font-size: 14px;">
-                <strong>Note:</strong> The service email will be set to support@jargonconsulting.com.au
+                <strong>Note:</strong> The service email will be set to the client's email address on file.
             </p>
         </div>
 

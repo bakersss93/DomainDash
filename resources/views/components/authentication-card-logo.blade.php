@@ -1,7 +1,7 @@
 @php
     $branding = \App\Models\Setting::get('branding', []);
     $logoPath = $branding['logo'] ?? null;
-    $logoUrl = $logoPath ? \Illuminate\Support\Facades\Storage::url($logoPath) : asset('images/jargon-logo.png');
+    $logoUrl = $logoPath ? \Illuminate\Support\Facades\Storage::url($logoPath) : asset('images/domaindash-mark.svg');
 @endphp
 
 <div class="flex flex-col items-center mb-2">

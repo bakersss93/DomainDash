@@ -115,7 +115,7 @@ class UiComponentsTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertOk();
-        $response->assertSee('images/jargon-logo.png', false);
+        $response->assertSee('images/domaindash-mark.svg', false);
         $response->assertSee('prefers-color-scheme', false);
     }
 }

@@ -42,7 +42,7 @@ class VocusPlanSheetTest extends TestCase
 
         $this->withoutVite();
         Cache::flush();
-        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['jargonconnect.com.au']]);
+        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['wba.example.com.au']]);
     }
 
     protected function tearDown(): void
@@ -111,7 +111,7 @@ class VocusPlanSheetTest extends TestCase
         return array_merge([
             'vocus_plan_id' => $plan->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
             'directory_id' => self::LOC, 'location_reference' => '3000', 'service_type' => 'FTTP', 'qualification_token' => $token,
-            'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
+            'realm' => 'wba.example.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
             'line_choice' => 'new',
         ], array_filter($o, fn ($v) => $v !== null), $token === null ? ['qualification_token' => null] : []);
     }

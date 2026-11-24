@@ -36,7 +36,7 @@ class VocusOrderingUxTest extends TestCase
 
         $this->withoutVite();
         Cache::flush();
-        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['jargonconnect.com.au', 'wba.samplewsm.com.au']]);
+        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['wba.example.com.au', 'wba.samplewsm.com.au']]);
     }
 
     private function admin(): User
@@ -77,7 +77,7 @@ class VocusOrderingUxTest extends TestCase
         return array_merge([
             'vocus_plan_id' => $this->plan()->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
             'directory_id' => 'LOC001122334455', 'location_reference' => '3000', 'service_type' => 'FTTC', 'copper_pair_id' => 'CPI300010022999',
-            'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
+            'realm' => 'wba.example.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
         ], $o);
     }
 
@@ -92,16 +92,16 @@ class VocusOrderingUxTest extends TestCase
     {
         $admin = $this->admin();
 
-        $this->actingAs($admin)->putJson(route('admin.settings.vocus.realms'), ['realms' => ['Jargonconnect.com.au', 'second.example.net']])
-            ->assertOk()->assertJsonPath('realms', ['jargonconnect.com.au', 'second.example.net']);
-        $this->assertSame(['jargonconnect.com.au', 'second.example.net'], Setting::get('vocus')['realms']);
+        $this->actingAs($admin)->putJson(route('admin.settings.vocus.realms'), ['realms' => ['Wba.example.com.au', 'second.example.net']])
+            ->assertOk()->assertJsonPath('realms', ['wba.example.com.au', 'second.example.net']);
+        $this->assertSame(['wba.example.com.au', 'second.example.net'], Setting::get('vocus')['realms']);
         $this->assertSame('AK-SECRET-1', Setting::get('vocus')['access_key'], 'other Vocus settings are preserved');
         $this->assertTrue(AuditLog::where('action', 'vocus.realms.update')->exists());
 
         foreach ([['not a host'], ['localhost'], ['10.0.0.1'], ['a.com', 'A.com'], [str_repeat('a', 60) . '.com.au'], ['bad_underscore.com']] as $bad) {
             $this->actingAs($admin)->putJson(route('admin.settings.vocus.realms'), ['realms' => $bad])->assertStatus(422);
         }
-        $this->assertSame(['jargonconnect.com.au', 'second.example.net'], Setting::get('vocus')['realms']);
+        $this->assertSame(['wba.example.com.au', 'second.example.net'], Setting::get('vocus')['realms']);
     }
 
     public function test_settings_endpoints_are_administrator_only(): void
@@ -111,29 +111,29 @@ class VocusOrderingUxTest extends TestCase
         $this->actingAs($user)->putJson(route('admin.settings.vocus.realms'), ['realms' => ['a.example.com']])->assertForbidden();
         $this->actingAs($user)->putJson(route('admin.settings.vocus.scopes'), ['scopes' => ['RESELLER-CONNECT']])->assertForbidden();
         $this->actingAs($user)->postJson(route('admin.settings.vocus.plans.store'), [])->assertForbidden();
-        $this->assertSame(['jargonconnect.com.au', 'wba.samplewsm.com.au'], Setting::get('vocus')['realms']);
+        $this->assertSame(['wba.example.com.au', 'wba.samplewsm.com.au'], Setting::get('vocus')['realms']);
     }
 
     // ------------------------------------------------------------ username / password
 
     public function test_username_is_composed_as_username_at_realm_and_blank_username_is_omitted(): void
     {
-        $this->assertSame('yshinde@jargonconnect.com.au', VocusOptions::composeUsername('yshinde', 'JargonConnect.com.au'));
-        $this->assertNull(VocusOptions::composeUsername('  ', 'jargonconnect.com.au'));
+        $this->assertSame('yshinde@wba.example.com.au', VocusOptions::composeUsername('yshinde', 'WBA.Example.com.au'));
+        $this->assertNull(VocusOptions::composeUsername('  ', 'wba.example.com.au'));
 
         $soap = $this->fakeClient([$this->ok(), $this->ok()]);
         $admin = $this->admin();
 
         $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData())->assertSessionHasNoErrors();
         $xml = $this->xmlOf($soap, 0);
-        $this->assertStringContainsString('<std:Param id="Username">yshinde@jargonconnect.com.au</std:Param>', $xml);
-        $this->assertStringContainsString('<std:Param id="Realm">jargonconnect.com.au</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="Username">yshinde@wba.example.com.au</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="Realm">wba.example.com.au</std:Param>', $xml);
         $this->assertStringContainsString('<std:Param id="Password">Abc-123.x</std:Param>', $xml);
 
         $this->actingAs($admin)->post(route('admin.services.internet.order.store'), $this->orderData(['username' => '']))->assertSessionHasNoErrors();
         $xml = $this->xmlOf($soap, 1);
         $this->assertStringNotContainsString('id="Username"', $xml);
-        $this->assertStringContainsString('<std:Param id="Realm">jargonconnect.com.au</std:Param>', $xml);
+        $this->assertStringContainsString('<std:Param id="Realm">wba.example.com.au</std:Param>', $xml);
     }
 
     public function test_username_password_and_realm_rules(): void

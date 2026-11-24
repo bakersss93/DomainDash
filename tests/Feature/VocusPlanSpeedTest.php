@@ -37,7 +37,7 @@ class VocusPlanSpeedTest extends TestCase
 
         $this->withoutVite();
         Cache::flush();
-        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['jargonconnect.com.au']]);
+        Setting::put('vocus', ['access_key' => 'AK-SECRET-1', 'cert_path' => 'vocus/client.p12', 'environment' => 'sandbox', 'realms' => ['wba.example.com.au']]);
     }
 
     // ---------------------------------------------------------------- helpers
@@ -115,7 +115,7 @@ class VocusPlanSpeedTest extends TestCase
         return array_merge([
             'vocus_plan_id' => $plan->id, 'scope' => 'RESELLER-CONNECT', 'customer_name' => 'Yogesh Shinde', 'phone' => '0433111222',
             'directory_id' => self::LOC, 'location_reference' => '3000', 'service_type' => 'FTTN', 'qualification_token' => $token,
-            'realm' => 'jargonconnect.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
+            'realm' => 'wba.example.com.au', 'username' => 'yshinde', 'password' => 'Abc-123.x', 'service_level' => 'STANDARD',
             // FTTN NEW orders: VoicebandContinuity and CentralSplitter are compulsory (FIBRE 4.1.1.2).
             'voiceband_continuity' => 'FALSE', 'central_splitter' => 'FALSE',
         ], $o);
