@@ -82,11 +82,16 @@
             <select id="f-plan" name="vocus_plan_id" class="dd-input" style="width:100%;" required @disabled($plans->isEmpty())>
                 <option value="">Select a plan</option>
                 @foreach($plans as $plan)
-                    <option value="{{ $plan->id }}" data-scopes="{{ implode(',', (array) $plan->scopes) }}" @selected((string) old('vocus_plan_id') === (string) $plan->id)>
-                        {{ $plan->name }}@if($plan->speed_tier) · {{ $plan->speed_tier }}@endif · ${{ number_format((float) $plan->sell_price, 2) }}/mo
+                    <option value="{{ $plan->id }}" data-scopes="{{ implode(',', (array) $plan->scopes) }}" data-download="{{ $plan->download_mbps }}" data-upload="{{ $plan->upload_mbps }}" @selected((string) old('vocus_plan_id') === (string) $plan->id)>
+                        {{ $plan->name }}@if($plan->speed_tier) · {{ $plan->speed_tier }}@endif @if($plan->speedUnknown()) · speed not set @endif · ${{ number_format((float) $plan->sell_price, 2) }}/mo
                     </option>
                 @endforeach
             </select>
+            <p id="f-plan-cap-note" style="{{ $note }}" aria-live="polite" hidden></p>
+            <p id="f-plan-hidden-note" style="{{ $note }}" aria-live="polite" hidden></p>
+            @if($plans->contains(fn ($p) => $p->speedUnknown()))
+                <p style="{{ $note }}">Plans tagged "speed not set" are never hidden by line capability. Set their download and upload speeds in Settings, Vocus, Plans.</p>
+            @endif
             @if($plans->isEmpty())
                 <p style="font-size:12px;color:var(--dd-danger-text);margin:3px 0 0;">No active plans. Add plans in Settings, Vocus, Plans.</p>
             @endif
@@ -200,19 +205,41 @@
     var scope = document.getElementById('f-scope');
     var hiddenScope = document.getElementById('f-scope-hidden');
     var plan = document.getElementById('f-plan');
+    var capNote = document.getElementById('f-plan-cap-note');
+    var hiddenNote = document.getElementById('f-plan-hidden-note');
+    function num(v) { var n = parseInt(v, 10); return isNaN(n) ? null : n; }
     function currentScope() { return hiddenScope ? hiddenScope.value : (scope ? scope.value : ''); }
+    // Hides plans outside the chosen scope or faster than the line can carry (each direction checked only when both
+    // the plan speed and the line maximum are known); clears the selection if it was hidden.
     function filterPlans() {
         var s = currentScope();
+        var cap = window.ddLineCap || { down: null, up: null };
+        var hidden = 0, cleared = false;
         Array.prototype.forEach.call(plan.options, function (opt) {
             if (!opt.value) { return; }
             var allowed = (opt.getAttribute('data-scopes') || '').split(',').filter(Boolean);
-            var ok = allowed.length === 0 || allowed.indexOf(s) !== -1;
+            var inScope = allowed.length === 0 || allowed.indexOf(s) !== -1;
+            var pd = num(opt.getAttribute('data-download')), pu = num(opt.getAttribute('data-upload'));
+            var capable = !((pd !== null && cap.down !== null && pd > cap.down) || (pu !== null && cap.up !== null && pu > cap.up));
+            if (inScope && !capable) { hidden++; }
+            var ok = inScope && capable;
             opt.hidden = !ok;
             opt.disabled = !ok;
-            if (!ok && opt.selected) { plan.value = ''; }
+            if (!ok && opt.selected) { plan.value = ''; if (inScope) { cleared = true; } }
         });
+        if (capNote && hiddenNote) {
+            var known = cap.down !== null || cap.up !== null;
+            capNote.hidden = !known;
+            capNote.textContent = known ? 'Showing plans this line supports (up to ' + (cap.down === null ? '?' : cap.down) + '/' + (cap.up === null ? '?' : cap.up) + ' Mbps).' : '';
+            hiddenNote.hidden = hidden === 0;
+            hiddenNote.textContent = hidden === 0 ? '' : hidden + (hidden === 1 ? ' plan' : ' plans') + ' hidden \u2014 line not capable.' + (cleared ? ' Your previous plan choice was cleared.' : '');
+        }
     }
-    if (plan) { filterPlans(); if (scope) { scope.addEventListener('change', filterPlans); } }
+    if (plan) {
+        filterPlans();
+        if (scope) { scope.addEventListener('change', filterPlans); }
+        document.addEventListener('dd:line-capability', filterPlans);
+    }
 
     var user = document.getElementById('f-username');
     var realm = document.getElementById('f-realm');

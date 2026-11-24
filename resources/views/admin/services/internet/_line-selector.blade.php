@@ -50,6 +50,7 @@
             }
         }
     }
+    $bestCap     = \App\Services\Vocus\VocusQualification::lineCapability($q, false);
     $needsChoice = $options !== [];
     $allowNew    = ! $transfer;
     $badge       = 'display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;';
@@ -109,6 +110,14 @@
         var $ = function (id) { return document.getElementById(id); };
         var sendPort = @json($sendPort), portParam = @json($portParm), group = @json($group), required = @json($needsChoice || $transfer);
         var modal = $('line-modal');
+        // Max Mbps of the chosen line (null = unknown). Nothing chosen: the best line returned (copper) or unknown (NTD).
+        var best = @json(['down' => $bestCap['download'], 'up' => $bestCap['upload']]);
+        function num(v) { var n = parseInt(v, 10); return isNaN(n) ? null : n; }
+        function publishCap(r) {
+            var cap = r ? { down: num(r.getAttribute('data-max-down')), up: num(r.getAttribute('data-max-up')) } : { down: best.down, up: best.up };
+            window.ddLineCap = cap;
+            document.dispatchEvent(new CustomEvent('dd:line-capability', { detail: cap }));
+        }
         function picked() { return modal.querySelector('input[name="line_pick"]:checked'); }
         function render() {
             var c = $('lc-choice').value, sum = $('lc-summary'), wire = $('lc-wire'), open = $('lc-open');
@@ -132,14 +141,16 @@
             }
             $('lc-appt').hidden = !(c === 'new' || @json($q['needs_ntd_install'] ?? false));
         }
+        var initial = null;
         // Preselect the radio that matches the current hidden values.
         var c0 = $('lc-choice').value;
         Array.prototype.forEach.call(modal.querySelectorAll('input[name="line_pick"]'), function (r) {
             var m = (c0 === 'new' && r.getAttribute('data-choice') === 'new') ||
                 (c0 === 'existing' && group === 'COPPER' && r.getAttribute('data-copper') === $('lc-copper').value && r.getAttribute('data-copper') !== '') ||
                 (c0 === 'existing' && group === 'NTD' && r.getAttribute('data-port') === $('lc-port').value && r.getAttribute('data-ntd') === $('lc-ntd').value && r.getAttribute('data-port') !== '');
-            if (m) { r.checked = true; }
+            if (m) { r.checked = true; initial = r; }
         });
+        publishCap(initial);
         $('lc-apply').addEventListener('click', function () {
             var p = picked();
             if (!p) { return; }
@@ -151,6 +162,7 @@
             $('lc-port').value = isNew ? '' : (p.getAttribute('data-port') || '');
             $('lc-pname').value = isNew ? '' : (p.getAttribute('data-pname') || '');
             render();
+            publishCap(p);
             modal.querySelector('[data-modal-close]').click();
         });
         var form = $('lc-open').closest('form');

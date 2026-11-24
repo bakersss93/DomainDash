@@ -355,6 +355,7 @@ function renderCopper(pairs) {
         if (p.upload_speed) bits.push('Upload ' + p.upload_speed + ' Mbps');
         if (p.pots_interconnect && p.pots_interconnect !== 'N/A') bits.push('POTS ' + p.pots_interconnect);
         if (bits.length) c.appendChild(h('div', 'font-size:12px;color:var(--dd-text-soft);margin-top:3px;', bits.join(' · ')));
+        if (p.max_download_mbps || p.max_upload_mbps) c.appendChild(h('div', 'font-size:12px;font-weight:600;margin-top:3px;', 'Max line speed: Download ' + (p.max_download_mbps || '?') + ' / Upload ' + (p.max_upload_mbps || '?') + ' Mbps (plans faster than this cannot be ordered on this line)'));
         if (p.network_co_exist) c.appendChild(h('div', 'font-size:12px;color:var(--dd-status-warning-fg);margin-top:3px;', 'Network co-exist: not every FNN has been cut over to the node, minimum speed is limited to 12M.'));
         if (p.status === 'N/A') c.appendChild(h('div', 'font-size:12px;color:var(--dd-text-soft);margin-top:3px;', 'N/A: the copper pair has been transitioned to NBN Co.'));
         box.appendChild(c);

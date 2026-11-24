@@ -115,6 +115,106 @@ final class VocusQualification
         return self::GROUP_OTHER;
     }
 
+    // ------------------------------------------------------------------ line speed capability
+
+    /**
+     * Upper bound in Mbps of a Vocus speed value. DownloadSpeed / UploadSpeed on a CopperPairRecord are a
+     * min-max theoretical range ("50-100" gives 100); a single number is itself; a "Mbps" suffix is ignored;
+     * a list ("25,50,100") gives its largest value. Anything with no number (N/A, blank, junk) gives null.
+     */
+    public static function parseMbps(mixed $value): ?int
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+        $text = trim((string) preg_replace('/\s*(?:mbps|mb\/s|mb|m)\b/i', '', (string) $value));
+        if (! preg_match('/^\d+(?:\.\d+)?(?:\s*[-\x{2013},]\s*\d+(?:\.\d+)?)*$/u', $text) || ! preg_match_all('/\d+(?:\.\d+)?/', $text, $m)) {
+            return null;
+        }
+        $max = (int) ceil(max(array_map('floatval', $m[0])));
+
+        return $max > 0 ? $max : null;
+    }
+
+    /**
+     * Max Mbps of one copper pair. The DownloadSpeed / UploadSpeed range wins; TC2Speed (only a download figure)
+     * is used when no download range was returned.
+     *
+     * @param array<string,mixed> $pair a normalised pair (download_speed, upload_speed, tc2_speed)
+     * @return array{download:?int,upload:?int}
+     */
+    public static function copperCapability(array $pair): array
+    {
+        return [
+            'download' => self::parseMbps($pair['download_speed'] ?? null) ?? self::parseMbps($pair['tc2_speed'] ?? null),
+            'upload'   => self::parseMbps($pair['upload_speed'] ?? null),
+        ];
+    }
+
+    /** @param array<string,mixed> $ntd @return array{download:?int,upload:?int} */
+    public static function ntdCapability(array $ntd): array
+    {
+        return ['download' => self::parseMbps($ntd['download_speed'] ?? null), 'upload' => self::parseMbps($ntd['upload_speed'] ?? null)];
+    }
+
+    /**
+     * Max download / upload Mbps for the line chosen on the order form; null means unknown (no restriction).
+     *  - COPPER (FTTN / FTTB / FTTC): the chosen pair's range; "new line" or no pair chosen uses the best value
+     *    across the returned pairs (per direction), unknown when none returned.
+     *  - NTD (FTTP / HFC / Fixed Wireless): the NTDRecord speeds of the chosen port's NTD when Vocus returned them;
+     *    a new line / port or no port chosen is unknown (no restriction).
+     *
+     * @param array<string,mixed>|null $q fromParams() output
+     * @return array{download:?int,upload:?int}
+     */
+    public static function lineCapability(?array $q, bool $newLine = false, ?string $copperPairId = null, ?string $ntdId = null, ?int $port = null): array
+    {
+        $unknown = ['download' => null, 'upload' => null];
+        if (! $q) {
+            return $unknown;
+        }
+        $group = $q['technology_group'] ?? self::group($q['service_type'] ?? null, ! empty($q['copper_pairs']), ! empty($q['ntds']));
+
+        if ($group === self::GROUP_COPPER) {
+            $pairs = $q['copper_pairs'] ?? [];
+            if (! $newLine && $copperPairId !== null && $copperPairId !== '') {
+                foreach ($pairs as $p) {
+                    if (($p['copper_pair_id'] ?? null) === $copperPairId) {
+                        return self::copperCapability($p);
+                    }
+                }
+
+                return $unknown;
+            }
+            $best = $unknown;
+            foreach ($pairs as $p) {
+                $c = self::copperCapability($p);
+                foreach (['download', 'upload'] as $k) {
+                    if ($c[$k] !== null && ($best[$k] === null || $c[$k] > $best[$k])) {
+                        $best[$k] = $c[$k];
+                    }
+                }
+            }
+
+            return $best;
+        }
+
+        if ($group === self::GROUP_NTD && ! $newLine && $port !== null) {
+            foreach ($q['ntds'] ?? [] as $ntd) {
+                if ((string) ($ntd['ntd_id'] ?? '') !== (string) $ntdId) {
+                    continue;
+                }
+                foreach ($ntd['ports'] ?? [] as $p) {
+                    if (($p['port_number'] ?? null) === $port) {
+                        return self::ntdCapability($ntd);
+                    }
+                }
+            }
+        }
+
+        return $unknown;
+    }
+
     /** @return array{label:string,source:string}|null */
     public static function serviceClassInfo(?string $class): ?array
     {
@@ -248,6 +348,8 @@ final class VocusQualification
                 $out[(string) $k] = trim((string) $v);
             } elseif ($v === [] || $v === null) {
                 $out[(string) $k] = '';
+            } elseif (is_array($v) && array_is_list($v) && ! array_filter($v, fn ($i) => ! is_scalar($i))) {
+                $out[(string) $k] = implode(',', array_map(fn ($i) => trim((string) $i), $v)); // e.g. a repeated TC2Speed
             }
         }
 
@@ -258,7 +360,7 @@ final class VocusQualification
     {
         $status = self::str($r['CopperPairStatus'] ?? null);
 
-        return [
+        $pair = [
             'copper_pair_id'     => self::str($r['CopperPairID'] ?? null),
             'status'             => $status !== null ? strtoupper($status) : null,
             'nbn_service_status' => self::str($r['NBNServiceStatus'] ?? null),
@@ -270,7 +372,11 @@ final class VocusQualification
             'network_co_exist'   => self::bool($r['NetworkCoExist'] ?? null),
             'extra_charge'       => self::bool($r['ExtraCharge'] ?? null),
             'epid'               => self::str($r['EPID'] ?? null),
+            'tc2_speed'          => self::str($r['TC2Speed'] ?? null),
         ];
+        $cap = self::copperCapability($pair);
+
+        return $pair + ['max_download_mbps' => $cap['download'], 'max_upload_mbps' => $cap['upload']];
     }
 
     private static function ntd(array $r): array

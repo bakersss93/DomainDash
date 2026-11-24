@@ -47,6 +47,50 @@ final class VocusLineSelection
             : self::ntd($out, $qualification, $input, $transfer);
     }
 
+    /**
+     * Max Mbps the chosen line can carry (null = unknown, no restriction). Call after resolve() found no errors.
+     * Copper: the chosen pair, else the best across returned pairs (also for "new line"). NTD: the chosen port's NTD
+     * speeds when Vocus returned them, else unknown.
+     *
+     * @param array<string,mixed>|null $qualification
+     * @param array<string,mixed> $input line_choice, copper_pair_id, ntd_id, uni_port
+     * @return array{download:?int,upload:?int}
+     */
+    public static function capability(?array $qualification, array $input): array
+    {
+        $new  = ($input['line_choice'] ?? '') === 'new';
+        $port = trim((string) ($input['uni_port'] ?? ''));
+
+        return VocusQualification::lineCapability(
+            $qualification,
+            $new,
+            trim((string) ($input['copper_pair_id'] ?? '')) ?: null,
+            trim((string) ($input['ntd_id'] ?? '')) ?: null,
+            ctype_digit($port) ? (int) $port : null,
+        );
+    }
+
+    /**
+     * Why a plan cannot run on a line with this capability, or null when it can (unknown speeds never block).
+     *
+     * @param array{download:?int,upload:?int} $cap
+     */
+    public static function planProblem(?int $planDown, ?int $planUp, array $cap, string $planName): ?string
+    {
+        $tooFast = ($planDown !== null && $cap['download'] !== null && $planDown > $cap['download'])
+            || ($planUp !== null && $cap['upload'] !== null && $planUp > $cap['upload']);
+        if (! $tooFast) {
+            return null;
+        }
+
+        return sprintf(
+            'This line supports up to %s Mbps, but plan "%s" needs %s Mbps. Choose a plan the line can support.',
+            ($cap['download'] ?? '?') . '/' . ($cap['upload'] ?? '?'),
+            $planName,
+            ($planDown ?? '?') . '/' . ($planUp ?? '?')
+        );
+    }
+
     private static function copper(array $out, ?array $q, array $in, bool $transfer): array
     {
         $id    = trim((string) ($in['copper_pair_id'] ?? ''));

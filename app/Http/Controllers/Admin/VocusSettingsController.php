@@ -94,20 +94,31 @@ class VocusSettingsController extends Controller
             'scopes'     => 'nullable|array',
             'scopes.*'   => ['string', Rule::in(array_keys(VocusOptions::SCOPES))],
             'speed_tier' => 'nullable|string|max:40',
+            'download_mbps' => 'nullable|integer|min:1|max:10000',
+            'upload_mbps'   => 'nullable|integer|min:1|max:10000',
             'cost_price' => ['required', 'numeric', 'min:0', 'max:99999999', 'regex:/^\d+(\.\d{1,2})?$/'],
             'sell_price' => ['required', 'numeric', 'min:0', 'max:99999999', 'regex:/^\d+(\.\d{1,2})?$/'],
             'active'     => 'nullable|boolean',
         ], [
+            'download_mbps.*'  => 'Download Mbps must be a whole number from 1 to 10000.',
+            'upload_mbps.*'    => 'Upload Mbps must be a whole number from 1 to 10000.',
             'plan_id.regex'    => 'The Plan ID may only contain letters, digits, dot, dash and underscore.',
             'cost_price.regex' => 'Prices are in AUD with at most 2 decimals.',
             'sell_price.regex' => 'Prices are in AUD with at most 2 decimals.',
         ]);
 
+        $tier  = ($data['speed_tier'] ?? '') !== '' ? trim($data['speed_tier']) : null;
+        $parsed = VocusPlan::parseSpeedTier($tier); // fills a blank speed from "100/20" style text
+        $down  = $data['download_mbps'] ?? $parsed[0] ?? null;
+        $up    = $data['upload_mbps'] ?? $parsed[1] ?? null;
+
         return [
             'plan_id'    => $data['plan_id'],
             'name'       => trim($data['name']),
             'scopes'     => array_values(array_unique($data['scopes'] ?? [])) ?: null,
-            'speed_tier' => ($data['speed_tier'] ?? '') !== '' ? trim($data['speed_tier']) : null,
+            'speed_tier' => $tier,
+            'download_mbps' => $down !== null ? (int) $down : null,
+            'upload_mbps'   => $up !== null ? (int) $up : null,
             'cost_price' => number_format((float) $data['cost_price'], 2, '.', ''),
             'sell_price' => number_format((float) $data['sell_price'], 2, '.', ''),
             'active'     => $request->boolean('active', true),

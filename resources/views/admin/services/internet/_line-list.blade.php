@@ -13,10 +13,10 @@
 
 @if($group === \App\Services\Vocus\VocusQualification::GROUP_COPPER)
     @forelse($q['copper_pairs'] as $p)
-        @php $id = $p['copper_pair_id']; @endphp
+        @php $id = $p['copper_pair_id']; $cap = \App\Services\Vocus\VocusQualification::copperCapability($p); @endphp
         <label style="{{ $card }}cursor:{{ $selectable && $id ? 'pointer' : 'default' }};">
             @if($selectable)
-                <input type="radio" name="line_pick" form="line-pick-none" data-copper="{{ $id }}" @disabled(! $id) @checked($choice === 'existing' && $cPair === $id)>
+                <input type="radio" name="line_pick" form="line-pick-none" data-copper="{{ $id }}" data-max-down="{{ $cap['download'] }}" data-max-up="{{ $cap['upload'] }}" @disabled(! $id) @checked($choice === 'existing' && $cPair === $id)>
             @endif
             <span style="flex:1;">
                 <strong style="font-family:monospace;">{{ $id ?: 'No CopperPairID returned' }}</strong>
@@ -29,6 +29,9 @@
                     @if($p['upload_speed'])/ ↑ {{ $p['upload_speed'] }} Mbps @endif
                     @if($p['pots_interconnect'] && $p['pots_interconnect'] !== 'N/A')· POTS {{ $p['pots_interconnect'] }}@endif
                 </span>
+                @if($cap['download'] !== null || $cap['upload'] !== null)
+                    <span style="display:block;font-size:12px;margin-top:3px;font-weight:600;">Max line speed: ↓ {{ $cap['download'] ?? '?' }} / ↑ {{ $cap['upload'] ?? '?' }} Mbps</span>
+                @endif
                 @if($p['network_co_exist'])
                     <span style="display:block;font-size:12px;margin-top:3px;color:var(--dd-status-warning-fg);">Network co-exist: not every FNN has been cut over to the node, minimum speed is limited to 12M.</span>
                 @endif
@@ -60,11 +63,12 @@
                     $free  = \App\Services\Vocus\VocusQualification::isSelectablePort($p) && $p['port_number'] !== null;
                     $inUse = $p['available'] === false;
                     $voice = $p['port_type'] === 'VOICE';
+                    $cap   = \App\Services\Vocus\VocusQualification::ntdCapability($ntd);
                 @endphp
                 <label style="{{ $card }}{{ ($selectable && ! $free) || (! $selectable && $inUse) ? $disabled : '' }}cursor:{{ $selectable && $free ? 'pointer' : 'default' }};">
                     @if($selectable)
                         <input type="radio" name="line_pick" form="line-pick-none"
-                               data-ntd="{{ $ntd['ntd_id'] }}" data-index="{{ $ntd['index'] }}" data-port="{{ $p['port_number'] }}" data-pname="{{ $p['port_name'] }}"
+                               data-ntd="{{ $ntd['ntd_id'] }}" data-max-down="{{ $cap['download'] }}" data-max-up="{{ $cap['upload'] }}" data-index="{{ $ntd['index'] }}" data-port="{{ $p['port_number'] }}" data-pname="{{ $p['port_name'] }}"
                                data-wire="{{ $free ? $wire($ntd, $p) : '' }}" @disabled(! $free) @checked($choice === 'existing' && (string) $cPort === (string) $p['port_number'] && (string) $cNtd === (string) $ntd['ntd_id'])>
                     @endif
                     <span style="flex:1;">
@@ -94,10 +98,12 @@
 
 @if($selectable && $allowNew && $group !== \App\Services\Vocus\VocusQualification::GROUP_OTHER)
     <label style="{{ $card }}cursor:pointer;border-style:dashed;">
-        <input type="radio" name="line_pick" form="line-pick-none" data-choice="new" @checked($choice === 'new')>
+        @php $newCap = \App\Services\Vocus\VocusQualification::lineCapability($q, true); @endphp
+        <input type="radio" name="line_pick" form="line-pick-none" data-choice="new" data-max-down="{{ $newCap['download'] }}" data-max-up="{{ $newCap['upload'] }}" @checked($choice === 'new')>
         <span><strong>Order a new line{{ $group === \App\Services\Vocus\VocusQualification::GROUP_NTD ? ' / port' : '' }}</strong>
             <span style="display:block;color:var(--dd-text-soft);font-size:12px;margin-top:3px;">
                 {{ $group === \App\Services\Vocus\VocusQualification::GROUP_NTD ? 'NTD install or a new port: no port is requested and an appointment may be needed.' : 'No existing copper pair: none is sent and an installation appointment may be needed.' }}
+                @if($group === \App\Services\Vocus\VocusQualification::GROUP_COPPER && ($newCap['download'] !== null || $newCap['upload'] !== null))Plans are limited to the best line returned (up to {{ $newCap['download'] ?? '?' }}/{{ $newCap['upload'] ?? '?' }} Mbps).@endif
                 The Vocus documents do not describe a separate "new line" parameter, so none is sent unless configured (VOCUS_NEW_LINE_PARAM).
             </span></span>
     </label>

@@ -452,6 +452,8 @@ class InternetController extends Controller
         if ($line['errors']) {
             throw ValidationException::withMessages($line['errors']);
         }
+        $capability = VocusLineSelection::capability($qualification, $validated); // before uni_port becomes 'UNI-D-n'
+        $validated['line_capability'] = $capability;
         $validated['copper_pair_id'] = $line['record']['copper_pair_id'];
         $validated['ntd_id']         = $line['record']['ntd_id'];
         $validated['uni_port']       = $line['record']['uni_port'];
@@ -521,6 +523,15 @@ class InternetController extends Controller
         return $plan;
     }
 
+    /** Refuse a plan faster than the chosen line can carry (copper limits). Unknown speeds or capability never block. */
+    private function assertPlanFitsLine(VocusPlan $plan, array $validated): void
+    {
+        $problem = VocusLineSelection::planProblem($plan->download_mbps, $plan->upload_mbps, $validated['line_capability'] ?? ['download' => null, 'upload' => null], $plan->name);
+        if ($problem) {
+            throw ValidationException::withMessages(['vocus_plan_id' => $problem]);
+        }
+    }
+
     /** Parameters common to NEW and TRANSFER (Examples 4.1.4 / 4.2.4). Password is added by the caller. */
     private function baseParams(array $validated, string $serviceId): array
     {
@@ -553,6 +564,7 @@ class InternetController extends Controller
 
         $plan      = $this->planFor($validated);
         $linePrms  = $this->resolveLine($validated, false);
+        $this->assertPlanFitsLine($plan, $validated);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
         $params = $this->baseParams($validated, $serviceId) + $linePrms;
@@ -672,6 +684,7 @@ class InternetController extends Controller
 
         $plan      = $this->planFor($validated);
         $linePrms  = $this->resolveLine($validated, true);
+        $this->assertPlanFitsLine($plan, $validated);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
         $params = ['OrderType' => 'TRANSFER'] + $this->baseParams($validated, $serviceId) + $linePrms + [

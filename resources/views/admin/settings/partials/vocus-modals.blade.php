@@ -54,7 +54,7 @@
         <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 12px;">Plan ID is the PlanID sent to Vocus. Prices are AUD per month. The cost and sell price are copied onto each service when it is ordered; clients only ever see the sell price.</p>
         <div style="overflow-x:auto;margin-bottom:16px;">
             <table class="dd-services-table" style="width:100%;font-size:13px;">
-                <thead><tr><th>Plan ID</th><th>Name</th><th>Speed</th><th>Scopes</th><th style="text-align:right;">Cost</th><th style="text-align:right;">Sell</th><th>Active</th><th></th></tr></thead>
+                <thead><tr><th>Plan ID</th><th>Name</th><th>Speed</th><th>Down / Up Mbps</th><th>Scopes</th><th style="text-align:right;">Cost</th><th style="text-align:right;">Sell</th><th>Active</th><th></th></tr></thead>
                 <tbody id="vo-plan-rows"></tbody>
             </table>
         </div>
@@ -64,9 +64,12 @@
                 <div><label for="vo-p-id" style="{{ $__lbl }}">Plan ID</label><input id="vo-p-id" class="dd-input" style="width:100%;font-family:monospace;" maxlength="30" required></div>
                 <div><label for="vo-p-name" style="{{ $__lbl }}">Display name</label><input id="vo-p-name" class="dd-input" style="width:100%;" maxlength="100" required></div>
                 <div><label for="vo-p-speed" style="{{ $__lbl }}">Speed tier</label><input id="vo-p-speed" class="dd-input" style="width:100%;" maxlength="40" placeholder="e.g. 100/20 Mbps"></div>
+                <div><label for="vo-p-dl" style="{{ $__lbl }}">Download Mbps</label><input id="vo-p-dl" class="dd-input" style="width:100%;" inputmode="numeric" placeholder="e.g. 100" aria-describedby="vo-p-speed-hint"></div>
+                <div><label for="vo-p-ul" style="{{ $__lbl }}">Upload Mbps</label><input id="vo-p-ul" class="dd-input" style="width:100%;" inputmode="numeric" placeholder="e.g. 20"></div>
                 <div><label for="vo-p-cost" style="{{ $__lbl }}">Cost (AUD / month)</label><input id="vo-p-cost" class="dd-input" style="width:100%;" inputmode="decimal" placeholder="0.00" required></div>
                 <div><label for="vo-p-sell" style="{{ $__lbl }}">Sell (AUD / month)</label><input id="vo-p-sell" class="dd-input" style="width:100%;" inputmode="decimal" placeholder="0.00" required></div>
             </div>
+            <p id="vo-p-speed-hint" style="font-size:12px;color:var(--dd-text-soft);margin:8px 0 0;">Download and upload Mbps (1 to 10000) are used to hide and refuse plans a copper line (FTTN, FTTB, FTTC) cannot carry. Left blank they are filled from a speed tier like "100/20"; a plan with no speed is never restricted.</p>
             <fieldset style="border:0;margin:12px 0 0;padding:0;">
                 <legend style="{{ $__lbl }}">Applies to scopes (none ticked = all scopes)</legend>
                 <div id="vo-p-scopes" style="display:flex;gap:16px;flex-wrap:wrap;"></div>
@@ -179,7 +182,7 @@
     function drawPlans() {
         rows.textContent = '';
         if (!plans.length) {
-            var tr = el('tr'); var td = el('td', 'No plans yet. Add one below.', { colspan: '8', style: 'text-align:center;padding:16px;color:var(--dd-text-soft);' });
+            var tr = el('tr'); var td = el('td', 'No plans yet. Add one below.', { colspan: '9', style: 'text-align:center;padding:16px;color:var(--dd-text-soft);' });
             tr.appendChild(td); rows.appendChild(tr);
         }
         plans.forEach(function (p) {
@@ -187,6 +190,7 @@
             tr.appendChild(el('td', p.plan_id, { style: 'font-family:monospace;' }));
             tr.appendChild(el('td', p.name));
             tr.appendChild(el('td', p.speed_tier || '-'));
+            tr.appendChild(el('td', (p.download_mbps || p.upload_mbps) ? ('\u2193' + (p.download_mbps || '?') + ' / \u2191' + (p.upload_mbps || '?')) : 'not set', (p.download_mbps || p.upload_mbps) ? {} : { style: 'color:var(--dd-text-soft);' }));
             tr.appendChild(el('td', p.scopes.length ? p.scopes.join(', ') : 'All'));
             tr.appendChild(el('td', money(p.cost_price), { style: 'text-align:right;' }));
             tr.appendChild(el('td', money(p.sell_price), { style: 'text-align:right;' }));
@@ -209,7 +213,7 @@
     function $(id) { return document.getElementById(id); }
     function resetForm() {
         editing = null;
-        ['vo-p-id', 'vo-p-name', 'vo-p-speed', 'vo-p-cost', 'vo-p-sell'].forEach(function (id) { $(id).value = ''; });
+        ['vo-p-id', 'vo-p-name', 'vo-p-speed', 'vo-p-dl', 'vo-p-ul', 'vo-p-cost', 'vo-p-sell'].forEach(function (id) { $(id).value = ''; });
         $('vo-p-active').checked = true;
         Array.prototype.forEach.call(scopeBox.querySelectorAll('input'), function (c) { c.checked = false; });
         $('vo-plan-form-title').textContent = 'Add plan'; $('vo-plan-save').textContent = 'Add plan'; $('vo-plan-cancel').style.display = 'none';
@@ -217,6 +221,7 @@
     function startEdit(p) {
         editing = p.id;
         $('vo-p-id').value = p.plan_id; $('vo-p-name').value = p.name; $('vo-p-speed').value = p.speed_tier || '';
+        $('vo-p-dl').value = p.download_mbps || ''; $('vo-p-ul').value = p.upload_mbps || '';
         $('vo-p-cost').value = p.cost_price; $('vo-p-sell').value = p.sell_price; $('vo-p-active').checked = !!p.active;
         Array.prototype.forEach.call(scopeBox.querySelectorAll('input'), function (c) { c.checked = p.scopes.indexOf(c.value) !== -1; });
         $('vo-plan-form-title').textContent = 'Edit plan ' + p.plan_id; $('vo-plan-save').textContent = 'Save changes'; $('vo-plan-cancel').style.display = '';
@@ -227,6 +232,7 @@
         e.preventDefault();
         var body = {
             plan_id: $('vo-p-id').value.trim(), name: $('vo-p-name').value.trim(), speed_tier: $('vo-p-speed').value.trim(),
+            download_mbps: $('vo-p-dl').value.trim() || null, upload_mbps: $('vo-p-ul').value.trim() || null,
             cost_price: $('vo-p-cost').value.trim(), sell_price: $('vo-p-sell').value.trim(), active: $('vo-p-active').checked,
             scopes: Array.prototype.map.call(scopeBox.querySelectorAll('input:checked'), function (c) { return c.value; }),
         };
