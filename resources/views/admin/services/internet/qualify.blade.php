@@ -14,11 +14,11 @@
     @endif
 
     {{-- Step 1: Address search --}}
-    <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
+    <div style="background:var(--dd-surface-soft);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Step 1 — Find Address</h3>
 
         <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#374151;">Enter address</label>
+            <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:var(--dd-text);">Enter address</label>
             <div style="display:flex;gap:8px;">
                 <input id="simple-address"
                        type="text"
@@ -38,7 +38,7 @@
             </button>
         </div>
 
-        <div id="structured-form" style="display:none;border-top:1px solid #e5e7eb;padding-top:14px;">
+        <div id="structured-form" style="display:none;border-top:1px solid var(--dd-border);padding-top:14px;">
             <p style="font-size:12px;color:var(--dd-text-soft);margin:0 0 10px;">Values follow the Vocus street address standard (street name up to 25 characters, suburb up to 40).</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -115,7 +115,7 @@
         <div id="address-loading" style="display:none;padding:12px;text-align:center;color:var(--dd-text-soft);font-size:13px;">Searching Vocus address directory…</div>
         <div id="address-error" style="display:none;padding:10px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);border-radius:6px;color:var(--dd-danger-text);font-size:13px;margin-top:10px;"></div>
         <div id="address-results" style="display:none;margin-top:12px;">
-            <p style="font-size:13px;font-weight:500;color:#374151;margin:0 0 8px;">Select your address:</p>
+            <p style="font-size:13px;font-weight:500;color:var(--dd-text);margin:0 0 8px;">Select your address:</p>
             <div id="address-list" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
     </div>
@@ -137,7 +137,7 @@
     </details>
 
     {{-- Step 2: Qualification result --}}
-    <div id="qualify-section" style="display:none;background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;">
+    <div id="qualify-section" style="display:none;background:var(--dd-surface-soft);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Step 2 — Qualification Result</h3>
         <div id="qualify-loading" style="display:none;color:var(--dd-text-soft);font-size:13px;">Checking serviceability with Vocus…</div>
         <div id="qualify-error" style="display:none;padding:10px;background:var(--dd-status-danger-bg);border:1px solid color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);border-radius:6px;color:var(--dd-danger-text);font-size:13px;"></div>
@@ -226,14 +226,14 @@ function doLookup(params) {
         data.addresses.forEach(addr => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.style = 'text-align:left;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;background:white;font-size:13px;cursor:pointer;transition:border-color 0.15s;';
+            btn.style = 'text-align:left;padding:10px 14px;border:1px solid var(--dd-border-strong);border-radius:6px;background:var(--dd-surface);color:var(--dd-text);font-size:13px;cursor:pointer;transition:border-color 0.15s;';
             const strong = document.createElement('strong');
             strong.style = 'font-size:12px;color:var(--dd-text-soft);display:block;';
             strong.textContent = addr.directory_id;
             btn.appendChild(strong);
             btn.appendChild(document.createTextNode(String(addr.address_long ?? '')));
             btn.onmouseenter = () => btn.style.borderColor = 'var(--accent)';
-            btn.onmouseleave = () => btn.style.borderColor = '#d1d5db';
+            btn.onmouseleave = () => btn.style.borderColor = 'var(--dd-border-strong)';
             btn.onclick = () => selectAddress(addr);
             list.appendChild(btn);
         });
@@ -253,10 +253,10 @@ function selectAddress(addr) {
 
     // Highlight selected
     document.querySelectorAll('#address-list button').forEach(btn => {
-        btn.style.background = 'white';
-        btn.style.borderColor = '#d1d5db';
+        btn.style.background = 'var(--dd-surface)';
+        btn.style.borderColor = 'var(--dd-border-strong)';
     });
-    event.currentTarget.style.background = '#eff6ff';
+    event.currentTarget.style.background = 'var(--dd-accent-soft)';
     event.currentTarget.style.borderColor = 'var(--accent)';
 
     runQualify(addr.directory_id, addr.address_long);
@@ -317,7 +317,7 @@ function renderQualifyResult(data, directoryId, addressLong) {
             const speeds = pair.DownloadSpeed || pair.downloadSpeed || '';
             const upSpeeds = pair.UploadSpeed || pair.uploadSpeed || '';
             const pairId = pair.CopperPairID || pair.copperPairId || '';
-            copperPairs += `<div style="margin-top:8px;padding:10px;background:white;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;">
+            copperPairs += `<div style="margin-top:8px;padding:10px;background:var(--dd-surface);border:1px solid var(--dd-border);color:var(--dd-text);border-radius:6px;font-size:12px;">
                 <strong>${qEsc(pairId)}</strong>
                 ${speeds ? `<span style="color:var(--dd-text-soft);margin-left:8px;">↓ ${qEsc(speeds)} Mbps / ↑ ${qEsc(upSpeeds)} Mbps</span>` : ''}
             </div>`;
@@ -336,11 +336,11 @@ function renderQualifyResult(data, directoryId, addressLong) {
         });
         orderButtons = `<div style="display:flex;gap:8px;margin-top:16px;">
             <a href="{{ route('admin.services.internet.order') }}?${params.toString()}"
-               style="padding:8px 18px;border-radius:6px;background:var(--accent);color:white;text-decoration:none;font-size:13px;font-weight:500;">
+               style="padding:8px 18px;border-radius:6px;background:var(--dd-accent);color:var(--dd-accent-contrast);text-decoration:none;font-size:13px;font-weight:500;">
                New Order →
             </a>
             <a href="{{ route('admin.services.internet.transfer') }}?${params.toString()}"
-               style="padding:8px 18px;border-radius:6px;background:white;border:1px solid #d1d5db;color:#374151;text-decoration:none;font-size:13px;font-weight:500;">
+               style="padding:8px 18px;border-radius:6px;background:var(--dd-surface);border:1px solid var(--dd-border-strong);color:var(--dd-text);text-decoration:none;font-size:13px;font-weight:500;">
                Transfer Service →
             </a>
         </div>`;
@@ -348,7 +348,7 @@ function renderQualifyResult(data, directoryId, addressLong) {
 
     el.innerHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <span style="padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:${passed ? '#dcfce7' : '#fee2e2'};color:${passed ? '#15803d' : '#b91c1c'};">
+            <span style="padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:${passed ? 'var(--dd-status-success-bg)' : 'var(--dd-status-danger-bg)'};color:${passed ? 'var(--dd-status-success-fg)' : 'var(--dd-status-danger-fg)'};">
                 ${passed ? '✓ PASS' : '✗ FAIL'}
             </span>
             ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);">${qEsc(data.service_type)}</span>` : ''}

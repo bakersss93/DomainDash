@@ -65,7 +65,7 @@
 
     {{-- Client suggestion --}}
     @if($clientMatch && !$service->client_id)
-        <div style="margin-bottom:16px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="margin-bottom:16px;padding:12px 16px;background:var(--dd-status-info-bg);border:1px solid var(--dd-border);color:var(--dd-text);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
             <div style="font-size:14px;color:var(--dd-status-info-fg);">
                 This service may belong to <strong>{{ $clientMatch->business_name ?? $clientMatch->name }}</strong>
             </div>
@@ -243,7 +243,7 @@
         @if($diagnostics->isNotEmpty())
             <div style="display:flex;flex-direction:column;gap:10px;">
             @foreach($diagnostics as $diag)
-                <div style="background:white;border:1px solid #e5e7eb;border-radius:8px;padding:12px;">
+                <div style="background:var(--dd-surface);border:1px solid var(--dd-border);color:var(--dd-text);border-radius:8px;padding:12px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                         <span style="font-size:13px;font-weight:600;">{{ $diag->diagnostic_type }}</span>
                         <span style="font-size:12px;color:var(--dd-text-soft);">{{ $diag->created_at->diffForHumans() }}</span>
@@ -264,7 +264,7 @@
                                     <td style="padding:3px 8px;color:{{ ($rec['auth_result'] ?? '') === 'PASS' ? '#15803d' : '#b91c1c' }};">
                                         {{ $rec['auth_result'] ?? '-' }}
                                     </td>
-                                    <td style="padding:3px 8px;color:#374151;">{{ $rec['reason'] ?? '-' }}</td>
+                                    <td style="padding:3px 8px;color:var(--dd-text);">{{ $rec['reason'] ?? '-' }}</td>
                                 </tr>
                             @endforeach
                             </tbody>
@@ -285,7 +285,7 @@
     {{-- Notes --}}
     <div style="margin-top:20px;background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;color:var(--text);">Internal Notes</h3>
-        <p style="font-size:13px;color:#374151;white-space:pre-wrap;margin:0;">{{ $service->notes ?: '—' }}</p>
+        <p style="font-size:13px;color:var(--dd-text);white-space:pre-wrap;margin:0;">{{ $service->notes ?: '—' }}</p>
     </div>
 
 </div>
