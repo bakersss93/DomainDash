@@ -16,7 +16,7 @@ class SyncErrorSanitizer
         $text = (string) $text;
 
         // Known secrets from settings (never echo them back).
-        foreach (['halo' => ['api_key', 'client_id'], 'itglue' => ['api_key']] as $group => $keys) {
+        foreach (['halo' => ['api_key', 'client_id'], 'itglue' => ['api_key'], 'vocus' => ['access_key', 'alias_key', 'cert_password']] as $group => $keys) {
             try {
                 $settings = Setting::get($group, []);
             } catch (\Throwable) {

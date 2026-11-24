@@ -1623,17 +1623,31 @@
           }
         ],
         "x-required-scope": "internet.write",
-        "description": "Refreshes existing services that have a vocus_service_id; individual failures are skipped silently. Responds 202 when finished.",
+        "description": "Queues a background refresh of every service that has a vocus_service_id (paced to Vocus' rate limit; stops at the first account-level error). Responds 202 immediately; refreshed data appears as the job runs.",
         "responses": {
           "202": {
-            "description": "Sync finished.",
+            "description": "Sync queued.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SyncResult"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "run_id": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
+          },
+          "422": {
+            "description": "Vocus is not configured (Access Key or certificate missing)."
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"

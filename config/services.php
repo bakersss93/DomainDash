@@ -83,6 +83,14 @@ return [
             'max_wait_seconds' => (int) env('VOCUS_RATE_LIMIT_MAX_WAIT', 15),
         ],
         'session_ttl' => (int) env('VOCUS_SESSION_TTL', 540),
+        // Minimum seconds between manual TCAS polls of the same service (Examples 4.1.6:
+        // overall order progress every 6-8 hours; excessive polling can trigger a ban).
+        // DIR::Get postcode param spelling. The Examples (4.1.1) lookup sample writes "Main.Postcode"; the
+        // XSD / DIR::Create use "Main.PostCode". The lookup retries the other spelling when nothing is found.
+        'lookup_postcode_param' => env('VOCUS_LOOKUP_POSTCODE_PARAM', 'Main.Postcode'),
+        'poll_cooldown_seconds' => (int) env('VOCUS_POLL_COOLDOWN', 300),
+        // Wall-clock budget of one queued sync job before it hands the remainder to a follow-up job.
+        'sync_budget_seconds' => (int) env('VOCUS_SYNC_BUDGET', 150),
     ],
 
 ];

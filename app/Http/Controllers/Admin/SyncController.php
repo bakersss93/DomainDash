@@ -329,6 +329,13 @@ class SyncController extends Controller
     /** @return array<int,array{id:int,name:string,error:string}> */
     private function runFailures(SyncRun $run): array
     {
+        if ($run->provider === 'vocus' && $run->scope === 'services') {
+            return array_map(
+                fn ($f) => ['id' => $f['id'], 'name' => $f['name'], 'error' => \App\Support\SyncErrorSanitizer::clean((string) $f['error'], 500)],
+                \App\Jobs\SyncVocusServicesJob::failuresFor($run->id)
+            );
+        }
+
         $column = match (true) {
             $run->provider === 'halo' && $run->scope === 'domains' => 'halo_sync_error',
             $run->provider === 'itglue' && $run->scope === 'configurations' => 'itglue_sync_error',

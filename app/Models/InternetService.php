@@ -10,13 +10,107 @@ class InternetService extends Model
         'vocus_service_id', 'client_id', 'plan_id', 'service_scope', 'service_status',
         'service_type', 'order_type', 'customer_name', 'phone', 'directory_id',
         'location_reference', 'address_long', 'nbn_instance_id', 'avc_id', 'cvc_id',
-        'copper_pair_id', 'realm', 'service_level', 'billing_provider_id',
-        'last_transaction_id', 'last_transaction_state', 'notes', 'synced_at',
+        'copper_pair_id', 'realm', 'username', 'service_level', 'billing_provider_id',
+        'last_transaction_id', 'last_transaction_state', 'last_fault_code', 'last_fault_message',
+        'last_polled_at', 'notes', 'synced_at',
     ];
 
     protected $casts = [
         'synced_at' => 'datetime',
+        'last_polled_at' => 'datetime',
     ];
+
+    /** Column widths, so a long value from Vocus can never abort a save ("Data too long"). */
+    public const LIMITS = [
+        'plan_id' => 30, 'service_scope' => 30, 'service_status' => 10, 'service_type' => 20,
+        'order_type' => 10, 'customer_name' => 100, 'phone' => 20, 'directory_id' => 30,
+        'location_reference' => 10, 'address_long' => 255, 'nbn_instance_id' => 30, 'avc_id' => 30,
+        'cvc_id' => 30, 'copper_pair_id' => 30, 'realm' => 64, 'username' => 100,
+        'service_level' => 20, 'billing_provider_id' => 30,
+    ];
+
+    /** Get SERVICE response parameter => column. */
+    public const LIVE_FIELD_MAP = [
+        'ServiceStatus'     => 'service_status',
+        'PlanID'            => 'plan_id',
+        'ServiceType'       => 'service_type',
+        'ServiceScope'      => 'service_scope',
+        'OrderType'         => 'order_type',
+        'CustomerName'      => 'customer_name',
+        'Phone'             => 'phone',
+        'NBNInstanceID'     => 'nbn_instance_id',
+        'AVCID'             => 'avc_id',
+        'CVCID'             => 'cvc_id',
+        'DirectoryID'       => 'directory_id',
+        'AddressLong'       => 'address_long',
+        'CopperPairID'      => 'copper_pair_id',
+        'ServiceLevel'      => 'service_level',
+        'LocationReference' => 'location_reference',
+        'BillingProviderID' => 'billing_provider_id',
+        'Username'          => 'username',
+    ];
+
+    /**
+     * Copy a Get SERVICE response onto this model (not saved). Missing params keep
+     * the stored value. The PPPoE Username (2..100 chars, user@realm) goes to
+     * `username`; `realm` only receives the realm part, never the whole Username.
+     *
+     * @param array<string,mixed> $params
+     */
+    public function applyLiveParams(array $params): static
+    {
+        foreach (self::LIVE_FIELD_MAP as $param => $column) {
+            if (isset($params[$param]) && is_scalar($params[$param]) && $params[$param] !== '') {
+                $value = (string) $params[$param];
+                $this->{$column} = isset(self::LIMITS[$column]) ? mb_substr($value, 0, self::LIMITS[$column]) : $value;
+            }
+        }
+
+        $realm = $params['Realm'] ?? (isset($params['Username']) && is_string($params['Username']) && str_contains($params['Username'], '@')
+            ? substr($params['Username'], strpos($params['Username'], '@') + 1)
+            : null);
+        if (is_string($realm) && $realm !== '') {
+            $this->realm = mb_substr($realm, 0, self::LIMITS['realm']);
+        }
+
+        $this->synced_at = now();
+
+        return $this;
+    }
+
+    /**
+     * Layer 2 (NCL2 / Network-Connect) services. The Examples (4.2) sample orders NCL2
+     * with scope RESELLER-CONNECT and a plan like "NCL2-DSCP-MAP", so the plan id counts too.
+     */
+    public function isLayer2(): bool
+    {
+        return strtoupper((string) $this->service_scope) === 'NETWORK-CONNECT'
+            || str_starts_with(strtoupper((string) $this->plan_id), 'NCL2');
+    }
+
+    /** Suspend / Resume are "only valid for Layer 3 / Reseller-Connect" (Examples 4.1.9). */
+    public function supportsSuspendResume(): bool
+    {
+        return ! $this->isLayer2();
+    }
+
+    /** Status changes are refused while a transaction is in flight or the service is still PROCESSING. */
+    public function canChangeStatus(): bool
+    {
+        return ! $this->isPending() && strtoupper((string) $this->service_status) !== 'PROCESSING';
+    }
+
+    public function isPollCoolingDown(): bool
+    {
+        $seconds = (int) config('services.vocus.poll_cooldown_seconds', 300);
+
+        return $seconds > 0 && $this->last_polled_at !== null && $this->last_polled_at->gt(now()->subSeconds($seconds));
+    }
+
+    public function hasTransactionFault(): bool
+    {
+        return $this->last_transaction_state === 'FAILED' && ($this->last_fault_code || $this->last_fault_message);
+    }
 
     public function client()
     {

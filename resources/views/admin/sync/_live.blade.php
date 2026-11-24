@@ -22,7 +22,7 @@
         const POLL_MS = 3000;
         const LABELS = { queued: 'Queued', running: 'Running', ok: 'Succeeded', partial: 'Partial', failed: 'Failed', skipped: 'Skipped' };
         const VARIANTS = { queued: 'neutral', running: 'info', ok: 'success', partial: 'warning', failed: 'danger', skipped: 'warning' };
-        const SCOPES = { 'halo/clients': 'HaloPSA clients', 'halo/assets': 'HaloPSA assets', 'halo/domains': 'Sync domains to HaloPSA', 'itglue/organizations': 'IT Glue organisations', 'itglue/configurations': 'Sync domains to IT Glue' };
+        const SCOPES = { 'halo/clients': 'HaloPSA clients', 'halo/assets': 'HaloPSA assets', 'halo/domains': 'Sync domains to HaloPSA', 'itglue/organizations': 'IT Glue organisations', 'itglue/configurations': 'Sync domains to IT Glue', 'vocus/services': 'Vocus internet services' };
 
         function csrf() { return document.querySelector('meta[name="csrf-token"]')?.content || ''; }
 

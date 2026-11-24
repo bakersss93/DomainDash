@@ -13,7 +13,7 @@ class Redactor
     private const EXACT = ['key', 'pass', 'pwd', 'pin', 'otp', 'code_verifier'];
 
     private const FRAGMENTS = [
-        'password', 'passwd', 'secret', 'token', 'api_key', 'apikey', 'access_key',
+        'password', 'passwd', 'secret', 'token', 'api_key', 'apikey', 'access_key', 'alias_key',
         'private_key', 'client_secret', 'credential', 'authorization', 'auth_code',
         'authcode', 'authinfo', 'epp', 'two_factor', 'recovery_code', 'mfa_code',
         'bearer', 'cookie', 'sso_url', 'passphrase', 'signature',

@@ -36,16 +36,32 @@
 
     {{-- Pending transaction banner --}}
     @if($service->isPending())
-        <div id="pending-banner" style="margin-bottom:16px;padding:12px 16px;background:var(--dd-status-warning-bg);border:1px solid var(--warning-border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;">
+        <div id="pending-banner" style="margin-bottom:16px;padding:12px 16px;background:var(--dd-status-warning-bg);border:1px solid var(--warning-border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
             <div style="font-size:14px;color:var(--dd-status-warning-fg);">
                 <strong>Transaction in progress</strong> — ID: <code style="font-family:monospace;">{{ $service->last_transaction_id }}</code>
                 &nbsp;·&nbsp; State: <strong id="txn-state">{{ $service->last_transaction_state }}</strong>
+                @if($service->last_polled_at)
+                    &nbsp;·&nbsp; <span id="txn-checked">Last checked {{ $service->last_polled_at->diffForHumans() }}</span>
+                @endif
             </div>
-            <button onclick="pollStatus()" class="btn-accent" style="padding:6px 14px;font-size:13px;">
+            <button type="button" id="poll-btn" onclick="pollStatus()" class="btn-accent" style="padding:6px 14px;font-size:13px;">
                 Refresh Status
             </button>
         </div>
     @endif
+
+    {{-- Failed / expired transaction: show what Vocus said --}}
+    @if(in_array($service->last_transaction_state, ['FAILED', 'EXPIRED', 'UNKNOWN', 'WITHDRAWN'], true))
+        <x-ui.alert variant="danger" title="Vocus transaction {{ strtolower($service->last_transaction_state) }}" style="margin-bottom:16px;">
+            Transaction <code>{{ $service->last_transaction_id }}</code>
+            @if($service->last_fault_code) · fault code <code>{{ $service->last_fault_code }}</code>@endif
+            @if($service->last_fault_message)<div>{{ $service->last_fault_message }}</div>@endif
+            @if(! $service->last_fault_code && ! $service->last_fault_message)<div>Vocus did not return a fault code or message. Quote the transaction ID when contacting Vocus support.</div>@endif
+        </x-ui.alert>
+    @endif
+
+    {{-- Inline poll result / error (replaces alert()) --}}
+    <div id="txn-alert" aria-live="polite" style="margin-bottom:16px;"></div>
 
     {{-- Client suggestion --}}
     @if($clientMatch && !$service->client_id)
@@ -66,9 +82,15 @@
         {{-- Live service details --}}
         <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
             <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;color:var(--text);">Live Service Details</h3>
+            @if($liveNotice)
+                <x-ui.alert variant="info" style="margin-bottom:12px;">{{ $liveNotice }}</x-ui.alert>
+            @endif
             @if($liveError)
-                <p style="color:var(--dd-danger-text);font-size:13px;">{{ $liveError }}</p>
-            @elseif($liveData)
+                <x-ui.alert variant="warning" title="Live details unavailable" style="margin-bottom:12px;">{{ $liveError }}
+                    <div style="font-size:12px;margin-top:4px;">Showing the details stored from the last successful sync or order.</div>
+                </x-ui.alert>
+            @endif
+            @if($liveData)
                 @php
                     $fields = [
                         'ServiceID'         => 'Service ID',
@@ -101,7 +123,26 @@
                     @endforeach
                 </dl>
             @else
-                <p style="color:var(--dd-text-soft);font-size:13px;">No live data available.</p>
+                {{-- Stored data (no live record yet, pending order, or Vocus unreachable) --}}
+                @php
+                    $stored = [
+                        'Service ID' => $service->vocus_service_id, 'Status' => $service->service_status, 'Scope' => $service->service_scope,
+                        'Plan' => $service->plan_id, 'Technology' => $service->service_type, 'Service Level' => $service->service_level,
+                        'Order Type' => $service->order_type, 'Customer' => $service->customer_name, 'Phone' => $service->phone,
+                        'PPPoE Username' => $service->username, 'Realm' => $service->realm, 'Directory ID' => $service->directory_id,
+                        'NBN Instance (PRI)' => $service->nbn_instance_id, 'AVC ID' => $service->avc_id, 'CVC ID' => $service->cvc_id,
+                        'Copper Pair ID' => $service->copper_pair_id, 'Postcode' => $service->location_reference,
+                        'Last synced' => $service->synced_at?->diffForHumans(),
+                    ];
+                @endphp
+                <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
+                    @foreach($stored as $label => $value)
+                        @if($value !== null && $value !== '')
+                            <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
+                            <dd style="font-size:13px;margin:0;">{{ $value }}</dd>
+                        @endif
+                    @endforeach
+                </dl>
             @endif
         </div>
 
@@ -138,7 +179,10 @@
             <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:18px;">
                 <h3 style="font-size:14px;font-weight:600;margin:0 0 12px;color:var(--text);">Service Actions</h3>
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                    @if($service->service_status === 'ACTIVE')
+                    @if(! $service->canChangeStatus())
+                        <p style="font-size:12px;color:var(--dd-text-soft);margin:0;">Status changes are unavailable while a Vocus transaction is in progress.</p>
+                    @endif
+                    @if($service->canChangeStatus() && $service->supportsSuspendResume() && $service->service_status === 'ACTIVE')
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="SUSPEND">
@@ -147,7 +191,7 @@
                                 Suspend Service
                             </button>
                         </form>
-                    @elseif($service->service_status === 'SUSPEND')
+                    @elseif($service->canChangeStatus() && $service->supportsSuspendResume() && $service->service_status === 'SUSPEND')
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="ACTIVE">
@@ -156,8 +200,11 @@
                             </button>
                         </form>
                     @endif
+                    @unless($service->supportsSuspendResume())
+                        <p style="font-size:12px;color:var(--dd-text-soft);margin:0;">Suspend and Resume are only available for Layer 3 / Reseller-Connect services (not Layer 2 / NCL2).</p>
+                    @endunless
 
-                    @if($service->service_status !== 'INACTIVE')
+                    @if($service->canChangeStatus() && $service->service_status !== 'INACTIVE')
                         <form method="POST" action="{{ route('admin.services.internet.setStatus', $service) }}">
                             @csrf
                             <input type="hidden" name="status" value="INACTIVE">
@@ -245,7 +292,25 @@
 </div>
 
 <script>
+function showTxnAlert(variant, text) {
+    const box = document.getElementById('txn-alert');
+    if (!box) return;
+    box.replaceChildren();
+    const alert = document.createElement('div');
+    alert.className = 'ui-alert ui-alert--' + variant;
+    alert.setAttribute('role', variant === 'danger' || variant === 'warning' ? 'alert' : 'status');
+    const body = document.createElement('div');
+    body.className = 'ui-alert__body';
+    body.textContent = text;
+    alert.appendChild(body);
+    box.appendChild(alert);
+}
+
+// Manual polling only. Account-level / unknown-transaction errors stop here and are shown
+// inline (no alert() loop); a Vocus error never triggers an automatic retry.
 function pollStatus() {
+    const btn = document.getElementById('poll-btn');
+    if (btn) btn.disabled = true;
     fetch('{{ route('admin.services.internet.poll', $service) }}', {
         method: 'POST',
         headers: {
@@ -253,19 +318,33 @@ function pollStatus() {
             'Accept': 'application/json',
         },
     })
-    .then(r => r.json())
+    .then(r => r.json().catch(() => ({ error: 'Unexpected response from the server.', stop: true })))
     .then(data => {
         if (data.error) {
-            alert('Poll error: ' + data.error);
+            showTxnAlert('danger', data.error);
+            if (data.reload) { setTimeout(() => window.location.reload(), 2500); return; }
+            if (btn && !data.stop) btn.disabled = false;
+            if (btn && data.stop) btn.title = 'Fix the problem above, then reload the page to try again.';
             return;
         }
         const el = document.getElementById('txn-state');
         if (el) el.textContent = data.transaction_state;
-        if (data.transaction_state === 'SUCCESS' || data.transaction_state === 'FAILED') {
-            window.location.reload();
+        if (data.cooldown) {
+            showTxnAlert('info', data.message || 'Checked recently. Try again later.');
+            if (btn) btn.disabled = false;
+            return;
         }
+        if (['SUCCESS', 'FAILED', 'WITHDRAWN'].includes(data.transaction_state)) {
+            window.location.reload();
+            return;
+        }
+        showTxnAlert('info', 'Vocus reports the transaction as ' + data.transaction_state + '.');
+        if (btn) btn.disabled = false;
     })
-    .catch(() => alert('Failed to reach server.'));
+    .catch(() => {
+        showTxnAlert('danger', 'Could not reach the server. Try again shortly.');
+        if (btn) btn.disabled = false;
+    });
 }
 </script>
 @endsection

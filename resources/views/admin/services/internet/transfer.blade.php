@@ -4,9 +4,15 @@
 <div class="dd-page">
 <div class="dd-card" style="max-width:760px;">
     <a href="{{ route('admin.services.internet.qualify') }}" style="font-size:13px;color:var(--dd-text-soft);text-decoration:none;">← Qualify Address</a>
-    <h1 class="dd-page-title">Transfer / Churn Service</h1>
+    <h1 class="dd-page-title">Transfer Service</h1>
+
+    @if(!empty($vocusProblem))
+        <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:16px;">{{ $vocusProblem }}
+            <a href="{{ route('admin.settings') }}">Open settings</a>
+        </x-ui.alert>
+    @endif
     <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 4px;">Transfer an existing NBN service from another provider to Vocus Wholesale.</p>
-    <x-ui.alert variant="warning"><strong>Note:</strong> A CHURN order will contact the customer's current provider. Ensure the customer has authorised this transfer and that the <strong>Customer Authorisation Date</strong> is correct.</x-ui.alert>
+    <x-ui.alert variant="warning"><strong>Note:</strong> This submits a TRANSFER order (OrderType TRANSFER), which will contact the customer's current provider. Ensure the customer has authorised this transfer and that the <strong>Customer Authorisation Date</strong> is correct.</x-ui.alert>
 
     @if($errors->any())
         <x-ui.alert variant="danger" class="mb-4"><strong>Please correct the following errors:</strong>
@@ -76,25 +82,27 @@
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Service Level</label>
                     <select name="service_level" class="dd-input" style="width:100%;">
-                        <option value="STANDARD" {{ old('service_level', 'STANDARD') === 'STANDARD' ? 'selected' : '' }}>STANDARD</option>
-                        <option value="ENHANCED" {{ old('service_level') === 'ENHANCED' ? 'selected' : '' }}>ENHANCED</option>
+                        @foreach($serviceLevels as $level)
+                            <option value="{{ $level }}" {{ old('service_level', 'STANDARD') === $level ? 'selected' : '' }}>{{ $level }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Copper Pair ID <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="text" name="copper_pair_id" value="{{ old('copper_pair_id', $copper_pair_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Pre-filled from qualify" required maxlength="30">
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Required for CHURN orders.</p>
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Pre-filled from qualify" required maxlength="15">
+                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Required: the copper pair to move.</p>
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">AVC ID</label>
-                    <input type="text" name="avc_id" value="{{ old('avc_id') }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Optional — for FTTP" maxlength="30">
+                    <input type="text" name="avc_id" value="{{ old('avc_id', $avc_id) }}"
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Layer 2 / FTTP" maxlength="30">
                 </div>
                 <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC ID</label>
-                    <input type="text" name="cvc_id" value="{{ old('cvc_id') }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Optional — for FTTP" maxlength="30">
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC (AggCVC) ID</label>
+                    <input type="text" name="cvc_id" value="{{ old('cvc_id', $cvc_id) }}"
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Required for Layer 2 / NCL2" maxlength="30">
+                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Required when the scope is NETWORK-CONNECT or the plan is an NCL2 plan.</p>
                 </div>
             </div>
         </div>
@@ -106,23 +114,23 @@
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Customer Name <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="text" name="customer_name" value="{{ old('customer_name') }}"
-                           class="dd-input" style="width:100%;" placeholder="Full name on account" required maxlength="100">
+                           class="dd-input" style="width:100%;" placeholder="Full name on account" required maxlength="40">
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Phone <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="text" name="phone" value="{{ old('phone') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. 0412345678" required maxlength="20">
+                           class="dd-input" style="width:100%;" placeholder="e.g. 0412345678" inputmode="numeric" pattern="\d{10}" title="10 digits" required maxlength="10">
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Customer Authorisation Date (CADate) <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="date" name="ca_date" value="{{ old('ca_date', now()->format('Y-m-d')) }}"
                            class="dd-input" style="width:100%;" required>
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Date the customer authorised the transfer. Must not be in the past.</p>
+                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Date the customer authorised the transfer. Enter the date the customer authorised the transfer (YYYYMMDD is sent to Vocus).</p>
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">PPPoE Realm</label>
                     <input type="text" name="realm" value="{{ old('realm') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. customer@isp.net.au" maxlength="64">
+                           class="dd-input" style="width:100%;" placeholder="e.g. wba.example.com.au" maxlength="61">
                 </div>
             </div>
         </div>
@@ -148,7 +156,7 @@
 
         <div style="display:flex;gap:10px;align-items:center;">
             <button type="submit" class="btn-accent" style="padding:10px 24px;font-size:14px;font-weight:600;"
-                    onclick="return confirm('Submit this CHURN/transfer order to Vocus? The customer\'s current provider will be contacted.');">
+                    onclick="return confirm('Submit this TRANSFER order to Vocus? The customer\'s current provider will be contacted.');">
                 Submit Transfer →
             </button>
             <a href="{{ route('admin.services.internet') }}" style="font-size:14px;color:var(--dd-text-soft);text-decoration:none;">Cancel</a>

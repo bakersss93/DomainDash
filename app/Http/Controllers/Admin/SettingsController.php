@@ -112,10 +112,10 @@ class SettingsController extends Controller
             'vocus'                   => 'array',
             'vocus.access_key'        => 'nullable|string|max:64',
             'vocus.alias_key'         => 'nullable|string|max:64',
-            'vocus.wsdl_url'          => 'nullable|url|max:255',
-            'vocus.login_url'         => 'nullable|url|max:255',
+            'vocus.wsdl_url'          => 'nullable|url:https|max:255',
+            'vocus.login_url'         => 'nullable|url:https|max:255',
             'vocus.cert_password'     => 'nullable|string|max:255',
-            'vocus_cert'              => 'nullable|file|extensions:p12,pfx,keystore|max:512',
+            'vocus_cert'              => 'nullable|file|extensions:p12,pfx,keystore,jks|max:512',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
             'sync_schedule.*.enabled' => 'nullable|boolean',
@@ -190,7 +190,32 @@ class SettingsController extends Controller
             $file = $request->file('vocus_cert');
             $ext = strtolower($file->getClientOriginalExtension() ?: 'p12');
             $filename = 'client.' . $ext;
+            $currentVocus = (array) Setting::get('vocus', []);
+            $password = (string) (($data['vocus']['cert_password'] ?? null) ?: ($currentVocus['cert_password'] ?? ''));
+
+            // Reject a certificate that cannot work before it replaces the working one.
+            if (\App\Services\Vocus\VocusWsmClient::isJavaKeystore($file->getRealPath())) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['vocus_cert' => \App\Services\Vocus\VocusWsmClient::JKS_MESSAGE]);
+            }
+            if (function_exists('openssl_pkcs12_read')) {
+                $certs = [];
+                if (! @openssl_pkcs12_read((string) file_get_contents($file->getRealPath()), $certs, $password)) {
+                    while (openssl_error_string() !== false) {
+                        // drain the OpenSSL error queue (never shown: it can name internals)
+                    }
+                    throw \Illuminate\Validation\ValidationException::withMessages(['vocus_cert' =>
+                        'The certificate could not be read. Check the certificate password. If the password is correct, the file may use legacy encryption (RC2/3DES) that OpenSSL 3 rejects: re-export it as a modern PKCS#12 file.']);
+                }
+            }
+
             $file->storeAs('vocus', $filename);
+
+            // Remove the previous private key when the file name changes (client.p12 -> client.pfx).
+            $previous = $currentVocus['cert_path'] ?? null;
+            if ($previous && $previous !== 'vocus/' . $filename) {
+                \Illuminate\Support\Facades\Storage::delete($previous);
+            }
+
             $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), [
                 'cert_path' => 'vocus/' . $filename,
             ]);

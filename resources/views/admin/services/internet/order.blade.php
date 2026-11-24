@@ -5,6 +5,12 @@
 <div class="dd-card" style="max-width:760px;">
     <a href="{{ route('admin.services.internet.qualify') }}" style="font-size:13px;color:var(--dd-text-soft);text-decoration:none;">← Qualify Address</a>
     <h1 class="dd-page-title">New NBN Order</h1>
+
+    @if(!empty($vocusProblem))
+        <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:16px;">{{ $vocusProblem }}
+            <a href="{{ route('admin.settings') }}">Open settings</a>
+        </x-ui.alert>
+    @endif
     <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 24px;">Submit a new NBN connection request via Vocus Wholesale.</p>
 
     @if($errors->any())
@@ -76,14 +82,26 @@
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Service Level</label>
                     <select name="service_level" class="dd-input" style="width:100%;">
-                        <option value="STANDARD" {{ old('service_level', 'STANDARD') === 'STANDARD' ? 'selected' : '' }}>STANDARD</option>
-                        <option value="ENHANCED" {{ old('service_level') === 'ENHANCED' ? 'selected' : '' }}>ENHANCED</option>
+                        @foreach($serviceLevels as $level)
+                            <option value="{{ $level }}" {{ old('service_level', 'STANDARD') === $level ? 'selected' : '' }}>{{ $level }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Copper Pair ID</label>
                     <input type="text" name="copper_pair_id" value="{{ old('copper_pair_id', $copper_pair_id) }}"
-                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Pre-filled from qualify (if FTTN/FTTB/FTTC)">
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Pre-filled from qualify (if FTTN/FTTB/FTTC)" maxlength="15">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">AVC ID</label>
+                    <input type="text" name="avc_id" value="{{ old('avc_id', $avc_id) }}"
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Layer 2 / FTTP" maxlength="30">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC (AggCVC) ID</label>
+                    <input type="text" name="cvc_id" value="{{ old('cvc_id', $cvc_id) }}"
+                           class="dd-input" style="width:100%;font-family:monospace;" placeholder="Required for Layer 2 / NCL2" maxlength="30">
+                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Required when the scope is NETWORK-CONNECT or the plan is an NCL2 plan.</p>
                 </div>
             </div>
         </div>
@@ -95,23 +113,23 @@
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Customer Name <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="text" name="customer_name" value="{{ old('customer_name') }}"
-                           class="dd-input" style="width:100%;" placeholder="Full name on account" required maxlength="100">
+                           class="dd-input" style="width:100%;" placeholder="Full name on account" required maxlength="40">
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Phone <span style="color:var(--dd-danger-text);">*</span></label>
                     <input type="text" name="phone" value="{{ old('phone') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. 0412345678" required maxlength="20">
+                           class="dd-input" style="width:100%;" placeholder="e.g. 0412345678" inputmode="numeric" pattern="\d{10}" title="10 digits" required maxlength="10">
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">PPPoE Realm</label>
                     <input type="text" name="realm" value="{{ old('realm') }}"
-                           class="dd-input" style="width:100%;" placeholder="e.g. customer@isp.net.au" maxlength="64">
-                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">Leave blank if not required.</p>
+                           class="dd-input" style="width:100%;" placeholder="e.g. wba.example.com.au" maxlength="61">
+                    <p style="font-size:11px;color:var(--dd-text-soft);margin:3px 0 0;">The realm only (up to 61 characters), not the full username. Leave blank if not required.</p>
                 </div>
                 <div>
                     <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">PPPoE Password</label>
-                    <input type="text" name="password" value="{{ old('password') }}"
-                           class="dd-input" style="width:100%;" placeholder="Optional" maxlength="50">
+                    <input type="password" name="password" autocomplete="new-password"
+                           class="dd-input" style="width:100%;" placeholder="Optional" minlength="2" maxlength="50">
                 </div>
             </div>
         </div>

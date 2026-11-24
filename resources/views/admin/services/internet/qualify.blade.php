@@ -7,6 +7,12 @@
     <h1 class="dd-page-title">Qualify Service Address</h1>
     <p style="font-size:14px;color:var(--dd-text-soft);margin:0 0 24px;">Check whether an address is eligible for NBN and view available technologies and speeds.</p>
 
+    @if(!empty($vocusProblem))
+        <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:16px;">{{ $vocusProblem }}
+            <a href="{{ route('admin.settings') }}">Open settings</a>
+        </x-ui.alert>
+    @endif
+
     {{-- Step 1: Address search --}}
     <div style="background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;margin-bottom:20px;">
         <h3 style="font-size:14px;font-weight:600;margin:0 0 14px;">Step 1 — Find Address</h3>
@@ -33,45 +39,72 @@
         </div>
 
         <div id="structured-form" style="display:none;border-top:1px solid #e5e7eb;padding-top:14px;">
+            <p style="font-size:12px;color:var(--dd-text-soft);margin:0 0 10px;">Values follow the Vocus street address standard (street name up to 25 characters, suburb up to 40).</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Unit / Level</label>
-                    <input id="f-unit" type="text" placeholder="e.g. 2" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Number</label>
-                    <input id="f-number" type="text" placeholder="e.g. 99" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Name</label>
-                    <input id="f-street" type="text" placeholder="e.g. Example" style="width:100%;">
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street Type</label>
-                    <select id="f-type" style="width:100%;">
-                        <option value="">Select…</option>
-                        @foreach(['ST','AVE','RD','DR','CL','CT','PL','TCE','WAY','HWY','BLVD','LN','GR','CCT','CRES'] as $t)
-                            <option value="{{ $t }}">{{ $t }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Suburb</label>
-                    <input id="f-suburb" type="text" placeholder="e.g. Melbourne" style="width:100%;">
-                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">State</label>
-                        <select id="f-state" style="width:100%;">
-                            <option value="">State</option>
-                            @foreach(['NSW','VIC','QLD','SA','WA','TAS','NT','ACT'] as $s)
-                                <option>{{ $s }}</option>
+                        <label for="f-unit-type" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Unit type</label>
+                        <select id="f-unit-type" style="width:100%;">
+                            <option value="">None</option>
+                            @foreach($unitTypes as $abbr => $name)
+                                <option value="{{ $abbr }}">{{ $abbr }} - {{ ucwords(strtolower($name)) }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Postcode</label>
-                        <input id="f-postcode" type="text" placeholder="0000" maxlength="4" style="width:100%;">
+                        <label for="f-unit" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Unit number</label>
+                        <input id="f-unit" type="text" placeholder="e.g. 2 or 2A" maxlength="6" style="width:100%;">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div>
+                        <label for="f-level-type" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Level type</label>
+                        <select id="f-level-type" style="width:100%;">
+                            <option value="">None</option>
+                            @foreach($levelTypes as $abbr => $name)
+                                <option value="{{ $abbr }}">{{ $abbr }} - {{ ucwords(strtolower($name)) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="f-level" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Level number</label>
+                        <input id="f-level" type="text" inputmode="numeric" maxlength="4" placeholder="e.g. 3" style="width:100%;">
+                    </div>
+                </div>
+                <div>
+                    <label for="f-number" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street number</label>
+                    <input id="f-number" type="text" placeholder="e.g. 99 or 99A" maxlength="8" style="width:100%;">
+                </div>
+                <div>
+                    <label for="f-street" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street name</label>
+                    <input id="f-street" type="text" placeholder="e.g. Example" maxlength="25" style="width:100%;">
+                </div>
+                <div>
+                    <label for="f-type" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Street type</label>
+                    <select id="f-type" style="width:100%;">
+                        <option value="">Select…</option>
+                        @foreach($streetTypes as $abbr => $name)
+                            <option value="{{ $abbr }}">{{ $abbr }} - {{ ucwords(strtolower($name)) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="f-suburb" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Suburb</label>
+                    <input id="f-suburb" type="text" placeholder="e.g. Melbourne" maxlength="40" style="width:100%;">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div>
+                        <label for="f-state" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">State</label>
+                        <select id="f-state" style="width:100%;">
+                            <option value="">State</option>
+                            @foreach($states as $code => $name)
+                                <option value="{{ $code }}">{{ $code }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="f-postcode" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">Postcode</label>
+                        <input id="f-postcode" type="text" inputmode="numeric" placeholder="0000" maxlength="6" style="width:100%;">
                     </div>
                 </div>
             </div>
@@ -86,6 +119,22 @@
             <div id="address-list" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
     </div>
+
+    {{-- Layer 2 (Network-Connect / NCL2): AVC and AggCVC IDs are sent with the qualification (Examples 4.2.2) --}}
+    <details style="margin-bottom:20px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--dd-text-soft);">Layer 2 / Network-Connect (NCL2): AVC and CVC IDs</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+            <div>
+                <label for="q-avc" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">AVC ID</label>
+                <input id="q-avc" type="text" maxlength="30" placeholder="e.g. AVC000340636851" style="width:100%;font-family:monospace;">
+            </div>
+            <div>
+                <label for="q-cvc" style="display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--dd-text-soft);">CVC (AggCVC) ID</label>
+                <input id="q-cvc" type="text" maxlength="30" placeholder="e.g. AggCVC000000999" style="width:100%;font-family:monospace;">
+            </div>
+        </div>
+        <p style="font-size:12px;color:var(--dd-text-soft);margin:6px 0 0;">Leave blank for Layer 3 / Reseller-Connect. Enter these before selecting an address; they are passed on to the order and transfer forms.</p>
+    </details>
 
     {{-- Step 2: Qualification result --}}
     <div id="qualify-section" style="display:none;background:var(--surface-muted,#f8fafc);border:1px solid var(--border-subtle);border-radius:10px;padding:20px;">
@@ -120,14 +169,24 @@ function searchAddress() {
 
 function searchStructured() {
     doLookup({
-        street_number: document.getElementById('f-number').value,
-        street_name:   document.getElementById('f-street').value,
+        street_number: document.getElementById('f-number').value.trim(),
+        street_name:   document.getElementById('f-street').value.trim(),
         street_type:   document.getElementById('f-type').value,
-        suburb:        document.getElementById('f-suburb').value,
+        suburb:        document.getElementById('f-suburb').value.trim(),
         state:         document.getElementById('f-state').value,
-        postcode:      document.getElementById('f-postcode').value,
-        unit_number:   document.getElementById('f-unit').value,
+        postcode:      document.getElementById('f-postcode').value.trim(),
+        unit_number:   document.getElementById('f-unit').value.trim(),
+        unit_type:     document.getElementById('f-unit-type').value,
+        level_type:    document.getElementById('f-level-type').value,
+        level_number:  document.getElementById('f-level').value.trim(),
     });
+}
+
+// Laravel validation failures come back as {message, errors}; Vocus / config failures as {error}.
+function errorText(data, fallback) {
+    if (data && data.error) return data.error;
+    if (data && data.errors) { const first = Object.values(data.errors).flat()[0]; if (first) return first; }
+    return (data && data.message) || fallback;
 }
 
 function doLookup(params) {
@@ -143,13 +202,13 @@ function doLookup(params) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
         body: body.toString(),
     })
-    .then(r => r.json())
+    .then(r => r.json().catch(() => ({ error: 'Unexpected response from the server (HTTP ' + r.status + ').' })))
     .then(data => {
         document.getElementById('address-loading').style.display = 'none';
 
-        if (data.error) {
+        if (data.error || data.errors || (data.message && !data.addresses)) {
             const el = document.getElementById('address-error');
-            el.textContent = data.error;
+            el.textContent = errorText(data, 'The address search failed.');
             el.style.display = 'block';
             return;
         }
@@ -159,7 +218,7 @@ function doLookup(params) {
 
         if (!data.addresses || data.addresses.length === 0) {
             const el = document.getElementById('address-error');
-            el.textContent = 'No addresses found. Try the manual form or check your spelling.';
+            el.textContent = data.message || 'No addresses found. Try the manual form or check your spelling.';
             el.style.display = 'block';
             return;
         }
@@ -214,6 +273,8 @@ function runQualify(directoryId, addressLong) {
         _token: '{{ csrf_token() }}',
         directory_id: directoryId,
         address_long: addressLong,
+        avc_id: document.getElementById('q-avc').value.trim(),
+        cvc_id: document.getElementById('q-cvc').value.trim(),
     });
 
     fetch('{{ route('admin.services.internet.qualify.check') }}', {
@@ -221,13 +282,13 @@ function runQualify(directoryId, addressLong) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
         body: body.toString(),
     })
-    .then(r => r.json())
+    .then(r => r.json().catch(() => ({ error: 'Unexpected response from the server (HTTP ' + r.status + ').' })))
     .then(data => {
         document.getElementById('qualify-loading').style.display = 'none';
 
-        if (data.error) {
+        if (data.error || data.errors || (data.message && data.result === undefined)) {
             const el = document.getElementById('qualify-error');
-            el.textContent = data.error;
+            el.textContent = errorText(data, 'Qualification failed.');
             el.style.display = 'block';
             return;
         }
@@ -270,6 +331,8 @@ function renderQualifyResult(data, directoryId, addressLong) {
             address_long: addressLong,
             service_type: data.service_type || '',
             copper_pair_id: (data.copper_pairs && data.copper_pairs[0]) ? (data.copper_pairs[0].CopperPairID || data.copper_pairs[0].copperPairId || '') : '',
+            avc_id: document.getElementById('q-avc').value.trim(),
+            cvc_id: document.getElementById('q-cvc').value.trim(),
         });
         orderButtons = `<div style="display:flex;gap:8px;margin-top:16px;">
             <a href="{{ route('admin.services.internet.order') }}?${params.toString()}"

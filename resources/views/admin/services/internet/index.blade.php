@@ -5,6 +5,15 @@
 <div class="dd-card">
     <h1 class="dd-page-title">Internet Services</h1>
 
+    @include('admin.sync._live')
+    @include('admin.sync._worker-banner')
+
+    @if(!empty($vocusProblem))
+        <x-ui.alert variant="danger" title="Vocus is not ready" style="margin-bottom:1rem;">{{ $vocusProblem }}
+            <a href="{{ route('admin.settings') }}">Open settings</a>
+        </x-ui.alert>
+    @endif
+
     {{-- Toolbar --}}
     <div class="dd-services-toolbar">
         <form method="GET" action="{{ route('admin.services.internet') }}" class="dd-services-filter" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -34,10 +43,10 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <a href="{{ route('admin.services.internet.qualify') }}" class="btn-accent dd-pill-btn">Qualify Address</a>
             <a href="{{ route('admin.services.internet.order') }}" class="btn-accent dd-pill-btn">New Order</a>
-            <form method="POST" action="{{ route('admin.services.internet.sync') }}">
+            <form method="POST" action="{{ route('admin.services.internet.sync') }}" data-vocus-queue>
                 @csrf
                 <button type="submit" class="btn-accent dd-pill-btn"
-                        onclick="return confirm('Refresh status for all known internet services from Vocus?');">
+                        onclick="return confirm('Refresh status for all known internet services from Vocus? This runs in the background (about 2.5 seconds per service).');">
                     Sync
                 </button>
             </form>
@@ -53,7 +62,7 @@
         <p style="margin:0 0 8px;font-size:13px;color:var(--text-muted,#94a3b8);">
             Enter one or more Vocus Service IDs (comma, space, or newline separated). Each ID will be imported and its details fetched from Vocus.
         </p>
-        <form method="POST" action="{{ route('admin.services.internet.import') }}">
+        <form method="POST" action="{{ route('admin.services.internet.import') }}" data-vocus-queue>
             @csrf
             <textarea name="service_ids" rows="3"
                       placeholder="e.g. NBN-12345, NBN-67890"
@@ -67,6 +76,8 @@
         </form>
     </div>
 
+    <div id="vocus-sync-msg" role="status" style="font-size:13px;margin-bottom:8px;"></div>
+    <div id="vocus-sync-runs" aria-live="polite"></div>
 
     {{-- Table --}}
     <div class="dd-services-table-wrapper">
@@ -148,4 +159,52 @@
     </div>
 </div>
 </div>
+
+<script>
+// Sync / import are queued: submit through fetch, then follow the run in the shared live panel.
+document.querySelectorAll('form[data-vocus-queue]').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const msg = document.getElementById('vocus-sync-msg');
+        const mount = document.getElementById('vocus-sync-runs');
+        const buttons = form.querySelectorAll('button[type="submit"]');
+        buttons.forEach(function (b) { b.disabled = true; });
+        msg.textContent = '';
+        msg.style.color = '';
+
+        const body = new URLSearchParams(new FormData(form));
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            body: body.toString(),
+        }).then(function (res) {
+            return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
+        }).then(function (r) {
+            const data = r.data || {};
+            const firstError = data.errors ? Object.values(data.errors).flat()[0] : null;
+            if (!r.ok && !(data.runs && data.runs.length)) {
+                msg.style.color = 'var(--dd-danger-text)';
+                msg.textContent = data.error || firstError || data.message || ('Request failed (HTTP ' + r.status + ')');
+                buttons.forEach(function (b) { b.disabled = false; });
+                return;
+            }
+            if (!r.ok) {
+                msg.style.color = 'var(--dd-danger-text)';
+                msg.textContent = data.error || 'A sync is already running.';
+            } else {
+                msg.textContent = data.message || '';
+            }
+            DDSync.updateWorker(data.worker);
+            DDSync.track(data.runs, mount, {
+                onDone: function () { buttons.forEach(function (b) { b.disabled = false; }); },
+            });
+            setTimeout(function () { buttons.forEach(function (b) { b.disabled = false; }); }, 3000);
+        }).catch(function (e) {
+            msg.style.color = 'var(--dd-danger-text)';
+            msg.textContent = 'Could not queue the sync: ' + e.message;
+            buttons.forEach(function (b) { b.disabled = false; });
+        });
+    });
+});
+</script>
 @endsection

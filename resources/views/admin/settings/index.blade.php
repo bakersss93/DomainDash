@@ -262,9 +262,14 @@
                 </div>
                 <div id="vocus-content" class="settings-content" style="padding:20px 24px;display:none;">
 
+                @php $__vocusProblem = \App\Services\Vocus\VocusWsmClient::configurationProblem(); @endphp
+                @if($__vocusProblem)
+                    <x-ui.alert variant="warning" title="Vocus is not ready" style="margin-bottom:16px;">{{ $__vocusProblem }}</x-ui.alert>
+                @endif
+
                 <div style="margin-bottom:12px;">
                     <label for="vocus_access_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
-                        Access Key
+                        Access Key <span style="font-weight:400;color:var(--dd-text-soft);">(leave as ******** to keep the stored key)</span>
                     </label>
                     <input id="vocus_access_key"
                            type="text"
@@ -276,13 +281,13 @@
 
                 <div style="margin-bottom:12px;">
                     <label for="vocus_alias_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
-                        Alias Key <span style="font-weight:400;color:var(--dd-text-soft);">(optional)</span>
+                        Alias Key <span style="font-weight:400;color:var(--dd-text-soft);">(optional; meaning to be confirmed with Vocus)</span>
                     </label>
                     <input id="vocus_alias_key"
                            type="text"
                            name="vocus[alias_key]"
                            value="{{ $settings['vocus']['alias_key'] ?? '' }}"
-                           placeholder="Optional secondary access key"
+                           placeholder="Optional (leave as ******** to keep it)"
                            style="width:100%;">
                 </div>
 
@@ -297,7 +302,7 @@
                            placeholder="https://wsm.webservice.m2.com.au/WholesaleServiceManagement"
                            style="width:100%;">
                     <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
-                        Change to the sandbox URL during testing. Leave blank to use the production default.
+                        The sandbox uses the same host name through a hosts-file entry and needs a CA bundle (VOCUS_ENVIRONMENT / VOCUS_CA_BUNDLE in the environment file). Must be https. Leave blank for the production default.
                     </small>
                 </div>
 
@@ -315,7 +320,7 @@
 
                 <div style="margin-bottom:12px;">
                     <label for="vocus_cert" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
-                        Client Certificate (.p12 / .pfx / .keystore)
+                        Client Certificate (.p12 / .pfx / .keystore / .jks)
                     </label>
                     @if(!empty($settings['vocus']['cert_path']))
                         <p style="font-size:13px;color:var(--dd-status-success-fg);margin:0 0 6px;">
@@ -326,10 +331,10 @@
                     <input id="vocus_cert"
                            type="file"
                            name="vocus_cert"
-                           accept=".p12,.pfx,.keystore"
+                           accept=".p12,.pfx,.keystore,.jks"
                            style="width:100%;padding:6px 0;font-size:14px;">
                     <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
-                        Vocus issues a new certificate annually. Upload the PKCS#12 keystore file they provide (.p12, .pfx, or .keystore).
+                        Vocus issues a new certificate annually. Upload the PKCS#12 keystore file they provide. The file and password are checked on upload; Java JKS files must be converted to PKCS#12 first.
                     </small>
                 </div>
 

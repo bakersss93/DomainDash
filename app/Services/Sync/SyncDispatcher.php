@@ -7,11 +7,13 @@ use App\Jobs\SyncHaloClientsJob;
 use App\Jobs\SyncHaloDomainsJob;
 use App\Jobs\SyncItGlueConfigurationsJob;
 use App\Jobs\SyncItGlueOrganizationsJob;
+use App\Jobs\SyncVocusServicesJob;
 use App\Models\Client;
 use App\Models\SyncRun;
 use App\Services\AuditLogger;
 use App\Services\Halo\HaloPsaClient;
 use App\Services\ItGlue\ItGlueClient;
+use App\Services\Vocus\VocusWsmClient;
 use Illuminate\Support\Facades\Bus;
 
 /**
@@ -67,6 +69,27 @@ class SyncDispatcher
         $run = SyncRun::queue('itglue', 'organizations', null, $userId);
         SyncItGlueOrganizationsJob::dispatch($run->id);
         $this->audit('itglue', 'refresh');
+
+        return $run;
+    }
+
+    /**
+     * Queue a Vocus internet service refresh (live panel scope "vocus/services").
+     * With $vocusIds = null every locally known service is refreshed; with ids and
+     * $create = true (import) rows are created only after Vocus returned the service.
+     * One run per provider/scope at a time: a genuinely running run is returned instead.
+     *
+     * @param string[]|null $vocusIds
+     */
+    public function refreshVocus(?array $vocusIds = null, bool $create = false, ?int $userId = null): SyncRun
+    {
+        if ($run = SyncRun::active('vocus', 'services')) {
+            return $run;
+        }
+
+        $run = SyncRun::queue('vocus', 'services', null, $userId);
+        SyncVocusServicesJob::dispatch($vocusIds, $create, $run->id);
+        $this->audit('vocus', $create ? 'import-services' : 'refresh-services', ['services' => $vocusIds === null ? 'all' : count($vocusIds)]);
 
         return $run;
     }
@@ -170,6 +193,14 @@ class SyncDispatcher
 
         return [
             'worker' => app(QueueHealth::class)->status(),
+            'vocus' => [
+                'configured' => VocusWsmClient::isConfigured(),
+                'configuration_problem' => VocusWsmClient::configurationProblem(),
+                'last_synced_at' => $at('vocus', 'services')?->toIso8601String(),
+                'last_synced_human' => $at('vocus', 'services')?->diffForHumans(),
+                'active' => $active('vocus', 'services'),
+                'latest' => $latest('vocus', 'services'),
+            ],
             'halo' => [
                 'configured' => HaloPsaClient::isConfigured(),
                 'configuration_problem' => HaloPsaClient::configurationProblem(),

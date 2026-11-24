@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\InternetService;
-use App\Services\AuditLogger;
+use App\Services\Sync\SyncDispatcher;
 use App\Services\Vocus\VocusWsmClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,56 +37,23 @@ class InternetController extends Controller
         return response()->json($service->load('client'));
     }
 
-    public function sync(): JsonResponse
+    /**
+     * Queue a refresh of every known service from Vocus (background job, shared
+     * rate limiter). Poll GET /admin/sync/runs/{run} equivalents are not exposed
+     * to API keys; the run id is returned for reference.
+     */
+    public function sync(SyncDispatcher $dispatcher): JsonResponse
     {
-        $vocus    = app(VocusWsmClient::class);
-        $imported = 0;
-        $failed   = 0;
-
-        $existing = InternetService::whereNotNull('vocus_service_id')->get();
-
-        foreach ($existing as $service) {
-            try {
-                $response = $vocus->getService($service->vocus_service_id);
-                $p        = $response['params'] ?? [];
-
-                if (empty($p)) {
-                    continue;
-                }
-
-                $service->service_status       = $p['ServiceStatus']     ?? $service->service_status;
-                $service->plan_id              = $p['PlanID']            ?? $service->plan_id;
-                $service->service_type         = $p['ServiceType']       ?? $service->service_type;
-                $service->service_scope        = $p['ServiceScope']      ?? $service->service_scope;
-                $service->customer_name        = $p['CustomerName']      ?? $service->customer_name;
-                $service->phone                = $p['Phone']             ?? $service->phone;
-                $service->nbn_instance_id      = $p['NBNInstanceID']     ?? $service->nbn_instance_id;
-                $service->avc_id               = $p['AVCID']             ?? $service->avc_id;
-                $service->cvc_id               = $p['CVCID']             ?? $service->cvc_id;
-                $service->realm                = $p['Username']          ?? $service->realm;
-                $service->billing_provider_id  = $p['BillingProviderID'] ?? $service->billing_provider_id;
-                $service->synced_at            = now();
-                $service->save();
-                $imported++;
-            } catch (\Throwable $e) {
-                $failed++;
-                \Illuminate\Support\Facades\Log::warning('Vocus service refresh failed (API sync)', [
-                    'service_id' => $service->vocus_service_id,
-                    'error_code' => $e instanceof \App\Services\Vocus\VocusWsmException ? $e->errorCode : null,
-                    'message'    => $e->getMessage(),
-                ]);
-            }
+        if (($problem = VocusWsmClient::configurationProblem()) !== null) {
+            return response()->json(['message' => $problem], 422);
         }
 
-        AuditLogger::logSystem('sync.completed', "API internet service sync completed ({$imported} records).", [
-            'service' => 'api',
-            'function' => 'internet.sync',
-        ], ['new_values' => ['synced' => $imported, 'failed' => $failed]]);
+        $run = $dispatcher->refreshVocus(null, false, null);
 
         return response()->json([
-            'message' => "Sync complete. Refreshed {$imported} internet services.",
-            'count'   => $imported,
-            'failed'  => $failed,
+            'message' => 'Sync queued. Services are refreshed from Vocus in the background.',
+            'run_id'  => $run->id,
+            'status'  => $run->status,
         ], 202);
     }
 }
