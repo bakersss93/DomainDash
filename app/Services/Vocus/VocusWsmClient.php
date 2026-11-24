@@ -486,10 +486,14 @@ class VocusWsmClient
         $xml  = "<{$elementName} xmlns=\"" . self::NS_WSM . '"';
         $xml .= ' xmlns:std="' . self::NS_STD . '">';
 
-        $xml .= '<AccessKey>' . $this->e($this->config['access_key'] ?? '') . '</AccessKey>';
+        // settings() loads the stored config on first use; reading $this->config
+        // directly here sent an empty AccessKey on a fresh client (WSM-4010).
+        $settings = $this->settings();
 
-        if (!empty($this->config['alias_key'])) {
-            $xml .= '<AliasKey>' . $this->e($this->config['alias_key']) . '</AliasKey>';
+        $xml .= '<AccessKey>' . $this->e($settings['access_key'] ?? '') . '</AccessKey>';
+
+        if (!empty($settings['alias_key'])) {
+            $xml .= '<AliasKey>' . $this->e($settings['alias_key']) . '</AliasKey>';
         }
 
         $xml .= '<ProductID>' . $this->e($productId) . '</ProductID>';
