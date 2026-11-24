@@ -115,6 +115,10 @@ class SettingsController extends Controller
             'vocus.wsdl_url'          => 'nullable|url:https|max:255',
             'vocus.login_url'         => 'nullable|url:https|max:255',
             'vocus.cert_password'     => 'nullable|string|max:255',
+            'vocus.environment'       => 'nullable|in:production,sandbox',
+            'vocus.sandbox_ip'        => 'nullable|ip',
+            'vocus.sandbox_pin_ip'    => 'nullable|in:0,1',
+            'vocus_ca'                => 'nullable|file|extensions:pem,crt,cer|max:256',
             'vocus_cert'              => 'nullable|file|extensions:p12,pfx,keystore,jks|max:512',
             'sync_schedule' => 'array',
             'sync_schedule.*' => 'array',
@@ -221,6 +225,20 @@ class SettingsController extends Controller
             ]);
         }
 
+        // Vocus CA bundle (PEM) for the sandbox's self-signed certificate.
+        if ($request->hasFile('vocus_ca')) {
+            $pem = (string) file_get_contents($request->file('vocus_ca')->getRealPath());
+            if (! str_contains($pem, '-----BEGIN CERTIFICATE-----') || (function_exists('openssl_x509_read') && @openssl_x509_read($pem) === false)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['vocus_ca' =>
+                    'The CA file must be a PEM certificate (text starting with -----BEGIN CERTIFICATE-----).']);
+            }
+            \Illuminate\Support\Facades\Storage::put('vocus/ca.pem', $pem);
+            $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), ['ca_bundle_path' => 'vocus/ca.pem']);
+        } elseif ($request->boolean('vocus_ca_remove')) {
+            \Illuminate\Support\Facades\Storage::delete('vocus/ca.pem');
+            $data['vocus'] = array_merge($data['vocus'] ?? Setting::get('vocus', []), ['ca_bundle_path' => null]);
+        }
+
         // Handle logo upload if provided.
         if ($request->hasFile('branding_logo')) {
             $file = $request->file('branding_logo');
@@ -239,7 +257,7 @@ class SettingsController extends Controller
 
         // Persist only values that actually changed and capture a precise audit diff.
         foreach ($data as $key => $value) {
-            if (in_array($key, ['branding_logo', 'vocus_cert'])) {
+            if (in_array($key, ['branding_logo', 'vocus_cert', 'vocus_ca', 'vocus_ca_remove'])) {
                 continue;
             }
 

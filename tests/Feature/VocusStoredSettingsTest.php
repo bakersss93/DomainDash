@@ -40,4 +40,22 @@ class VocusStoredSettingsTest extends TestCase
         $this->assertStringContainsString('<AccessKey>STORED-AK</AccessKey>', $xml);
         $this->assertStringContainsString('<AliasKey>ALIAS-1</AliasKey>', $xml);
     }
+
+    public function test_sandbox_pins_the_documented_ip_and_production_uses_dns(): void
+    {
+        Setting::put('vocus', ['access_key' => 'AK', 'environment' => 'sandbox']);
+        $this->assertSame('203.23.116.113', (new VocusWsmClient())->pinnedIp());
+
+        Setting::put('vocus', ['access_key' => 'AK', 'environment' => 'sandbox', 'sandbox_ip' => '10.1.2.3']);
+        $this->assertSame('10.1.2.3', (new VocusWsmClient())->pinnedIp());
+
+        Setting::put('vocus', ['access_key' => 'AK', 'environment' => 'sandbox', 'sandbox_pin_ip' => '0']);
+        $this->assertNull((new VocusWsmClient())->pinnedIp());
+
+        Setting::put('vocus', ['access_key' => 'AK', 'environment' => 'sandbox', 'sandbox_ip' => 'not-an-ip']);
+        $this->assertNull((new VocusWsmClient())->pinnedIp());
+
+        Setting::put('vocus', ['access_key' => 'AK', 'environment' => 'production', 'sandbox_ip' => '10.1.2.3']);
+        $this->assertNull((new VocusWsmClient())->pinnedIp());
+    }
 }

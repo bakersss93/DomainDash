@@ -183,12 +183,56 @@ class VocusWsmClient
             return null;
         }
 
+        // Uploaded in Settings: stored relative to the local disk (vocus/ca.pem).
+        if (! str_starts_with((string) $path, '/') && Storage::disk('local')->exists($path)) {
+            $path = Storage::disk('local')->path($path);
+        }
+
         if (! is_file($path) || ! is_readable($path)) {
             Log::warning('The configured Vocus CA bundle is not readable', ['path' => $path]);
             throw new VocusConfigurationException('The configured Vocus CA bundle is not readable by the application.', null, 'LOCAL-LOGIN');
         }
 
         return $path;
+    }
+
+    /**
+     * IP the WSM hostname is pinned to, or null for normal DNS. The sandbox is
+     * only reachable at an unadvertised IP (Sandbox guide 2.1); pinning avoids
+     * editing the server's hosts file. Production always uses DNS.
+     */
+    public function pinnedIp(): ?string
+    {
+        if ($this->environment() !== 'sandbox') {
+            return null;
+        }
+
+        $s = $this->settings();
+        if (array_key_exists('sandbox_pin_ip', $s) && ! filter_var($s['sandbox_pin_ip'], FILTER_VALIDATE_BOOLEAN)) {
+            return null;
+        }
+
+        $ip = trim((string) ($s['sandbox_ip'] ?? config('services.vocus.sandbox.ip', '')));
+
+        return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : null;
+    }
+
+    /** CURLOPT_RESOLVE entry for a URL when an IP is pinned. */
+    protected function resolveEntry(string $url): ?string
+    {
+        $ip = $this->pinnedIp();
+        if ($ip === null) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+        $host = $parts['host'] ?? null;
+        if (! $host) {
+            return null;
+        }
+        $port = $parts['port'] ?? (($parts['scheme'] ?? 'https') === 'https' ? 443 : 80);
+
+        return "{$host}:{$port}:{$ip}";
     }
 
     protected function connectionTimeout(): int
@@ -274,6 +318,10 @@ class VocusWsmClient
 
         if ($ca = $this->caBundle()) {
             $curlOptions[CURLOPT_CAINFO] = $ca;
+        }
+
+        if ($resolve = $this->resolveEntry($loginUrl)) {
+            $curlOptions[CURLOPT_RESOLVE] = [$resolve];
         }
 
         $ch = curl_init($loginUrl);
@@ -416,7 +464,13 @@ class VocusWsmClient
             throw new \RuntimeException('The PHP soap extension (ext-soap) is not installed; cannot call Vocus WSM.');
         }
 
-        return new SoapClient($wsdlPath, $options);
+        return (new VocusSoapClient($wsdlPath, $options))->configureTransport(
+            $sessionId,
+            $this->pinnedIp(),
+            $this->caBundle(),
+            $this->connectionTimeout(),
+            $this->timeout(),
+        );
     }
 
     protected function soap(): object

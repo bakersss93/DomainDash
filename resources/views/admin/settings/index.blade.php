@@ -267,6 +267,46 @@
                     <x-ui.alert variant="warning" title="Vocus is not ready" style="margin-bottom:16px;">{{ $__vocusProblem }}</x-ui.alert>
                 @endif
 
+                @php
+                    $__vEnv = $settings['vocus']['environment'] ?? config('services.vocus.environment', 'production');
+                    $__vPin = (string) ($settings['vocus']['sandbox_pin_ip'] ?? '1');
+                @endphp
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:12px;">
+                    <div>
+                        <label for="vocus_environment" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Environment</label>
+                        <select id="vocus_environment" name="vocus[environment]" style="width:100%;">
+                            <option value="production" @selected($__vEnv !== 'sandbox')>Production</option>
+                            <option value="sandbox" @selected($__vEnv === 'sandbox')>Sandbox (testing)</option>
+                        </select>
+                        <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">Switching starts a new Vocus session. Sandbox requires access granted by Vocus.</small>
+                    </div>
+                    <div>
+                        <label for="vocus_sandbox_ip" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">Sandbox IP address</label>
+                        <input id="vocus_sandbox_ip" type="text" name="vocus[sandbox_ip]" inputmode="decimal"
+                               value="{{ $settings['vocus']['sandbox_ip'] ?? config('services.vocus.sandbox.ip', '203.23.116.113') }}"
+                               placeholder="203.23.116.113" style="width:100%;">
+                        <input type="hidden" name="vocus[sandbox_pin_ip]" value="0">
+                        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:var(--dd-text-soft);">
+                            <input type="checkbox" name="vocus[sandbox_pin_ip]" value="1" @checked($__vPin !== '0')>
+                            Connect to this IP in sandbox mode (no hosts-file entry needed)
+                        </label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label for="vocus_ca" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
+                        Sandbox CA certificate (.pem / .crt)
+                    </label>
+                    @if(!empty($settings['vocus']['ca_bundle_path']))
+                        <p style="font-size:13px;color:var(--dd-status-success-fg);margin:0 0 6px;">CA certificate on file. Upload a new file to replace it.
+                            <label style="margin-left:8px;color:var(--dd-text-soft);"><input type="checkbox" name="vocus_ca_remove" value="1"> Remove</label>
+                        </p>
+                    @endif
+                    <input id="vocus_ca" type="file" name="vocus_ca" accept=".pem,.crt,.cer" style="width:100%;">
+                    <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">The sandbox uses a self-signed certificate; upload its CA (or the certificate itself) so the connection can be verified. Certificate checking is never turned off.</small>
+                    @error('vocus_ca')<p style="color:var(--dd-danger-text);font-size:13px;margin-top:4px;">{{ $message }}</p>@enderror
+                </div>
+
                 <div style="margin-bottom:12px;">
                     <label for="vocus_access_key" style="display:block;font-size:14px;margin-bottom:4px;color:var(--text-muted,#566177);font-weight:500;">
                         Access Key <span style="font-weight:400;color:var(--dd-text-soft);">(leave as ******** to keep the stored key)</span>
@@ -302,7 +342,7 @@
                            placeholder="https://wsm.webservice.m2.com.au/WholesaleServiceManagement"
                            style="width:100%;">
                     <small style="display:block;margin-top:4px;font-size:12px;color:var(--dd-text-soft);">
-                        The sandbox uses the same host name through a hosts-file entry and needs a CA bundle (VOCUS_ENVIRONMENT / VOCUS_CA_BUNDLE in the environment file). Must be https. Leave blank for the production default.
+                        Production only (sandbox endpoints come from the Environment setting above). Must be https. Leave blank for the default.
                     </small>
                 </div>
 

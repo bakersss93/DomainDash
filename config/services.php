@@ -71,6 +71,8 @@ return [
         'sandbox' => [
             'endpoint' => env('VOCUS_SANDBOX_ENDPOINT', 'https://wsm.webservice.m2.com.au/WholesaleServiceManagement'),
             'login_url' => env('VOCUS_SANDBOX_LOGIN_URL', 'https://wsm.webservice.m2.com.au:9443/login/'),
+            // Sandbox is not in public DNS (Sandbox guide 2.1); requests are pinned to this IP.
+            'ip' => env('VOCUS_SANDBOX_IP', '203.23.116.113'),
         ],
         // Optional PEM CA bundle / pinned certificate used for login + SOAP.
         'ca_bundle' => env('VOCUS_CA_BUNDLE'),

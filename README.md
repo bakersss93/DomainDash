@@ -341,3 +341,7 @@ Manual run for debugging (as root): `php artisan domaindash:certctl tick` / `ren
 * Roll back a certificate: re-upload the previous one, or `certbot certificates` / `certbot delete`. To stop using the managed snippet: remove the `include` line from the server block, `nginx -t && systemctl reload nginx`.
 * Disable the automation: `systemctl disable --now domaindash-certctl.timer domaindash-certbot-renew.timer`.
 * Full removal: `sudo bash deploy/https/install.sh --uninstall` (removes wrappers and units; leaves the snippet, `/etc/ssl/domaindash` and `/etc/letsencrypt` for you to delete deliberately). Drop the tables with `php artisan migrate:rollback --path=database/migrations/2026_10_20_000001_create_platform_https_tables.php`.
+
+## Vocus sandbox
+
+Settings → Vocus Wholesale → **Environment: Sandbox**. The sandbox shares the production hostname but is only reachable at an unadvertised IP (Vocus Sandbox guide 2.1, default `203.23.116.113`, override with the *Sandbox IP address* field or `VOCUS_SANDBOX_IP`). With "Connect to this IP in sandbox mode" ticked, DomainDash pins that IP for the login and SOAP calls itself, so **no hosts-file entry is needed** — remove any `wsm.webservice.m2.com.au` line from `/etc/hosts` when switching back to production, otherwise production traffic would still go to the sandbox. Upload the sandbox's CA certificate (PEM) in the same section; TLS verification stays on. Switching environment starts a new Vocus session.
