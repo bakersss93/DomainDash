@@ -99,13 +99,7 @@
                 @endforeach
             </select>
         </div>
-        <div>
-            <label for="f-copper" style="{{ $lbl }}">Copper Pair ID @if($transfer){!! $req !!}@endif</label>
-            <input id="f-copper" type="text" name="copper_pair_id" value="{{ old('copper_pair_id', $copper_pair_id) }}"
-                   class="dd-input" style="width:100%;font-family:monospace;" maxlength="15" @if($transfer) required @endif
-                   @if($copper_pair_id !== '') readonly @endif>
-            <p style="{{ $note }}">@if($transfer)Required: the copper pair to move.@else Filled from qualify for copper technologies; blank otherwise.@endif</p>
-        </div>
+        @include('admin.services.internet._line-selector', ['transfer' => $transfer])
         @if($transfer)
             <div>
                 <label for="f-avc" style="{{ $lbl }}">AVC ID</label>

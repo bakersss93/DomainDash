@@ -11,6 +11,7 @@ use App\Models\VocusPlan;
 use App\Services\AuditLogger;
 use App\Services\Sync\QueueHealth;
 use App\Services\Sync\SyncDispatcher;
+use App\Services\Vocus\VocusLineSelection;
 use App\Services\Vocus\VocusOptions;
 use App\Services\Vocus\VocusWsmClient;
 use App\Services\Vocus\VocusWsmException;
@@ -18,7 +19,9 @@ use App\Support\VocusAddressParser;
 use App\Support\VocusAddressStandard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -352,17 +355,26 @@ class InternetController extends Controller
 
             $result = app(VocusWsmClient::class)->qualifyAddress($directoryId);
 
+            $q     = $result['qualification'];
+            $token = Str::random(32);
+            // Kept so the order / transfer form can list the same lines and ports and validate the choice.
+            Cache::put(self::QUALIFICATION_CACHE . $token, ['directory_id' => $directoryId, 'qualification' => $q],
+                now()->addMinutes(max(5, (int) config('services.vocus.qualification_ttl_minutes', 60))));
+
             return response()->json([
-                'directory_id'   => $directoryId,
-                'address_long'   => $request->input('address_long'),
-                'result'         => $result['params']['Result'] ?? null,
-                'service_type'   => $result['params']['ServiceType'] ?? null,
-                'service_class'  => $result['params']['ServiceClass'] ?? null,
-                'zone'           => $result['params']['Zone'] ?? null,
-                'copper_pairs'   => $result['params']['CopperPairRecord'] ?? [],
-                'nbn_ports'      => $result['params']['NBNPortRecord'] ?? [],
-                'params'         => $result['params'],
-                'transaction_id' => $result['transaction_id'],
+                'directory_id'        => $directoryId,
+                'address_long'        => $request->input('address_long'),
+                'result'              => $q['result'],
+                'service_type'        => $q['service_type'],
+                'service_class'       => $q['service_class'],
+                'zone'                => $q['zone'],
+                'qualification'       => $q,
+                'qualification_token' => $token,
+                // Legacy keys (decoded raw records).
+                'copper_pairs'        => $result['params']['CopperPairRecord'] ?? [],
+                'nbn_ports'           => $result['params']['NBNPortRecord'] ?? [],
+                'params'              => $result['params'],
+                'transaction_id'      => $result['transaction_id'],
             ]);
         } catch (\Throwable $e) {
             return response()->json(['error' => $this->friendlyError($e, 'Qualification failed.')], 422);
@@ -381,8 +393,15 @@ class InternetController extends Controller
             $postcode = $m[1];
         }
 
+        $directoryId = (string) $request->get('directory_id', '');
+        $token       = (string) $request->get('qualification_token', '');
+        $qualification = $this->cachedQualification($token, $directoryId);
+
         return [
-            'directory_id'       => (string) $request->get('directory_id', ''),
+            'qualification'       => $qualification,
+            'qualification_token' => $qualification ? $token : '',
+            'service_class'       => (string) ($qualification['service_class'] ?? $request->get('service_class', '')),
+            'directory_id'       => $directoryId,
             'address_long'       => $address,
             'service_type'       => (string) $request->get('service_type', ''),
             'copper_pair_id'     => (string) $request->get('copper_pair_id', ''),
@@ -396,6 +415,49 @@ class InternetController extends Controller
             'plans'              => VocusPlan::active()->orderBy('name')->get(),
             'vocusProblem'       => VocusWsmClient::configurationProblem(),
         ];
+    }
+
+    private const QUALIFICATION_CACHE = 'vocus:qualification:';
+
+    /** The qualify result kept for the order form, only when it belongs to the same address. */
+    private function cachedQualification(?string $token, string $directoryId): ?array
+    {
+        if (! $token || ! preg_match('/^[A-Za-z0-9]{32}$/', $token)) {
+            return null;
+        }
+        $hit = Cache::get(self::QUALIFICATION_CACHE . $token);
+
+        return is_array($hit) && ($hit['directory_id'] ?? null) === $directoryId ? ($hit['qualification'] ?? null) : null;
+    }
+
+    /** Extra rules for the hidden line / port fields of the order and transfer forms. */
+    private function lineRules(): array
+    {
+        return [
+            'qualification_token' => ['nullable', 'regex:/^[A-Za-z0-9]{32}$/'],
+            'line_choice'         => ['nullable', Rule::in(['existing', 'new'])],
+            'ntd_id'              => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
+            'ntd_index'           => 'nullable|integer|min:1|max:99',
+            'uni_port'            => 'nullable|integer|min:1|max:99',
+            'port_name'           => 'nullable|string|max:30',
+            'service_class'       => ['nullable', 'regex:/^\d{1,2}$/'],
+        ];
+    }
+
+    /** Resolve the line / port choice into Create params and the values stored on the service. Throws on a bad choice. */
+    private function resolveLine(array &$validated, bool $transfer): array
+    {
+        $qualification = $this->cachedQualification($validated['qualification_token'] ?? null, $validated['directory_id']);
+        $line = VocusLineSelection::resolve($qualification, $validated['service_type'], $validated, $transfer);
+        if ($line['errors']) {
+            throw ValidationException::withMessages($line['errors']);
+        }
+        $validated['copper_pair_id'] = $line['record']['copper_pair_id'];
+        $validated['ntd_id']         = $line['record']['ntd_id'];
+        $validated['uni_port']       = $line['record']['uni_port'];
+        $validated['service_class']  = $qualification['service_class'] ?? ($validated['service_class'] ?? null);
+
+        return $line['params'];
     }
 
     public function order(Request $request)
@@ -484,19 +546,18 @@ class InternetController extends Controller
 
     public function orderStore(Request $request)
     {
-        $validated = $request->validate($this->sharedRules() + [
+        $validated = $request->validate($this->sharedRules() + $this->lineRules() + [
             'copper_pair_id' => 'nullable|string|max:15',
             'password'       => ['nullable', 'regex:' . VocusOptions::PASSWORD_REGEX],
         ], self::SHARED_MESSAGES);
 
         $plan      = $this->planFor($validated);
+        $linePrms  = $this->resolveLine($validated, false);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
-        $params = $this->baseParams($validated, $serviceId);
-        foreach (['copper_pair_id' => 'CopperPairID', 'password' => 'Password'] as $field => $param) {
-            if (! empty($validated[$field])) {
-                $params[$param] = $validated[$field];
-            }
+        $params = $this->baseParams($validated, $serviceId) + $linePrms;
+        if (! empty($validated['password'])) {
+            $params['Password'] = $validated['password'];
         }
 
         // AVC / CVC are not part of a NEW order (Examples 4.1.4).
@@ -538,6 +599,9 @@ class InternetController extends Controller
             'username'           => $params['Username'] ?? null,
             'service_level'      => $validated['service_level'] ?? 'STANDARD',
             'copper_pair_id'     => $validated['copper_pair_id'] ?? null,
+            'ntd_id'             => $validated['ntd_id'] ?? null,
+            'uni_port'           => $validated['uni_port'] ?? null,
+            'service_class'      => $validated['service_class'] ?? null,
             'avc_id'             => $validated['avc_id'] ?? null,
             'cvc_id'             => $validated['cvc_id'] ?? null,
             'address_long'       => $validated['address_long'] ?? null,
@@ -599,18 +663,18 @@ class InternetController extends Controller
     {
         $layer2 = $this->isLayer2Order($request, VocusPlan::find((int) $request->input('vocus_plan_id')));
 
-        $validated = $request->validate($this->sharedRules() + [
-            'copper_pair_id' => 'required|string|max:15',
+        $validated = $request->validate($this->sharedRules() + $this->lineRules() + [
+            'copper_pair_id' => 'nullable|string|max:15',
             'ca_date'        => 'required|date_format:Y-m-d',
             'avc_id'         => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
             'cvc_id'         => [Rule::requiredIf($layer2), 'nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9._-]+$/'],
         ], self::SHARED_MESSAGES);
 
         $plan      = $this->planFor($validated);
+        $linePrms  = $this->resolveLine($validated, true);
         $serviceId = VocusOptions::generateServiceId($validated['directory_id']);
 
-        $params = ['OrderType' => 'TRANSFER'] + $this->baseParams($validated, $serviceId) + [
-            'CopperPairID' => $validated['copper_pair_id'],
+        $params = ['OrderType' => 'TRANSFER'] + $this->baseParams($validated, $serviceId) + $linePrms + [
             // CADate must be YYYYMMDD format for Vocus
             'CADate'       => str_replace('-', '', $validated['ca_date']),
         ];

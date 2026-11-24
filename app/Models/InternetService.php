@@ -10,7 +10,7 @@ class InternetService extends Model
         'vocus_service_id', 'client_id', 'plan_id', 'vocus_plan_id', 'cost_price', 'sell_price', 'service_scope', 'service_status',
         'service_type', 'order_type', 'customer_name', 'phone', 'directory_id',
         'location_reference', 'address_long', 'nbn_instance_id', 'avc_id', 'cvc_id',
-        'copper_pair_id', 'realm', 'username', 'service_level', 'billing_provider_id',
+        'copper_pair_id', 'ntd_id', 'uni_port', 'service_class', 'realm', 'username', 'service_level', 'billing_provider_id',
         'last_transaction_id', 'last_transaction_state', 'last_fault_code', 'last_fault_message',
         'last_polled_at', 'notes', 'synced_at',
     ];
@@ -27,7 +27,7 @@ class InternetService extends Model
         'plan_id' => 30, 'service_scope' => 30, 'service_status' => 10, 'service_type' => 20,
         'order_type' => 10, 'customer_name' => 100, 'phone' => 20, 'directory_id' => 30,
         'location_reference' => 10, 'address_long' => 255, 'nbn_instance_id' => 30, 'avc_id' => 30,
-        'cvc_id' => 30, 'copper_pair_id' => 30, 'realm' => 64, 'username' => 100,
+        'cvc_id' => 30, 'copper_pair_id' => 30, 'ntd_id' => 30, 'uni_port' => 30, 'service_class' => 10, 'realm' => 64, 'username' => 100,
         'service_level' => 20, 'billing_provider_id' => 30,
     ];
 
@@ -46,6 +46,11 @@ class InternetService extends Model
         'DirectoryID'       => 'directory_id',
         'AddressLong'       => 'address_long',
         'CopperPairID'      => 'copper_pair_id',
+        'NTDID'             => 'ntd_id',
+        'DataPortID'        => 'uni_port',
+        'UNIDPort'          => 'uni_port',
+        'UNIPort'           => 'uni_port',
+        'ServiceClass'      => 'service_class',
         'ServiceLevel'      => 'service_level',
         'LocationReference' => 'location_reference',
         'BillingProviderID' => 'billing_provider_id',

@@ -91,6 +91,22 @@ return [
         // XSD / DIR::Create use "Main.PostCode". The lookup retries the other spelling when nothing is found.
         'lookup_postcode_param' => env('VOCUS_LOOKUP_POSTCODE_PARAM', 'Main.Postcode'),
         'poll_cooldown_seconds' => (int) env('VOCUS_POLL_COOLDOWN', 300),
+        // NTD port selection on a Create order (FTTP / HFC / Fixed Wireless).
+        // UNVERIFIED: the Vocus PDFs document the CopperPairID Create param (Examples 4.1.4 / 4.2.4) but NOT
+        // how an NTD port is chosen on an order. The only port identifier in the specification is the data type
+        // DataPortID ("NBN Data Port ID eg. 1-UNID-2"), so that is the default. Confirm with Vocus (sandbox)
+        // before relying on it; change the name / format here or switch it off with VOCUS_SEND_PORT_PARAM=false.
+        // Placeholders: {ntd_index} (1-based NTD position in the qualify result), {port} (PortNumber),
+        // {port_name}, {ntd_id}. Risk if wrong: Vocus rejects the order (unknown param) or ignores the choice.
+        'send_port_param' => filter_var(env('VOCUS_SEND_PORT_PARAM', true), FILTER_VALIDATE_BOOLEAN),
+        'order_port_param' => env('VOCUS_ORDER_PORT_PARAM', 'DataPortID'),
+        'order_port_format' => env('VOCUS_ORDER_PORT_FORMAT', '{ntd_index}-UNID-{port}'),
+        // "Order a new line" (no existing copper pair / new NTD port). UNVERIFIED: no param is documented, so by
+        // default the line / port param is simply omitted. Set both only if Vocus confirms a param for it.
+        'new_line_param' => env('VOCUS_NEW_LINE_PARAM'),
+        'new_line_value' => env('VOCUS_NEW_LINE_VALUE', 'TRUE'),
+        // Minutes the qualify result is kept so the order / transfer form can list the lines and ports.
+        'qualification_ttl_minutes' => (int) env('VOCUS_QUALIFICATION_TTL', 60),
         // Wall-clock budget of one queued sync job before it hands the remainder to a follow-up job.
         'sync_budget_seconds' => (int) env('VOCUS_SYNC_BUDGET', 150),
     ],

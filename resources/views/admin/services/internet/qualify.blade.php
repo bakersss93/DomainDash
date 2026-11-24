@@ -317,63 +317,150 @@ document.getElementById('loc-form').addEventListener('submit', function (e) {
     runQualify({ loc_id: loc });
 });
 
-function qEsc(v) {
-    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// DOM helpers: server strings only ever go through textContent.
+function h(tag, style, text) {
+    const n = document.createElement(tag);
+    if (style) n.style.cssText = style;
+    if (text !== undefined && text !== null) n.textContent = String(text);
+    return n;
+}
+
+const PILL = 'display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;margin-left:6px;';
+function pill(text, kind) {
+    return h('span', PILL + 'background:var(--dd-status-' + kind + '-bg);color:var(--dd-status-' + kind + '-fg);', text);
+}
+function card(disabled) {
+    return 'padding:10px 12px;margin-bottom:8px;border:1px solid var(--dd-border);border-radius:8px;font-size:13px;color:var(--dd-text);background:'
+        + (disabled ? 'var(--dd-surface-soft);opacity:.65;' : 'var(--dd-surface);');
+}
+function yesNo(v) { return v === true ? 'Yes' : (v === false ? 'No' : null); }
+
+function renderCopper(pairs) {
+    const box = h('div');
+    if (!pairs.length) {
+        box.appendChild(h('p', 'font-size:13px;color:var(--dd-text-soft);margin:0;', 'Vocus returned no existing copper pairs for this address (a new line would be ordered).'));
+        return box;
+    }
+    pairs.forEach(p => {
+        const c = h('div', card(false));
+        const top = h('div');
+        top.appendChild(h('strong', 'font-family:monospace;', p.copper_pair_id || 'No CopperPairID returned'));
+        if (p.status) top.appendChild(pill(p.status, 'muted'));
+        if (p.nbn_service_status) top.appendChild(pill(p.nbn_service_status, 'info'));
+        if (p.extra_charge) top.appendChild(pill('Extra charge', 'warning'));
+        c.appendChild(top);
+        const bits = [];
+        if (p.service_class) bits.push('Class ' + p.service_class);
+        if (p.download_speed) bits.push('Download ' + p.download_speed + ' Mbps');
+        if (p.upload_speed) bits.push('Upload ' + p.upload_speed + ' Mbps');
+        if (p.pots_interconnect && p.pots_interconnect !== 'N/A') bits.push('POTS ' + p.pots_interconnect);
+        if (bits.length) c.appendChild(h('div', 'font-size:12px;color:var(--dd-text-soft);margin-top:3px;', bits.join(' · ')));
+        if (p.network_co_exist) c.appendChild(h('div', 'font-size:12px;color:var(--dd-status-warning-fg);margin-top:3px;', 'Network co-exist: not every FNN has been cut over to the node, minimum speed is limited to 12M.'));
+        if (p.status === 'N/A') c.appendChild(h('div', 'font-size:12px;color:var(--dd-text-soft);margin-top:3px;', 'N/A: the copper pair has been transitioned to NBN Co.'));
+        box.appendChild(c);
+    });
+    return box;
+}
+
+function renderNtds(ntds) {
+    const box = h('div');
+    if (!ntds.length) {
+        box.appendChild(h('p', 'font-size:13px;color:var(--dd-text-soft);margin:0;', 'No NTD or ports were returned. NBN will install an NTD at this address, and an installation appointment may be required.'));
+        return box;
+    }
+    ntds.forEach(n => {
+        const wrap = h('div', 'margin-bottom:12px;');
+        const bits = [];
+        if (n.ntd_type) bits.push(n.ntd_type);
+        if (n.ntd_version) bits.push('v' + n.ntd_version);
+        if (yesNo(n.battery) !== null) bits.push('Battery: ' + yesNo(n.battery) + (n.battery_date ? ' (' + n.battery_date + ')' : ''));
+        if (n.download_speed || n.upload_speed) bits.push('Down ' + (n.download_speed || '?') + ' / Up ' + (n.upload_speed || '?') + ' Mbps');
+        if (n.remaining_download || n.remaining_upload) bits.push('Remaining down ' + (n.remaining_download || '?') + ' / up ' + (n.remaining_upload || '?'));
+        if (n.mac) bits.push('MAC ' + n.mac);
+        const head = h('div', 'font-size:13px;font-weight:600;margin-bottom:6px;color:var(--dd-text);', 'NTD ' + (n.ntd_id || '(id not returned)'));
+        if (bits.length) head.appendChild(h('span', 'font-weight:400;color:var(--dd-text-soft);', ' · ' + bits.join(' · ')));
+        wrap.appendChild(head);
+
+        const grid = h('div', 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;');
+        (n.ports || []).forEach(p => {
+            const inUse = p.available === false;
+            const c = h('div', card(inUse) + 'margin-bottom:0;');
+            c.appendChild(h('strong', '', p.port_name || (p.port_number !== null ? 'UNI-D ' + p.port_number : 'Port')));
+            c.appendChild(h('span', 'font-size:12px;color:var(--dd-text-soft);margin-left:6px;', p.port_type || 'DATA'));
+            const st = h('div', 'margin-top:4px;');
+            if (inUse) st.appendChild(pill('In use', 'danger'));
+            else if (p.available === true) st.appendChild(pill('Free', 'success'));
+            else st.appendChild(pill('Availability unknown', 'muted'));
+            c.appendChild(st);
+            if (p.epid) c.appendChild(h('div', 'font-size:12px;color:var(--dd-text-soft);margin-top:3px;', 'EPID ' + p.epid));
+            grid.appendChild(c);
+        });
+        if (!(n.ports || []).length) wrap.appendChild(h('p', 'font-size:12px;color:var(--dd-text-soft);margin:0;', 'No port records were returned for this NTD.'));
+        else wrap.appendChild(grid);
+        box.appendChild(wrap);
+    });
+    return box;
 }
 
 function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
     const el = document.getElementById('qualify-result');
+    el.replaceChildren();
+    const q = data.qualification || {};
     const passed = data.result === 'PASS';
+    const group = q.technology_group || 'OTHER';
 
-    let copperPairs = '';
-    if (data.copper_pairs && data.copper_pairs.length > 0) {
-        data.copper_pairs.forEach(pair => {
-            const speeds = pair.DownloadSpeed || pair.downloadSpeed || '';
-            const upSpeeds = pair.UploadSpeed || pair.uploadSpeed || '';
-            const pairId = pair.CopperPairID || pair.copperPairId || '';
-            copperPairs += `<div style="margin-top:8px;padding:10px;background:var(--dd-surface);border:1px solid var(--dd-border);color:var(--dd-text);border-radius:6px;font-size:12px;">
-                <strong>${qEsc(pairId)}</strong>
-                ${speeds ? `<span style="color:var(--dd-text-soft);margin-left:8px;">↓ ${qEsc(speeds)} Mbps / ↑ ${qEsc(upSpeeds)} Mbps</span>` : ''}
-            </div>`;
-        });
+    const head = h('div', 'display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;');
+    head.appendChild(h('span', 'padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:' + (passed ? 'var(--dd-status-success-bg)' : 'var(--dd-status-danger-bg)') + ';color:' + (passed ? 'var(--dd-status-success-fg)' : 'var(--dd-status-danger-fg)') + ';', passed ? '✓ PASS' : '✗ FAIL'));
+    if (data.service_type) head.appendChild(h('span', 'padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);', data.service_type));
+    if (data.zone) head.appendChild(h('span', 'font-size:13px;color:var(--dd-text-soft);', 'Zone: ' + data.zone));
+    el.appendChild(head);
+
+    el.appendChild(h('p', 'font-size:13px;color:var(--dd-text-soft);margin:0 0 6px;', directoryId + (addressLong ? ' · ' + addressLong : '')));
+
+    const facts = [];
+    if (q.service_class) {
+        const info = q.service_class_info;
+        facts.push(['Service class', q.service_class + (info ? ' (' + info.label + ')' : '')]);
+    }
+    if (q.primary_technology) facts.push(['Primary technology', q.primary_technology]);
+    if (q.connection_type) facts.push(['Connection type', q.connection_type]);
+    if (q.development_charge !== null && q.development_charge !== undefined) facts.push(['Development charge', yesNo(q.development_charge)]);
+    if (q.hfc_self_install !== null && q.hfc_self_install !== undefined) facts.push(['HFC self install', yesNo(q.hfc_self_install)]);
+    if (q.copper_disconnection_date) facts.push(['Copper disconnection date', q.copper_disconnection_date]);
+    if (facts.length) {
+        const dl = h('dl', 'display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0 0 10px;font-size:13px;');
+        facts.forEach(f => { dl.appendChild(h('dt', 'color:var(--dd-text-soft);', f[0])); dl.appendChild(h('dd', 'margin:0;color:var(--dd-text);', f[1])); });
+        el.appendChild(dl);
+        if (q.service_class_info) el.appendChild(h('p', 'font-size:11px;color:var(--dd-text-soft);margin:0 0 12px;', 'Class meaning: ' + q.service_class_info.source + '.'));
     }
 
-    let orderButtons = '';
     if (passed) {
+        const title = group === 'COPPER' ? 'Available copper lines (FTTN / FTTB / FTTC)' : (group === 'NTD' ? 'NTD ports (FTTP / HFC / Fixed Wireless)' : 'Line details');
+        el.appendChild(h('h4', 'font-size:13px;font-weight:600;margin:12px 0 8px;color:var(--dd-text);', title));
+        if (group === 'COPPER') el.appendChild(renderCopper(q.copper_pairs || []));
+        else if (group === 'NTD') el.appendChild(renderNtds(q.ntds || []));
+        else el.appendChild(h('p', 'font-size:13px;color:var(--dd-text-soft);margin:0;', (data.service_type || 'This technology') + ' has no copper pair or NTD port to choose; it is ordered without a line or port selection.'));
+        el.appendChild(h('p', 'font-size:12px;color:var(--dd-text-soft);margin:8px 0 0;', 'You choose the line or port (or a new line) when you place the order.'));
+
         const params = new URLSearchParams({
             directory_id: directoryId,
             address_long: addressLong,
             service_type: data.service_type || '',
-            copper_pair_id: (data.copper_pairs && data.copper_pairs[0]) ? (data.copper_pairs[0].CopperPairID || data.copper_pairs[0].copperPairId || '') : '',
+            service_class: q.service_class || '',
+            qualification_token: data.qualification_token || '',
             location_reference: fromLoc ? '' : lookupMeta.postcode,
             suburb: fromLoc ? '' : lookupMeta.suburb,
             state: fromLoc ? '' : lookupMeta.state,
         });
-        orderButtons = `<div style="display:flex;gap:8px;margin-top:16px;">
-            <a href="{{ route('admin.services.internet.order') }}?${params.toString()}"
-               style="padding:8px 18px;border-radius:6px;background:var(--dd-accent);color:var(--dd-accent-contrast);text-decoration:none;font-size:13px;font-weight:500;">
-               New Order →
-            </a>
-            <a href="{{ route('admin.services.internet.transfer') }}?${params.toString()}"
-               style="padding:8px 18px;border-radius:6px;background:var(--dd-surface);border:1px solid var(--dd-border-strong);color:var(--dd-text);text-decoration:none;font-size:13px;font-weight:500;">
-               Transfer Service →
-            </a>
-        </div>`;
+        const row = h('div', 'display:flex;gap:8px;margin-top:16px;');
+        const a1 = h('a', 'padding:8px 18px;border-radius:6px;background:var(--dd-accent);color:var(--dd-accent-contrast);text-decoration:none;font-size:13px;font-weight:500;', 'New Order →');
+        a1.href = @json(route('admin.services.internet.order')) + '?' + params.toString();
+        const a2 = h('a', 'padding:8px 18px;border-radius:6px;background:var(--dd-surface);border:1px solid var(--dd-border-strong);color:var(--dd-text);text-decoration:none;font-size:13px;font-weight:500;', 'Transfer Service →');
+        a2.href = @json(route('admin.services.internet.transfer')) + '?' + params.toString();
+        row.appendChild(a1);
+        row.appendChild(a2);
+        el.appendChild(row);
     }
-
-    el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <span style="padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;background:${passed ? 'var(--dd-status-success-bg)' : 'var(--dd-status-danger-bg)'};color:${passed ? 'var(--dd-status-success-fg)' : 'var(--dd-status-danger-fg)'};">
-                ${passed ? '✓ PASS' : '✗ FAIL'}
-            </span>
-            ${data.service_type ? `<span style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--dd-status-info-bg);color:var(--dd-status-info-fg);">${qEsc(data.service_type)}</span>` : ''}
-            ${data.zone ? `<span style="font-size:13px;color:var(--dd-text-soft);">Zone: ${qEsc(data.zone)}</span>` : ''}
-            ${data.service_class ? `<span style="font-size:13px;color:var(--dd-text-soft);">Class ${qEsc(data.service_class)}</span>` : ''}
-        </div>
-        <p style="font-size:13px;color:var(--dd-text-soft);margin:0 0 6px;">${qEsc(directoryId)}${addressLong ? ' · ' + qEsc(addressLong) : ''}</p>
-        ${copperPairs}
-        ${orderButtons}
-    `;
     el.style.display = 'block';
 }
 </script>

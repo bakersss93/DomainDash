@@ -117,6 +117,15 @@
                         'RoutedSubnet'      => 'Routed Subnet',
                         'ServiceClass'      => 'Service Class',
                         'UNIPort'           => 'UNI-D Port',
+                        'NTDID'             => 'NTD ID',
+                        'DataPortID'        => 'Data Port ID (UNI-D)',
+                        'DataPortNumber'    => 'Data Port Number',
+                        'PortName'          => 'Port Name',
+                        'AppointmentSlot'   => 'Appointment Slot',
+                        'AppointmentDate'   => 'Appointment Date',
+                        'StartDateTime'     => 'Appointment Start',
+                        'EndDateTime'       => 'Appointment End',
+                        'AppointmentStatus' => 'Appointment Status',
                         'UNIDPort'          => 'UNI-D Port',
                         'Mapping'           => 'Mapping',
                         'CustomerReference' => 'Customer Reference',
@@ -135,7 +144,7 @@
                     @foreach($fields as $key => $label)
                         @if(isset($liveData[$key]) && $liveData[$key] !== '')
                             <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;white-space:nowrap;">{{ $label }}</dt>
-                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','BillingProviderID','IPAddress','RoutedSubnet']) ? 'monospace' : 'inherit' }};">
+                            <dd style="font-size:13px;margin:0;font-family:{{ in_array($key,['ServiceID','DirectoryID','NBNInstanceID','AVCID','CVCID','CopperPairID','NTDID','DataPortID','BillingProviderID','IPAddress','RoutedSubnet']) ? 'monospace' : 'inherit' }};">
                                 {{ $liveData[$key] }}
                             </dd>
                         @endif
@@ -150,7 +159,8 @@
                         'Order Type' => $service->order_type, 'Customer' => $service->customer_name, 'Phone' => $service->phone,
                         'PPPoE Username' => $service->username, 'Realm' => $service->realm, 'Directory ID' => $service->directory_id,
                         'NBN Instance (PRI)' => $service->nbn_instance_id, 'AVC ID' => $service->avc_id, 'CVC ID' => $service->cvc_id,
-                        'Copper Pair ID' => $service->copper_pair_id, 'Postcode' => $service->location_reference,
+                        'Copper Pair ID' => $service->copper_pair_id, 'NTD ID' => $service->ntd_id, 'UNI-D Port' => $service->uni_port,
+                        'Service Class' => $service->service_class, 'Postcode' => $service->location_reference,
                         'Last synced' => $service->synced_at?->diffForHumans(),
                     ];
                 @endphp

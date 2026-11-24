@@ -949,24 +949,18 @@ class VocusWsmClient
 
         $result = $this->call('Get', 'FIBRE', $params, null, 'QUALIFY');
 
-        // Parse any embedded CopperPairRecord or NBNPortRecord CDATA
+        // Normalised, technology-aware view (copper pairs / NTDs with ports). See VocusQualification.
+        $qualification = VocusQualification::fromParams($result['params']);
+
+        // Keep "params" backwards compatible: record params decoded to arrays of fields.
         $parsed = $result['params'];
-        foreach (['CopperPairRecord', 'NBNPortRecord'] as $key) {
+        foreach (['CopperPairRecord', 'NTDRecord', 'NBNPortRecord'] as $key) {
             if (isset($parsed[$key])) {
-                $records = is_array($parsed[$key]) ? $parsed[$key] : [$parsed[$key]];
-                $parsedRecords = [];
-                foreach ($records as $cdata) {
-                    $cdata = preg_replace('/^<!\[CDATA\[|\]\]>$/', '', trim($cdata));
-                    $xml = @simplexml_load_string($cdata);
-                    if ($xml) {
-                        $parsedRecords[] = json_decode(json_encode($xml), true);
-                    }
-                }
-                $parsed[$key] = $parsedRecords;
+                $parsed[$key] = VocusQualification::records($parsed[$key], $key);
             }
         }
 
-        return array_merge($result, ['params' => $parsed]);
+        return array_merge($result, ['params' => $parsed, 'qualification' => $qualification]);
     }
 
     /**
