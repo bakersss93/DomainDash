@@ -81,7 +81,18 @@ class SettingsRedesignTest extends TestCase
             $response->assertSee(SettingsAreas::href($slug), false);
         }
         $response->assertSee(route('admin.https'), false);
-        $response->assertSee('/admin/settings/halopsa#billing', false);
+        // Billing has one home (HaloPSA -> Billing tab), not a tile of its own.
+        $response->assertDontSee('/admin/settings/halopsa#billing', false);
+        $this->assertArrayNotHasKey('halo-billing', SettingsAreas::all());
+        $this->assertArrayNotHasKey('billing', SettingsAreas::categories());
+        $this->assertSame(1, substr_count(json_encode(array_keys(SettingsAreas::all()['halopsa']['tabs'])), 'billing'));
+    }
+
+    public function test_old_billing_route_redirects_to_the_halopsa_billing_tab(): void
+    {
+        $this->actingAs($this->admin())->get('/admin/settings/halo-billing')->assertRedirect('/admin/settings/halopsa?tab=billing');
+        $this->actingAs($this->admin())->get('/admin/settings/halopsa?tab=billing')->assertOk()
+            ->assertSee('Agreements')->assertSee('Recurring invoice lines')->assertSee('Subscriptions');
     }
 
     public function test_every_area_page_renders_all_its_tabs_for_admin(): void
@@ -90,7 +101,7 @@ class SettingsRedesignTest extends TestCase
 
         foreach (SettingsAreas::all() as $slug => $area) {
             if ($area['tabs'] === []) {
-                continue; // tile links elsewhere (HTTPS page, Halo billing tab)
+                continue; // tile links elsewhere (HTTPS page)
             }
             $response = $this->actingAs($admin)->get(route('admin.settings.area', $slug))->assertOk()->assertSee($area['title']);
             foreach ($area['tabs'] as $tab => $label) {

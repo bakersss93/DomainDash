@@ -229,6 +229,8 @@
                 <dl style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;margin:0;">
                     <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Halo item</dt>
                     <dd style="font-size:13px;margin:0;">{{ $service->vocusPlan?->halo_item_name ?: ($service->vocusPlan?->halo_item_id ? 'Item #'.$service->vocusPlan->halo_item_id : 'Plan not linked to an item') }}</dd>
+                    <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Agreement</dt>
+                    <dd style="font-size:13px;margin:0;word-break:break-word;">{{ $service->halo_contract_ref ?: ($service->halo_contract_id ? 'Agreement #'.$service->halo_contract_id : '-') }}</dd>
                     <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Subscription</dt>
                     <dd style="font-size:13px;margin:0;">{{ $service->halo_subscription_id ? '#'.$service->halo_subscription_id : '-' }}</dd>
                     <dt style="font-size:12px;color:var(--dd-text-soft);font-weight:500;">Recurring invoice line</dt>
@@ -238,6 +240,74 @@
                 </dl>
                 @if($service->halo_sync_error)
                     <p role="alert" style="font-size:13px;margin:10px 0 0;color:var(--dd-danger-text);word-break:break-word;">{{ $service->halo_sync_error }}</p>
+                @endif
+                @if($service->client_id && $service->client?->halopsa_reference && auth()->user()?->can('sync.run'))
+                    <div id="halo-svc-ri-box" style="margin-top:12px;border-top:1px solid var(--border-subtle);padding-top:12px;"
+                         data-list-url="{{ route('admin.services.internet.halo.recurringInvoices', $service) }}"
+                         data-save-url="{{ route('admin.services.internet.halo.recurringInvoice', $service) }}">
+                        <label for="halo-svc-ri-select" style="display:block;font-size:12px;color:var(--dd-text-soft);font-weight:500;margin-bottom:4px;">Bill on this agreement / recurring invoice</label>
+                        <p id="halo-svc-ri-current" style="font-size:13px;margin:0 0 6px;color:var(--text);word-break:break-word;">
+                            @if($service->halo_override_invoice_id)
+                                {{ $service->halo_override_invoice_name ?: 'Recurring invoice' }} (id {{ $service->halo_override_invoice_id }})
+                            @else
+                                <span style="color:var(--dd-text-soft);">Automatic: found by the agreement rule in Settings → HaloPSA → Billing.</span>
+                            @endif
+                        </p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                            <select id="halo-svc-ri-select" class="dd-input" style="flex:1;min-width:180px;display:none;"></select>
+                            <button type="button" id="halo-svc-ri-load" class="btn-accent" style="padding:6px 12px;font-size:13px;white-space:nowrap;">Choose</button>
+                            <button type="button" id="halo-svc-ri-save" class="btn-accent" style="padding:6px 12px;font-size:13px;white-space:nowrap;display:none;">Save choice</button>
+                            <button type="button" id="halo-svc-ri-clear" style="padding:6px 12px;font-size:13px;border-radius:4px;border:1px solid var(--dd-danger);color:var(--dd-danger-text);background:transparent;white-space:nowrap;{{ $service->halo_override_invoice_id ? '' : 'display:none;' }}">Use automatic</button>
+                        </div>
+                        <div id="halo-svc-ri-msg" role="status" aria-live="polite" style="font-size:12px;margin-top:6px;min-height:1em;"></div>
+                    </div>
+                    <script>
+                    (function () {
+                        var box = document.getElementById('halo-svc-ri-box');
+                        if (!box) { return; }
+                        var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+                        var sel = document.getElementById('halo-svc-ri-select'), msg = document.getElementById('halo-svc-ri-msg');
+                        var cur = document.getElementById('halo-svc-ri-current'), clear = document.getElementById('halo-svc-ri-clear');
+                        function say(t, ok) { msg.textContent = t || ''; msg.style.color = ok ? 'var(--dd-status-success-fg)' : 'var(--dd-danger-text)'; }
+                        function call(method, url, body) {
+                            return fetch(url, { method: method, headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf }, body: body ? JSON.stringify(body) : undefined })
+                                .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, json: j }; }); });
+                        }
+                        function show(j) {
+                            cur.textContent = j.selected_id ? ((j.selected_name || 'Recurring invoice') + ' (id ' + j.selected_id + ')') : 'Automatic: found by the agreement rule in Settings → HaloPSA → Billing.';
+                            clear.style.display = j.selected_id ? '' : 'none';
+                        }
+                        document.getElementById('halo-svc-ri-load').addEventListener('click', function () {
+                            say('Loading recurring invoices from HaloPSA...', true);
+                            call('GET', box.dataset.listUrl).then(function (r) {
+                                if (!r.ok) { say(r.json.error || r.json.message || 'Could not load recurring invoices.'); return; }
+                                sel.textContent = '';
+                                var first = document.createElement('option'); first.value = '';
+                                first.textContent = r.json.invoices.length ? 'Select an agreement / recurring invoice' : 'No recurring invoices found for this client';
+                                sel.appendChild(first);
+                                r.json.invoices.forEach(function (i) {
+                                    var o = document.createElement('option'); o.value = String(i.id);
+                                    o.textContent = (i.contract_ref ? i.contract_ref + ' - ' : '') + i.name + ' (id ' + i.id + ')';
+                                    if (r.json.selected_id === i.id) { o.selected = true; }
+                                    sel.appendChild(o);
+                                });
+                                sel.style.display = ''; document.getElementById('halo-svc-ri-save').style.display = '';
+                                say(r.json.invoices.length + ' recurring invoice(s) found.', true);
+                            }).catch(function () { say('Could not reach the server.'); });
+                        });
+                        function save(id) {
+                            call('PUT', box.dataset.saveUrl, { recurring_invoice_id: id }).then(function (r) {
+                                if (!r.ok) { var e = r.json.errors ? Object.values(r.json.errors).flat()[0] : null; say(e || r.json.error || r.json.message || 'Could not save.'); return; }
+                                show(r.json); say(id ? 'Saved. The service is queued for a Halo update.' : 'Back to automatic.', true);
+                            }).catch(function () { say('Could not reach the server.'); });
+                        }
+                        document.getElementById('halo-svc-ri-save').addEventListener('click', function () {
+                            if (!sel.value) { say('Pick a recurring invoice first.'); return; }
+                            save(parseInt(sel.value, 10));
+                        });
+                        clear.addEventListener('click', function () { save(null); });
+                    })();
+                    </script>
                 @endif
                 @if(auth()->user()?->can('sync.run'))
                     <form method="POST" action="{{ route('admin.services.internet.halo-sync.one', $service) }}" style="margin-top:12px;">

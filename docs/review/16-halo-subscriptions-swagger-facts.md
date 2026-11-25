@@ -57,3 +57,25 @@ Tags on the path items are `Item`, `Licence`, `RecurringInvoiceHeader`, `ClientC
 4. Whether a line with a fixed `qty_order` of 1 plus `quantity_subscriptions` is what the Subscriptions tab shows as "attached". If your tenant wants the quantity driven by the subscription, find the `recurring_invoice_quantity_type` id (an existing line with the right setting, read via `GET /RecurringInvoice/{id}?includedetails=true`) and set `HALO_RECURRING_QUANTITY_TYPE`.
 5. `GET /SoftwareLicence?search=` matches `notes` (only affects the number of pages read).
 6. Halo item `update_recurring_invoice_price/cost` flags may overwrite the line price from the item when the item changes; DomainDash sends the plan's sell/cost on every update.
+
+## 7. Agreements (ClientContract) and line text: facts used by the agreement rule (added)
+
+Read from the tenant swagger (`/ClientContract`, `ContractHeader_List`, `InvoiceDetail`, `/Lookup`).
+
+| Use | Field / endpoint | Status |
+|---|---|---|
+| Filter agreements | `GET /ClientContract` query `client_id`, `includeinactive`, `contract_type` (int, "only Contracts with the specified Contract Type"), `contract_sub_type` (int, "...Contract Sub-Type"), `labour_type` (0=Fixed, 1=Pre-Pay, not used) | VERIFIED |
+| Agreement row | `ContractHeader_List`: `id`, `client_id`, `ref` (Agreement Reference), `refextra`, `refextra2`, `contracttype` (int), `contracttype_name`, `subtype` (int, **no name field**), `active`, `status` | VERIFIED |
+| Contract type list | none in the swagger: distinct `contracttype` + `contracttype_name` from `GET /ClientContract` (paged, capped at 10 pages) | VERIFIED (no endpoint) |
+| Subtype names | `GET /Lookup?lookupid=<n>` returns `Lookup` rows (`id`, `name`, `inactive`). The swagger does **not** say which `lookupid` is the agreement subtype list | VERIFIED endpoint, lookupid UNKNOWN: entered in Settings (`halo.billing.subtype_lookup_id`); without it subtypes are listed as "Subtype #id (e.g. <agreement reference>)" from agreements |
+| Agreement to invoice | `InvoiceHeader.contract_id` (+ `contract_ref`), `GET /RecurringInvoice?client_id=` | VERIFIED |
+| Line description | `InvoiceDetail.item_shortdescription` (string) | VERIFIED |
+| Line long description | `InvoiceDetail.item_longdescription` (string) | VERIFIED |
+| Item / SKU | `InvoiceDetail._itemid`, `item_code` (read from the item), `qty_order`, `unit_price`, `unit_cost` | VERIFIED |
+| Client code | `Area.ref` on `GET /Client/{id}` (used for `{client_code}`) | INFERRED: the name matches "Client reference"; confirm with one live call |
+
+Selection (HaloAgreementResolver): (1) invoice picked on the service (`internet_services.halo_override_invoice_id`); (2) strategy "contract": client's active agreements filtered by type + subtype + reference pattern (tokens filled from the service, empty token = wildcard); one left = use it; several = the one whose reference contains the service id / username / AVC / LOC, then plan name / id; still several = error listing them; (3) the invoice pinned on the client is the fallback when the rule finds nothing or is ambiguous (strategy "client" uses only the pin). The agreement's recurring invoice is the one with `contract_id` = agreement id; none or several = clear error.
+
+Line text templates: DomainDash placeholders `{plan_name} {plan_id} {speed} {service_id} {vocus_service_id} {avc_id} {loc_id} {username} {address} {ip_address} {technology} {client_code} {client_name}` (`{plan}` also in the reference pattern); Halo variables (`$PERIODSTARTDATE`, `$PERIODENDDATE`, agreement/recurring billing/asset variables) are never touched. Defaults: description `{plan_name} - $PERIODSTARTDATE - $PERIODENDDATE`; long description `{plan_name} - Billing Period: $PERIODSTARTDATE - $PERIODENDDATE` / `Service ID: {service_id}` / `AVC: {avc_id}`.
+
+Still to confirm live: the `lookupid` of the subtype list, that `Area.ref` is the client code, and that Halo expands `$VARIABLES` in `item_longdescription` sent through the API.

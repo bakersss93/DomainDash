@@ -4,7 +4,9 @@ namespace App\Services\Sync;
 
 use App\Models\Client;
 use App\Models\InternetService;
+use App\Services\Halo\HaloAgreementResolver;
 use App\Services\Halo\HaloBillingSettings;
+use App\Services\Halo\HaloLineTemplate;
 use App\Services\Halo\HaloPsaClient;
 
 /**
@@ -17,11 +19,12 @@ use App\Services\Halo\HaloPsaClient;
  * Idempotent: ids are stored on the service (halo_subscription_id / halo_recurring_line_id); an unchanged payload is
  * skipped through halo_sync_hash before any remote call; a cancelled service gets an end date / is deactivated, never
  * deleted. Recurring invoices are never created: with none to use the service is marked with a clear error.
+ * Which invoice: HaloAgreementResolver (service pick, then the agreement rule, then the client's pinned invoice). The line text
+ * comes from the description templates in Settings → HaloPSA → Billing (HaloLineTemplate).
  */
 class HaloSubscriptionPusher
 {
-    /** @var array<int,int|string> per haloClientId: the resolved recurring invoice id, or an error message */
-    private array $invoiceCache = [];
+    private ?HaloAgreementResolver $resolver = null;
 
     /**
      * @return string created|updated|ended|skipped
@@ -71,21 +74,27 @@ class HaloSubscriptionPusher
         $start = $service->created_at?->toDateString() ?? now()->toDateString();
         $name = $this->subscriptionName($service, (string) $plan->name);
 
+        $clientCode = HaloLineTemplate::needsClientCode($cfg->lineDescription, $cfg->lineLongDescription, $cfg->contractRef)
+            ? $halo->clientReference($haloClientId) : null;
+        $vars = HaloLineTemplate::variables($service, $client, $clientCode);
+        [$lineDescription, $lineLongDescription] = HaloLineTemplate::lineTexts($cfg, $vars);
+
         $hashFor = fn ($invoice) => hash('sha256', json_encode([
             $haloClientId, (int) $plan->halo_item_id, $name, round($sell, 2), round($cost, 2), $ended, $start,
-            $invoice, $cfg->fingerprint(), $this->reference($service),
+            $invoice, $cfg->fingerprint(), $this->reference($service), $lineDescription, $lineLongDescription,
         ]));
 
         // Unchanged data is skipped before ANY remote call: the invoice used last time (or picked on the client) stands in
         // for the contract lookup, which is only repeated when something else changed.
         if (! $force && ! $service->halo_sync_error && $hasBilling && $service->halo_sync_hash) {
-            $known = $cfg->syncLines ? ((int) ($client->halo_recurring_invoice_id ?: $service->halo_recurring_invoice_id) ?: null) : null;
+            $known = $cfg->syncLines ? ((int) ($service->halo_override_invoice_id ?: $client->halo_recurring_invoice_id ?: $service->halo_recurring_invoice_id) ?: null) : null;
             if ($service->halo_sync_hash === $hashFor($known)) {
                 return 'skipped';
             }
         }
 
-        $invoiceId = $cfg->syncLines ? $this->recurringInvoiceId($client, $haloClientId, $halo, $cfg, $service) : null;
+        $resolved = $cfg->syncLines ? ($this->resolver ??= new HaloAgreementResolver($halo))->resolve($service, $client, $cfg, $vars) : null;
+        $invoiceId = $resolved['invoice_id'] ?? null;
         $hash = $hashFor($invoiceId);
         if (! $force && $service->halo_sync_hash === $hash && ! $service->halo_sync_error && $hasBilling) {
             return 'skipped';
@@ -135,8 +144,11 @@ class HaloSubscriptionPusher
         }
 
         if ($cfg->syncLines && $invoiceId) {
-            $lineId = $this->syncLine($service, $halo, $cfg, (int) $invoiceId, $subscriptionId, (int) $plan->halo_item_id, $name, $sell, $cost, $start, $endDate, $ended);
-            $service->forceFill(['halo_recurring_invoice_id' => $invoiceId, 'halo_recurring_line_id' => $lineId])->save();
+            $lineId = $this->syncLine($service, $halo, (int) $invoiceId, $subscriptionId, (int) $plan->halo_item_id, $lineDescription, $lineLongDescription, $sell, $cost, $start, $endDate, $ended);
+            $service->forceFill([
+                'halo_recurring_invoice_id' => $invoiceId, 'halo_recurring_line_id' => $lineId,
+                'halo_contract_id' => $resolved['contract_id'], 'halo_contract_ref' => $resolved['contract_ref'] !== null ? mb_substr($resolved['contract_ref'], 0, 255) : null,
+            ])->save();
         }
 
         $service->forceFill([
@@ -148,11 +160,12 @@ class HaloSubscriptionPusher
         return $outcome;
     }
 
-    private function syncLine(InternetService $service, HaloPsaClient $halo, HaloBillingSettings $cfg, int $invoiceId, ?int $subscriptionId, int $itemId, string $name, float $sell, float $cost, string $start, ?string $endDate, bool $ended): int
+    private function syncLine(InternetService $service, HaloPsaClient $halo, int $invoiceId, ?int $subscriptionId, int $itemId, string $description, string $longDescription, float $sell, float $cost, string $start, ?string $endDate, bool $ended): int
     {
         $line = [
             '_itemid' => $itemId,
-            'item_shortdescription' => $name,
+            'item_shortdescription' => $description,
+            'item_longdescription' => $longDescription,
             'qty_order' => 1,
             'unit_price' => round($sell, 2),
             'unit_cost' => round($cost, 2),
@@ -205,62 +218,6 @@ class HaloSubscriptionPusher
         }
 
         return $newId;
-    }
-
-    /**
-     * The recurring invoice to bill on: the one picked on the client; else (strategy "contract") the single recurring
-     * invoice of the client's active contract(s) matching the type / ref filter. Anything else is a clear error.
-     */
-    private function recurringInvoiceId(Client $client, int $haloClientId, HaloPsaClient $halo, HaloBillingSettings $cfg, InternetService $service): int
-    {
-        if ($client->halo_recurring_invoice_id) {
-            return (int) $client->halo_recurring_invoice_id;
-        }
-
-        $name = $this->clientName($client);
-        $select = "No recurring invoice for client {$name} - select one (Clients → edit → HaloPSA recurring invoice).";
-
-        if ($cfg->strategy === HaloBillingSettings::STRATEGY_CLIENT) {
-            throw new SyncItemFailed($select);
-        }
-
-        if (! array_key_exists($haloClientId, $this->invoiceCache)) {
-            $this->invoiceCache[$haloClientId] = $this->resolveFromContracts($name, $haloClientId, $halo, $cfg, $select);
-        }
-
-        $found = $this->invoiceCache[$haloClientId];
-        if (is_string($found)) {
-            throw new SyncItemFailed($found);
-        }
-
-        return $found;
-    }
-
-    private function resolveFromContracts(string $name, int $haloClientId, HaloPsaClient $halo, HaloBillingSettings $cfg, string $select): int|string
-    {
-        $contracts = array_values(array_filter(
-            $halo->listClientContracts($haloClientId, $cfg->contractTypeId),
-            fn ($c) => $cfg->contractRefMatches($c['ref'])
-        ));
-        if ($contracts === []) {
-            return "No active contract found for client {$name}"
-                . ($cfg->contractRef !== '' ? " matching \"{$cfg->contractRef}\"" : '') . ' - select a recurring invoice on the client instead.';
-        }
-
-        $invoices = [];
-        foreach ($contracts as $contract) {
-            foreach ($halo->listClientRecurringInvoices($haloClientId, $contract['id']) as $invoice) {
-                $invoices[$invoice['id']] = $invoice;
-            }
-        }
-
-        if (count($invoices) === 1) {
-            return (int) array_key_first($invoices);
-        }
-
-        return $invoices === []
-            ? $select
-            : "Client {$name} has " . count($invoices) . ' matching recurring invoices - select one (Clients → edit → HaloPSA recurring invoice).';
     }
 
     private function skip(InternetService $service, ?string $reason): string

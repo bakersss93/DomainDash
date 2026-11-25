@@ -32,7 +32,7 @@ class SettingsOptionsController extends Controller
 
     public const SOURCES = [
         'halo.ticket-types', 'halo.statuses', 'halo.priorities', 'halo.teams', 'halo.slas', 'halo.sites',
-        'halo.contract-types', 'halo.asset-types', 'halo.asset-fields', 'halo.items', 'halo.clients',
+        'halo.contract-types', 'halo.contract-subtypes', 'halo.asset-types', 'halo.asset-fields', 'halo.items', 'halo.clients',
         'itglue.organisations', 'itglue.flexible-types', 'itglue.flexible-fields',
         'dd.clients', 'dd.asset-entities', 'dd.service-categories', 'dd.status-labels', 'dd.asset-points', 'dd.itglue-points', 'dd.ticket-classes',
     ];
@@ -120,6 +120,7 @@ class SettingsOptionsController extends Controller
         $param = match ($source) {
             'halo.asset-fields' => (int) $request->query('asset_type_id', 0),
             'itglue.flexible-fields' => (int) $request->query('type_id', 0),
+            'halo.contract-subtypes' => (int) (\App\Services\Halo\HaloBillingSettings::fromSettings()->subtypeLookupId ?? 0),
             default => 0,
         };
         if (in_array($source, ['halo.asset-fields', 'itglue.flexible-fields'], true) && $param <= 0) {
@@ -171,9 +172,27 @@ class SettingsOptionsController extends Controller
             'halo.slas' => $this->normalise($halo->listSlaRows(), 'name'),
             'halo.sites' => $this->normalise($halo->listSiteRows(), 'name', ['id'], 'client_name'),
             'halo.contract-types' => $this->normalise($halo->listContractTypes(), 'name'),
+            'halo.contract-subtypes' => $this->contractSubtypes($halo->listContractSubtypes($param > 0 ? $param : null)),
             'halo.asset-types' => $this->normalise($halo->listAssetTypes($refresh), 'name', ['id'], 'group'),
             'halo.asset-fields' => $this->haloFields($halo->getAssetTypeDetails($param, $refresh)),
         };
+    }
+
+    /**
+     * Agreement subtypes: the name (or "Subtype #id" when Halo gives none), grouped under the contract type it was seen on,
+     * with one example agreement reference so an unnamed subtype can still be recognised.
+     *
+     * @param array<int,array{id:int,name:string,named:bool,type_name:string,example:string}> $rows
+     */
+    private function contractSubtypes(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            $label = $r['named'] || $r['example'] === '' ? $r['name'] : $r['name'] . ' (e.g. ' . mb_substr($r['example'], 0, 60) . ')';
+            $out[] = ['id' => (string) $r['id'], 'label' => $label] + ($r['type_name'] !== '' ? ['meta' => ['group' => $r['type_name']]] : []);
+        }
+
+        return $out;
     }
 
     /** @param array<int,array> $rows */

@@ -7,7 +7,7 @@ namespace App\Support\Settings;
  *
  * Home = categorised tiles. Every area is one page (/admin/settings/{area}) with horizontal tabs; each tab is the
  * Blade partial resources/views/admin/settings/tabs/{area}/{tab}.blade.php. A tile may instead link elsewhere
- * (`route` / `url`): Platform HTTPS keeps its own page, Billing deep-links into the HaloPSA Billing tab.
+ * (`route` / `url`): Platform HTTPS keeps its own page. Billing has one home only: HaloPSA → Billing (/admin/settings/halopsa?tab=billing).
  */
 final class SettingsAreas
 {
@@ -18,7 +18,6 @@ final class SettingsAreas
             'general' => ['title' => 'General', 'areas' => ['branding', 'email', 'backups']],
             'security' => ['title' => 'Security', 'areas' => ['https', 'mfa']],
             'integrations' => ['title' => 'Integrations', 'areas' => ['halopsa', 'itglue', 'synergy', 'vocus', 'ip2whois']],
-            'billing' => ['title' => 'Billing', 'areas' => ['halo-billing']],
             'operations' => ['title' => 'Sync and queue', 'areas' => ['sync']],
         ];
     }
@@ -39,7 +38,6 @@ final class SettingsAreas
             'synergy' => ['title' => 'Synergy Wholesale', 'description' => 'Domain registrar API credentials.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection'], 'setting' => 'synergy'],
             'vocus' => ['title' => 'Vocus Wholesale', 'description' => 'NBN service API, realms, plans and sandbox.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection', 'ordering' => 'Ordering', 'plans' => 'Plans', 'sandbox' => 'Sandbox'], 'setting' => 'vocus'],
             'ip2whois' => ['title' => 'IP2WHOIS', 'description' => 'WHOIS lookups for domains DomainDash cannot read from the registrar.', 'icon' => 'search', 'tabs' => ['connection' => 'Connection'], 'setting' => 'ip2whois'],
-            'halo-billing' => ['title' => 'Halo billing', 'description' => 'Subscriptions and recurring invoice lines for internet services.', 'icon' => 'check-circle', 'tabs' => [], 'url' => '/admin/settings/halopsa#billing'],
             'sync' => ['title' => 'Sync scheduler', 'description' => 'Scheduled syncs, worker health and recent runs.', 'icon' => 'refresh', 'tabs' => ['schedule' => 'Schedule'], 'setting' => 'sync_schedule'],
         ];
     }

@@ -1308,6 +1308,54 @@ class HaloPsaClient
         return $types;
     }
 
+    /**
+     * Agreement subtypes. ContractHeader_List only carries the subtype id (`subtype`, no name), so:
+     *  - names come from GET /api/Lookup?lookupid=<id> when the Halo lookup id of the subtype list is known
+     *    (Settings → HaloPSA → Billing; the swagger documents the endpoint but not which lookupid lists subtypes);
+     *  - every subtype id found on existing agreements (GET /api/ClientContract, paged, capped) is listed too, with the
+     *    contract type it was seen on and one example agreement reference, so it can be recognised without a name.
+     *
+     * @return array<int,array{id:int,name:string,named:bool,type_id:?int,type_name:string,example:string}>
+     */
+    public function listContractSubtypes(?int $lookupId = null, int $maxPages = 10): array
+    {
+        $subtypes = [];
+        if ($lookupId) {
+            $rows = $this->extractList($this->request('GET', 'lookup', ['query' => ['lookupid' => $lookupId]]), ['lookups']);
+            foreach ($rows as $row) {
+                $id = (int) ($row['id'] ?? 0);
+                $name = trim((string) ($row['name'] ?? ''));
+                if (! is_array($row) || $id <= 0 || $name === '' || ! empty($row['inactive'])) {
+                    continue;
+                }
+                $subtypes[$id] = ['id' => $id, 'name' => $name, 'named' => true, 'type_id' => null, 'type_name' => '', 'example' => ''];
+            }
+        }
+
+        $pages = 0;
+        foreach ($this->paginate('clientcontract', ['includeinactive' => 'true'], ['contracts'], 100) as $page) {
+            foreach ($page as $row) {
+                $id = (int) ($row['subtype'] ?? 0);
+                if ($id <= 0) {
+                    continue;
+                }
+                $subtypes[$id] ??= ['id' => $id, 'name' => 'Subtype #' . $id, 'named' => false, 'type_id' => null, 'type_name' => '', 'example' => ''];
+                if ($subtypes[$id]['example'] === '') {
+                    $subtypes[$id]['example'] = trim((string) ($row['ref'] ?? ''));
+                    $subtypes[$id]['type_id'] = isset($row['contracttype']) ? (int) $row['contracttype'] : null;
+                    $subtypes[$id]['type_name'] = trim((string) ($row['contracttype_name'] ?? ''));
+                }
+            }
+            if (++$pages >= $maxPages) {
+                break;
+            }
+        }
+        $subtypes = array_values($subtypes);
+        usort($subtypes, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $subtypes;
+    }
+
     // ------------------------------------------------------------------
     // Items, subscriptions (SoftwareLicence), recurring invoices
     // Field names come from the tenant swagger (docs/review/16-halo-subscriptions-swagger-facts.md).
@@ -1495,15 +1543,20 @@ class HaloPsaClient
     }
 
     /**
-     * The client's contracts (GET /api/ClientContract?client_id=..), active only, optionally of one contract type.
+     * The client's agreements (GET /api/ClientContract?client_id=..&contract_type=..&contract_sub_type=..), active only.
+     * ContractHeader_List fields: id, ref, contracttype (id), contracttype_name, subtype (id), active. The type and
+     * subtype are also filtered here, so the result is right even if a tenant ignores the query parameters.
      *
-     * @return array<int,array{id:int,ref:string,type_id:?int,type_name:string,active:bool}>
+     * @return array<int,array{id:int,ref:string,type_id:?int,type_name:string,subtype_id:?int,active:bool}>
      */
-    public function listClientContracts(int $clientId, ?int $contractTypeId = null): array
+    public function listClientContracts(int $clientId, ?int $contractTypeId = null, ?int $contractSubtypeId = null): array
     {
         $query = ['client_id' => $clientId, 'includeinactive' => 'false'];
         if ($contractTypeId) {
             $query['contract_type'] = $contractTypeId;
+        }
+        if ($contractSubtypeId) {
+            $query['contract_sub_type'] = $contractSubtypeId;
         }
 
         $out = [];
@@ -1517,11 +1570,25 @@ class HaloPsaClient
                 'ref' => trim((string) ($row['ref'] ?? '')),
                 'type_id' => isset($row['contracttype']) ? (int) $row['contracttype'] : null,
                 'type_name' => trim((string) ($row['contracttype_name'] ?? '')),
+                'subtype_id' => isset($row['subtype']) && (int) $row['subtype'] > 0 ? (int) $row['subtype'] : null,
                 'active' => (bool) ($row['active'] ?? true),
             ];
         }
 
-        return array_values(array_filter($out, fn ($c) => $c['active']));
+        return array_values(array_filter($out, fn ($c) => $c['active']
+            && (! $contractTypeId || $c['type_id'] === $contractTypeId)
+            && (! $contractSubtypeId || $c['subtype_id'] === $contractSubtypeId)));
+    }
+
+    /**
+     * The client's reference in Halo (Area.ref of GET /api/Client/{id}), cached for the reference-data TTL. Used for the
+     * {client_code} placeholder. Empty when Halo has none.
+     */
+    public function clientReference(int $clientId): string
+    {
+        return (string) Cache::remember('halo_client_ref:' . $this->tenantKey() . ':' . $clientId, (int) config('integrations.halo.reference_data_ttl', 3600), function () use ($clientId) {
+            return trim((string) ($this->getClient($clientId)['ref'] ?? ''));
+        });
     }
 
     /** POST /api/RecurringInvoice/Lines: add lines (array of InvoiceDetail with recurring_invoice_id). Sent once. */
