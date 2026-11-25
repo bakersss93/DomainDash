@@ -41,6 +41,11 @@ class ScheduleRegistrar
             ->dailyAt('03:15')->name('scheduled-halo-assets-full')->onOneServer()
             ->description('Queue job: full Halo domain asset reconcile');
 
+        // Pending Vocus orders and status changes: TCAS Get RESPONSE, respecting the per-service poll cool-down.
+        $schedule->job(new \App\Jobs\PollVocusTransactionsJob(), $queue)
+            ->everyTenMinutes()->name('scheduled-vocus-transaction-poll')->onOneServer()
+            ->description('Queue job: poll pending Vocus transactions');
+
         // Worker detection: the UI warns when this heartbeat goes stale.
         $schedule->job(new \App\Jobs\QueueHeartbeatJob(), $queue)
             ->everyMinute()->name('scheduled-queue-heartbeat')

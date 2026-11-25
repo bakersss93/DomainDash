@@ -85,7 +85,7 @@ class InternetController extends Controller
                 // Ordering is asynchronous: the service does not exist at Vocus until the
                 // transaction completes, and Get SERVICE is "not for checking order progress"
                 // (Examples 4.1.8). Show what we stored and let the user poll the transaction.
-                $liveNotice = 'Awaiting Vocus provisioning. Live details appear once the transaction completes; use "Refresh Status" to check it.';
+                $liveNotice = 'Awaiting Vocus provisioning. Live details appear once the transaction completes; use "Check status" to check now, or wait for the scheduled poll (every 10 minutes).';
             } elseif (($problem = VocusWsmClient::configurationProblem()) !== null) {
                 $liveError = $problem;
             } else {
@@ -870,49 +870,7 @@ class InternetController extends Controller
         }
 
         try {
-            $vocus  = app(VocusWsmClient::class);
-            $result = VocusWsmClient::normalizeTransactionResult($vocus->pollTransaction($service->last_transaction_id));
-            $state  = $result['state'];
-
-            $service->last_polled_at = now();
-
-            if ($state) {
-                $service->last_transaction_state = $state;
-
-                if ($state === 'FAILED') {
-                    // Persist the TCAS faultcode / faultmessage so the details survive the page reload.
-                    $service->last_fault_code    = $result['fault_code'] ? mb_substr($result['fault_code'], 0, 40) : null;
-                    $service->last_fault_message = $result['fault_message'] ? mb_substr($result['fault_message'], 0, 500) : null;
-                } else {
-                    $service->last_fault_code = $service->last_fault_message = null;
-                }
-
-                // A SUCCESS on Create carries the provisioning results (AVCID, CVCID, NTDID, DataPortID, NBNInstanceID,
-                // IPAssignment, IPAddress ...: FIBRE 4.1.1.2 response params); keep what is in the known columns.
-                if ($state === 'SUCCESS') {
-                    $service->applyLiveParams(array_diff_key($result['params'], ['ServiceStatus' => 1, 'TransactionState' => 1]));
-                }
-
-                // SUCCESS may be the result of a suspend or cancel, so the new
-                // service status comes from the live record, never assumed ACTIVE.
-                if ($state === 'SUCCESS' && $service->vocus_service_id) {
-                    try {
-                        $live = $vocus->getService($service->vocus_service_id)['params'] ?? [];
-                        if ($new = VocusWsmClient::resolveServiceStatus($state, $live['ServiceStatus'] ?? null)) {
-                            $service->service_status = $new;
-                        }
-                        if ($live) {
-                            $service->applyLiveParams($live);
-                        }
-                    } catch (\Throwable $e) {
-                        Log::warning('Vocus status refresh after transaction failed', [
-                            'service_id' => $service->vocus_service_id,
-                            'message'    => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
-            $service->save();
+            $result = app(\App\Services\Vocus\VocusTransactionPoller::class)->poll($service);
 
             return response()->json([
                 'transaction_state' => $service->last_transaction_state,
@@ -922,17 +880,7 @@ class InternetController extends Controller
                 'fault_message'     => $result['fault_message'],
             ]);
         } catch (VocusWsmException $e) {
-            $expired = in_array($e->errorCode, ['TCAS-4300', 'TCAS-4310'], true);
-
-            // Unknown / expired transaction: nothing will ever change, stop the pending state.
-            if ($expired) {
-                $service->update([
-                    'last_transaction_state' => $e->errorCode === 'TCAS-4310' ? 'EXPIRED' : 'UNKNOWN',
-                    'last_fault_code'        => $e->errorCode,
-                    'last_fault_message'     => mb_substr($e->getMessage(), 0, 500),
-                    'last_polled_at'         => now(),
-                ]);
-            }
+            $expired = \App\Services\Vocus\VocusTransactionPoller::isExpired($e);
 
             return response()->json([
                 'error'      => $e->getMessage(),

@@ -4,16 +4,19 @@
     Expects $checklist from App\Services\Monitoring\VocusJourneys::checklist().
 --}}
 @php
+    // The poll and service steps open the newest ordered service directly (where its Check status button is).
+    $latestSvc = \App\Models\InternetService::query()->whereNotNull('last_transaction_id')->latest('id')->first(['id', 'vocus_service_id']);
+    $svcLink = $latestSvc ? route('admin.services.internet.show', $latestSvc) : route('admin.services.internet');
     $links = [
         'qualify' => route('admin.services.internet.qualify'),
         'order' => route('admin.services.internet.qualify'),
-        'poll' => route('admin.services.internet'),
-        'service' => route('admin.services.internet'),
+        'poll' => $svcLink,
+        'service' => $svcLink,
     ];
     $hints = [
         'qualify' => 'Open Qualify, search an address or enter a LOC ID, and run the check.',
         'order' => 'Place an order for the qualified location. DomainDash sends the ServiceID and records the Create TransactionID.',
-        'poll' => 'Open the new service and choose Check status (or wait for the scheduled sync) so the transaction is polled until Vocus finishes it.',
+        'poll' => 'Open the new service and choose Check status, or wait for the scheduled poll (every 10 minutes while a transaction is queued or processing).',
         'service' => 'Open the service page: DomainDash reads the live record (Get SERVICE).',
     ];
 @endphp
@@ -30,7 +33,7 @@
                 <p class="vc-check__hint">{{ $step['done'] ? ($step['detail'] ?? '') : $hints[$step['key']] }}</p>
             </div>
             @unless ($step['done'])
-                <a class="ui-btn ui-btn--secondary ui-btn--sm" href="{{ $links[$step['key']] }}">{{ $step['key'] === 'qualify' ? 'Qualify' : ($step['key'] === 'order' ? 'Order' : 'Services') }}</a>
+                <a class="ui-btn ui-btn--secondary ui-btn--sm" href="{{ $links[$step['key']] }}">{{ $step['key'] === 'qualify' ? 'Qualify' : ($step['key'] === 'order' ? 'Order' : ($latestSvc ? 'Open ' . ($latestSvc->vocus_service_id ?: 'service') : 'Services')) }}</a>
             @endunless
         </li>
     @endforeach

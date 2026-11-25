@@ -45,7 +45,7 @@
                 @endif
             </div>
             <button type="button" id="poll-btn" onclick="pollStatus()" class="btn-accent" style="padding:6px 14px;font-size:13px;">
-                Refresh Status
+                Check status
             </button>
         </div>
     @endif

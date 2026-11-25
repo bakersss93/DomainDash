@@ -573,6 +573,46 @@ class VocusInternetTest extends TestCase
         $this->assertSame('TCAS-4310', $service->last_fault_code);
     }
 
+    public function test_scheduled_poll_checks_pending_transactions_outside_the_cooldown(): void
+    {
+        $processing = (object) ['TransactionID' => 'TX', 'ResponseType' => 'SYNC', 'Parameters' => (object) ['Param' => [(object) ['id' => 'TransactionState', '_' => 'Processing']]]];
+        $soap = $this->fakeClient([$processing]);
+        $due = InternetService::create(['vocus_service_id' => 'S1', 'last_transaction_id' => 'TX-DUE', 'last_transaction_state' => 'QUEUED']);
+        $recent = InternetService::create(['vocus_service_id' => 'S2', 'last_transaction_id' => 'TX-RECENT', 'last_transaction_state' => 'QUEUED', 'last_polled_at' => now()->subSeconds(30)]);
+        InternetService::create(['vocus_service_id' => 'S3', 'last_transaction_id' => 'TX-DONE', 'last_transaction_state' => 'SUCCESS']);
+
+        (new \App\Jobs\PollVocusTransactionsJob())->handle();
+
+        $this->assertCount(1, $soap->calls, 'only the due pending service is polled');
+        $this->assertStringContainsString('TX-DUE', $this->xmlOf($soap));
+        $this->assertSame('PROCESSING', $due->refresh()->last_transaction_state);
+        $this->assertNotNull($due->last_polled_at);
+        $this->assertSame('QUEUED', $recent->refresh()->last_transaction_state);
+    }
+
+    public function test_scheduled_poll_stops_at_an_account_level_fault(): void
+    {
+        $soap = $this->fakeClient([$this->fault('WSM-4020'), $this->fault('WSM-4020')]);
+        InternetService::create(['vocus_service_id' => 'A1', 'last_transaction_id' => 'TX1', 'last_transaction_state' => 'QUEUED']);
+        InternetService::create(['vocus_service_id' => 'A2', 'last_transaction_id' => 'TX2', 'last_transaction_state' => 'QUEUED']);
+
+        (new \App\Jobs\PollVocusTransactionsJob())->handle();
+
+        $this->assertCount(1, $soap->calls);
+    }
+
+    public function test_scheduled_poll_is_registered_and_the_service_page_offers_check_status(): void
+    {
+        $schedule = new \Illuminate\Console\Scheduling\Schedule();
+        \App\Console\ScheduleRegistrar::register($schedule);
+        $events = collect($schedule->events())->map->description;
+        $this->assertContains('Queue job: poll pending Vocus transactions', $events->all());
+
+        $this->fakeClient([]);
+        $service = InternetService::create(['vocus_service_id' => 'P1', 'last_transaction_id' => 'TX', 'last_transaction_state' => 'QUEUED']);
+        $this->actingAs($this->admin())->get(route('admin.services.internet.show', $service))->assertOk()->assertSee('Check status');
+    }
+
     public function test_show_page_does_not_fail_when_the_live_fetch_errors_and_skips_it_while_pending(): void
     {
         $admin = $this->admin();
