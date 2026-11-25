@@ -15,7 +15,8 @@ use App\Models\Setting;
  *  - contract_subtype_id  Halo Agreement Subtype (ClientContract.subtype), optional
  *  - contract_ref         Agreement Reference pattern, optional: plain text = contains, "*" and "?" wildcards, tokens such
  *                         as {plan} {client_code} {service_id} are filled from the service before matching
- *  - subtype_lookup_id    optional Halo Lookup id that lists the agreement subtype names (GET /Lookup?lookupid=)
+ *  - type_lookup_id       Halo Lookup id of the Contract Types list (GET /Lookup?lookupid=), default 28
+ *  - subtype_lookup_id    Halo Lookup id of the Agreement Subtypes list, default 76
  * Recurring invoice lines
  *  - sync_lines           add/update the recurring invoice line that bills the service
  *  - line_description     template of the line description (InvoiceDetail.item_shortdescription)
@@ -39,9 +40,10 @@ final class HaloBillingSettings
         public readonly ?int $contractTypeId = null,
         public readonly string $contractRef = '',
         public readonly ?int $contractSubtypeId = null,
-        public readonly ?int $subtypeLookupId = null,
+        public readonly int $subtypeLookupId = HaloPsaClient::CONTRACT_SUBTYPE_LOOKUP_ID,
         public readonly string $lineDescription = self::DEFAULT_DESCRIPTION,
         public readonly string $lineLongDescription = self::DEFAULT_LONG_DESCRIPTION,
+        public readonly int $typeLookupId = HaloPsaClient::CONTRACT_TYPE_LOOKUP_ID,
     ) {
     }
 
@@ -71,9 +73,10 @@ final class HaloBillingSettings
             $id($b['contract_type_id'] ?? null),
             trim((string) ($b['contract_ref'] ?? '')),
             $id($b['contract_subtype_id'] ?? null),
-            $id($b['subtype_lookup_id'] ?? null),
+            $id($b['subtype_lookup_id'] ?? null) ?? HaloPsaClient::CONTRACT_SUBTYPE_LOOKUP_ID,
             $text($b['line_description'] ?? null, self::DEFAULT_DESCRIPTION, 255),
             $text($b['line_long_description'] ?? null, self::DEFAULT_LONG_DESCRIPTION, 2000),
+            $id($b['type_lookup_id'] ?? null) ?? HaloPsaClient::CONTRACT_TYPE_LOOKUP_ID,
         );
     }
 

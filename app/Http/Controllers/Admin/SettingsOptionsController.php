@@ -120,7 +120,8 @@ class SettingsOptionsController extends Controller
         $param = match ($source) {
             'halo.asset-fields' => (int) $request->query('asset_type_id', 0),
             'itglue.flexible-fields' => (int) $request->query('type_id', 0),
-            'halo.contract-subtypes' => (int) (\App\Services\Halo\HaloBillingSettings::fromSettings()->subtypeLookupId ?? 0),
+            'halo.contract-types' => \App\Services\Halo\HaloBillingSettings::fromSettings()->typeLookupId,
+            'halo.contract-subtypes' => \App\Services\Halo\HaloBillingSettings::fromSettings()->subtypeLookupId,
             default => 0,
         };
         if (in_array($source, ['halo.asset-fields', 'itglue.flexible-fields'], true) && $param <= 0) {
@@ -171,25 +172,23 @@ class SettingsOptionsController extends Controller
             'halo.teams' => $this->normalise($halo->listTeamRows(), 'name'),
             'halo.slas' => $this->normalise($halo->listSlaRows(), 'name'),
             'halo.sites' => $this->normalise($halo->listSiteRows(), 'name', ['id'], 'client_name'),
-            'halo.contract-types' => $this->normalise($halo->listContractTypes(), 'name'),
-            'halo.contract-subtypes' => $this->contractSubtypes($halo->listContractSubtypes($param > 0 ? $param : null)),
+            'halo.contract-types' => $this->lookupOptions($halo->listContractTypes($param)),
+            'halo.contract-subtypes' => $this->lookupOptions($halo->listContractSubtypes($param)),
             'halo.asset-types' => $this->normalise($halo->listAssetTypes($refresh), 'name', ['id'], 'group'),
             'halo.asset-fields' => $this->haloFields($halo->getAssetTypeDetails($param, $refresh)),
         };
     }
 
     /**
-     * Agreement subtypes: the name (or "Subtype #id" when Halo gives none), grouped under the contract type it was seen on,
-     * with one example agreement reference so an unnamed subtype can still be recognised.
+     * Halo lookup rows (contract types, agreement subtypes) as picker options.
      *
-     * @param array<int,array{id:int,name:string,named:bool,type_name:string,example:string}> $rows
+     * @param array<int,array{id:int,name:string,prefix?:string}> $rows
      */
-    private function contractSubtypes(array $rows): array
+    private function lookupOptions(array $rows): array
     {
         $out = [];
         foreach ($rows as $r) {
-            $label = $r['named'] || $r['example'] === '' ? $r['name'] : $r['name'] . ' (e.g. ' . mb_substr($r['example'], 0, 60) . ')';
-            $out[] = ['id' => (string) $r['id'], 'label' => $label] + ($r['type_name'] !== '' ? ['meta' => ['group' => $r['type_name']]] : []);
+            $out[] = ['id' => (string) $r['id'], 'label' => $r['name']];
         }
 
         return $out;

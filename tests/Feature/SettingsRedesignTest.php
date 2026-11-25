@@ -65,6 +65,7 @@ class SettingsRedesignTest extends TestCase
                 ['id' => 2, 'contracttype' => 12, 'contracttype_name' => 'Managed Services'],
                 ['id' => 3, 'contracttype' => 15, 'contracttype_name' => 'Project'],
             ]]),
+            'halo.example.com/api/lookup*' => Http::response([]),
             'halo.example.com/api/assettype*' => Http::response(['assettypes' => [['id' => 7, 'name' => 'Domain', 'assetgroup_name' => 'Services']]]),
         ]);
     }
@@ -211,7 +212,7 @@ class SettingsRedesignTest extends TestCase
         $this->assertSame('Domain', $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.asset-types'))->json('options.0.label'));
     }
 
-    public function test_contract_types_are_derived_distinct_from_client_contracts(): void
+    public function test_contract_types_fall_back_to_distinct_client_contract_types_when_the_lookup_is_empty(): void
     {
         $this->fakeHalo();
         $json = $this->actingAs($this->admin())->getJson(route('admin.settings.options', 'halo.contract-types'))->assertOk()->json();

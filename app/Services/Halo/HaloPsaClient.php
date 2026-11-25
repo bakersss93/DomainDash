@@ -1280,22 +1280,60 @@ class HaloPsaClient
         return $rows;
     }
 
+    /** Halo's default lookup ids: Contract Types (Configuration > Billing > Contracts > Types) and Agreement Subtypes. */
+    public const CONTRACT_TYPE_LOOKUP_ID = 28;
+    public const CONTRACT_SUBTYPE_LOOKUP_ID = 76;
+
     /**
-     * Halo has no contract-type list endpoint (the swagger exposes none), so the distinct
-     * contracttype / contracttype_name pairs are derived from GET /ClientContract (all clients, paged, capped).
+     * Active rows of a Halo lookup list: GET /api/Lookup?lookupid=<id>.
      *
-     * @return array<int,array{id:int,name:string}>
+     * @return array<int,array{id:int,name:string,prefix:string}>
      */
-    public function listContractTypes(int $maxPages = 10): array
+    public function listLookupRows(int $lookupId): array
     {
+        if ($lookupId <= 0) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->extractList($this->request('GET', 'lookup', ['query' => ['lookupid' => $lookupId]]), ['lookups']) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $id = (int) ($row['id'] ?? 0);
+            $name = trim((string) ($row['name'] ?? ''));
+            if ($id <= 0 || $name === '' || ! empty($row['inactive'])) {
+                continue;
+            }
+            $out[$id] = ['id' => $id, 'name' => $name, 'prefix' => trim((string) ($row['prefix'] ?? $row['value2'] ?? ''))];
+        }
+        $out = array_values($out);
+        usort($out, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $out;
+    }
+
+    /**
+     * Contract types, from the Halo lookup that holds them (default lookupid 28, set in Settings > HaloPSA > Billing).
+     * Only when that lookup returns nothing are the distinct contracttype / contracttype_name pairs read from
+     * existing agreements (GET /ClientContract, paged, capped).
+     *
+     * @return array<int,array{id:int,name:string,prefix?:string}>
+     */
+    public function listContractTypes(?int $lookupId = null, int $maxPages = 10): array
+    {
+        $rows = $this->listLookupRows($lookupId ?? self::CONTRACT_TYPE_LOOKUP_ID);
+        if ($rows !== []) {
+            return $rows;
+        }
+
         $types = [];
         $pages = 0;
         foreach ($this->paginate('clientcontract', ['includeinactive' => 'true'], ['contracts'], 100) as $page) {
             foreach ($page as $row) {
                 $id = (int) ($row['contracttype'] ?? 0);
-                if ($id > 0 && ! isset($types[$id])) {
-                    $name = trim((string) ($row['contracttype_name'] ?? ''));
-                    $types[$id] = ['id' => $id, 'name' => $name !== '' ? $name : 'Contract type #' . $id];
+                $name = trim((string) ($row['contracttype_name'] ?? ''));
+                if ($id > 0 && $name !== '' && ! isset($types[$id])) {
+                    $types[$id] = ['id' => $id, 'name' => $name];
                 }
             }
             if (++$pages >= $maxPages) {
@@ -1309,51 +1347,14 @@ class HaloPsaClient
     }
 
     /**
-     * Agreement subtypes. ContractHeader_List only carries the subtype id (`subtype`, no name), so:
-     *  - names come from GET /api/Lookup?lookupid=<id> when the Halo lookup id of the subtype list is known
-     *    (Settings → HaloPSA → Billing; the swagger documents the endpoint but not which lookupid lists subtypes);
-     *  - every subtype id found on existing agreements (GET /api/ClientContract, paged, capped) is listed too, with the
-     *    contract type it was seen on and one example agreement reference, so it can be recognised without a name.
+     * Agreement subtypes, from the Halo lookup that holds them (default lookupid 76, set in Settings > HaloPSA > Billing).
+     * Agreement references are never listed here: they belong to the Agreement Reference rule.
      *
-     * @return array<int,array{id:int,name:string,named:bool,type_id:?int,type_name:string,example:string}>
+     * @return array<int,array{id:int,name:string,prefix:string}>
      */
-    public function listContractSubtypes(?int $lookupId = null, int $maxPages = 10): array
+    public function listContractSubtypes(?int $lookupId = null): array
     {
-        $subtypes = [];
-        if ($lookupId) {
-            $rows = $this->extractList($this->request('GET', 'lookup', ['query' => ['lookupid' => $lookupId]]), ['lookups']);
-            foreach ($rows as $row) {
-                $id = (int) ($row['id'] ?? 0);
-                $name = trim((string) ($row['name'] ?? ''));
-                if (! is_array($row) || $id <= 0 || $name === '' || ! empty($row['inactive'])) {
-                    continue;
-                }
-                $subtypes[$id] = ['id' => $id, 'name' => $name, 'named' => true, 'type_id' => null, 'type_name' => '', 'example' => ''];
-            }
-        }
-
-        $pages = 0;
-        foreach ($this->paginate('clientcontract', ['includeinactive' => 'true'], ['contracts'], 100) as $page) {
-            foreach ($page as $row) {
-                $id = (int) ($row['subtype'] ?? 0);
-                if ($id <= 0) {
-                    continue;
-                }
-                $subtypes[$id] ??= ['id' => $id, 'name' => 'Subtype #' . $id, 'named' => false, 'type_id' => null, 'type_name' => '', 'example' => ''];
-                if ($subtypes[$id]['example'] === '') {
-                    $subtypes[$id]['example'] = trim((string) ($row['ref'] ?? ''));
-                    $subtypes[$id]['type_id'] = isset($row['contracttype']) ? (int) $row['contracttype'] : null;
-                    $subtypes[$id]['type_name'] = trim((string) ($row['contracttype_name'] ?? ''));
-                }
-            }
-            if (++$pages >= $maxPages) {
-                break;
-            }
-        }
-        $subtypes = array_values($subtypes);
-        usort($subtypes, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
-
-        return $subtypes;
+        return $this->listLookupRows($lookupId ?? self::CONTRACT_SUBTYPE_LOOKUP_ID);
     }
 
     // ------------------------------------------------------------------

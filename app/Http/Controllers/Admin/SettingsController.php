@@ -143,6 +143,7 @@ class SettingsController extends Controller
             'halo.billing.contract_type_id' => 'nullable|integer|min:1',
             'halo.billing.contract_ref' => 'nullable|string|max:120',
             'halo.billing.contract_subtype_id' => 'nullable|integer|min:1',
+            'halo.billing.type_lookup_id' => 'nullable|integer|min:1',
             'halo.billing.subtype_lookup_id' => 'nullable|integer|min:1',
             'halo.billing.line_description' => 'nullable|string|max:255',
             'halo.billing.line_long_description' => 'nullable|string|max:2000',

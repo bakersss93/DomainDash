@@ -15,21 +15,27 @@
                 help="An invoice chosen on a service always wins. The invoice chosen on a client is the fallback when the rule finds nothing usable." :wide="true" />
 
             <div class="dd-set-field">
-                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.contract-types"), "label" => "Contract Type (optional)", "idInput" => "#halo_billing_contract_type", "placeholder" => "Any contract type", "help" => "Types come from your existing agreements.", "emptyHint" => "No contract types found in HaloPSA.", "fallbackLabel" => "Contract type"]) }}"></div>
+                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.contract-types"), "label" => "Contract Type (optional)", "idInput" => "#halo_billing_contract_type", "placeholder" => "Any contract type", "help" => "From HaloPSA Contract Types.", "emptyHint" => "No contract types found in HaloPSA.", "fallbackLabel" => "Contract type"]) }}"></div>
                 <input type="hidden" id="halo_billing_contract_type" name="halo[billing][contract_type_id]" value="{{ $haloBilling->contractTypeId }}">
             </div>
 
             <div class="dd-set-field">
-                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.contract-subtypes"), "label" => "Agreement Subtype (optional)", "idInput" => "#halo_billing_contract_subtype", "placeholder" => "Any subtype", "help" => "Subtypes without a name show their id and an example agreement. Add the lookup id below to see names.", "emptyHint" => "No agreement subtypes found in HaloPSA.", "fallbackLabel" => "Agreement subtype"]) }}"></div>
+                <div data-dd-picker="{{ json_encode(["source" => route("admin.settings.options", "halo.contract-subtypes"), "label" => "Agreement Subtype (optional)", "idInput" => "#halo_billing_contract_subtype", "placeholder" => "Any subtype", "help" => "From HaloPSA Agreement Subtypes.", "emptyHint" => "No agreement subtypes found in HaloPSA.", "fallbackLabel" => "Agreement subtype"]) }}"></div>
                 <input type="hidden" id="halo_billing_contract_subtype" name="halo[billing][contract_subtype_id]" value="{{ $haloBilling->contractSubtypeId }}">
             </div>
 
             <x-settings.input label="Agreement Reference matches (optional)" name="halo[billing][contract_ref]" id="halo_billing_contract_ref" :value="$haloBilling->contractRef" maxlength="120" placeholder="e.g. Connectivity - {plan} - {client_code}" wide="true"
                 help="Plain text matches anywhere; * and ? are wildcards. Placeholders such as {plan}, {plan_id}, {client_code}, {service_id}, {username}, {avc_id} are filled from the service. A client with several agreements bills each service on the one whose reference names it." />
-
-            <x-settings.input label="Halo lookup id of the subtype list (optional)" name="halo[billing][subtype_lookup_id]" id="halo_billing_subtype_lookup" type="number" min="1" :value="$haloBilling->subtypeLookupId"
-                help="Halo does not return subtype names with agreements. If you know the lookup id of the Agreement Subtype list, subtype names are read from it." />
         </div>
+        <details class="dd-set-advanced">
+            <summary class="dd-set-label" style="cursor:pointer">Advanced: Halo lookup lists</summary>
+            <div class="dd-set-form" style="margin-top:.75rem">
+                <x-settings.input label="Contract Types lookup id" name="halo[billing][type_lookup_id]" id="halo_billing_type_lookup" type="number" min="1" :value="$haloBilling->typeLookupId"
+                    help="The lookupid of Contract Types in HaloPSA (28 by default)." />
+                <x-settings.input label="Agreement Subtypes lookup id" name="halo[billing][subtype_lookup_id]" id="halo_billing_subtype_lookup" type="number" min="1" :value="$haloBilling->subtypeLookupId"
+                    help="The lookupid of Agreement Subtypes in HaloPSA (76 by default)." />
+            </div>
+        </details>
     </div>
 </x-settings.form-card>
 

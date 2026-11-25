@@ -97,7 +97,12 @@ class HaloAgreementBillingTest extends TestCase
         Http::fake([
             'halo.example.com/auth/token*' => Http::response(['access_token' => 't', 'expires_in' => 3600]),
             'halo.example.com/api/client/42*' => Http::response(['id' => 42, 'name' => 'Example Client Pty Ltd', 'ref' => 'EXA001']),
-            'halo.example.com/api/lookup*' => Http::response($lookup),
+            // $lookup: rows per lookupid
+            'halo.example.com/api/lookup*' => function (HttpRequest $r) use ($lookup) {
+                parse_str((string) parse_url($r->url(), PHP_URL_QUERY), $q);
+
+                return Http::response($lookup[(int) ($q['lookupid'] ?? 0)] ?? []);
+            },
             'halo.example.com/api/clientcontract*' => function (HttpRequest $r) use ($contracts) {
                 parse_str((string) parse_url($r->url(), PHP_URL_QUERY), $q);
                 $rows = array_values(array_filter($contracts, fn ($c) => (! isset($q['contract_type']) || $c['contracttype'] == $q['contract_type'])
@@ -137,25 +142,26 @@ class HaloAgreementBillingTest extends TestCase
 
     // ------------------------------------------------------------ pickers
 
-    public function test_contract_type_and_subtype_pickers_are_filled_live_from_halo_and_cached(): void
+    public function test_contract_type_and_subtype_pickers_read_the_halo_lookups_and_are_cached(): void
     {
-        $this->billing(['subtype_lookup_id' => '35']);
         $this->fakeHalo(
-            [$this->contract(1, 'Connectivity - Fibre1000 - EXA001'), $this->contract(2, 'Hosting - EXA001', 4, 9, 'Hosting')],
+            [$this->contract(1, 'Connectivity - Fibre1000 - EXA001')],
             [],
-            [['id' => 7, 'name' => 'Example NBN Link'], ['id' => 8, 'name' => 'Retired subtype', 'inactive' => true]],
+            [
+                28 => [['id' => 30, 'name' => 'Internet Service', 'prefix' => 'ISP'], ['id' => 22, 'name' => 'Hosting Services'], ['id' => 9, 'name' => 'Old type', 'inactive' => true]],
+                76 => [['id' => 20, 'name' => 'Example NBN Link'], ['id' => 22, 'name' => 'Fibre Link'], ['id' => 8, 'name' => 'Retired subtype', 'inactive' => true]],
+            ],
         );
         $admin = $this->admin();
 
         $types = $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-types'))->assertOk()->json('options');
-        $this->assertSame([['id' => '4', 'label' => 'Hosting'], ['id' => '3', 'label' => 'Internet Service']], $types);
+        $this->assertSame([['id' => '22', 'label' => 'Hosting Services'], ['id' => '30', 'label' => 'Internet Service']], $types);
 
-        $sub = $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->assertOk()->json();
-        $labels = array_column($sub['options'], 'label', 'id');
-        $this->assertSame('Example NBN Link', $labels['7']);
-        $this->assertStringStartsWith('Subtype #9 (e.g. Hosting - EXA001', $labels['9']);
-        $this->assertArrayNotHasKey('8', $labels, 'inactive lookup rows are not offered');
-        Http::assertSent(fn (HttpRequest $r) => str_contains($r->url(), '/api/lookup') && str_contains($r->url(), 'lookupid=35'));
+        $sub = $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->assertOk()->json('options');
+        $this->assertSame([['id' => '20', 'label' => 'Example NBN Link'], ['id' => '22', 'label' => 'Fibre Link']], $sub, 'agreement references are never offered as subtypes');
+        Http::assertSent(fn (HttpRequest $r) => str_contains($r->url(), '/api/lookup') && str_contains($r->url(), 'lookupid=28'));
+        Http::assertSent(fn (HttpRequest $r) => str_contains($r->url(), '/api/lookup') && str_contains($r->url(), 'lookupid=76'));
+        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), '/api/clientcontract'));
 
         $before = Http::recorded()->count();
         $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->assertOk()->assertJson(['cached' => true]);
@@ -164,16 +170,25 @@ class HaloAgreementBillingTest extends TestCase
         $this->assertGreaterThan($before, Http::recorded()->count(), 'refresh bypasses the cache');
     }
 
-    public function test_subtype_picker_without_a_lookup_id_lists_ids_found_on_agreements(): void
+    public function test_lookup_ids_can_be_changed_in_settings(): void
     {
-        $this->fakeHalo([$this->contract(1, 'Connectivity - Fibre1000 - EXA001')], []);
+        $this->billing(['type_lookup_id' => '40', 'subtype_lookup_id' => '41']);
+        $this->fakeHalo([], [], [40 => [['id' => 1, 'name' => 'Custom type']], 41 => [['id' => 2, 'name' => 'Custom subtype']]]);
+        $admin = $this->admin();
 
-        $opts = $this->actingAs($this->admin())->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->assertOk()->json('options');
+        $this->assertSame('Custom type', $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-types'))->json('options.0.label'));
+        $this->assertSame('Custom subtype', $this->actingAs($admin)->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->json('options.0.label'));
+    }
 
-        $this->assertCount(1, $opts);
-        $this->assertSame('7', $opts[0]['id']);
-        $this->assertStringContainsString('e.g. Connectivity - Fibre1000 - EXA001', $opts[0]['label']);
-        Http::assertNotSent(fn (HttpRequest $r) => str_contains($r->url(), '/api/lookup'));
+    public function test_contract_types_fall_back_to_agreements_when_the_lookup_is_empty(): void
+    {
+        $this->fakeHalo([$this->contract(1, 'Connectivity - Fibre1000 - EXA001'), $this->contract(2, 'Hosting - EXA001', 4, 9, 'Hosting')], []);
+
+        $types = $this->actingAs($this->admin())->getJson(route('admin.settings.options', 'halo.contract-types'))->assertOk()->json('options');
+        $this->assertSame([['id' => '4', 'label' => 'Hosting'], ['id' => '3', 'label' => 'Internet Service']], $types);
+
+        $sub = $this->actingAs($this->admin())->getJson(route('admin.settings.options', 'halo.contract-subtypes'))->assertOk()->json('options');
+        $this->assertSame([], $sub, 'subtypes come only from the lookup');
     }
 
     // ------------------------------------------------------------ agreement selection
@@ -488,7 +503,7 @@ class HaloAgreementBillingTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.settings.update'), [
             'halo' => ['billing' => [
-                'contract_type_id' => '3', 'contract_subtype_id' => '7', 'subtype_lookup_id' => '35',
+                'contract_type_id' => '3', 'contract_subtype_id' => '7', 'subtype_lookup_id' => '35', 'type_lookup_id' => '36',
                 'contract_ref' => 'Connectivity - {plan} - {client_code}', 'line_description' => 'D {plan_name}', 'line_long_description' => "L1\nL2",
             ]],
             '_return' => '/admin/settings/halopsa#billing',
@@ -498,6 +513,9 @@ class HaloAgreementBillingTest extends TestCase
         $this->assertSame(3, $cfg->contractTypeId);
         $this->assertSame(7, $cfg->contractSubtypeId);
         $this->assertSame(35, $cfg->subtypeLookupId);
+        $this->assertSame(36, $cfg->typeLookupId);
+        $this->assertSame(28, HaloBillingSettings::fromArray([])->typeLookupId);
+        $this->assertSame(76, HaloBillingSettings::fromArray([])->subtypeLookupId);
         $this->assertSame('Connectivity - {plan} - {client_code}', $cfg->contractRef);
         $this->assertSame("L1\nL2", $cfg->lineLongDescription);
 
