@@ -152,3 +152,32 @@ Known remaining `innerHTML` concatenations that interpolate server error strings
 * Unreferenced `navigation-menu.blade.php` / `welcome.blade.php` could be deleted.
 * Local dev: CSP report-only header lists an invalid `http://[::1]:5173` source (console noise only, pre-existing).
 * A visual-regression run (Playwright screenshots) is not part of CI; screenshots were taken manually with the seeded SQLite database.
+
+## Action panels & lists
+
+One pattern drives every expandable list row (domains, web hosting, SSL, internet services) and the action groups on detail pages.
+
+### Components
+
+| Component | Purpose |
+|---|---|
+| `<x-ui.row-detail data-…-panel="id" :title meta aside :colspan [:details-for]>` | Renders the whole hidden `<tr>` under a list row. Summary strip: bold `title`, muted `meta` line, right-aligned muted `aside`. `meta` / `aside` accept a string or a named slot (`<x-slot:meta>`) for markup such as JS-updated spans. The page script toggles the `open` class on the row. |
+| `<x-ui.action-grid label="…">` | Responsive grid of tiles: 4 columns, 2 below 900px, 1 below 520px. |
+| `<x-ui.action-tile>` | One action. Props: `href` (renders `<a>`), `action` (+ `method`, `confirm`, `target`; renders a CSRF form with a submit button), `icon` (`x-ui.icon` name) or `svg` slot, `variant` (`default`/`danger`), `disabled`. Anything else (`data-*`, `onclick`, `id`, JS hook classes) is placed on the `<a>`/`<button>`, never on the wrapper form. |
+
+### Rules
+
+- Tiles are rounded rectangles (10px radius), same height, icon left, label left-aligned. No pill shapes, no centred labels.
+- Every normal action uses the neutral token text colour (`--dd-text`), neutral icon (`--dd-text-soft`), surface fill and `--dd-border`; hover fills `--dd-surface-muted`. No green or accent label colours on tiles: accent means "primary button" only.
+- Destructive or service-interrupting actions (delete, suspend) use `variant="danger"`: transparent fill, red outline and text, red-tinted hover. Always confirm destructive POSTs with `confirm`.
+- Actions that are not wired up yet are `disabled` (dashed border, faint text, `aria-disabled`), never a live-looking link to `#`.
+- The expanded area has no box of its own: one `--dd-surface-soft` band inside the table, a single divider under the summary strip, tiles on `--dd-surface`. Do not nest a bordered card in a bordered card.
+- Keep order: view/open first, routine actions next, destructive last.
+
+### List pages
+
+- Structure: `ui-page` > `x-ui.page-header` (title, one-line subtitle, at most one primary button, plus secondary buttons) > `ui-toolbar` (search/filters, `Filter` or `Search` as the single toolbar primary) > `x-ui.card :flush` > `x-ui.table`.
+- Status cells are always `<x-ui.badge :status="…">` (or an explicit `variant` when the source uses codes such as `ACTIVE`/`SUSPEND`); technology/type tags use `variant="info"` with `:dot="false"`. No hand-coloured spans.
+- Numeric columns use `class="is-numeric"` (right-aligned, tabular figures). Row click expands the panel; links, buttons and forms inside the row never toggle it.
+- Table chrome (header band, row dividers, hover) comes only from `.ui-table`; do not add per-page table CSS, zebra rows or outer borders.
+- Spacing uses the `--dd-space-*` scale; colours use `--dd-*` tokens only (no hex, no `#334155`-style dark-only fallbacks) so light and dark both work.

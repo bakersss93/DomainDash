@@ -7,19 +7,23 @@
         <span>Syncing hosting services...</span>
     </div>
 </div>
-<div class="dd-page">
-    <div class="dd-services-card">
-        <h1 class="dd-services-title">
-            Hosting Services
-        </h1>
+<div class="ui-page">
+    <x-ui.page-header title="Hosting Services" subtitle="Web hosting accounts, plans and client assignment.">
+        <x-slot name="actions">
+            <form method="POST" action="{{ route('admin.services.hosting.sync') }}">
+                @csrf
+                <x-ui.button type="submit" variant="secondary">
+                    <x-ui.icon name="refresh" :size="16" /> Sync from Synergy
+                </x-ui.button>
+            </form>
+        </x-slot>
+    </x-ui.page-header>
 
-    {{-- Filter + sync toolbar --}}
-    <div class="dd-services-toolbar">
-        <form method="GET"
-              action="{{ route('admin.services.hosting') }}"
-              class="dd-services-filter">
-            <select name="client_id"
-                    class="dd-pill-input dd-pill-select">
+    {{-- Filters --}}
+    <div class="ui-toolbar">
+        <form method="GET" action="{{ route('admin.services.hosting') }}" class="flex flex-1 flex-wrap items-center gap-2">
+            <label for="hosting-client-filter" class="sr-only">Filter by client</label>
+            <select id="hosting-client-filter" name="client_id" class="dd-input" style="flex:1;min-width:12rem;max-width:20rem;">
                 <option value="">All clients</option>
                 @foreach($clients as $client)
                     <option value="{{ $client->id }}"
@@ -29,39 +33,28 @@
                 @endforeach
             </select>
 
-            <select name="status"
-                    class="dd-pill-input dd-pill-select">
+            <label for="hosting-status-filter" class="sr-only">Filter by status</label>
+            <select id="hosting-status-filter" name="status" class="dd-input" style="flex:0 1 12rem;">
                 <option value="">All statuses</option>
                 <option value="ACTIVE" {{ (isset($statusFilter) && $statusFilter === 'ACTIVE') ? 'selected' : '' }}>Active</option>
                 <option value="SUSPENDED" {{ (isset($statusFilter) && $statusFilter === 'SUSPENDED') ? 'selected' : '' }}>Suspended</option>
                 <option value="TERMINATED" {{ (isset($statusFilter) && $statusFilter === 'TERMINATED') ? 'selected' : '' }}>Terminated</option>
             </select>
 
-            <button type="submit" class="btn-accent dd-pill-btn">
-                Filter
-            </button>
-        </form>
-
-        <form method="POST"
-              action="{{ route('admin.services.hosting.sync') }}"
-              class="dd-services-sync">
-            @csrf
-            <button type="submit"
-                    class="btn-accent dd-pill-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Sync from Synergy
-            </button>
+            <button type="submit" class="ui-btn ui-btn--primary">Filter</button>
         </form>
     </div>
 
     {{-- Services table --}}
-    <div class="dd-services-table-wrapper">
-        <table class="dd-services-table">
+    <x-ui.card :flush="true">
+        <x-ui.table>
             <thead>
             <tr>
                 <th>Domain</th>
                 <th>Plan</th>
                 <th>Username</th>
                 <th>Client</th>
+                <th>Status</th>
                 <th>Disk</th>
                 <th>IP</th>
             </tr>
@@ -79,7 +72,7 @@
                         ?? optional($service->client)->name
                         ?? '-';
                 @endphp
-                <tr class="dd-service-row" data-service-id="{{ $service->id }}">
+                <tr class="dd-service-row" data-service-id="{{ $service->id }}" style="cursor:pointer;">
                     <td class="dd-service-domain-cell">
                         <span class="dd-service-domain-text">
                             {{ $domainLabel }}
@@ -88,6 +81,7 @@
                     <td>{{ $service->plan ?? '-' }}</td>
                     <td>{{ $service->username ?? '-' }}</td>
                     <td>{{ $clientLabel }}</td>
+                    <td>@if(! empty($service->service_status))<x-ui.badge :status="$service->service_status">{{ ucfirst(strtolower($service->service_status)) }}</x-ui.badge>@else — @endif</td>
                     <td>
                         @php
                             $usage = $service->disk_usage_mb ?? null;
@@ -108,114 +102,43 @@
                 </tr>
 
                 {{-- Slide-down details row --}}
-                <tr data-service-panel="service-{{ $service->id }}" class="dd-service-panel">
-                    <td colspan="6">
-                        <div class="dd-service-panel-inner" data-details-for="{{ $service->id }}">
-                            {{-- Service info header --}}
-                            <div class="dd-service-panel-header">
-                                <div>
-                                    <div style="font-weight:600;">{{ $domainLabel }}</div>
-                                    <div style="font-size:13px;opacity:.8;">
-                                        <span class="dd-detail-plan">{{ $service->plan ?? 'Plan unknown' }}</span>
-                                        • Username: <span class="dd-detail-username">{{ $service->username ?? '—' }}</span>
-                                    </div>
-                                </div>
-                                <div style="font-size:13px;opacity:.7;">
-                                    Server: <span class="dd-detail-server">{{ $service->server ?? '—' }}</span>
-                                </div>
-                            </div>
+                <x-ui.row-detail data-service-panel="service-{{ $service->id }}" :title="$domainLabel" :details-for="$service->id" :colspan="7">
+                    <x-slot:meta>
+                        <span class="dd-detail-plan">{{ $service->plan ?? 'Plan unknown' }}</span>
+                        • Username: <span class="dd-detail-username">{{ $service->username ?? '—' }}</span>
+                    </x-slot:meta>
+                    <x-slot:aside>Server: <span class="dd-detail-server">{{ $service->server ?? '—' }}</span></x-slot:aside>
 
-                            {{-- Actions grid --}}
-                            <div class="dd-service-options-grid">
-                                {{-- Overview --}}
-                                <a href="{{ route('admin.services.hosting.show', $service) }}" class="dd-service-option">
-                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-                                    <div class="dd-service-option-label">Overview</div>
-                                </a>
-
-                                {{-- Show password --}}
-                                <button type="button"
-                                        class="dd-service-option dd-password-btn"
-                                        data-password-id="{{ $service->id }}">
-                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-                                    <div class="dd-service-option-label">Show password</div>
-                                </button>
-
-                                {{-- Open cPanel --}}
-                                <form method="POST"
-                                      action="{{ route('admin.services.hosting.login', $service) }}"
-                                      class="dd-service-option-form"
-                                      target="_blank">
-                                    @csrf
-                                    <button type="submit" class="dd-service-option-btn">
-                                        <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-                                        <div class="dd-service-option-label">Open cPanel</div>
-                                    </button>
-                                </form>
-
-                                {{-- Assign client --}}
-                                <button type="button"
-                                        class="dd-service-option dd-assign-btn"
-                                        data-service-id="{{ $service->id }}"
-                                        data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
-                                        data-current-client-id="{{ $service->client_id ?? '' }}">
-                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                                    <div class="dd-service-option-label">Assign client</div>
-                                </button>
-
-                                {{-- Change primary domain --}}
-                                <button type="button"
-                                        class="dd-service-option dd-change-domain-btn"
-                                        data-service-id="{{ $service->id }}"
-                                        data-change-url="{{ route('admin.services.hosting.changeDomain', $service) }}"
-                                        data-domain="{{ $service->domain_name }}">
-                                    <div class="dd-service-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-                                    <div class="dd-service-option-label">Change primary domain</div>
-                                </button>
-
-                                {{-- Suspend / Unsuspend --}}
-                                <form method="POST"
-                                      action="{{ route('admin.services.hosting.suspend', $service) }}"
-                                      class="dd-service-option-form">
-                                    @csrf
-                                    <button type="submit" class="dd-service-option-btn dd-service-option-danger">
-                                        <div class="dd-service-option-icon">
-                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                            @else
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                                            @endif
-                                        </div>
-                                        <div class="dd-service-option-label">
-                                            @if(property_exists($service, 'is_suspended') && $service->is_suspended)
-                                                Unsuspend
-                                            @else
-                                                Suspend
-                                            @endif
-                                        </div>
-                                    </button>
-                                </form>
-                            </div>
-
-                        </div>
-                    </td>
-                </tr>
+                    <x-ui.action-grid label="Hosting actions">
+                        <x-ui.action-tile :href="route('admin.services.hosting.show', $service)" icon="eye">Overview</x-ui.action-tile>
+                        <x-ui.action-tile icon="lock" class="dd-password-btn" data-password-id="{{ $service->id }}">Show password</x-ui.action-tile>
+                        <x-ui.action-tile :action="route('admin.services.hosting.login', $service)" target="_blank" icon="monitor">Open cPanel</x-ui.action-tile>
+                        <x-ui.action-tile icon="users" class="dd-assign-btn"
+                                          data-service-id="{{ $service->id }}"
+                                          data-assign-url="{{ route('admin.services.hosting.assignClient', $service) }}"
+                                          data-current-client-id="{{ $service->client_id ?? '' }}">Assign client</x-ui.action-tile>
+                        <x-ui.action-tile icon="globe" class="dd-change-domain-btn"
+                                          data-service-id="{{ $service->id }}"
+                                          data-change-url="{{ route('admin.services.hosting.changeDomain', $service) }}"
+                                          data-domain="{{ $service->domain_name }}">Change primary domain</x-ui.action-tile>
+                        @php $isSuspended = property_exists($service, 'is_suspended') && $service->is_suspended; @endphp
+                        <x-ui.action-tile :action="route('admin.services.hosting.suspend', $service)" variant="danger" :icon="$isSuspended ? 'play' : 'pause'">{{ $isSuspended ? 'Unsuspend' : 'Suspend' }}</x-ui.action-tile>
+                    </x-ui.action-grid>
+                </x-ui.row-detail>
             @empty
                 <tr>
-                    <td colspan="6"
-                        style="text-align:center;padding:12px 0;opacity:.7;">
+                    <td colspan="7" class="ui-muted" style="text-align:center;padding:1.5rem 0;">
                         No hosting services found. Try syncing from Synergy.
                     </td>
                 </tr>
             @endforelse
             </tbody>
-        </table>
-    </div>
+        </x-ui.table>
 
-    <div class="dd-services-pagination">
-        {{ $services->links() }}
-    </div>
-</div>
+        @if ($services->hasPages())
+            <div class="px-4 py-3">{{ $services->links() }}</div>
+        @endif
+    </x-ui.card>
 </div>
 
 {{-- Password modal --}}
@@ -317,224 +240,6 @@
 <style>
     .dd-hidden {
         display: none;
-    }
-
-    .dd-services-card {
-        border-radius: 16px;
-        padding: 18px 20px;
-        margin-top: 0;
-        border: 1px solid var(--dd-border);
-        background: var(--dd-surface-soft);
-        color: var(--dd-text);
-        box-shadow: var(--dd-shadow);
-    }
-
-    .dd-services-title {
-        font-size: 1.45rem;
-        font-weight: 700;
-        margin: 0 0 1rem;
-        color: var(--dd-text);
-    }
-
-    .dd-services-toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
-        flex-wrap: wrap;
-    }
-
-    .dd-services-filter {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .dd-services-sync {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
-
-    .dd-services-table-wrapper {
-        overflow-x: auto;
-    }
-
-    /* Table — mirrors the layout's "main table" rules exactly so the
-       appearance matches the Domains page in all themes. */
-    .dd-services-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: 14px;
-        background: var(--surface-elevated);
-        color: var(--text);
-        border-radius: 6px;
-        overflow: hidden;
-    }
-
-    .dd-services-table thead th {
-        background: var(--surface-muted);
-        font-weight: 600;
-        padding: 8px 12px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-subtle);
-        color: var(--text);
-    }
-
-    .dd-services-table tbody td {
-        padding: 8px 12px;
-        border-bottom: 1px solid var(--border-subtle);
-        color: var(--text);
-    }
-
-    .dd-services-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .dd-services-table tbody tr:nth-child(even) {
-        background: color-mix(in srgb, var(--surface-muted) 70%, var(--surface-elevated) 30%);
-    }
-
-    .dd-services-pagination {
-        margin-top: 10px;
-    }
-
-    .dd-service-row {
-        cursor: pointer;
-    }
-
-    .dd-service-row:hover {
-        background: var(--surface-muted) !important;
-    }
-
-    .dd-service-domain-cell {
-        position: relative;
-    }
-
-    .dd-service-domain-text {
-        text-decoration: none;
-    }
-
-    /* Expandable panel */
-    tr[data-service-panel] {
-        display: none;
-        height: 0;
-    }
-    tr[data-service-panel] > td {
-        padding: 0;
-        border: 0;
-    }
-    tr[data-service-panel].open {
-        display: table-row;
-        height: auto;
-    }
-
-    .dd-service-panel-inner {
-        max-height: 0;
-        padding: 0;
-        margin-top: 0;
-        border: 0;
-        overflow: hidden;
-        opacity: 0;
-        transform: translateY(-4px);
-        transition:
-            max-height 0.25s ease,
-            opacity 0.2s ease,
-            transform 0.2s ease,
-            padding 0.2s ease,
-            margin-top 0.2s ease,
-            border-width 0.2s ease;
-    }
-
-    tr[data-service-panel].open > td > .dd-service-panel-inner {
-        max-height: 600px;
-        opacity: 1;
-        transform: translateY(0);
-        padding: 16px 18px 18px;
-        margin-top: 0;
-        border-radius: 8px;
-        border: 1px solid var(--border-subtle);
-        background: var(--surface-elevated);
-    }
-
-    .dd-service-panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 12px;
-        border-radius: 6px;
-        background: var(--surface-muted);
-        border: 1px solid var(--border-subtle);
-        margin-bottom: 14px;
-    }
-
-    .dd-service-options-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px;
-    }
-
-    .dd-service-option,
-    .dd-service-option-btn {
-        display: flex;
-        align-items: center;
-        padding: 10px 14px;
-        border-radius: 9999px;
-        background: var(--surface-muted);
-        border: 1px solid var(--border-subtle);
-        text-decoration: none;
-        font-size: 14px;
-        cursor: pointer;
-        width: 100%;
-        min-height: 54px;
-        box-sizing: border-box;
-        color: var(--text);
-        transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
-    }
-
-    .dd-service-option:hover,
-    .dd-service-option-btn:hover {
-        background: color-mix(in srgb, var(--surface-muted) 70%, var(--accent) 30%);
-        border-color: var(--accent);
-        transform: translateY(-1px);
-    }
-
-    .dd-service-option-btn {
-        background: transparent;
-        color: inherit;
-        height: 100%;
-    }
-
-    .dd-service-option-form {
-        margin: 0;
-    }
-
-    .dd-service-option-icon {
-        width: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 8px;
-        font-size: 16px;
-    }
-
-    .dd-service-option-label {
-        flex: 1;
-        text-align: left;
-    }
-
-    .dd-service-option-danger,
-    .dd-service-option-btn.dd-service-option-danger {
-        border-color: var(--dd-danger);
-    }
-
-    .dd-service-option-danger:hover,
-    .dd-service-option-btn.dd-service-option-danger:hover {
-        background: color-mix(in srgb, var(--dd-danger) 12%, transparent);
-        border-color: var(--dd-danger);
     }
 
     .dd-service-form {

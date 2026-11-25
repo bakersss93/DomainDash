@@ -12,7 +12,7 @@
     @endif
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-        <div style="padding:16px;border:1px solid #334155;border-radius:10px;">
+        <div style="padding:16px;border:1px solid var(--dd-border);border-radius:10px;">
             <h2 style="font-size:18px;margin-bottom:10px;">Overview</h2>
             <div style="display:grid;grid-template-columns:160px 1fr;gap:8px;">
                 <strong>Common Name</strong><span>{{ $ssl->common_name ?: '—' }}</span>
@@ -25,7 +25,7 @@
             </div>
         </div>
 
-        <div style="padding:16px;border:1px solid #334155;border-radius:10px;">
+        <div style="padding:16px;border:1px solid var(--dd-border);border-radius:10px;">
             <h2 style="font-size:18px;margin-bottom:10px;">Live Synergy Status</h2>
             @if($statusPayload)
                 <div style="display:grid;grid-template-columns:160px 1fr;gap:8px;">
@@ -46,7 +46,7 @@
         <x-asset-sync-card entity="ssl_certificate" :record="$ssl" />
     </div>
 
-    <div style="padding:16px;border:1px solid #334155;border-radius:10px;margin-bottom:16px;">
+    <div style="padding:16px;border:1px solid var(--dd-border);border-radius:10px;margin-bottom:16px;">
         <h2 style="font-size:18px;margin-bottom:10px;">CSR Details</h2>
         @if($csrDetails)
             <div style="display:grid;grid-template-columns:170px 1fr;gap:8px;">
@@ -64,17 +64,13 @@
         @endif
     </div>
 
-    <div style="padding:16px;border:1px solid #334155;border-radius:10px;">
-        <h2 style="font-size:18px;margin-bottom:12px;">SSL Management Options</h2>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <button type="button" class="btn-accent" id="open-bundle-modal">Get Certificate / Bundle</button>
-            <form method="POST" action="{{ route('admin.services.ssl.renew', $ssl) }}" onsubmit="return confirm('Renew this SSL now?');">
-                @csrf
-                <button type="submit" class="btn-accent">Renew Certificate</button>
-            </form>
-            <button type="button" class="btn-accent" id="open-rekey-modal">Rekey / Reissue</button>
-        </div>
-    </div>
+    <x-ui.card title="SSL management options">
+        <x-ui.action-grid label="Certificate actions">
+            <x-ui.action-tile icon="file" id="open-bundle-modal">Get certificate / bundle</x-ui.action-tile>
+            <x-ui.action-tile :action="route('admin.services.ssl.renew', $ssl)" confirm="Renew this SSL now?" icon="refresh">Renew certificate</x-ui.action-tile>
+            <x-ui.action-tile icon="key" id="open-rekey-modal">Rekey / reissue</x-ui.action-tile>
+        </x-ui.action-grid>
+    </x-ui.card>
 </div>
 
 <div id="bundle-modal" class="dd-modal" style="display:none;">

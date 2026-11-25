@@ -786,6 +786,128 @@ html.dark {
         color: var(--dd-danger-text);
     }
 
+    /* ---- Expandable row detail + action tiles (x-ui.row-detail / action-grid / action-tile) ---- */
+    tr.ui-row-panel { display: none; }
+    tr.ui-row-panel.open { display: table-row; }
+    tr.ui-row-panel:hover { background: transparent; }
+    tr.ui-row-panel > td,
+    :where(.app-main) table tbody tr.ui-row-panel > td { padding: 0; }
+
+    .ui-row-detail {
+        padding: var(--dd-space-4) var(--dd-space-4) var(--dd-space-5);
+        background: var(--dd-surface-soft);
+        /* stay inside the viewport when the table scrolls sideways on narrow screens */
+        position: sticky;
+        left: 0;
+        box-sizing: border-box;
+        max-width: calc(100vw - 2rem - 2px);
+    }
+
+    .ui-row-detail__summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--dd-space-2) var(--dd-space-4);
+        flex-wrap: wrap;
+        margin-bottom: var(--dd-space-4);
+        padding-bottom: var(--dd-space-3);
+        border-bottom: 1px solid var(--dd-border);
+    }
+
+    .ui-row-detail__title { font-weight: 600; color: var(--dd-text); overflow-wrap: anywhere; }
+    .ui-row-detail__meta,
+    .ui-row-detail__aside { font-size: var(--dd-text-sm); color: var(--dd-text-soft); }
+    .ui-row-detail__aside { text-align: right; }
+
+    .ui-action-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--dd-space-2);
+    }
+
+    @media (max-width: 900px) { .ui-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 520px) {
+        .ui-action-grid { grid-template-columns: minmax(0, 1fr); }
+        .ui-row-detail__aside { text-align: left; }
+    }
+
+    .ui-action-form { display: flex; margin: 0; min-width: 0; }
+
+    .ui-action-tile {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: var(--dd-space-3);
+        width: 100%;
+        min-width: 0;
+        min-height: 2.75rem;
+        padding: 0.5rem var(--dd-space-4);
+        border: 1px solid var(--dd-border);
+        border-radius: 10px;
+        background: var(--dd-surface);
+        color: var(--dd-text);
+        font: inherit;
+        font-size: var(--dd-text-sm);
+        font-weight: 500;
+        line-height: 1.3;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .ui-action-tile:hover {
+        background: var(--dd-surface-muted);
+        border-color: var(--dd-border-strong);
+        color: var(--dd-text);
+        text-decoration: none;
+    }
+
+    .ui-action-tile:focus-visible {
+        outline: none;
+        border-color: var(--dd-focus);
+        box-shadow: var(--dd-focus-ring);
+    }
+
+    .ui-action-tile__icon { display: inline-flex; flex: none; color: var(--dd-text-soft); }
+    .ui-action-tile__label { flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: left; }
+
+    .ui-action-tile--danger {
+        background: transparent;
+        border-color: color-mix(in srgb, var(--dd-danger) 55%, var(--dd-border));
+        color: var(--dd-danger-text);
+    }
+    .ui-action-tile--danger .ui-action-tile__icon { color: inherit; }
+    .ui-action-tile--danger:hover {
+        background: var(--dd-status-danger-bg);
+        border-color: var(--dd-danger);
+        color: var(--dd-status-danger-fg);
+    }
+    .ui-action-tile--danger:focus-visible {
+        border-color: var(--dd-danger);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-danger) 30%, transparent);
+    }
+
+    .ui-action-tile.is-disabled,
+    .ui-action-tile:disabled {
+        background: transparent;
+        border-style: dashed;
+        border-color: var(--dd-border);
+        color: var(--dd-text-faint);
+        cursor: not-allowed;
+        opacity: 0.75;
+    }
+    .ui-action-tile.is-disabled:hover,
+    .ui-action-tile:disabled:hover { background: transparent; border-color: var(--dd-border); color: var(--dd-text-faint); }
+    .ui-action-tile--danger.is-disabled,
+    .ui-action-tile--danger:disabled,
+    .ui-action-tile--danger.is-disabled:hover {
+        color: color-mix(in srgb, var(--dd-danger-text) 55%, var(--dd-text-faint));
+        border-color: color-mix(in srgb, var(--dd-danger) 40%, var(--dd-border));
+    }
+    .ui-action-tile.is-disabled .ui-action-tile__icon,
+    .ui-action-tile:disabled .ui-action-tile__icon { color: inherit; }
+
     /* ---- Form field ---- */
     .ui-field {
         display: flex;
