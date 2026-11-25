@@ -43,7 +43,7 @@ class AuditDescriber
         'PUT admin/permissions/roles/{role}' => ['Changed permissions of role {label}', 'permissions.update'],
         'DELETE admin/permissions/roles/{role}' => ['Deleted role {label}', 'permissions.role_delete'],
 
-        'POST admin/audit/retention' => ['Changed monitoring settings', 'monitoring.settings'],
+        'POST admin/audit/retention' => ['Changed Audit Logs settings', 'monitoring.settings'],
 
         'POST admin/https/letsencrypt' => ['Requested a Let\'s Encrypt certificate for the platform', 'https.request'],
         'POST admin/https/upload' => ['Uploaded a platform HTTPS certificate', 'https.upload'],
@@ -117,7 +117,7 @@ class AuditDescriber
     private const SETTING_GROUPS = [
         'halo' => 'HaloPSA', 'itglue' => 'IT Glue', 'synergy' => 'Synergy Wholesale', 'vocus' => 'Vocus',
         'ip2whois' => 'IP2WHOIS', 'smtp' => 'email (SMTP)', 'branding' => 'branding', 'sync_schedule' => 'sync schedule',
-        'backup' => 'backup', 'notifications' => 'notification', 'mfa' => 'MFA', 'audit' => 'monitoring',
+        'backup' => 'backup', 'notifications' => 'notification', 'mfa' => 'MFA', 'audit' => 'Audit Logs',
     ];
 
     private const MODULES = [

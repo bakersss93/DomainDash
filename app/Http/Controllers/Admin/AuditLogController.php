@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 use App\Services\Monitoring\MonitoringFeed;
 use App\Services\Monitoring\MonitoringPruner;
 use App\Services\Monitoring\MonitoringSettings;
+use App\Services\Monitoring\VocusJourneys;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Admin > Monitoring (formerly "Audit & Logging"): Activity, Integration Outbound / Inbound / Errors, Jobs & Schedules.
+ * Admin > Audit Logs (formerly "Monitoring", "Audit & Logging"): Activity, Integration Outbound / Inbound / Errors, Jobs & Schedules,
+ * and the Vocus certification view (sandbox journeys, CSV and printable summary).
  * Administrator-only (role middleware on the route group + MFA policy); the checks below are defence in depth.
  */
 class AuditLogController extends Controller
@@ -39,16 +41,23 @@ class AuditLogController extends Controller
         $requestsBytes = $this->estimateTableSizeBytes('integration_requests', ['url', 'request_headers', 'request_body', 'response_headers', 'response_body', 'error_message']);
         $logFileBytes = $this->logFileSizeBytes();
 
+        $entityOptions = Cache::remember('audit:filter-options:entity', now()->addMinutes(10), fn () => IntegrationRequest::query()->toBase()
+            ->whereNotNull('entity_type')->where('entity_type', '!=', '')->distinct()->orderBy('entity_type')->limit(12)->pluck('entity_type')
+            ->mapWithKeys(fn ($t) => [$t => ucfirst(str_replace('_', ' ', (string) $t))])->all());
+
         $providers = collect(IntegrationRequest::PROVIDERS)->except('api')->all();
         $tabs = [
-            'activity' => ['label' => 'Activity', 'providers' => $serviceOptions->mapWithKeys(fn ($s) => [$s => MonitoringFeed::moduleLabel($s)])->all(), 'providerLabel' => 'Module', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'Changes users and the system made: who did what, with old and new values.'],
-            'outbound' => ['label' => 'Integration Outbound', 'providers' => $providers, 'providerLabel' => 'Provider', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'Requests DomainDash sent to HaloPSA, IT Glue, Synergy Wholesale, Vocus and IP2WHOIS. Level: ' . $monitoring['outbound_level'] . '.'],
-            'inbound' => ['label' => 'Integration Inbound', 'providers' => [], 'providerLabel' => null, 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'API requests received with an API key (for example from an automation platform). Level: ' . $monitoring['inbound_level'] . '.'],
-            'errors' => ['label' => 'Integration Errors', 'providers' => $providers, 'providerLabel' => 'Module', 'statuses' => [], 'hint' => 'Failed integration requests and records whose last sync failed.'],
+            'activity' => ['label' => 'Activity', 'providers' => $serviceOptions->mapWithKeys(fn ($s) => [$s => MonitoringFeed::moduleLabel($s)])->all(), 'providerLabel' => 'Module', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'hint' => 'What people changed: who did what, with old and new values. Failures are always shown.', 'toggle' => ['key' => 'system', 'label' => 'Show system activity']],
+            'outbound' => ['label' => 'Integration Outbound', 'providers' => $providers, 'providerLabel' => 'Provider', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'entities' => $entityOptions, 'group' => true, 'hint' => 'Requests DomainDash sent to HaloPSA, IT Glue, Synergy Wholesale, Vocus and IP2WHOIS. Level: ' . $monitoring['outbound_level'] . ' (Vocus calls are always recorded). Repeated identical requests are grouped.'],
+            'inbound' => ['label' => 'Integration Inbound', 'providers' => [], 'providerLabel' => null, 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed'], 'entities' => [], 'group' => true, 'hint' => 'API requests received with an API key (for example from an automation platform). Level: ' . $monitoring['inbound_level'] . '.'],
+            'errors' => ['label' => 'Integration Errors', 'providers' => $providers, 'providerLabel' => 'Module', 'statuses' => [], 'entities' => $entityOptions, 'hint' => 'Failed integration requests and records whose last sync failed.'],
             'jobs' => ['label' => 'Jobs & Schedules', 'providers' => collect($providers)->only(['halo', 'itglue', 'vocus'])->all(), 'providerLabel' => 'Provider', 'statuses' => ['ok' => 'Succeeded', 'failed' => 'Failed or partial', 'active' => 'Queued or running'], 'hint' => 'Background sync runs (scheduled and manual) with their item counts.'],
         ];
 
+        $vocusUrl = route('admin.audit.vocus');
+
         return view('admin.audit.index', compact(
+            'vocusUrl',
             'tab', 'tabs', 'monitoring', 'retentionDays', 'dbBytes', 'requestsBytes', 'logFileBytes', 'functionOptions', 'serviceOptions'
         ));
     }
@@ -65,10 +74,104 @@ class AuditLogController extends Controller
             'provider' => (string) $request->query('provider', ''),
             'from' => (string) $request->query('from', ''),
             'to' => (string) $request->query('to', ''),
+            'entity' => (string) $request->query('entity', ''),
             'debug' => $request->boolean('debug'),
+            'system' => $request->boolean('system'),
+            // Repeated identical requests (polling) are folded into one row unless group=0.
+            'group' => $request->query('group', '1') !== '0',
+            'fp' => $this->decodeFingerprint($request->query('fp')),
         ];
 
         return response()->json($this->feed->page($tab, $filters, (int) $request->query('page', 1)));
+    }
+
+    /** Folded-row fingerprint sent back by the page when a group is expanded (equality filters only, validated by the feed). */
+    private function decodeFingerprint(mixed $raw): ?array
+    {
+        if (! is_string($raw) || $raw === '' || strlen($raw) > 2000) {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /** "Find by transaction ID / service / domain": which logs mention this text. */
+    public function find(Request $request): JsonResponse
+    {
+        $this->ensureAdmin($request);
+
+        return response()->json($this->feed->find((string) $request->query('q', '')));
+    }
+
+    // ------------------------------------------------------------------
+    // Vocus certification (sandbox transaction journeys)
+    // ------------------------------------------------------------------
+
+    private function vocusFilters(Request $request): array
+    {
+        $env = $request->query('environment') === 'production' ? 'production' : 'sandbox';
+        $from = (string) $request->query('from', '');
+        $to = (string) $request->query('to', '');
+
+        return [
+            'environment' => $env,
+            'from' => strtotime($from) ? date('Y-m-d', strtotime($from)) : '',
+            'to' => strtotime($to) ? date('Y-m-d', strtotime($to)) : '',
+        ];
+    }
+
+    public function vocus(Request $request, VocusJourneys $journeys)
+    {
+        $this->ensureAdmin($request);
+        $filters = $this->vocusFilters($request);
+
+        return view('admin.audit.vocus', [
+            'data' => $journeys->build($filters),
+            'filters' => $filters,
+            'checklist' => $journeys->checklist($filters['environment']),
+        ]);
+    }
+
+    public function vocusCsv(Request $request, VocusJourneys $journeys)
+    {
+        $this->ensureAdmin($request);
+        $filters = $this->vocusFilters($request);
+        $data = $journeys->build($filters);
+
+        AuditLogger::logSystem('monitoring.vocus_exported', "Exported Vocus {$filters['environment']} transactions to CSV.", [
+            'service' => 'monitoring', 'function' => 'vocus-export', 'reference' => 'vocus:' . $filters['environment'],
+        ]);
+
+        $neutralise = fn ($v) => is_string($v) && $v !== '' && in_array($v[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'" . $v : $v;
+        $rows = $journeys->csvRows($data);
+
+        return response()->streamDownload(function () use ($rows, $neutralise) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, VocusJourneys::CSV_HEADER);
+            foreach ($rows as $row) {
+                fputcsv($out, array_map($neutralise, $row));
+            }
+            fclose($out);
+        }, 'vocus-' . $filters['environment'] . '-transactions-' . now()->format('Ymd-Hi') . '.csv', [
+            'Content-Type' => 'text/csv; charset=utf-8', 'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function vocusSummary(Request $request, VocusJourneys $journeys)
+    {
+        $this->ensureAdmin($request);
+        $filters = $this->vocusFilters($request);
+
+        AuditLogger::logSystem('monitoring.vocus_exported', "Opened the printable Vocus {$filters['environment']} transaction summary.", [
+            'service' => 'monitoring', 'function' => 'vocus-summary', 'reference' => 'vocus:' . $filters['environment'],
+        ]);
+
+        return response()->view('admin.audit.vocus-summary', [
+            'data' => $journeys->build($filters),
+            'filters' => $filters,
+            'generatedAt' => now(),
+        ], 200, ['X-Content-Type-Options' => 'nosniff']);
     }
 
     public function show(Request $request, string $tab, string $id): JsonResponse
@@ -155,7 +258,7 @@ class AuditLogController extends Controller
         Setting::put('audit', $next);
         $settings->flush();
 
-        AuditLogger::logSystem('monitoring.settings', 'Changed monitoring settings.', ['service' => 'monitoring', 'function' => 'settings'], [
+        AuditLogger::logSystem('monitoring.settings', 'Changed Audit Logs settings.', ['service' => 'monitoring', 'function' => 'settings'], [
             'old_values' => array_intersect_key($current, $next),
             'new_values' => $next,
         ]);
@@ -164,7 +267,7 @@ class AuditLogController extends Controller
 
         return back()->with('status', $deleted > 0
             ? "Monitoring settings saved. Pruned {$deleted} older log entries."
-            : 'Monitoring settings saved.');
+            : 'Audit Logs settings saved.');
     }
 
     private function ensureAdmin(Request $request): void

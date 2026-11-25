@@ -29,6 +29,7 @@ class IntegrationRequest extends Model
     protected $casts = [
         'request_headers' => 'array',
         'response_headers' => 'array',
+        'meta' => 'array',
         'is_error' => 'boolean',
         'request_truncated' => 'boolean',
         'response_truncated' => 'boolean',

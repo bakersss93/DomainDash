@@ -61,7 +61,7 @@ class MonitoringUiTest extends TestCase
         AuditLog::create(['action' => 'client.create', 'auditable_type' => 'x', 'auditable_id' => 0, 'description' => 'Created client Example Pty Ltd']);
         $response = $this->actingAs($this->admin())->get(route('admin.audit.index'));
 
-        $response->assertOk()->assertSee('Monitoring')->assertSee('Integration Outbound')->assertSee('Integration Inbound')
+        $response->assertOk()->assertSee('Audit Logs')->assertSee('Vocus transactions')->assertSee('Integration Outbound')->assertSee('Integration Inbound')
             ->assertSee('Integration Errors')->assertSee('Jobs &amp; Schedules', false)->assertSee('Activity');
         $this->assertGreaterThan(0, $response->viewData('dbBytes'));
     }
@@ -185,7 +185,7 @@ class MonitoringUiTest extends TestCase
             AuditLog::create(['action' => $noise, 'auditable_type' => 'System', 'auditable_id' => 0, 'description' => 'noise ' . $noise]);
         }
         $log = AuditLog::create([
-            'action' => 'client.update', 'auditable_type' => 'App\\Models\\Client', 'auditable_id' => 4, 'description' => 'Updated client Example Pty Ltd',
+            'user_id' => $this->admin()->id, 'action' => 'client.update', 'auditable_type' => 'App\\Models\\Client', 'auditable_id' => 4, 'description' => 'Updated client Example Pty Ltd',
             'old_values' => ['phone' => '0400 000 000'], 'new_values' => ['phone' => '0411 111 111'], 'context' => ['service' => 'clients', 'reference' => 'Example Pty Ltd'],
         ]);
         $this->actingAs($this->admin());
@@ -195,7 +195,7 @@ class MonitoringUiTest extends TestCase
         $this->assertSame('Updated client Example Pty Ltd', $list['rows'][0]['description']);
         $this->assertSame('Clients', $list['rows'][0]['module']);
 
-        $this->assertSame(5, $this->getJson(route('admin.audit.data', ['activity', 'debug' => 1]))->json('total'));
+        $this->assertSame(5, $this->getJson(route('admin.audit.data', ['activity', 'debug' => 1, 'system' => 1]))->json('total'));
 
         $detail = $this->getJson(route('admin.audit.show', ['activity', $log->id]))->json();
         $diff = collect($detail['tabs'])->firstWhere('key', 'changes')['blocks'][0]['value'];

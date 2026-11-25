@@ -32,6 +32,9 @@ class MonitoringPruner
                 fn () => IntegrationRequest::query()
                     ->where('direction', IntegrationRequest::OUTBOUND)
                     ->where('created_at', '<', now()->subDays($this->settings->retentionDays('outbound')))
+                    // Vocus certification trail (calls with a TransactionID) is kept for at least a year.
+                    ->where(fn ($q) => $q->where('provider', '!=', 'vocus')->orWhereNull('transaction_id')
+                        ->orWhere('created_at', '<', now()->subDays(max(365, $this->settings->retentionDays('outbound')))))
             ),
             'inbound' => $this->chunked(
                 fn () => IntegrationRequest::query()

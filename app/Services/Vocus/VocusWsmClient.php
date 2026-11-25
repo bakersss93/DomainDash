@@ -546,11 +546,11 @@ class VocusWsmClient
 
             try {
                 $result = $this->soap()->__soapCall($operation, [$soapVar]);
-                $this->recordCall($operation, $xml, $productId, $params, $result, null, $startedAt);
+                $this->recordCall($operation, $xml, $productId, $params, $result, null, $startedAt, $planId, $scope);
 
                 return $this->parseResponse($result);
             } catch (SoapFault $e) {
-                $this->recordCall($operation, $xml, $productId, $params, null, $e, $startedAt);
+                $this->recordCall($operation, $xml, $productId, $params, null, $e, $startedAt, $planId, $scope);
                 $fault = $this->extractFault($e);
 
                 // Session expired - drop it, log in again and retry once.
@@ -601,7 +601,7 @@ class VocusWsmClient
     /**
      * Monitoring: record one WSM call (request XML redacted by the logger). Never throws.
      */
-    protected function recordCall(string $operation, string $xml, string $productId, array $params, mixed $result, ?\Throwable $fault, float $startedAt): void
+    protected function recordCall(string $operation, string $xml, string $productId, array $params, mixed $result, ?\Throwable $fault, float $startedAt, ?string $planId = null, ?string $scope = null): void
     {
         try {
             $reference = null;
@@ -611,6 +611,18 @@ class VocusWsmClient
                     break;
                 }
             }
+
+            // Structured certification columns (always recorded). Identifiers and codes only, never the AccessKey.
+            $parsed = $result !== null ? $this->parseResponse($result) : ['transaction_id' => null, 'response_type' => null, 'params' => []];
+            $faultInfo = $fault instanceof SoapFault ? $this->extractFault($fault) : ['code' => null, 'transaction_id' => null];
+            $structured = \App\Services\Monitoring\VocusCallMeta::build(
+                $this->environment(), $productId, $planId, $scope, $params,
+                $fault === null ? $parsed['params'] : null,
+                $fault === null ? ($parsed['transaction_id'] !== null ? (string) $parsed['transaction_id'] : null) : $faultInfo['transaction_id'],
+                $parsed['response_type'] !== null ? (string) $parsed['response_type'] : null,
+                $faultInfo['code'],
+                $fault !== null,
+            );
 
             app(\App\Services\Monitoring\IntegrationRequestLogger::class)->logSoap(
                 'vocus',
@@ -623,6 +635,7 @@ class VocusWsmClient
                 $reference ?? $productId,
                 $reference !== null ? 'internet_service' : 'product',
                 is_object($result) ? (string) ($result->ResponseType ?? '') ?: null : null,
+                $structured,
             );
         } catch (\Throwable) {
             // monitoring must never break the WSM call

@@ -2,8 +2,9 @@
 
 @section('content')
 <div class="ui-page" id="monitoring-page">
-    <x-ui.page-header title="Monitoring" subtitle="Who changed what, what DomainDash exchanged with your integrations, and how background jobs ran.">
+    <x-ui.page-header title="Audit Logs" subtitle="Who changed what, what DomainDash exchanged with your integrations, and how background jobs ran.">
         <x-slot name="actions">
+            <x-ui.button variant="secondary" size="sm" :href="$vocusUrl">Vocus transactions</x-ui.button>
             <x-ui.button variant="secondary" size="sm" type="button" id="mon-settings-toggle" aria-expanded="false" aria-controls="mon-settings">Logging settings</x-ui.button>
         </x-slot>
     </x-ui.page-header>
@@ -52,22 +53,26 @@
         </x-ui.card>
     </section>
 
-    <div class="mon-tabs" role="tablist" aria-label="Monitoring sections">
+    <form id="mon-find" class="mon-find" role="search" autocomplete="off">
+        <label for="mon-find-q" class="mon-find__label">Find</label>
+        <input type="search" id="mon-find-q" class="ui-input mon-find__input" placeholder="Transaction ID, service ID or domain name" maxlength="120">
+        <x-ui.button type="submit" variant="primary" size="sm">Find</x-ui.button>
+        <p id="mon-find-result" class="mon-find__result" aria-live="polite"></p>
+    </form>
+
+    <div class="mon-tabs" role="tablist" aria-label="Audit Logs sections">
         @foreach ($tabs as $key => $def)
             <button type="button" role="tab" class="mon-tab" id="mon-tab-{{ $key }}" data-mon-tab="{{ $key }}" aria-controls="mon-panel" aria-selected="{{ $tab === $key ? 'true' : 'false' }}" tabindex="{{ $tab === $key ? '0' : '-1' }}">{{ $def['label'] }}</button>
         @endforeach
+        <a class="mon-tab mon-tab--link" href="{{ $vocusUrl }}">Vocus transactions</a>
     </div>
 
     <x-ui.card id="mon-panel" role="tabpanel" aria-labelledby="mon-tab-{{ $tab }}" :flush="true">
         <div class="mon-toolbar">
             <p id="mon-hint" class="mon-hint"></p>
             <div class="mon-filters">
-                <input type="search" id="mon-q" class="ui-input mon-q" placeholder="Search" aria-label="Search this log" autocomplete="off">
-                <select id="mon-provider" class="ui-input" aria-label="Filter" hidden></select>
-                <select id="mon-status" class="ui-input" aria-label="Status filter"></select>
-                <label class="mon-date">From <input type="date" id="mon-from" class="ui-input" aria-label="From date"></label>
-                <label class="mon-date">To <input type="date" id="mon-to" class="ui-input" aria-label="To date"></label>
-                <label class="mon-check" id="mon-debug-wrap" hidden><input type="checkbox" id="mon-debug"> Include debug events</label>
+                <input type="search" id="mon-q" class="ui-input mon-q" placeholder="Search description, reference, transaction ID or URL" aria-label="Search this log" autocomplete="off">
+                <div id="mon-toggles" class="mon-toggles"></div>
             </div>
             <div class="mon-pager" aria-label="Pagination">
                 <span id="mon-range" class="mon-range" aria-live="polite">0 of 0</span>
@@ -75,6 +80,7 @@
                 <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm ui-btn--icon" id="mon-next" aria-label="Next page">&rsaquo;</button>
                 <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm ui-btn--icon" id="mon-refresh" aria-label="Refresh" title="Refresh"><x-ui.icon name="refresh" :size="16" /></button>
             </div>
+            <div id="mon-chips" class="mon-chips" aria-label="Filters"></div>
         </div>
 
         <x-ui.table :compact="true">
@@ -100,6 +106,7 @@
 </x-ui.modal>
 
 <span id="mon-ico-success" class="mon-ico mon-ico--success" hidden><x-ui.icon name="check-circle" :size="20" /></span>
+<span id="mon-ico-chevron" hidden><x-ui.icon name="chevron-right" :size="14" /></span>
 <span id="mon-ico-failed" class="mon-ico mon-ico--failed" hidden><x-ui.icon name="x-circle" :size="20" /></span>
 
 @php $monConfig = [
@@ -110,6 +117,7 @@
         'show' => route('admin.audit.show', ['tab' => '__TAB__', 'id' => '__ID__']),
         'export' => route('admin.audit.export', ['tab' => '__TAB__', 'id' => '__ID__']),
         'destroy' => route('admin.audit.destroy', ['tab' => '__TAB__', 'id' => '__ID__']),
+        'find' => route('admin.audit.find'),
     ],
 ]; @endphp
 <script type="application/json" id="mon-config">{!! json_encode($monConfig, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
@@ -133,11 +141,37 @@
     .mon-filters .ui-input { width: auto; min-width: 0; }
     .mon-q { flex: 1 1 200px; min-width: 160px !important; }
     .mon-date { display: inline-flex; gap: .3rem; align-items: center; font-size: 12px; color: var(--dd-text-soft); }
+    .mon-find { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; padding: .75rem 1rem; background: var(--dd-surface); border: 1px solid var(--dd-border); border-radius: var(--dd-radius-lg); }
+    .mon-find__label { font-size: 13px; font-weight: 600; color: var(--dd-text-soft); }
+    .mon-find__input { flex: 1 1 280px; min-width: 0; }
+    .mon-find__result { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--dd-text-soft); }
+    .mon-find__result:empty { display: none; }
+    .mon-find__result button { appearance: none; background: none; border: 0; padding: 0 .25rem; font: inherit; font-weight: 600; color: var(--dd-accent-text); cursor: pointer; text-decoration: underline; }
+    .mon-tab--link { text-decoration: none; margin-left: auto; }
+    .mon-toggles { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; }
+    .mon-chips { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; align-items: center; }
+    .mon-chipgroup { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+    .mon-chipgroup__label { font-size: 12px; color: var(--dd-text-soft); margin-right: .15rem; }
+    .mon-chip { appearance: none; border: 1px solid var(--dd-border); background: var(--dd-surface); color: var(--dd-text-soft); font: inherit; font-size: 12px; font-weight: 500; padding: .2rem .65rem; border-radius: var(--dd-radius-pill); cursor: pointer; }
+    .mon-chip:hover { background: var(--dd-surface-muted); color: var(--dd-text); }
+    .mon-chip[aria-pressed="true"] { background: var(--dd-accent-soft); border-color: var(--dd-accent); color: var(--dd-accent-text); }
+    .mon-chip:focus-visible { outline: 2px solid var(--dd-focus); outline-offset: 1px; }
+    .mon-date { display: inline-flex; gap: .3rem; align-items: center; font-size: 12px; color: var(--dd-text-soft); }
+    .mon-date .ui-input { width: auto; padding-block: .15rem; font-size: 12px; }
+    .mon-line { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+    .mon-line__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 46ch; }
+    .mon-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .mon-expand { appearance: none; background: none; border: 0; padding: 0 .1rem; cursor: pointer; color: var(--dd-text-soft); line-height: 1; border-radius: var(--dd-radius-sm); }
+    .mon-expand:focus-visible { outline: 2px solid var(--dd-focus); }
+    .mon-expand[aria-expanded="true"] { transform: rotate(90deg); }
+    .mon-child td { background: var(--dd-surface-soft); }
+    .mon-child td:first-child { padding-left: 1.5rem; }
     .mon-pager { display: flex; gap: .4rem; align-items: center; margin-left: auto; }
     .mon-range { font-size: 13px; color: var(--dd-text-soft); font-variant-numeric: tabular-nums; min-width: 6.5rem; text-align: right; }
     .mon-row { cursor: pointer; }
     .mon-row:hover td { background: var(--dd-surface-muted); }
     .mon-cell-wrap { white-space: normal; word-break: break-word; max-width: 38ch; }
+    .mon-sub--env { text-transform: capitalize; }
     .mon-sub { display: block; font-size: 12px; color: var(--dd-text-soft); }
     .mon-msg { padding: 1.5rem 1rem; text-align: center; color: var(--dd-text-soft); }
     .mon-msg button { margin-left: .5rem; }
@@ -168,13 +202,14 @@
     var cfg = JSON.parse(document.getElementById('mon-config').textContent);
     var COLUMNS = {
         activity: [['When', 'when'], ['User', 'user'], ['Module', 'module'], ['Description', 'description'], ['Reference', 'reference'], ['Status', 'status']],
-        outbound: [['ID', 'id'], ['When', 'when'], ['Provider', 'provider'], ['Description', 'request'], ['Reference', 'reference'], ['Status', 'http'], ['Time', 'duration']],
-        inbound: [['ID', 'id'], ['When', 'when'], ['API key', 'actor'], ['Request', 'request'], ['Status', 'http'], ['IP', 'ip']],
-        errors: [['When', 'when'], ['Module', 'module'], ['Entity', 'entity'], ['Reference', 'reference'], ['Error', 'error']],
+        outbound: [['When', 'when'], ['Provider', 'provider'], ['Request', 'request'], ['Reference', 'ref'], ['Transaction', 'txn'], ['Status', 'http'], ['Time', 'duration']],
+        inbound: [['When', 'when'], ['API key', 'actor'], ['Request', 'request'], ['Reference', 'ref'], ['Status', 'http'], ['IP', 'ip']],
+        errors: [['When', 'when'], ['Module', 'module'], ['Reference', 'ref'], ['Transaction', 'txn'], ['Error', 'error']],
         jobs: [['ID', 'id'], ['Started', 'when'], ['Provider', 'provider'], ['Scope', 'scope'], ['Client', 'reference'], ['Items', 'counts'], ['Duration', 'duration_s'], ['Status', 'job']]
     };
+    var PRESETS = [['', 'Any time'], ['today', 'Today'], ['7d', '7 days'], ['30d', '30 days']];
     var state = {};
-    Object.keys(cfg.tabs).forEach(function (t) { state[t] = { page: 1, q: '', status: '', provider: '', from: '', to: '', debug: false, last: null }; });
+    Object.keys(cfg.tabs).forEach(function (t) { state[t] = { page: 1, q: '', status: '', provider: '', entity: '', from: '', to: '', debug: false, system: false, group: true, last: null }; });
     var tab = cfg.tab;
     var detail = { tab: null, id: null, deletable: false, armed: null };
     var searchTimer = null;
@@ -215,15 +250,38 @@
     function cell(kind, row) {
         var td = el('td');
         switch (kind) {
-            case 'when': td.textContent = fmtTime(row.when); td.style.whiteSpace = 'nowrap'; break;
+            case 'when':
+                td.textContent = fmtTime(row.when); td.style.whiteSpace = 'nowrap';
+                if (row.first_when) { td.appendChild(el('span', 'mon-sub', 'since ' + fmtTime(row.first_when))); }
+                break;
             case 'status': td.appendChild(statusBadge(row)); break;
             case 'http': td.appendChild(httpBadge(row)); break;
             case 'job': td.appendChild(badge(row.run_status.charAt(0).toUpperCase() + row.run_status.slice(1), JOB_VARIANT[row.run_status] || 'neutral')); break;
             case 'duration': td.textContent = row.duration_ms === null || row.duration_ms === undefined ? '' : row.duration_ms + ' ms'; td.style.whiteSpace = 'nowrap'; break;
             case 'duration_s': td.textContent = row.duration === null || row.duration === undefined ? '' : row.duration + ' s'; td.style.whiteSpace = 'nowrap'; break;
             case 'request':
+                var line = el('div', 'mon-line');
+                if (row.count > 1 && row.fp) {
+                    var ex = el('button', 'mon-expand');
+                    ex.type = 'button'; ex.setAttribute('aria-expanded', 'false'); ex.setAttribute('aria-label', 'Show the ' + row.count + ' requests in this group');
+                    ex.appendChild(document.getElementById('mon-ico-chevron').cloneNode(true).firstElementChild);
+                    ex.dataset.expand = row.id;
+                    line.appendChild(ex);
+                }
+                var txt = el('span', 'mon-line__text', (row.method && row.method !== 'SOAP' ? row.method + ' ' : '') + (row.description || ''));
+                txt.title = txt.textContent;
+                line.appendChild(txt);
+                if (row.count > 1) { var c = badge('\u00d7' + row.count, 'neutral'); c.classList.remove('ui-badge--dot'); c.title = row.count + ' identical requests'; line.appendChild(c); }
+                td.appendChild(line);
+                break;
+            case 'ref':
                 td.className = 'mon-cell-wrap';
-                td.textContent = (row.method ? row.method + ' ' : '') + (row.description || '');
+                td.textContent = (row.entity ? row.entity + ': ' : '') + (row.reference || '');
+                if (row.environment) { td.appendChild(el('span', 'mon-sub mon-sub--env', row.environment)); }
+                break;
+            case 'txn':
+                td.className = 'mon-mono';
+                td.textContent = row.transaction_id || '';
                 break;
             case 'description':
             case 'error':
@@ -258,18 +316,47 @@
         body.appendChild(tr);
     }
 
+    function rowEl(row, child) {
+        var tr = el('tr', 'mon-row' + (child ? ' mon-child' : ''));
+        tr.tabIndex = 0;
+        tr.setAttribute('role', 'button');
+        tr.dataset.id = row.id;
+        COLUMNS[tab].forEach(function (c) { tr.appendChild(cell(c[1], row)); });
+        return tr;
+    }
+
     function renderRows(data) {
         var body = $('mon-body');
         body.textContent = '';
         if (!data.rows.length) { message('No entries match.'); return; }
         data.rows.forEach(function (row) {
-            var tr = el('tr', 'mon-row');
-            tr.tabIndex = 0;
-            tr.setAttribute('role', 'button');
-            tr.dataset.id = row.id;
-            COLUMNS[tab].forEach(function (c) { tr.appendChild(cell(c[1], row)); });
+            var tr = rowEl(row, false);
+            if (row.fp) { tr.__fp = row.fp; }
             body.appendChild(tr);
         });
+    }
+
+    function toggleGroup(btn) {
+        var tr = btn.closest('tr'), open = btn.getAttribute('aria-expanded') === 'true';
+        if (open) {
+            btn.setAttribute('aria-expanded', 'false');
+            while (tr.nextSibling && tr.nextSibling.classList && tr.nextSibling.classList.contains('mon-child')) { tr.parentNode.removeChild(tr.nextSibling); }
+            return;
+        }
+        btn.setAttribute('aria-expanded', 'true');
+        var s = state[tab], p = new URLSearchParams();
+        p.set('page', 1); p.set('fp', JSON.stringify(tr.__fp || {}));
+        fetch(fill(cfg.urls.data, tab) + '?' + p.toString(), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+            .then(function (data) {
+                var anchor = tr;
+                data.rows.forEach(function (r) { var c = rowEl(r, true); anchor.parentNode.insertBefore(c, anchor.nextSibling); anchor = c; });
+                if (data.total > data.rows.length) {
+                    var more = el('tr', 'mon-child'), td = el('td', 'mon-msg', 'Showing the latest ' + data.rows.length + ' of ' + data.total + '. Narrow the date range to see the rest.');
+                    td.colSpan = COLUMNS[tab].length; more.appendChild(td); anchor.parentNode.insertBefore(more, anchor.nextSibling);
+                }
+            })
+            .catch(function () { btn.setAttribute('aria-expanded', 'false'); });
     }
 
     function renderPager(data) {
@@ -281,8 +368,10 @@
     function params() {
         var s = state[tab], p = new URLSearchParams();
         p.set('page', s.page);
-        ['q', 'status', 'provider', 'from', 'to'].forEach(function (k) { if (s[k]) p.set(k, s[k]); });
+        ['q', 'status', 'provider', 'entity', 'from', 'to'].forEach(function (k) { if (s[k]) p.set(k, s[k]); });
         if (s.debug) p.set('debug', '1');
+        if (s.system) p.set('system', '1');
+        if (!s.group) p.set('group', '0');
         return p.toString();
     }
 
@@ -307,6 +396,74 @@
             .then(function () { if (mine === seq) $('mon-body').removeAttribute('aria-busy'); });
     }
 
+    function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function presetRange(key) {
+        var now = new Date(), to = ymd(now);
+        if (key === 'today') return [to, to];
+        if (key === '7d' || key === '30d') { var f = new Date(now); f.setDate(f.getDate() - (key === '7d' ? 6 : 29)); return [ymd(f), to]; }
+        return ['', ''];
+    }
+    function presetActive(key) {
+        var s = state[tab], r = presetRange(key);
+        return s.from === r[0] && s.to === r[1];
+    }
+
+    function chipGroup(label, options, current, onPick) {
+        var g = el('div', 'mon-chipgroup');
+        g.setAttribute('role', 'group'); g.setAttribute('aria-label', label);
+        g.appendChild(el('span', 'mon-chipgroup__label', label));
+        options.forEach(function (o) {
+            var b = el('button', 'mon-chip', o[1]);
+            b.type = 'button'; b.setAttribute('aria-pressed', current(o[0]) ? 'true' : 'false');
+            b.addEventListener('click', function () { onPick(o[0]); renderChips(); state[tab].page = 1; load(); });
+            g.appendChild(b);
+        });
+        return g;
+    }
+
+    function renderChips() {
+        var def = cfg.tabs[tab], s = state[tab], box = $('mon-chips');
+        box.textContent = '';
+        function listOf(map, allLabel) {
+            var out = [['', allLabel]];
+            Object.keys(map || {}).forEach(function (k) { out.push([k, map[k]]); });
+            return out;
+        }
+        if (Object.keys(def.providers || {}).length > 0) {
+            box.appendChild(chipGroup(def.providerLabel || 'Provider', listOf(def.providers, 'All'), function (k) { return s.provider === k; }, function (k) { s.provider = k; }));
+        }
+        if (Object.keys(def.entities || {}).length > 0) {
+            box.appendChild(chipGroup('Entity', listOf(def.entities, 'All'), function (k) { return s.entity === k; }, function (k) { s.entity = k; }));
+        }
+        if (Object.keys(def.statuses || {}).length > 0) {
+            box.appendChild(chipGroup('Status', listOf(def.statuses, 'Any'), function (k) { return s.status === k; }, function (k) { s.status = k; }));
+        }
+        box.appendChild(chipGroup('Date', PRESETS, function (k) { return presetActive(k); }, function (k) { var r = presetRange(k); s.from = r[0]; s.to = r[1]; }));
+        var from = el('label', 'mon-date', 'From '), fi = el('input', 'ui-input'); fi.type = 'date'; fi.value = s.from; fi.setAttribute('aria-label', 'From date');
+        var to = el('label', 'mon-date', 'To '), ti = el('input', 'ui-input'); ti.type = 'date'; ti.value = s.to; ti.setAttribute('aria-label', 'To date');
+        [[fi, 'from'], [ti, 'to']].forEach(function (pair) {
+            pair[0].addEventListener('change', function () { s[pair[1]] = pair[0].value; s.page = 1; renderChips(); load(); });
+        });
+        from.appendChild(fi); to.appendChild(ti);
+        box.appendChild(from); box.appendChild(to);
+    }
+
+    function renderToggles() {
+        var def = cfg.tabs[tab], s = state[tab], box = $('mon-toggles');
+        box.textContent = '';
+        var items = [];
+        if (def.toggle) items.push([def.toggle.key, def.toggle.label]);
+        if (tab === 'activity') items.push(['debug', 'Include debug events']);
+        if (def.group) items.push(['group', 'Group repeated requests']);
+        items.forEach(function (it) {
+            var label = el('label', 'mon-check'), cb = el('input');
+            cb.type = 'checkbox'; cb.checked = !!s[it[0]];
+            cb.addEventListener('change', function () { s[it[0]] = cb.checked; s.page = 1; load(); });
+            label.appendChild(cb); label.appendChild(document.createTextNode(' ' + it[1]));
+            box.appendChild(label);
+        });
+    }
+
     function applyTab(next, push) {
         tab = next;
         var def = cfg.tabs[tab], s = state[tab];
@@ -317,36 +474,9 @@
         });
         $('mon-panel').setAttribute('aria-labelledby', 'mon-tab-' + tab);
         $('mon-hint').textContent = def.hint || '';
-
-        var prov = $('mon-provider');
-        prov.textContent = '';
-        var provKeys = Object.keys(def.providers || {});
-        prov.hidden = provKeys.length === 0;
-        if (provKeys.length) {
-            prov.setAttribute('aria-label', def.providerLabel || 'Filter');
-            var all = el('option', null, 'All ' + String(def.providerLabel || 'providers').toLowerCase() + 's');
-            all.value = '';
-            prov.appendChild(all);
-            provKeys.forEach(function (k) { var o = el('option', null, def.providers[k]); o.value = k; prov.appendChild(o); });
-            prov.value = s.provider;
-        }
-        var st = $('mon-status');
-        st.textContent = '';
-        var stKeys = Object.keys(def.statuses || {});
-        st.hidden = stKeys.length === 0;
-        if (stKeys.length) {
-            var allS = el('option', null, 'Any status');
-            allS.value = '';
-            st.appendChild(allS);
-            stKeys.forEach(function (k) { var o = el('option', null, def.statuses[k]); o.value = k; st.appendChild(o); });
-            st.value = s.status;
-        }
         $('mon-q').value = s.q;
-        $('mon-from').value = s.from;
-        $('mon-to').value = s.to;
-        $('mon-debug-wrap').hidden = tab !== 'activity';
-        $('mon-debug').checked = s.debug;
-
+        renderToggles();
+        renderChips();
         renderHead();
         if (push) {
             try { var u = new URL(window.location.href); u.searchParams.set('tab', tab); window.history.replaceState(null, '', u.toString()); } catch (e) { /* ignore */ }
@@ -365,23 +495,41 @@
             if (n) { e.preventDefault(); n.focus(); applyTab(n.dataset.monTab, true); }
         });
     });
-    function bindFilter(id, key, delay) {
-        var node = $(id);
-        var handler = function () {
-            var s = state[tab];
-            s[key] = node.type === 'checkbox' ? node.checked : node.value;
-            s.page = 1;
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(load, delay);
-        };
-        node.addEventListener(node.type === 'search' ? 'input' : 'change', handler);
-    }
-    bindFilter('mon-q', 'q', 300);
-    bindFilter('mon-provider', 'provider', 0);
-    bindFilter('mon-status', 'status', 0);
-    bindFilter('mon-from', 'from', 0);
-    bindFilter('mon-to', 'to', 0);
-    bindFilter('mon-debug', 'debug', 0);
+    $('mon-q').addEventListener('input', function () {
+        state[tab].q = this.value; state[tab].page = 1;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(load, 300);
+    });
+    $('mon-body').addEventListener('click', function (e) {
+        var ex = e.target.closest('[data-expand]');
+        if (ex) { e.stopPropagation(); toggleGroup(ex); }
+    }, true);
+
+    // Quick find: which logs mention a transaction id / service id / domain, then jump to the best one.
+    $('mon-find').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var q = $('mon-find-q').value.trim(), out = $('mon-find-result');
+        out.textContent = '';
+        if (!q) return;
+        out.textContent = 'Searching…';
+        fetch(cfg.urls.find + '?q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+            .then(function (d) {
+                out.textContent = '';
+                var hits = Object.keys(d.counts).filter(function (k) { return d.counts[k] > 0; });
+                if (!hits.length) { out.textContent = 'Nothing found for "' + q + '".'; return; }
+                out.appendChild(document.createTextNode('"' + q + '" appears in:'));
+                hits.forEach(function (k) {
+                    var b = el('button', null, cfg.tabs[k].label + ' (' + d.counts[k] + ')');
+                    b.type = 'button';
+                    b.addEventListener('click', function () { var s = state[k]; s.q = q; s.page = 1; s.status = ''; s.provider = ''; s.entity = ''; s.from = ''; s.to = ''; s.system = true; applyTab(k, true); });
+                    out.appendChild(b);
+                });
+                var best = state[d.best]; best.q = q; best.page = 1; best.status = ''; best.provider = ''; best.entity = ''; best.from = ''; best.to = ''; best.system = true;
+                applyTab(d.best, true);
+            })
+            .catch(function (err) { out.textContent = 'Search failed (' + err.message + ').'; });
+    });
     $('mon-prev').addEventListener('click', function () { if (state[tab].page > 1) { state[tab].page--; load(); } });
     $('mon-next').addEventListener('click', function () { var d = state[tab].last; if (d && state[tab].page < d.last_page) { state[tab].page++; load(); } });
     $('mon-refresh').addEventListener('click', load);

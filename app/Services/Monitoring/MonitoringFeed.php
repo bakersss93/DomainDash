@@ -14,7 +14,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Read model behind Admin > Monitoring. Every tab is server-side paginated and searched (tables can be large;
+ * Read model behind Admin > Audit Logs. Every tab is server-side paginated and searched (tables can be large;
  * the queries use the (direction, created_at) / (is_error, created_at) / audit_logs indexes), and returns plain
  * arrays the page renders with textContent only.
  *
@@ -28,7 +28,7 @@ class MonitoringFeed
     private const MODULE_LABELS = [
         'halo' => 'HaloPSA', 'itglue' => 'IT Glue', 'synergy' => 'Synergy Wholesale', 'vocus' => 'Vocus WSM', 'ip2whois' => 'IP2WHOIS',
         'api' => 'API', 'auth' => 'Authentication', 'sync' => 'Sync', 'clients' => 'Clients', 'domains' => 'Domains', 'settings' => 'Settings',
-        'users' => 'Users', 'account' => 'Account', 'platform' => 'Platform', 'notifications' => 'Notifications', 'monitoring' => 'Monitoring',
+        'users' => 'Users', 'account' => 'Account', 'platform' => 'Platform', 'notifications' => 'Notifications', 'monitoring' => 'Audit Logs',
         'queue' => 'Queue', 'scheduler' => 'Scheduler', 'artisan' => 'Console', 'https' => 'Platform HTTPS',
     ];
 
@@ -49,7 +49,7 @@ class MonitoringFeed
     // ------------------------------------------------------------------
 
     /**
-     * @param array{q?:string,status?:string,provider?:string,from?:string,to?:string,debug?:bool} $filters
+     * @param array{q?:string,status?:string,provider?:string,entity?:string,from?:string,to?:string,debug?:bool,system?:bool,group?:bool,fp?:array} $filters
      * @return array{rows: array<int, array<string, mixed>>, total: int, page: int, per_page: int, from: int, to: int, last_page: int}
      */
     public function page(string $tab, array $filters, int $page): array
@@ -102,14 +102,19 @@ class MonitoringFeed
         if (empty($filters['debug'])) {
             $query->whereNotIn('action', (array) config('monitoring.noise_actions', []));
         }
+        $failedSql = fn ($w) => $w->where('action', 'like', '%failed%')->orWhere('action', 'like', '%denied%')->orWhere('description', 'like', '%failed%')->orWhere('description', 'like', '%(denied)%');
+        // Calm by default: what people did, plus anything that failed. Routine successful system entries sit behind "Show system activity".
+        if (empty($filters['system'])) {
+            $query->where(fn ($w) => $w->whereNotNull('user_id')->orWhere($failedSql));
+        }
         if (($q = trim((string) ($filters['q'] ?? ''))) !== '') {
             $like = $this->like($q);
-            $query->where(fn ($w) => $w->where('description', 'like', $like)->orWhere('user_email', 'like', $like)->orWhere('action', 'like', $like)->orWhere('context->reference', 'like', $like));
+            $query->where(fn ($w) => $w->where('description', 'like', $like)->orWhere('user_email', 'like', $like)->orWhere('action', 'like', $like)
+                ->orWhere('context->reference', 'like', $like)->orWhere('new_values', 'like', $like));
         }
         if (($filters['provider'] ?? '') !== '') {
             $query->where('context->service', $filters['provider']);
         }
-        $failedSql = fn ($w) => $w->where('action', 'like', '%failed%')->orWhere('action', 'like', '%denied%')->orWhere('description', 'like', '%failed%')->orWhere('description', 'like', '%(denied)%');
         if (($filters['status'] ?? '') === 'failed') {
             $query->where($failedSql);
         } elseif (($filters['status'] ?? '') === 'ok') {
@@ -126,7 +131,8 @@ class MonitoringFeed
             return [
                 'id' => (string) $log->id,
                 'when' => $log->created_at?->toIso8601String(),
-                'user' => $log->user_email ?: '-',
+                'user' => $log->user_email ?: 'System',
+                'system' => $log->user_id === null,
                 'module' => self::moduleLabel($ctx['service'] ?? strtok($log->action, '.')),
                 'description' => (string) ($log->description ?: $log->action),
                 'reference' => (string) ($ctx['reference'] ?? ($log->auditable_id ? class_basename((string) $log->auditable_type) . ' #' . $log->auditable_id : '')),
@@ -143,6 +149,9 @@ class MonitoringFeed
             || (isset($ctx['status_code']) && (int) $ctx['status_code'] >= 400);
     }
 
+    /** Columns that identify "the same request" when repeated calls (polling) are folded into one row. */
+    private const GROUP_COLUMNS = ['provider', 'method', 'operation', 'url', 'reference', 'entity_type', 'environment', 'product_id', 'scope', 'is_error', 'response_status'];
+
     /** @return array{0:int,1:array} */
     private function requests(string $direction, array $filters, int $page): array
     {
@@ -150,6 +159,9 @@ class MonitoringFeed
 
         if (($filters['provider'] ?? '') !== '') {
             $query->where('provider', $filters['provider']);
+        }
+        if (($filters['entity'] ?? '') !== '') {
+            $query->where('entity_type', $filters['entity']);
         }
         if (($filters['status'] ?? '') === 'failed') {
             $query->where('is_error', true);
@@ -159,31 +171,88 @@ class MonitoringFeed
         if (($q = trim((string) ($filters['q'] ?? ''))) !== '') {
             $like = $this->like($q);
             $query->where(fn ($w) => $w->where('reference', 'like', $like)->orWhere('url', 'like', $like)->orWhere('operation', 'like', $like)
-                ->orWhere('error_message', 'like', $like)->orWhere('actor', 'like', $like)->orWhere('id', ctype_digit($q) ? (int) $q : 0));
+                ->orWhere('error_message', 'like', $like)->orWhere('actor', 'like', $like)
+                ->orWhere('transaction_id', 'like', $like)->orWhere('related_transaction_id', 'like', $like)->orWhere('service_id', 'like', $like)
+                ->orWhere('directory_id', 'like', $like)->orWhere('avc_id', 'like', $like)->orWhere('product_id', 'like', $like)->orWhere('scope', 'like', $like)
+                ->orWhere('id', ctype_digit($q) ? (int) $q : 0));
         }
         $this->dateBounds($query, $filters, 'created_at');
 
-        $total = (clone $query)->count();
-        $rows = $query->orderByDesc('id')->forPage($page, self::PER_PAGE)
-            ->get(['id', 'created_at', 'provider', 'method', 'operation', 'url', 'reference', 'response_status', 'duration_ms', 'is_error', 'actor', 'ip']);
+        // Expanding a folded row: exactly the calls that share its fingerprint.
+        $fp = is_array($filters['fp'] ?? null) ? $filters['fp'] : null;
+        if ($fp !== null) {
+            foreach (self::GROUP_COLUMNS as $col) {
+                if (! array_key_exists($col, $fp)) {
+                    continue;
+                }
+                $fp[$col] === null ? $query->whereNull($col) : $query->where($col, $fp[$col]);
+            }
+            if (! empty($fp['day']) && is_string($fp['day'])) {
+                $query->whereRaw('DATE(created_at) = ?', [substr($fp['day'], 0, 10)]);
+            }
+        }
 
-        return [$total, $rows->map(fn (IntegrationRequest $r) => [
-            'id' => (string) $r->id,
-            'when' => $r->created_at?->toIso8601String(),
-            'provider' => IntegrationRequest::providerLabel($r->provider),
-            'method' => (string) $r->method,
-            'description' => $this->describeRequest($r),
-            'reference' => (string) $r->reference,
-            'actor' => (string) $r->actor,
-            'ip' => (string) $r->ip,
-            'status_code' => $r->response_status,
-            'duration_ms' => $r->duration_ms,
-            'status' => $r->is_error ? 'failed' : 'success',
-        ])->all()];
+        $grouped = $fp === null && ($filters['group'] ?? true);
+        $cols = ['id', 'created_at', 'provider', 'method', 'operation', 'url', 'reference', 'entity_type', 'environment', 'product_id', 'scope',
+            'transaction_id', 'result', 'response_status', 'duration_ms', 'is_error', 'actor', 'ip'];
+
+        if ($grouped) {
+            $folded = (clone $query)->toBase()->selectRaw(
+                'MAX(id) as id, COUNT(*) as cnt, MIN(created_at) as first_at, MAX(created_at) as last_at, MAX(transaction_id) as transaction_id, MAX(duration_ms) as duration_ms, MAX(actor) as actor, MAX(ip) as ip, MAX(result) as result, DATE(created_at) as day, '
+                . implode(', ', self::GROUP_COLUMNS)
+            )->groupBy(...self::GROUP_COLUMNS)->groupByRaw('DATE(created_at)');
+
+            $total = (int) DB::query()->fromSub($folded, 'g')->count();
+            $rows = DB::query()->fromSub($folded, 'g')->orderByDesc('id')->forPage($page, self::PER_PAGE)->get()
+                ->map(fn ($r) => (object) (array) $r);
+        } else {
+            $total = (clone $query)->count();
+            $rows = $query->orderByDesc('id')->forPage($page, self::PER_PAGE)->get($cols)->map(function (IntegrationRequest $r) {
+                $a = $r->getAttributes();
+                $a['cnt'] = 1;
+                $a['last_at'] = $r->created_at;
+                $a['first_at'] = $r->created_at;
+                $a['day'] = $r->created_at?->toDateString();
+
+                return (object) $a;
+            });
+        }
+
+        return [$total, $rows->map(function ($r) use ($grouped) {
+            $count = (int) $r->cnt;
+            $model = new IntegrationRequest((array) $r);
+            $entity = $r->entity_type ? str_replace('_', ' ', (string) $r->entity_type) : '';
+
+            return [
+                'id' => (string) $r->id,
+                'when' => $r->last_at ? \Illuminate\Support\Carbon::parse($r->last_at)->toIso8601String() : null,
+                'first_when' => $count > 1 && $r->first_at ? \Illuminate\Support\Carbon::parse($r->first_at)->toIso8601String() : null,
+                'provider' => IntegrationRequest::providerLabel($r->provider),
+                'provider_key' => (string) $r->provider,
+                'method' => (string) $r->method,
+                'description' => $this->describeRequest($model),
+                'entity' => $entity,
+                'reference' => (string) $r->reference,
+                'environment' => (string) ($r->environment ?? ''),
+                'transaction_id' => (string) ($r->transaction_id ?? ''),
+                'actor' => (string) $r->actor,
+                'ip' => (string) $r->ip,
+                'status_code' => $r->response_status,
+                'result' => (string) ($r->result ?? ''),
+                'duration_ms' => $r->duration_ms,
+                'count' => $count,
+                'fp' => $grouped && $count > 1 ? array_merge(array_intersect_key((array) $r, array_flip(self::GROUP_COLUMNS)), ['day' => (string) $r->day]) : null,
+                'status' => $r->is_error ? 'failed' : 'success',
+            ];
+        })->all()];
     }
 
+    /** One short line: SOAP "PRODUCT::Operation SCOPE", otherwise "METHOD /path". */
     private function describeRequest(IntegrationRequest $r): string
     {
+        if ($r->method === 'SOAP' && $r->product_id) {
+            return trim($r->product_id . '::' . $r->operation . ' ' . $r->scope);
+        }
         if ($r->operation && $r->method === 'SOAP') {
             return (string) $r->operation;
         }
@@ -191,7 +260,32 @@ class MonitoringFeed
         $parts = parse_url((string) $r->url);
         $path = ($parts['path'] ?? (string) $r->url) . (isset($parts['query']) ? '?' . $parts['query'] : '');
 
-        return mb_substr($path, 0, 200);
+        return mb_substr($path, 0, 90);
+    }
+
+    /**
+     * "Find by transaction ID / service / domain": hit counts per log for one search text, so the page can jump to the right tab.
+     *
+     * @return array{q: string, counts: array<string,int>, best: ?string}
+     */
+    public function find(string $q): array
+    {
+        $q = mb_substr(trim($q), 0, 120);
+        $counts = [];
+        if ($q !== '') {
+            foreach (['outbound', 'activity', 'errors', 'inbound'] as $tab) {
+                $counts[$tab] = $this->page($tab, ['q' => $q, 'system' => true, 'group' => false], 1)['total'];
+            }
+        }
+        $best = null;
+        foreach ($counts as $tab => $n) {
+            if ($n > 0) {
+                $best = $tab;
+                break;
+            }
+        }
+
+        return ['q' => $q, 'counts' => $counts, 'best' => $best];
     }
 
     /** @return array{0:int,1:array} */
@@ -200,13 +294,13 @@ class MonitoringFeed
         $parts = [
             DB::table('integration_requests')
                 ->where('direction', IntegrationRequest::OUTBOUND)->where('is_error', true)
-                ->selectRaw("'r' as src, id as rid, created_at as occurred_at, provider as module, entity_type as entity, reference as reference, error_message as error"),
+                ->selectRaw("'r' as src, id as rid, created_at as occurred_at, provider as module, entity_type as entity, reference as reference, error_message as error, transaction_id as txn"),
             DB::table('domains')->whereNotNull('halo_sync_error')->where('halo_sync_error', '!=', '')
-                ->selectRaw("'dh' as src, id as rid, updated_at as occurred_at, 'halo' as module, 'domain' as entity, name as reference, halo_sync_error as error"),
+                ->selectRaw("'dh' as src, id as rid, updated_at as occurred_at, 'halo' as module, 'domain' as entity, name as reference, halo_sync_error as error, NULL as txn"),
             DB::table('domains')->whereNotNull('itglue_sync_error')->where('itglue_sync_error', '!=', '')
-                ->selectRaw("'di' as src, id as rid, updated_at as occurred_at, 'itglue' as module, 'domain' as entity, name as reference, itglue_sync_error as error"),
+                ->selectRaw("'di' as src, id as rid, updated_at as occurred_at, 'itglue' as module, 'domain' as entity, name as reference, itglue_sync_error as error, NULL as txn"),
             DB::table('internet_services')->whereNotNull('halo_sync_error')->where('halo_sync_error', '!=', '')
-                ->selectRaw("'ih' as src, id as rid, updated_at as occurred_at, 'halo' as module, 'internet_service' as entity, vocus_service_id as reference, halo_sync_error as error"),
+                ->selectRaw("'ih' as src, id as rid, updated_at as occurred_at, 'halo' as module, 'internet_service' as entity, vocus_service_id as reference, halo_sync_error as error, NULL as txn"),
         ];
 
         $union = array_shift($parts);
@@ -219,9 +313,12 @@ class MonitoringFeed
         if (($filters['provider'] ?? '') !== '') {
             $query->where('module', $filters['provider']);
         }
+        if (($filters['entity'] ?? '') !== '') {
+            $query->where('entity', $filters['entity']);
+        }
         if (($q = trim((string) ($filters['q'] ?? ''))) !== '') {
             $like = $this->like($q);
-            $query->where(fn ($w) => $w->where('reference', 'like', $like)->orWhere('error', 'like', $like)->orWhere('entity', 'like', $like));
+            $query->where(fn ($w) => $w->where('reference', 'like', $like)->orWhere('error', 'like', $like)->orWhere('entity', 'like', $like)->orWhere('txn', 'like', $like));
         }
         $this->dateBounds($query, $filters, 'occurred_at');
 
@@ -234,6 +331,7 @@ class MonitoringFeed
             'module' => self::moduleLabel($r->module),
             'entity' => str_replace('_', ' ', (string) $r->entity),
             'reference' => (string) $r->reference,
+            'transaction_id' => (string) ($r->txn ?? ''),
             'error' => mb_substr((string) $r->error, 0, 300),
             'status' => 'failed',
         ])->all()];
@@ -329,6 +427,15 @@ class MonitoringFeed
             $inbound && $r->actor ? ['label' => 'API key', 'value' => (string) $r->actor] : null,
             $inbound && $r->ip ? ['label' => 'IP address', 'value' => (string) $r->ip] : null,
             $r->sync_run_id ? ['label' => 'Sync run', 'value' => '#' . $r->sync_run_id] : null,
+            $r->environment ? ['label' => 'Environment', 'value' => (string) $r->environment] : null,
+            $r->transaction_id ? ['label' => 'TransactionID', 'value' => (string) $r->transaction_id] : null,
+            $r->related_transaction_id ? ['label' => 'Polled transaction', 'value' => (string) $r->related_transaction_id] : null,
+            $r->response_type ? ['label' => 'Response type', 'value' => (string) $r->response_type] : null,
+            $r->result ? ['label' => 'Result', 'value' => (string) $r->result] : null,
+            $r->plan_id ? ['label' => 'PlanID', 'value' => (string) $r->plan_id] : null,
+            $r->directory_id ? ['label' => 'DirectoryID', 'value' => (string) $r->directory_id] : null,
+            $r->service_id ? ['label' => 'ServiceID', 'value' => (string) $r->service_id] : null,
+            $r->avc_id ? ['label' => 'AVCID', 'value' => (string) $r->avc_id] : null,
         ]));
 
         return [
@@ -336,7 +443,7 @@ class MonitoringFeed
             'tab' => $tab,
             'title' => $inbound
                 ? trim($r->method . ' ' . $path)
-                : IntegrationRequest::providerLabel($r->provider) . ' ' . ($r->method === 'SOAP' ? (string) $r->operation : trim($r->method . ' ' . $path)),
+                : IntegrationRequest::providerLabel($r->provider) . ' ' . ($r->method === 'SOAP' ? $path : trim($r->method . ' ' . $path)),
             'status' => $r->is_error ? 'failed' : 'success',
             'meta' => $meta,
             'deletable' => true,

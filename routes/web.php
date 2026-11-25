@@ -167,8 +167,12 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/https/force', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'force'])->name('admin.https.force');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
         Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');
-        // Monitoring tabs (JSON): server-side search / paging, detail, export, delete. Administrator + MFA only.
+        // Audit Logs tabs (JSON): server-side search / paging, detail, export, delete. Administrator + MFA only.
         Route::middleware('throttle:120,1')->prefix('audit')->group(function () {
+            Route::get('/find', [AuditLogController::class, 'find'])->name('admin.audit.find');
+            Route::get('/vocus', [AuditLogController::class, 'vocus'])->name('admin.audit.vocus');
+            Route::get('/vocus/export.csv', [AuditLogController::class, 'vocusCsv'])->name('admin.audit.vocus.csv');
+            Route::get('/vocus/summary', [AuditLogController::class, 'vocusSummary'])->name('admin.audit.vocus.summary');
             Route::get('/data/{tab}', [AuditLogController::class, 'data'])->name('admin.audit.data');
             Route::get('/entry/{tab}/{id}', [AuditLogController::class, 'show'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.show');
             Route::get('/entry/{tab}/{id}/export', [AuditLogController::class, 'export'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.export');

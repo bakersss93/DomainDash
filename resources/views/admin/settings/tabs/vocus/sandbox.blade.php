@@ -21,3 +21,20 @@
         </div>
     </div>
 </x-settings.form-card>
+
+@php
+    try { $vocusChecklist = app(\App\Services\Monitoring\VocusJourneys::class)->checklist('sandbox'); } catch (\Throwable) { $vocusChecklist = null; }
+@endphp
+@if ($vocusChecklist)
+    <x-ui.card title="Sandbox certification checklist" description="Vocus reviews the TransactionIDs from your sandbox and grants production access per API method. Run one full journey: qualify, order, wait for polling, view the service." class="vc-settings-card">
+        <x-vocus.checklist :checklist="$vocusChecklist" />
+        @role('Administrator')
+            <x-ui.action-grid label="Vocus certification exports">
+                <x-ui.action-tile icon="list" :href="route('admin.audit.vocus', ['environment' => 'sandbox'])">View sandbox transactions</x-ui.action-tile>
+                <x-ui.action-tile icon="download" :href="route('admin.audit.vocus.csv', ['environment' => 'sandbox'])">Download CSV</x-ui.action-tile>
+                <x-ui.action-tile icon="external" :href="route('admin.audit.vocus.summary', ['environment' => 'sandbox'])" target="_blank">Printable summary for Vocus</x-ui.action-tile>
+            </x-ui.action-grid>
+        @endrole
+    </x-ui.card>
+    <style>.vc-settings-card { margin-top: 1rem; } .vc-settings-card .ui-action-grid { margin-top: 1rem; }</style>
+@endif

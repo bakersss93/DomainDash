@@ -185,11 +185,13 @@ class IntegrationRequestLogger
         ?string $reference = null,
         ?string $entityType = null,
         ?string $statusText = null,
+        ?array $structured = null,
     ): void {
-        $this->safely(function () use ($provider, $operation, $endpoint, $request, $response, $fault, $durationMs, $reference, $entityType, $statusText) {
+        $this->safely(function () use ($provider, $operation, $endpoint, $request, $response, $fault, $durationMs, $reference, $entityType, $statusText, $structured) {
             $isError = $fault !== null || ($statusText !== null && str_starts_with(strtoupper($statusText), 'ERR'));
 
-            if (! $this->shouldRecord('outbound', $isError)) {
+            // Structured calls (Vocus WSM certification trail) are always recorded, whatever the general outbound level.
+            if ($structured === null && ! $this->shouldRecord('outbound', $isError)) {
                 return;
             }
 
@@ -251,7 +253,7 @@ class IntegrationRequestLogger
                 'sync_run_id' => $ctx['sync_run_id'] ?? null,
                 'is_error' => $isError,
                 'error_message' => $faultText,
-            ]);
+            ] + ($structured ?? []));
         });
     }
 
