@@ -613,6 +613,29 @@ class VocusInternetTest extends TestCase
         $this->actingAs($this->admin())->get(route('admin.services.internet.show', $service))->assertOk()->assertSee('Check status');
     }
 
+    public function test_sandbox_poll_sends_a_simulated_state_and_leaves_the_service_alone(): void
+    {
+        $vocus = (array) Setting::get('vocus', []);
+        Setting::put('vocus', array_merge($vocus, ['environment' => 'sandbox']));
+        $soap = $this->fakeClient([(object) ['TransactionID' => 'SANDBOXTX', 'ResponseType' => 'SYNC', 'Parameters' => (object) ['Param' => [(object) ['id' => 'TransactionState', '_' => 'Success']]]]]);
+        $service = InternetService::create(['vocus_service_id' => 'SB1', 'last_transaction_id' => 'TX-REAL', 'last_transaction_state' => 'UNKNOWN', 'last_fault_code' => 'TCAS-4300']);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->postJson(route('admin.services.internet.sandboxPoll', $service), ['state' => 'SUCCESS'])
+            ->assertOk()->assertJsonPath('transaction_state', 'SUCCESS')->assertJsonPath('transaction_id', 'SANDBOXTX');
+        $this->assertStringContainsString('<std:Param id="TransactionID">SUCCESS</std:Param>', $this->xmlOf($soap));
+        $this->assertSame('UNKNOWN', $service->refresh()->last_transaction_state, 'canned sandbox answers never change the record');
+
+        $this->actingAs($admin)->postJson(route('admin.services.internet.sandboxPoll', $service), ['state' => 'TX-REAL'])->assertStatus(422);
+
+        $this->assertCount(1, $soap->calls);
+
+        Setting::put('vocus', array_merge($vocus, ['environment' => 'production']));
+        $prod = $this->fakeClient([]);
+        $this->actingAs($admin)->postJson(route('admin.services.internet.sandboxPoll', $service), ['state' => 'SUCCESS'])->assertStatus(422);
+        $this->assertSame([], $prod->calls, 'never sent in production');
+    }
+
     public function test_show_page_does_not_fail_when_the_live_fetch_errors_and_skips_it_while_pending(): void
     {
         $admin = $this->admin();

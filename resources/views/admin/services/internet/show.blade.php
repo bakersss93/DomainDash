@@ -60,6 +60,21 @@
         </x-ui.alert>
     @endif
 
+    {{-- Vocus sandbox: no stored transactions, so a real TransactionID answers TCAS-4300; simulate a state instead. --}}
+    @if(($vocusSandbox ?? false) && $service->last_transaction_id)
+        <div id="sandbox-poll" style="margin-bottom:16px;padding:12px 16px;background:var(--dd-surface-muted);border:1px solid var(--dd-border);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="font-size:13px;color:var(--dd-text-soft);max-width:60ch;">
+                <strong style="color:var(--dd-text);">Sandbox: check status (TCAS Get RESPONSE)</strong><br>
+                The Vocus sandbox keeps no transactions, so real IDs answer TCAS-4300. Send a simulated state instead. The call is recorded for the certification checklist; this service is not changed.
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" role="group" aria-label="Simulated transaction state">
+                @foreach(\App\Http\Controllers\Admin\InternetController::SANDBOX_POLL_STATES as $simState)
+                    <button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-sandbox-state="{{ $simState }}">{{ $simState }}</button>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- Inline poll result / error (replaces alert()) --}}
     <div id="txn-alert" aria-live="polite" style="margin-bottom:16px;"></div>
 
@@ -483,6 +498,21 @@ function showTxnAlert(variant, text) {
     alert.appendChild(body);
     box.appendChild(alert);
 }
+
+document.querySelectorAll('[data-sandbox-state]').forEach(function (b) {
+    b.addEventListener('click', function () {
+        b.disabled = true;
+        fetch('{{ route('admin.services.internet.sandboxPoll', $service) }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state: b.getAttribute('data-sandbox-state') }),
+        })
+        .then(r => r.json().catch(() => ({ error: 'Unexpected response from the server.' })))
+        .then(data => { showTxnAlert(data.error ? 'danger' : 'success', data.error || data.message); })
+        .catch(() => showTxnAlert('danger', 'Could not reach the server. Try again shortly.'))
+        .finally(() => { b.disabled = false; });
+    });
+});
 
 // Manual polling only. Account-level / unknown-transaction errors stop here and are shown
 // inline (no alert() loop); a Vocus error never triggers an automatic retry.

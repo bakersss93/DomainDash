@@ -16,7 +16,7 @@
     $hints = [
         'qualify' => 'Open Qualify, search an address or enter a LOC ID, and run the check.',
         'order' => 'Place an order for the qualified location. DomainDash sends the ServiceID and records the Create TransactionID.',
-        'poll' => 'Open the new service and choose Check status, or wait for the scheduled poll (every 10 minutes while a transaction is queued or processing).',
+        'poll' => 'Open the new service and choose Check status, or wait for the scheduled poll (every 10 minutes while a transaction is queued or processing). In the sandbox, real IDs answer TCAS-4300: use the Sandbox panel on the service page to send a simulated state such as SUCCESS.',
         'service' => 'Open the service page: DomainDash reads the live record (Get SERVICE).',
     ];
 @endphp

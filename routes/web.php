@@ -301,6 +301,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::put('/services/internet/{service}/halo/recurring-invoice', [\App\Http\Controllers\Admin\HaloBillingController::class, 'setServiceRecurringInvoice'])->middleware(['permission:sync.run', 'throttle:30,1'])->name('admin.services.internet.halo.recurringInvoice');
         Route::post('/services/internet/{service}/halo-sync', [\App\Http\Controllers\Admin\HaloBillingController::class, 'syncService'])->middleware(['permission:sync.run', 'throttle:12,1'])->name('admin.services.internet.halo-sync.one');
         Route::post('/services/internet/{service}/poll', [InternetController::class, 'pollStatus'])->name('admin.services.internet.poll');
+        Route::post('/services/internet/{service}/sandbox-poll', [InternetController::class, 'sandboxPoll'])->middleware('throttle:12,1')->name('admin.services.internet.sandboxPoll');
         Route::post('/services/internet/{service}/assign-client', [InternetController::class, 'assignClient'])->name('admin.services.internet.assignClient');
         Route::post('/services/internet/{service}/status', [InternetController::class, 'setStatus'])->name('admin.services.internet.setStatus');
         Route::post('/services/internet/{service}/diagnostic', [InternetController::class, 'diagnostic'])->name('admin.services.internet.diagnostic');

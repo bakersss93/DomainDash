@@ -116,6 +116,7 @@ class InternetController extends Controller
             'clientMatch' => $clientMatch,
             'clients'     => $clients,
             'diagnostics' => $diagnostics,
+            'vocusSandbox' => app(VocusWsmClient::class)->environment() === 'sandbox',
         ]);
     }
 
@@ -891,6 +892,40 @@ class InternetController extends Controller
             ], 422);
         } catch (\Throwable $e) {
             return response()->json(['error' => $this->friendlyError($e, 'The status check failed.'), 'stop' => true], 422);
+        }
+    }
+
+    /** Transaction states the Vocus sandbox simulates when sent as the TCAS Get RESPONSE TransactionID (Sandbox 2.2). */
+    public const SANDBOX_POLL_STATES = ['SUCCESS', 'QUEUED', 'PROCESSING', 'WITHDRAWN'];
+
+    /**
+     * Sandbox only: TCAS Get RESPONSE with one of the simulated states as the TransactionID. The sandbox keeps no
+     * transactions, so a real TransactionID always answers TCAS-4300. The call is recorded like any other (it counts
+     * for the certification checklist) but the service record is left as it is, because the answer is canned.
+     */
+    public function sandboxPoll(Request $request, InternetService $service)
+    {
+        $data = $request->validate(['state' => ['required', Rule::in(self::SANDBOX_POLL_STATES)]]);
+        $vocus = app(VocusWsmClient::class);
+        if ($vocus->environment() !== 'sandbox') {
+            return response()->json(['error' => 'Simulated transaction states are only available in the Vocus sandbox.'], 422);
+        }
+        if ($problem = VocusWsmClient::configurationProblem()) {
+            return response()->json(['error' => $problem], 422);
+        }
+
+        try {
+            $raw = $vocus->pollTransaction($data['state']);
+            $result = VocusWsmClient::normalizeTransactionResult($raw);
+
+            return response()->json([
+                'transaction_state' => $result['state'],
+                'transaction_id'    => $raw['transaction_id'] ?? null,
+                'message'           => 'Sandbox answered TransactionState ' . ($result['state'] ?? 'none')
+                    . (! empty($raw['transaction_id']) ? ' (TransactionID ' . $raw['transaction_id'] . ')' : '') . '. The service record was not changed.',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $this->friendlyError($e, 'The sandbox poll failed.')], 422);
         }
     }
 
