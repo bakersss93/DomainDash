@@ -4,9 +4,8 @@
 <div class="ui-page">
     <x-ui.page-header title="Internet Services" subtitle="Vocus services, plans, pricing and billing sync.">
         <x-slot name="actions">
-            <x-ui.button :href="route('admin.services.internet.qualify')" variant="secondary">Qualify address</x-ui.button>
             <x-ui.button variant="secondary" onclick="var p=document.getElementById('import-ids-panel');p.style.display=p.style.display==='none'?'block':'none';">Import service IDs</x-ui.button>
-            <x-ui.button :href="route('admin.services.internet.order')" variant="primary">
+            <x-ui.button :href="route('admin.services.internet.qualify')" variant="primary">
                 <x-ui.icon name="plus" :size="16" /> New order
             </x-ui.button>
         </x-slot>

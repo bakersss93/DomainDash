@@ -6,7 +6,7 @@
 @php
     $links = [
         'qualify' => route('admin.services.internet.qualify'),
-        'order' => route('admin.services.internet.order'),
+        'order' => route('admin.services.internet.qualify'),
         'poll' => route('admin.services.internet'),
         'service' => route('admin.services.internet'),
     ];

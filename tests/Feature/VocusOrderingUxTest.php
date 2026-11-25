@@ -389,6 +389,68 @@ class VocusOrderingUxTest extends TestCase
         $this->assertStringNotContainsString('CVCID', $xml);
     }
 
+    public function test_loc_id_qualify_returns_the_vocus_address_and_postcode_for_the_order_form(): void
+    {
+        $resp = $this->qualifyResponse();
+        $resp->Parameters->Param[] = (object) ['id' => 'BroadbandAddressRecord', '_' => '<![CDATA[<BroadbandAddressRecord><DirectoryID>LOC001122334455</DirectoryID><Carrier>NBN</Carrier><AddressLong>UNIT 2  10 EXAMPLE ST, SAMPLETOWN VIC 3000</AddressLong></BroadbandAddressRecord>]]>'];
+        $this->fakeClient([$resp]);
+
+        $this->actingAs($this->admin())->postJson(route('admin.services.internet.qualify.check'), ['loc_id' => 'LOC001122334455'])
+            ->assertOk()
+            ->assertJsonPath('address_long', 'UNIT 2 10 EXAMPLE ST, SAMPLETOWN VIC 3000')
+            ->assertJsonPath('postcode', '3000')->assertJsonPath('state', 'VIC')->assertJsonPath('suburb', 'SAMPLETOWN');
+    }
+
+    public function test_address_parts_are_read_from_the_end_of_address_long(): void
+    {
+        $a = \App\Services\Vocus\VocusQualification::address(['BroadbandAddressRecord' => ['DirectoryID' => 'LOC1', 'AddressLong' => '10 EXAMPLE RD SAMPLETOWN NSW 2000']]);
+        $this->assertSame(['address_long' => '10 EXAMPLE RD SAMPLETOWN NSW 2000', 'postcode' => '2000', 'suburb' => null, 'state' => 'NSW'], $a);
+        $this->assertSame('4000', \App\Services\Vocus\VocusQualification::address(['BroadbandAddressRecord' => ['AddressLong' => 'SOMEWHERE 4000']])['postcode']);
+        $this->assertNull(\App\Services\Vocus\VocusQualification::address([])['address_long']);
+    }
+
+    public function test_order_form_has_no_hard_coded_vocus_defaults_and_uses_the_order_defaults_setting(): void
+    {
+        $admin = $this->admin();
+        $this->plan();
+
+        $html = $this->actingAs($admin)->get(route('admin.services.internet.order'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Vocus default', $html);
+        $this->assertMatchesRegularExpression('/<option value="PPPoE"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="CGNAT"\s+selected/', $html);
+
+        $this->actingAs($admin)->post(route('admin.settings.update'), [
+            'vocus' => ['order_defaults' => ['auth_type' => 'IPoE', 'ip_assignment' => 'STATIC', 'service_level' => 'ENHANCED12', 'nbn_cpe' => ['FTTP' => 'FTTPNTDNBNPROFINSTALL-V4-4P', 'HFC' => 'HFCNTDWHS', 'FTTC' => '']]],
+            '_return' => '/admin/settings/vocus#ordering',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('AK-SECRET-1', Setting::get('vocus')['access_key'], 'other Vocus settings are preserved');
+
+        $d = VocusOptions::orderDefaults();
+        $this->assertSame(['IPoE', 'STATIC', 'ENHANCED12'], [$d['auth_type'], $d['ip_assignment'], $d['service_level']]);
+        $this->assertSame(['FTTP' => 'FTTPNTDNBNPROFINSTALL-V4-4P', 'HFC' => '', 'FTTC' => ''], $d['nbn_cpe'], 'a shipped option is never a default');
+
+        $html = $this->actingAs($admin)->get(route('admin.services.internet.order', ['service_type' => 'FTTP', 'directory_id' => 'LOC001122334455']))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<option value="IPoE"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="STATIC"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="ENHANCED12"\s+selected/', $html);
+
+        $this->actingAs($admin)->post(route('admin.settings.update'), ['vocus' => ['order_defaults' => ['auth_type' => 'PPP']]])->assertSessionHasErrors('vocus.order_defaults.auth_type');
+        $this->actingAs($admin)->get(route('admin.settings.area', 'vocus'))->assertOk()->assertSee('Order defaults');
+    }
+
+    public function test_layer_two_fields_sit_in_a_hidden_wrapper_and_new_order_starts_at_qualify(): void
+    {
+        $admin = $this->admin();
+        $this->plan();
+
+        $html = $this->actingAs($admin)->get(route('admin.services.internet.order'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('/<div id="l2-fields" hidden>/', $html, 'the hidden wrapper has no display style that would override [hidden]');
+
+        $nav = $this->actingAs($admin)->get(route('admin.services.internet'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('href="' . route('admin.services.internet.order') . '"', $nav);
+        $this->assertStringContainsString('href="' . route('admin.services.internet.qualify') . '"', $nav);
+    }
+
     public function test_invalid_loc_ids_are_rejected_before_any_vocus_call(): void
     {
         $soap = $this->fakeClient([]);

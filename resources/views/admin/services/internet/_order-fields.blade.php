@@ -13,6 +13,7 @@
     $postcode  = old('location_reference', $location_reference);
     $oldScope  = old('scope', $scopes[0] ?? '');
     $oldRealm  = old('realm', $realms[0] ?? '');
+    $defaults  = $orderDefaults ?? \App\Services\Vocus\VocusOptions::orderDefaults();
 @endphp
 
 {{-- Address and qualification (read-only) --}}
@@ -107,7 +108,7 @@
             <label for="f-level" style="{{ $lbl }}">NBN Service Level</label>
             <select id="f-level" name="service_level" class="dd-input" style="width:100%;">
                 @foreach($serviceLevels as $level)
-                    <option value="{{ $level }}" @selected(old('service_level', 'STANDARD') === $level)>{{ $level }}</option>
+                    <option value="{{ $level }}" @selected(old('service_level', $defaults['service_level']) === $level)>{{ $level }}</option>
                 @endforeach
             </select>
         </div>
@@ -139,19 +140,17 @@
         <div>
             <label for="f-auth" style="{{ $lbl }}">Authentication type (AuthType)</label>
             <select id="f-auth" name="auth_type" class="dd-input" style="width:100%;">
-                <option value="">PPPoE (Vocus default)</option>
                 @foreach($authTypes as $type)
-                    <option value="{{ $type }}" @selected(old('auth_type') === $type)>{{ $type }}</option>
+                    <option value="{{ $type }}" @selected(old('auth_type', $defaults['auth_type']) === $type)>{{ $type }}</option>
                 @endforeach
             </select>
-            <p style="{{ $note }}">IPoE has no PPPoE username.</p>
+            <p style="{{ $note }}">IPoE has no PPPoE username. The default is set in Settings, Vocus, Ordering.</p>
         </div>
         <div>
             <label for="f-ip" style="{{ $lbl }}">IP type (IPAssignment)</label>
             <select id="f-ip" name="ip_assignment" class="dd-input" style="width:100%;">
-                <option value="">CGNAT (Vocus default)</option>
                 @foreach($ipAssignments as $type)
-                    <option value="{{ $type }}" @selected(old('ip_assignment') === $type)>{{ $type === 'STATIC' ? 'STATIC (static IP)' : $type }}</option>
+                    <option value="{{ $type }}" @selected(old('ip_assignment', $defaults['ip_assignment']) === $type)>{{ $type === 'STATIC' ? 'STATIC (static IP)' : $type }}</option>
                 @endforeach
             </select>
             <p style="{{ $note }}">The IP address is assigned by Vocus and shown on the service page once provisioned.</p>
@@ -202,7 +201,9 @@
             </div>
         </div>
     @endif
-    <div id="l2-fields" hidden style="{{ $grid }}margin-top:12px;">
+    {{-- Wrapper carries [hidden]: the grid needs its own display, which would override the attribute. --}}
+    <div id="l2-fields" hidden>
+    <div style="{{ $grid }}margin-top:12px;">
         <div>
             <label for="f-cvc" style="{{ $lbl }}">CVC (AggCVC) ID {!! $req !!}</label>
             <input id="f-cvc" type="text" name="cvc_id" value="{{ old('cvc_id', $cvc_id ?? '') }}" class="dd-input" style="width:100%;font-family:monospace;" maxlength="30" placeholder="e.g. CVC000000999">
@@ -224,6 +225,7 @@
         </div>
     </div>
     <p style="{{ $note }}margin-top:10px;">Network-Connect (Layer 2) has no PPPoE username, password, authentication type or IP type.</p>
+    </div>
 </div>
 
 {{-- Contact --}}
@@ -309,20 +311,25 @@
         document.addEventListener('dd:line-capability', filterPlans);
     }
 
-    // Layer 2 (Network-Connect scope or an NCL2 plan) has no PPPoE details but needs the CVC; Layer 3 is the reverse.
+    // Layer 2 fields (CVC, tags) show only once a Network-Connect plan is chosen: an NCL2 plan, a plan offered only on
+    // NETWORK-CONNECT, or any plan under the NETWORK-CONNECT scope. Layer 3 (PPPoE) fields hide for Network-Connect.
     var l3 = document.getElementById('l3-fields'), l2 = document.getElementById('l2-fields');
-    function layer2() {
-        var opt = plan && plan.selectedOptions[0];
-        var code = opt ? (opt.getAttribute('data-plan-code') || '').toUpperCase() : '';
-        return currentScope() === 'NETWORK-CONNECT' || code.indexOf('NCL2') === 0;
+    function selectedPlan() { var o = plan && plan.selectedOptions[0]; return o && o.value ? o : null; }
+    function networkPlan(opt) {
+        if (!opt) { return false; }
+        var code = (opt.getAttribute('data-plan-code') || '').toUpperCase();
+        var scopes = (opt.getAttribute('data-scopes') || '').split(',').filter(Boolean);
+        return code.indexOf('NCL2') === 0 || (scopes.length > 0 && scopes.every(function (x) { return x === 'NETWORK-CONNECT'; }))
+            || currentScope() === 'NETWORK-CONNECT';
     }
     function syncLayer() {
-        var two = layer2();
-        var opt = plan && plan.selectedOptions[0];
+        var opt = selectedPlan();
+        var two = networkPlan(opt);
         var code = opt ? (opt.getAttribute('data-plan-code') || '').toUpperCase() : '';
+        var noL3 = two || currentScope() === 'NETWORK-CONNECT';
         if (l3) {
-            l3.hidden = two;
-            Array.prototype.forEach.call(l3.querySelectorAll('input,select'), function (el) { el.disabled = two; });
+            l3.hidden = noL3;
+            Array.prototype.forEach.call(l3.querySelectorAll('input,select'), function (el) { el.disabled = noL3; });
         }
         if (l2) {
             l2.hidden = !two;
@@ -337,7 +344,8 @@
     }
     function syncAuth() {
         var auth = document.getElementById('f-auth'), w = document.getElementById('f-username-wrap'), u = document.getElementById('f-username');
-        if (auth && w) { var ipoe = auth.value === 'IPoE'; w.hidden = ipoe; if (u) { u.disabled = ipoe; } }
+        var l3off = !!(l3 && l3.hidden);
+        if (auth && w) { var ipoe = auth.value === 'IPoE'; w.hidden = ipoe; if (u) { u.disabled = ipoe || l3off; } }
     }
     // Home tier plans only support STANDARD (hide the other service levels); high tiers get an SQ note.
     var level = document.getElementById('f-level');
@@ -355,8 +363,8 @@
         if (stdOnly) { level.value = 'STANDARD'; }
     }
     if (plan) { plan.addEventListener('change', syncPlanRules); }
-    if (plan) { plan.addEventListener('change', syncLayer); }
-    if (scope) { scope.addEventListener('change', syncLayer); }
+    if (plan) { plan.addEventListener('change', function () { syncLayer(); syncAuth(); }); }
+    if (scope) { scope.addEventListener('change', function () { syncLayer(); syncAuth(); }); }
     var otype = document.getElementById('f-otype'); if (otype) { otype.addEventListener('change', syncAvc); }
     var authSel = document.getElementById('f-auth'); if (authSel) { authSel.addEventListener('change', syncAuth); }
     var gen = document.getElementById('f-password-gen');

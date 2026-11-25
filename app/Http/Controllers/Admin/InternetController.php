@@ -371,7 +371,11 @@ class InternetController extends Controller
 
             return response()->json([
                 'directory_id'        => $directoryId,
-                'address_long'        => $request->input('address_long'),
+                // The chosen search result's text, else the address Vocus returns for the DirectoryID (LOC ID qualify).
+                'address_long'        => $request->input('address_long') ?: ($q['address_long'] ?? null),
+                'postcode'            => $q['postcode'] ?? null,
+                'suburb'              => $q['suburb'] ?? null,
+                'state'               => $q['state'] ?? null,
                 'result'              => $q['result'],
                 'service_type'        => $q['service_type'],
                 // QUALIFY says FIBRE where Create needs FTTP (catalogue 4.2.1 vs 4.1.1.2).

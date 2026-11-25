@@ -9,6 +9,7 @@
     $copperVoice = ! $transfer && in_array($tech, ['FTTB', 'FTTN'], true);
     $cpePlans    = ($nbnCpePlans[$tech] ?? []);
     $oldVc       = old('voiceband_continuity', '');
+    $cpeDefault  = \App\Services\Vocus\VocusOptions::orderDefaults()['nbn_cpe'][$tech] ?? '';
 @endphp
 @if($copperVoice)
     <div id="lx-voice" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
@@ -41,13 +42,13 @@
     <div style="margin-top:12px;">
         <label for="f-nbncpe" style="{{ $lbl }}">NBN installation option (NBNCPEPlanID)</label>
         <select id="f-nbncpe" name="nbn_cpe_plan_id" class="dd-input" style="width:100%;">
-            <option value="">{{ $tech === 'HFC' ? 'Default for a new NTD (HFCNTDNBNPROFINSTALL)' : 'Vocus default' }}</option>
+            <option value="">{{ $tech === 'HFC' ? 'None (a new NTD is sent as HFCNTDNBNPROFINSTALL)' : 'None' }}</option>
             @foreach($cpePlans as $value => $cpe)
                 @php $ships = ($cpe[2] ?? false) === true; @endphp
-                <option value="{{ $value }}" @selected(old('nbn_cpe_plan_id') === $value) @disabled($ships)>{{ $cpe[0] }} ({{ $value }})@if($ships) - needs a shipping address, not supported yet @endif</option>
+                <option value="{{ $value }}" @selected(old('nbn_cpe_plan_id', $cpeDefault) === $value) @disabled($ships)>{{ $cpe[0] }} ({{ $value }})@if($ships) - needs a shipping address, not supported yet @endif</option>
             @endforeach
         </select>
-        <p style="{{ $note }}">Only {{ $tech }} options are listed. @if($tech === 'FTTP')All FTTP NTD installs are NBN professional install only. @endif Charges might apply. Replacement options need the NTD to replace selected in the line list.</p>
+        <p style="{{ $note }}">Only {{ $tech }} options are listed. @if($tech === 'FTTP')All FTTP NTD installs are NBN professional install only. @endif Charges might apply. Replacement options need the NTD to replace selected in the line list. The default is set in Settings, Vocus, Ordering.</p>
     </div>
 @endif
 @if($copperVoice)

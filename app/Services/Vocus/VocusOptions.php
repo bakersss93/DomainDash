@@ -84,6 +84,35 @@ final class VocusOptions
         ],
     ];
 
+    /** Technologies whose Create takes an NBNCPEPlanID (keys of NBN_CPE_PLANS). */
+    public const CPE_TECHNOLOGIES = ['FTTP', 'HFC', 'FTTC'];
+
+    /**
+     * Values pre-selected on the order and transfer forms (Settings > Vocus > Ordering > Order defaults).
+     * Nothing stored: PPPoE, CGNAT and STANDARD, and no NBN installation option.
+     *
+     * @return array{auth_type:string,ip_assignment:string,service_level:string,nbn_cpe:array<string,string>}
+     */
+    public static function orderDefaults(): array
+    {
+        $d = (array) (self::settings()['order_defaults'] ?? []);
+        $pick = fn ($v, array $allowed, string $fallback) => in_array($v, $allowed, true) ? $v : $fallback;
+        $cpe = [];
+        foreach (self::CPE_TECHNOLOGIES as $tech) {
+            $v = (string) ($d['nbn_cpe'][$tech] ?? '');
+            $opt = self::NBN_CPE_PLANS[$tech][$v] ?? null;
+            // Options that ship hardware are never offered, so they cannot be a default either.
+            $cpe[$tech] = $opt !== null && ($opt[2] ?? false) !== true ? $v : '';
+        }
+
+        return [
+            'auth_type'     => $pick($d['auth_type'] ?? null, self::AUTH_TYPES, self::AUTH_TYPES[0]),
+            'ip_assignment' => $pick($d['ip_assignment'] ?? null, self::IP_ASSIGNMENTS, self::IP_ASSIGNMENTS[0]),
+            'service_level' => $pick($d['service_level'] ?? null, self::SERVICE_LEVELS, self::SERVICE_LEVELS[0]),
+            'nbn_cpe'       => $cpe,
+        ];
+    }
+
     /** Whether an NBNCPEPlanID is a replacement (needs the NTD being replaced): "-R" (sheet) or the older "-REPLACE". */
     public static function isReplacementCpePlan(string $value): bool
     {

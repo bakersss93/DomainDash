@@ -453,9 +453,10 @@ function renderQualifyResult(data, directoryId, addressLong, fromLoc) {
             service_type: data.create_service_type || data.service_type || '',
             service_class: q.service_class || '',
             qualification_token: data.qualification_token || '',
-            location_reference: fromLoc ? '' : lookupMeta.postcode,
-            suburb: fromLoc ? '' : lookupMeta.suburb,
-            state: fromLoc ? '' : lookupMeta.state,
+            // Vocus's own address for the DirectoryID wins; the address search values fill any gap.
+            location_reference: data.postcode || (fromLoc ? '' : lookupMeta.postcode),
+            suburb: data.suburb || (fromLoc ? '' : lookupMeta.suburb),
+            state: data.state || (fromLoc ? '' : lookupMeta.state),
         });
         const row = h('div', 'display:flex;gap:8px;margin-top:16px;');
         const a1 = h('a', 'padding:8px 18px;border-radius:6px;background:var(--dd-accent);color:var(--dd-accent-contrast);text-decoration:none;font-size:13px;font-weight:500;', 'New Order →');

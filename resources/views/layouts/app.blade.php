@@ -174,13 +174,10 @@
                                         Manage Internet
                                     </a>
                                 </li>
+                                {{-- A new order always starts at Qualify, which hands the LOC ID, address and technology to the order form. --}}
+                                @php $__newOrder = request()->routeIs('admin.services.internet.qualify') || request()->routeIs('admin.services.internet.order'); @endphp
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.services.internet.qualify') }}" class="nav-link {{ request()->routeIs('admin.services.internet.qualify') ? 'active' : '' }}" @if(request()->routeIs('admin.services.internet.qualify')) aria-current="page" @endif>
-                                        Qualify Address
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="{{ route('admin.services.internet.order') }}" class="nav-link {{ request()->routeIs('admin.services.internet.order') ? 'active' : '' }}" @if(request()->routeIs('admin.services.internet.order')) aria-current="page" @endif>
+                                    <a href="{{ route('admin.services.internet.qualify') }}" class="nav-link {{ $__newOrder ? 'active' : '' }}" @if($__newOrder) aria-current="page" @endif>
                                         New Order
                                     </a>
                                 </li>

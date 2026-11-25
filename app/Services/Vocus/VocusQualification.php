@@ -103,8 +103,16 @@ final class VocusQualification
         $primary     = self::str($params['PrimaryTechnology'] ?? null);
         $group       = self::group($serviceType ?? $primary, $copper !== [], $ntds !== []);
 
+        $address = self::address($params);
+
         return [
             'result'                    => self::str($params['Result'] ?? null),
+            // BroadbandAddressRecord (FIBRE 4.2.1, Data Types): the NBN address of the DirectoryID, so a LOC ID
+            // qualify still gives the order form its address and postcode (LocationReference).
+            'address_long'              => $address['address_long'],
+            'postcode'                  => $address['postcode'],
+            'suburb'                    => $address['suburb'],
+            'state'                     => $address['state'],
             'service_type'              => $serviceType,
             'primary_technology'        => $primary,
             'service_class'             => self::str($params['ServiceClass'] ?? null),
@@ -126,6 +134,34 @@ final class VocusQualification
             // NTD technology with nothing returned: an NTD (and probably an appointment) will be needed.
             'needs_ntd_install'         => $group === self::GROUP_NTD && self::dataPorts($ntds) === [] && ! self::hasAnyPort($ntds),
         ];
+    }
+
+    /**
+     * Address of a QUALIFY response: BroadbandAddressRecord.AddressLong, with the postcode, state and suburb read from
+     * its end ("... SUBURB VIC 3000"; the suburb only when a comma separates it from the street).
+     *
+     * @return array{address_long:?string,postcode:?string,suburb:?string,state:?string}
+     */
+    public static function address(array $params): array
+    {
+        $record = self::records($params['BroadbandAddressRecord'] ?? null, 'BroadbandAddressRecord')[0] ?? [];
+        $long = trim((string) preg_replace('/\s+/', ' ', (string) ($record['AddressLong'] ?? $params['AddressLong'] ?? '')));
+        $out = ['address_long' => $long !== '' ? $long : null, 'postcode' => null, 'suburb' => null, 'state' => null];
+        if ($long === '') {
+            return $out;
+        }
+        if (preg_match('/^(.*?)[,\s]+(NSW|VIC|QLD|SA|WA|TAS|NT|ACT)[,\s]+(\d{4})$/i', $long, $m)) {
+            $out['state'] = strtoupper($m[2]);
+            $out['postcode'] = $m[3];
+            if (str_contains($m[1], ',')) {
+                $suburb = trim((string) substr($m[1], strrpos($m[1], ',') + 1));
+                $out['suburb'] = $suburb !== '' ? strtoupper($suburb) : null;
+            }
+        } elseif (preg_match('/\b(\d{4})$/', $long, $m)) {
+            $out['postcode'] = $m[1];
+        }
+
+        return $out;
     }
 
     /** Whether Vocus can sell at this address (Result PASS). */
