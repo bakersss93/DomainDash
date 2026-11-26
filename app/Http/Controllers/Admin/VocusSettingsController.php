@@ -57,6 +57,36 @@ class VocusSettingsController extends Controller
         return response()->json(['scopes' => $scopes]);
     }
 
+    // ----- service records -------------------------------------------------------------------
+
+    /** Transaction states that leave a record behind which may never have reached Vocus. */
+    public const ATTENTION_STATES = ['FAILED', 'UNKNOWN', 'EXPIRED', 'WITHDRAWN'];
+
+    /**
+     * Remove a local internet service record (Settings > Vocus > Service records). Nothing is sent to Vocus: a live
+     * service is not cancelled. The typed confirmation must match the service id; the deletion is audited.
+     */
+    public function destroyService(Request $request, \App\Models\InternetService $service)
+    {
+        $label = (string) ($service->vocus_service_id ?: '#' . $service->id);
+        $request->validate(['confirm' => ['required', 'string', Rule::in([$label])]], [
+            'confirm.in'       => 'Type the service ID exactly (' . $label . ') to remove the record.',
+            'confirm.required' => 'Type the service ID to remove the record.',
+        ]);
+
+        $snapshot = $service->only(['id', 'vocus_service_id', 'directory_id', 'address_long', 'service_status', 'last_transaction_id',
+            'last_transaction_state', 'last_fault_code', 'client_id', 'plan_id', 'halo_subscription_id', 'halo_recurring_line_id']);
+        $service->delete(); // diagnostics cascade
+
+        AuditLogger::logSystem('internet.record.delete', "Internet service record {$label} removed from DomainDash (not cancelled at Vocus).",
+            ['service' => 'vocus', 'function' => 'settings-service-records'], ['old_values' => $snapshot]);
+
+        $halo = $snapshot['halo_subscription_id'] || $snapshot['halo_recurring_line_id'];
+
+        return redirect('/admin/settings/vocus?tab=records')->with('status', "Service record {$label} removed. Nothing was sent to Vocus."
+            . ($halo ? ' Its HaloPSA subscription or invoice line was not touched; remove it in HaloPSA if needed.' : ''));
+    }
+
     // ----- plans ---------------------------------------------------------------------------
 
     public function plans(): JsonResponse

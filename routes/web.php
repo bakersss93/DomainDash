@@ -160,6 +160,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
             Route::put('/named-tiers', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateTiers'])->name('admin.settings.vocus.named-tiers');
             Route::post('/plans/import/preview', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importPreview'])->name('admin.settings.vocus.plans.import.preview');
             Route::post('/plans/import/apply', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importApply'])->name('admin.settings.vocus.plans.import.apply');
+            Route::delete('/services/{service}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'destroyService'])->name('admin.settings.vocus.services.destroy');
         });
         Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
         Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');

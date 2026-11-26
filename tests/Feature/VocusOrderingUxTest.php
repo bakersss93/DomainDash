@@ -451,6 +451,33 @@ class VocusOrderingUxTest extends TestCase
         $this->assertStringContainsString('href="' . route('admin.services.internet.qualify') . '"', $nav);
     }
 
+    public function test_service_records_tab_lists_failed_records_and_removes_one_with_a_typed_confirmation(): void
+    {
+        $admin = $this->admin();
+        $failed = InternetService::create(['vocus_service_id' => 'DD-FAILED-1', 'last_transaction_id' => 'TX1', 'last_transaction_state' => 'UNKNOWN', 'last_fault_code' => 'TCAS-4300']);
+        $live = InternetService::create(['vocus_service_id' => 'DD-LIVE-1', 'service_status' => 'ACTIVE', 'last_transaction_state' => 'SUCCESS']);
+        $failed->diagnostics()->create(['diagnostic_type' => 'TEST', 'transaction_id' => 'D1']);
+
+        $this->actingAs($admin)->get('/admin/settings/vocus?tab=records')->assertOk()->assertSee('DD-FAILED-1')->assertDontSee('DD-LIVE-1');
+        $this->actingAs($admin)->get('/admin/settings/vocus?tab=records&records=all')->assertOk()->assertSee('DD-LIVE-1');
+
+        $soap = $this->fakeClient([]);
+        $this->actingAs($admin)->delete(route('admin.settings.vocus.services.destroy', $failed), ['confirm' => 'wrong'])->assertSessionHasErrors('confirm');
+        $this->assertNotNull($failed->fresh());
+
+        $this->actingAs($admin)->delete(route('admin.settings.vocus.services.destroy', $failed), ['confirm' => 'DD-FAILED-1'])
+            ->assertRedirect('/admin/settings/vocus?tab=records')->assertSessionHas('status');
+        $this->assertNull($failed->fresh());
+        $this->assertSame(0, \App\Models\InternetServiceDiagnostic::where('internet_service_id', $failed->id)->count());
+        $this->assertTrue(AuditLog::where('action', 'internet.record.delete')->exists());
+        $this->assertSame([], $soap->calls, 'nothing is sent to Vocus');
+        $this->assertNotNull($live->fresh());
+
+        $engineer = User::factory()->create(['two_factor_secret' => encrypt('S'), 'two_factor_confirmed_at' => now()]);
+        $this->actingAs($engineer)->delete(route('admin.settings.vocus.services.destroy', $live), ['confirm' => 'DD-LIVE-1'])->assertForbidden();
+        $this->assertNotNull($live->fresh());
+    }
+
     public function test_invalid_loc_ids_are_rejected_before_any_vocus_call(): void
     {
         $soap = $this->fakeClient([]);
