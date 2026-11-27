@@ -126,16 +126,32 @@ class UsersController extends Controller
 
         $previousRole = optional($user->roles->first())->name;
         $wasActive = (bool) $user->is_active;
+        $wasExempt = (bool) $user->password_login_allowed;
 
-        $user->update([
-            'name'  => trim($data['first_name'].' '.$data['last_name']),
-            'email' => $data['email'],
-            'mfa_preference' => $data['mfa_preference'],
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        // The password exception is an administrator-only control; for anyone else the field is ignored.
+        $isAdmin = (bool) $request->user()?->hasRole('Administrator');
+        $exempt = $isAdmin ? $request->boolean('password_login_allowed') : $wasExempt;
 
-        $user->syncRoles([$data['role']]);
-        $user->clients()->sync($data['client_ids'] ?? []);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $data, $request, $exempt) {
+            $user->update([
+                'name'  => trim($data['first_name'].' '.$data['last_name']),
+                'email' => $data['email'],
+                'mfa_preference' => $data['mfa_preference'],
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+            $user->forceFill(['password_login_allowed' => $exempt])->save();
+
+            $user->syncRoles([$data['role']]);
+            $user->clients()->sync($data['client_ids'] ?? []);
+
+            $this->assertStillRecoverable();
+        });
+
+        if ($isAdmin && $wasExempt !== $exempt) {
+            \App\Services\AuditLogger::logAction('user.password_exception.changed', $user, ($exempt ? 'Granted' : 'Removed')." the password sign-in exception for {$user->email}", [
+                'old_values' => ['password_login_allowed' => $wasExempt], 'new_values' => ['password_login_allowed' => $exempt],
+            ]);
+        }
 
         if ($previousRole !== $data['role'] || ($wasActive && ! $user->is_active)) {
             \App\Support\SessionRevoker::revoke($user, $request->user()?->is($user) ? $request->session()->getId() : null);
@@ -144,6 +160,35 @@ class UsersController extends Controller
         return redirect()
             ->route('admin.users')
             ->with('status', 'User updated successfully.');
+    }
+
+    /** While staff password sign-in is closed, an active Administrator with the password exception must always remain. */
+    private function assertStillRecoverable(): void
+    {
+        if (\App\Services\Auth\LoginPolicy::staffMode() === \App\Services\Auth\LoginPolicy::MICROSOFT_ONLY
+            && ! User::role('Administrator')->where('is_active', true)->where('password_login_allowed', true)->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'password_login_allowed' => 'Password sign-in is closed for staff, so at least one active Administrator must keep the "may also use password" exception.',
+            ]);
+        }
+    }
+
+    /** Administrator removes a client user's Microsoft link (they re-link on their next Microsoft sign-in). */
+    public function unlinkMicrosoft(Request $request, User $user)
+    {
+        abort_unless($request->user()?->hasRole('Administrator'), 403);
+
+        if ($user->microsoft_oid === null) {
+            return back()->with('status', 'This user has no linked Microsoft account.');
+        }
+
+        $old = ['microsoft_tid' => $user->microsoft_tid, 'microsoft_oid' => $user->microsoft_oid];
+        $user->forceFill(['microsoft_oid' => null, 'microsoft_tid' => null, 'microsoft_linked_at' => null])->save();
+        \App\Support\SessionRevoker::revoke($user);
+
+        \App\Services\AuditLogger::logAction('auth.microsoft.unlinked', $user, "Microsoft account unlinked for {$user->email}", ['old_values' => $old]);
+
+        return back()->with('status', 'Microsoft account unlinked.');
     }
 
     /**
@@ -215,9 +260,13 @@ class UsersController extends Controller
         }
 
         $email = $user->email;
-        $user->clients()->detach();
-        $user->syncRoles([]);
-        $user->delete();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+            $user->clients()->detach();
+            $user->syncRoles([]);
+            $user->delete();
+
+            $this->assertStillRecoverable();
+        });
 
         return redirect()
             ->route('admin.users')

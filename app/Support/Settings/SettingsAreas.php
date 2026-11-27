@@ -16,7 +16,7 @@ final class SettingsAreas
     {
         return [
             'general' => ['title' => 'General', 'areas' => ['branding', 'email', 'backups']],
-            'security' => ['title' => 'Security', 'areas' => ['https', 'mfa']],
+            'security' => ['title' => 'Security', 'areas' => ['https', 'mfa', 'sso']],
             'integrations' => ['title' => 'Integrations', 'areas' => ['halopsa', 'itglue', 'synergy', 'vocus', 'ip2whois']],
             'operations' => ['title' => 'Sync and queue', 'areas' => ['sync']],
         ];
@@ -33,6 +33,7 @@ final class SettingsAreas
             'backups' => ['title' => 'Backups', 'description' => 'SFTP destination, schedule and retention.', 'icon' => 'download', 'tabs' => ['backup' => 'Backups'], 'setting' => 'backup'],
             'https' => ['title' => 'Platform HTTPS', 'description' => "Let's Encrypt or uploaded certificate, force HTTPS, renewal.", 'icon' => 'shield', 'tabs' => [], 'route' => 'admin.https'],
             'mfa' => ['title' => 'MFA and audit', 'description' => 'Multi-factor defaults and audit-log retention.', 'icon' => 'key', 'tabs' => ['mfa' => 'Multi-factor', 'audit' => 'Audit log'], 'setting' => 'mfa'],
+            'sso' => ['title' => 'Single sign-on', 'description' => 'Staff SAML, group to role mapping, client Microsoft sign-in and the login-method policy.', 'icon' => 'key', 'tabs' => [], 'route' => 'admin.sso.index'],
             'halopsa' => ['title' => 'HaloPSA', 'description' => 'Connection, clients, asset mapping, tickets, billing and sync.', 'icon' => 'cog', 'tabs' => ['connection' => 'Connection', 'clients' => 'Clients', 'assets' => 'Assets', 'tickets' => 'Tickets', 'billing' => 'Billing', 'sync' => 'Sync'], 'setting' => 'halo'],
             'itglue' => ['title' => 'IT Glue', 'description' => 'Connection, organisation mapping, flexible asset mapping and sync.', 'icon' => 'copy', 'tabs' => ['connection' => 'Connection', 'organisations' => 'Organisations', 'assets' => 'Assets', 'sync' => 'Sync'], 'setting' => 'itglue'],
             'synergy' => ['title' => 'Synergy Wholesale', 'description' => 'Domain registrar API credentials.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection'], 'setting' => 'synergy'],

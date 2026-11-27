@@ -32,6 +32,18 @@ class EnsureMfaPolicy
             }
         }
 
+        // Microsoft (client OIDC) sessions are re-validated on every request: the feature must still be on and the
+        // user must still be the same non-staff, still-linked Microsoft identity that signed in.
+        $viaMicrosoft = $request->session()->get('auth.via') === 'microsoft';
+        if ($viaMicrosoft
+            && (! \App\Services\Microsoft\MicrosoftSettings::configured()
+                || $user->microsoft_oid === null
+                || $user->microsoft_oid !== $request->session()->get('auth.microsoft_oid')
+                || $user->microsoft_tid !== $request->session()->get('auth.microsoft_tid')
+                || \App\Services\Saml\SsoPolicy::isStaff($user))) {
+            return $this->endSession($request, 'Your Microsoft sign-in session is no longer valid.');
+        }
+
         // Fortify's two-factor management endpoints are not used by DomainDash (enrolment and
         // re-enrolment live in /me/mfa/* and /me/account/mfa-reenroll, which verify the current
         // code). Left reachable they would let a hijacked session swap or disable the TOTP secret.
@@ -70,6 +82,13 @@ class EnsureMfaPolicy
         // which also satisfies the mandatory-MFA policy below.
         // The bypass only holds while the connection still says to trust Entra for MFA.
         if ($samlConnection && $request->session()->get('auth.mfa_satisfied') && $samlConnection->skip_local_mfa) {
+            $request->session()->forget('mfa.setup');
+
+            return $next($request);
+        }
+
+        // Same for Microsoft sign-in, but only while "Trust Microsoft sign-in for MFA (clients)" is still on.
+        if ($viaMicrosoft && $request->session()->get('auth.mfa_satisfied') && \App\Services\Microsoft\MicrosoftSettings::trustMfa()) {
             $request->session()->forget('mfa.setup');
 
             return $next($request);

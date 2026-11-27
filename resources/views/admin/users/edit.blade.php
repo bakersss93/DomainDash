@@ -69,6 +69,18 @@
                         @error('mfa_preference')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
+                    @role('Administrator')
+                    <div class="dd-account-field dd-account-toggle-field">
+                        <input type="hidden" name="password_login_allowed" value="0">
+                        <label class="dd-account-checkbox-row">
+                            <input class="dd-account-checkbox" type="checkbox" name="password_login_allowed" value="1" {{ old('password_login_allowed', (int) $user->password_login_allowed) ? 'checked' : '' }}>
+                            <span>May also use a password (exception to the login-method policy)</span>
+                        </label>
+                        <small class="dd-account-help-text">Effective sign-in policy for this user: <strong>{{ \App\Services\Auth\LoginPolicy::describe($user) }}</strong>.</small>
+                        @error('password_login_allowed')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
+                    </div>
+                    @endrole
+
                     <div class="dd-account-field">
                         <label>Client Organisation(s)</label>
                         <div class="client-picker" id="clientPicker">
@@ -110,6 +122,18 @@
                         <li>Reset MFA if needed.</li>
                     </ul>
                     <button type="button" class="dd-account-password-btn" id="openPasswordControls">Reset Password</button>
+
+                    @if ($user->microsoft_oid)
+                        <hr style="margin:14px 0;border-color:var(--border-subtle);">
+                        <h3 style="margin-top:0;">Microsoft account</h3>
+                        <p style="font-size:13px;color:var(--text-muted);">Linked to tenant <code>{{ $user->microsoft_tid }}</code> since {{ optional($user->microsoft_linked_at)->toDayDateTimeString() }}.</p>
+                        @role('Administrator')
+                        <form method="POST" action="{{ route('admin.users.microsoft.unlink', $user) }}" onsubmit="return confirm('Unlink this Microsoft account? The user will have to link again.');">
+                            @csrf
+                            <button type="submit" class="dd-account-secondary">Unlink Microsoft account</button>
+                        </form>
+                        @endrole
+                    @endif
 
                     <hr style="margin:14px 0;border-color:var(--border-subtle);">
                     <h3 style="margin-top:0;">Danger Zone</h3>

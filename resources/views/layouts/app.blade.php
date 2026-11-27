@@ -405,6 +405,8 @@
 
         <div id="accountStatus" class="account-status" aria-live="polite"></div>
 
+        <p id="accountMicrosoft" style="display:none;font-size:0.85rem;margin:0.5rem 0;"></p>
+
         <div class="account-action-list">
             <button type="button" class="btn-accent" id="openPasswordModal">Change Password</button>
             <button type="button" class="btn-accent" id="accountReenrollMfa">Re-enroll MFA</button>
@@ -599,6 +601,15 @@
             emailInput.value = data.email || '';
             emailInput.dataset.original = emailInput.value;
             mfaConfigured = !!data.mfa_configured;
+            const msEl = document.getElementById('accountMicrosoft');
+            if (msEl) {
+                if (data.microsoft && data.microsoft.linked) {
+                    msEl.textContent = 'Linked Microsoft account: ' + (data.microsoft.upn || data.email) + ' (tenant ' + data.microsoft.tenant_id + '). Ask your administrator to unlink it if it is wrong.';
+                    msEl.style.display = 'block';
+                } else {
+                    msEl.style.display = 'none';
+                }
+            }
             if (passwordMfaCodeWrap) {
                 passwordMfaCodeWrap.style.display = 'none';
             }

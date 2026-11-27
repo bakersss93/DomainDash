@@ -2,7 +2,6 @@
 
 namespace Tests\Support;
 
-use App\Models\Client;
 use App\Models\SamlConnection;
 use DOMDocument;
 use RobRichards\XMLSecLibs\XMLSecurityDSig;
@@ -32,10 +31,6 @@ class SamlFixture
     {
         $cert ??= self::keyPair();
         $type = $attrs['type'] ?? 'staff';
-        if ($type === 'client' && empty($attrs['client_id'])) {
-            $attrs['client_id'] = Client::query()->create(['business_name' => 'Client '.uniqid()])->id;
-        }
-
         $c = SamlConnection::create($attrs + [
             'name' => 'Test '.$type,
             'type' => $type,

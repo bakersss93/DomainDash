@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\SamlConnection;
-use App\Models\SamlConnectionDomain;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Saml\SamlException;
@@ -26,30 +25,6 @@ class SamlController extends Controller
     public function metadata(SamlConnection $connection)
     {
         return response($this->saml->metadataXml($connection), 200, ['Content-Type' => 'application/samlmetadata+xml; charset=UTF-8']);
-    }
-
-    /** Email-first home-realm discovery. Staff domains are checked first. */
-    public function discover(Request $request)
-    {
-        $data = $request->validate(['email' => 'required|string|max:254']);
-        $email = strtolower(trim($data['email']));
-        $domain = str_contains($email, '@') ? substr(strrchr($email, '@'), 1) : $email;
-
-        $row = SamlConnectionDomain::query()
-            ->join('saml_connections', 'saml_connections.id', '=', 'saml_connection_domains.saml_connection_id')
-            ->where('saml_connection_domains.domain', $domain)
-            ->where('saml_connections.enabled', true)
-            ->orderByRaw("case when saml_connections.type = 'staff' then 0 else 1 end")
-            ->select('saml_connections.uuid')
-            ->first();
-
-        if (! $row) {
-            return redirect()->route('login')
-                ->withInput(['email' => $email])
-                ->withErrors(['sso_email' => 'Single sign-on is not set up for that email address. Use your password instead.']);
-        }
-
-        return redirect()->route('saml.login', ['connection' => $row->uuid]);
     }
 
     public function login(Request $request, SamlConnection $connection)
@@ -130,7 +105,6 @@ class SamlController extends Controller
             'connection' => $c->uuid,
             'connection_name' => $c->name,
             'connection_type' => $c->type,
-            'client_id' => $c->client_id,
         ] + $extra, ['user_email' => $email ?? $user?->email]);
     }
 }

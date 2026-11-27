@@ -2,9 +2,7 @@
 
 namespace App\Services\Saml;
 
-use App\Models\Setting;
 use App\Models\User;
-use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class SsoPolicy
@@ -15,7 +13,7 @@ class SsoPolicy
         return array_values((array) config('saml.customer_roles', ['Customer']));
     }
 
-    /** A role a CLIENT connection may assign: on the customer allow-list and without any privileged permission. */
+    /** A role customer-class users may hold: on the customer allow-list and without any privileged permission. */
     public static function isCustomerSafeRole(string $roleName): bool
     {
         if (! in_array($roleName, self::customerRoleNames(), true)) {
@@ -44,28 +42,10 @@ class SsoPolicy
         return $roles->contains(fn ($r) => ! self::isCustomerSafeRole($r));
     }
 
-    public static function settings(): array
+    /** Roles a staff SAML connection may assign (everything that is not customer-class). */
+    public static function staffRoleNames(): array
     {
-        return array_merge(['enforce_staff' => false], (array) Setting::get('sso', []));
-    }
-
-    public static function enforceStaff(): bool
-    {
-        return (bool) (self::settings()['enforce_staff'] ?? false);
-    }
-
-    public static function passwordLoginBlocked(User $user): bool
-    {
-        return self::enforceStaff() && ! $user->is_break_glass && self::isStaff($user);
-    }
-
-    /** Called from the password login pipeline. */
-    public static function assertPasswordLoginAllowed(User $user): void
-    {
-        if (self::passwordLoginBlocked($user)) {
-            throw ValidationException::withMessages([
-                'email' => 'Password sign-in is disabled for staff. Use "Sign in with Microsoft".',
-            ]);
-        }
+        return Role::query()->where('guard_name', 'web')->orderBy('name')->pluck('name')
+            ->reject(fn ($r) => self::isCustomerSafeRole($r))->values()->all();
     }
 }

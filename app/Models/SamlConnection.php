@@ -3,17 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class SamlConnection extends Model
 {
     public const TYPE_STAFF = 'staff';
-    public const TYPE_CLIENT = 'client';
 
     protected $fillable = [
-        'name', 'type', 'client_id', 'enabled', 'entra_tenant_id', 'idp_entity_id', 'idp_sso_url', 'idp_slo_url',
+        'name', 'type', 'enabled', 'entra_tenant_id', 'idp_entity_id', 'idp_sso_url', 'idp_slo_url',
         'idp_x509_cert', 'idp_x509_cert_2', 'metadata_url', 'group_role_map', 'default_role',
         'jit_provisioning', 'skip_local_mfa',
     ];
@@ -32,9 +30,11 @@ class SamlConnection extends Model
     {
         static::creating(function (self $c) {
             $c->uuid ??= (string) Str::uuid();
-            // Secure default: staff connections keep DomainDash's own MFA unless explicitly told to trust Entra.
+            // SAML is staff-only.
+            $c->type = self::TYPE_STAFF;
+            // Secure default: connections keep DomainDash's own MFA unless explicitly told to trust Entra.
             if (! array_key_exists('skip_local_mfa', $c->getAttributes())) {
-                $c->skip_local_mfa = $c->type === self::TYPE_CLIENT;
+                $c->skip_local_mfa = false;
             }
         });
     }
@@ -42,11 +42,6 @@ class SamlConnection extends Model
     public function getRouteKeyName(): string
     {
         return 'uuid';
-    }
-
-    public function client(): BelongsTo
-    {
-        return $this->belongsTo(Client::class);
     }
 
     public function domains(): HasMany
@@ -62,11 +57,6 @@ class SamlConnection extends Model
     public function isStaff(): bool
     {
         return $this->type === self::TYPE_STAFF;
-    }
-
-    public function isClient(): bool
-    {
-        return $this->type === self::TYPE_CLIENT;
     }
 
     /** @return list<string> */

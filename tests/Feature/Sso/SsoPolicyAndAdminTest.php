@@ -25,7 +25,7 @@ class SsoPolicyAndAdminTest extends SsoTestCase
     private function payload(array $over = []): array
     {
         return $over + [
-            'name' => 'Jargon staff', 'type' => 'staff', 'entra_tenant_id' => SamlFixture::TENANT,
+            'name' => 'Contoso staff', 'type' => 'staff', 'entra_tenant_id' => SamlFixture::TENANT,
             'idp_entity_id' => 'https://sts.windows.net/'.SamlFixture::TENANT.'/',
             'idp_sso_url' => 'https://login.microsoftonline.com/'.SamlFixture::TENANT.'/saml2',
             'idp_x509_cert' => $this->idpKey['cert'], 'domains' => "contoso.com\nfabrikam.com",
@@ -33,25 +33,31 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         ];
     }
 
-    // ---- enforce SSO for staff / break-glass ------------------------------------------------------------
+    // ---- login-method policy (staff) ---------------------------------------------------------------------
 
-    public function test_enforce_sso_blocks_staff_password_login_but_not_break_glass_or_customers(): void
+    public function test_staff_microsoft_only_blocks_password_login_for_staff_but_not_exceptions_or_clients(): void
     {
         $tech = User::factory()->create(['email' => 'tech@contoso.com']);
         $tech->assignRole('Technician');
-        $bg = User::factory()->create(['email' => 'bg@contoso.com', 'is_break_glass' => true]);
+        $bg = User::factory()->create(['email' => 'bg@contoso.com', 'password_login_allowed' => true]);
         $bg->assignRole('Administrator');
         $cust = User::factory()->create(['email' => 'cust@acme.com']);
         $cust->assignRole('Customer');
 
-        // Before enforcement everyone can use a password.
+        // Before the policy everyone can use a password.
         $this->post('/login', ['email' => 'tech@contoso.com', 'password' => 'password'])->assertRedirect();
         $this->assertAuthenticatedAs($tech);
         auth()->logout();
 
-        Setting::put('sso', ['enforce_staff' => true]);
+        Setting::put('sso', ['staff_login' => 'microsoft_only']);
 
+        // Same generic failure as a wrong password; audited.
         $this->post('/login', ['email' => 'tech@contoso.com', 'password' => 'password'])->assertSessionHasErrors('email');
+        $blockedMessage = session('errors')->first('email');
+        $this->assertGuest();
+        $this->assertTrue(AuditLog::where('action', 'auth.password.blocked_by_policy')->exists());
+        $this->post('/login', ['email' => 'tech@contoso.com', 'password' => 'nope'])->assertSessionHasErrors('email');
+        $this->assertSame($blockedMessage, session('errors')->first('email'), 'blocked looks exactly like a wrong password');
         $this->assertGuest();
 
         $this->post('/login', ['email' => 'bg@contoso.com', 'password' => 'password']);
@@ -62,28 +68,51 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->assertAuthenticatedAs($cust);
     }
 
-    public function test_enforcement_cannot_be_enabled_without_a_break_glass_admin_or_staff_connection(): void
+    public function test_staff_microsoft_only_cannot_be_enabled_without_a_password_admin_or_staff_connection(): void
     {
         $admin = $this->admin();
-        $this->actingAs($admin)->post(route('admin.sso.settings'), ['enforce_staff' => '1'])->assertSessionHasErrors('enforce_staff');
+        $this->actingAs($admin)->post(route('admin.sso.settings'), ['staff_login' => 'microsoft_only', 'client_login' => 'both'])->assertSessionHasErrors('staff_login');
 
-        $this->post(route('admin.sso.settings'), ['enforce_staff' => '1', 'break_glass' => [$admin->id]])->assertSessionHasErrors('enforce_staff'); // no staff connection
+        $admin->forceFill(['password_login_allowed' => true])->save();
+        $this->post(route('admin.sso.settings'), ['staff_login' => 'microsoft_only', 'client_login' => 'both'])->assertSessionHasErrors('staff_login'); // no staff connection
 
         $this->staffConnection();
-        $this->post(route('admin.sso.settings'), ['enforce_staff' => '1', 'break_glass' => [$admin->id]])->assertSessionHasNoErrors();
+        $this->post(route('admin.sso.settings'), ['staff_login' => 'microsoft_only', 'client_login' => 'both'])->assertSessionHasNoErrors();
 
-        $this->assertTrue(SsoPolicyProbe::enforced());
-        $this->assertTrue($admin->fresh()->is_break_glass);
-        $this->assertTrue(AuditLog::where('action', 'sso.settings.updated')->exists());
+        $this->assertSame('microsoft_only', \App\Services\Auth\LoginPolicy::staffMode());
+        $this->assertTrue(AuditLog::where('action', 'settings.login_policy.updated')->exists());
     }
 
-    public function test_sso_linked_users_cannot_be_break_glass(): void
+    public function test_last_enabled_connection_and_last_password_admin_are_protected_while_staff_is_microsoft_only(): void
+    {
+        $admin = $this->admin(['password_login_allowed' => true]);
+        $c = $this->staffConnection();
+        Setting::put('sso', ['staff_login' => 'microsoft_only']);
+        $this->actingAs($admin);
+
+        $this->delete(route('admin.sso.destroy', $c))->assertSessionHasErrors('enabled');
+        $this->put(route('admin.sso.update', $c), $this->payload(['enabled' => '0']))->assertSessionHasErrors('enabled');
+        $this->assertSame(1, SamlConnection::count());
+
+        // Removing the exception from the only password administrator is refused too.
+        $this->put(route('admin.users.update', $admin), [
+            'first_name' => 'A', 'last_name' => 'B', 'email' => $admin->email, 'role' => 'Administrator',
+            'mfa_preference' => 'enabled', 'is_active' => '1', 'password_login_allowed' => '0',
+        ])->assertSessionHasErrors('password_login_allowed');
+        $this->assertTrue($admin->fresh()->password_login_allowed);
+    }
+
+    public function test_password_exception_can_be_set_by_administrators_only_and_is_audited(): void
     {
         $admin = $this->admin();
-        $linked = User::factory()->create(['saml_connection_id' => $this->staffConnection()->id, 'saml_object_id' => 'x']);
-        $linked->assignRole('Administrator');
+        $user = User::factory()->create();
+        $user->assignRole('Technician');
+        $payload = ['first_name' => 'T', 'last_name' => 'U', 'email' => $user->email, 'role' => 'Technician', 'mfa_preference' => 'enabled', 'is_active' => '1'];
 
-        $this->actingAs($admin)->post(route('admin.sso.settings'), ['break_glass' => [$linked->id]])->assertSessionHasErrors('break_glass');
+        $this->actingAs($admin)->put(route('admin.users.update', $user), $payload + ['password_login_allowed' => '1'])->assertSessionHasNoErrors();
+        $this->assertTrue($user->fresh()->password_login_allowed);
+        $this->assertTrue(AuditLog::where('action', 'user.password_exception.changed')->exists());
+        $this->get(route('admin.users.edit', $user))->assertOk()->assertSee('May also use a password')->assertSee('Effective sign-in policy');
     }
 
     // ---- MFA --------------------------------------------------------------------------------------------
@@ -126,7 +155,8 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->post(route('admin.sso.store'), $this->payload())->assertForbidden();
         $this->put(route('admin.sso.update', $c), $this->payload())->assertForbidden();
         $this->delete(route('admin.sso.destroy', $c))->assertForbidden();
-        $this->post(route('admin.sso.settings'), ['enforce_staff' => '0'])->assertForbidden();
+        $this->post(route('admin.sso.settings'), ['staff_login' => 'both', 'client_login' => 'both'])->assertForbidden();
+        $this->post(route('admin.sso.microsoft'), ['enabled' => '0'])->assertForbidden();
     }
 
     public function test_admin_can_create_edit_view_and_delete_a_connection_with_audit_trail(): void
@@ -139,7 +169,7 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->assertSame([['group_id' => '11111111-1111-1111-1111-111111111111', 'role' => 'Technician']], $c->group_role_map);
         $this->assertTrue(AuditLog::where('action', 'sso.connection.created')->exists());
 
-        $this->get(route('admin.sso.index'))->assertOk()->assertSee('Jargon staff');
+        $this->get(route('admin.sso.index'))->assertOk()->assertSee('Contoso staff');
         $page = $this->get(route('admin.sso.edit', $c))->assertOk();
         $page->assertSee($c->acsUrl())->assertSee($c->spEntityId())->assertSee($c->loginUrl());
 
@@ -149,7 +179,7 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->assertSame('staff', $c->type, 'type is immutable');
         $this->assertSame(['contoso.com'], $c->domainList());
         $log = AuditLog::where('action', 'sso.connection.updated')->firstOrFail();
-        $this->assertSame('Jargon staff', $log->old_values['name']);
+        $this->assertSame('Contoso staff', $log->old_values['name']);
 
         $this->post(route('admin.sso.check', $c))->assertRedirect();
         $this->delete(route('admin.sso.destroy', $c))->assertRedirect(route('admin.sso.index'));
@@ -157,13 +187,34 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->assertTrue(AuditLog::where('action', 'sso.connection.deleted')->exists());
     }
 
-    public function test_client_connection_is_created_from_the_client_page_prefilled(): void
+    public function test_saml_is_staff_only_a_client_type_cannot_be_created(): void
     {
-        $client = Client::create(['business_name' => 'Acme Pty Ltd']);
         $this->actingAs($this->admin());
 
-        $this->get(route('admin.clients.edit', $client))->assertOk()->assertSee('Add SSO connection')->assertSee('client_id='.$client->id);
-        $this->get(route('admin.sso.create', ['type' => 'client', 'client_id' => $client->id]))->assertOk()->assertSee('Acme Pty Ltd');
+        $this->post(route('admin.sso.store'), $this->payload(['type' => 'client']))->assertSessionHasNoErrors();
+        $this->assertSame('staff', SamlConnection::firstOrFail()->type);
+        $this->get(route('admin.sso.create', ['type' => 'client']))->assertOk()->assertDontSee('client_id');
+        $this->get(route('admin.sso.index'))->assertOk()->assertDontSee('Client connection');
+    }
+
+    public function test_mapping_form_lists_staff_roles_dynamically_and_never_customer_roles(): void
+    {
+        \Spatie\Permission\Models\Role::findOrCreate('Auditor')->givePermissionTo('domains.view');
+        $this->actingAs($this->admin());
+
+        $page = $this->get(route('admin.sso.create'))->assertOk();
+        $page->assertSee('group_map[Technician]', false)->assertSee('group_map[Administrator]', false)->assertSee('group_map[Auditor]', false);
+        $page->assertDontSee('group_map[Customer]', false);
+
+        $payload = $this->payload(['group_role_map' => null, 'group_map' => ['Administrator' => '', 'Auditor' => "AAAAAAAA-0000-0000-0000-000000000001\n11111111-1111-1111-1111-111111111111"]]);
+        $this->post(route('admin.sso.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertEqualsCanonicalizing([
+            ['group_id' => 'aaaaaaaa-0000-0000-0000-000000000001', 'role' => 'Auditor'],
+            ['group_id' => '11111111-1111-1111-1111-111111111111', 'role' => 'Auditor'],
+        ], SamlConnection::firstOrFail()->group_role_map);
+
+        // A customer role can never be mapped.
+        $this->post(route('admin.sso.store'), $this->payload(['domains' => 'other.org', 'group_map' => ['Customer' => '22222222-2222-2222-2222-222222222222']]))->assertSessionHasErrors('group_role_map');
     }
 
     public function test_tenant_id_must_match_entity_id_and_urls_must_be_safe(): void
@@ -263,13 +314,5 @@ class SsoPolicyAndAdminTest extends SsoTestCase
 
         $this->expectException(SamlException::class);
         $importer->fromUrl('https://login.microsoftonline.com/redir.xml');
-    }
-}
-
-final class SsoPolicyProbe
-{
-    public static function enforced(): bool
-    {
-        return \App\Services\Saml\SsoPolicy::enforceStaff();
     }
 }

@@ -50,6 +50,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
+        'microsoft_oid',
+        'microsoft_tid',
     ];
 
     /**
@@ -75,7 +77,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'mfa_preference'    => 'string',
             'mfa_prompted_at'    => 'datetime',
             'is_active'          => 'boolean',
-            'is_break_glass'     => 'boolean',
+            'password_login_allowed' => 'boolean',
+            'microsoft_linked_at' => 'datetime',
+            'microsoft_last_login_at' => 'datetime',
             'saml_last_login_at' => 'datetime',
         ];
     }

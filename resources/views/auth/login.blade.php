@@ -47,12 +47,13 @@
                 </div>
             </form>
 
-            @if (\App\Models\SamlConnection::query()->where('enabled', true)->exists())
+            @if (\App\Services\Microsoft\MicrosoftSettings::configured() || \App\Models\SamlConnection::query()->where('enabled', true)->exists())
                 <div class="dd-sso-divider" role="separator"><span>or</span></div>
                 <form method="POST" action="{{ route('sso.discover') }}" class="dd-sso-form">
                     @csrf
                     <x-label for="sso_email" value="{{ __('Work email') }}" />
-                    <x-input id="sso_email" class="block mt-1 w-full" type="email" name="email" autocomplete="username" required placeholder="you@company.com" />
+                    <x-input id="sso_email" class="block mt-1 w-full" type="email" name="email" autocomplete="username" placeholder="you@company.com" />
+                    <p class="mt-1 text-xs text-muted">{{ __('Type your work email first (or in the field above) so we can choose the right Microsoft sign-in.') }}</p>
                     @error('sso_email') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
                     <button type="submit" class="dd-sso-btn">
                         <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
@@ -88,6 +89,16 @@
     </style>
 
     <script>
+        (function () {
+            // One typed email serves both forms: the Microsoft button reuses what was entered above.
+            const main = document.getElementById('email');
+            const sso = document.getElementById('sso_email');
+            if (main && sso) {
+                if (!sso.value) sso.value = main.value;
+                main.addEventListener('input', function () { sso.value = main.value; });
+            }
+        })();
+
         (function () {
             const passwordInput = document.getElementById('password');
             const toggleButton = document.getElementById('togglePassword');

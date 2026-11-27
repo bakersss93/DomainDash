@@ -3,20 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client;
 use App\Models\SamlConnection;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Saml\ConnectionValidator;
 use App\Services\Saml\MetadataImporter;
 use App\Services\Saml\SamlException;
 use App\Services\Saml\SamlService;
+use App\Services\Auth\LoginPolicy;
+use App\Services\Microsoft\MicrosoftSettings;
 use App\Services\Saml\SsoPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
 
 /** Administrator-only (route group `role:Administrator`). */
 class SamlConnectionsController extends Controller
@@ -27,25 +26,27 @@ class SamlConnectionsController extends Controller
 
     public function index()
     {
-        $connections = SamlConnection::query()->with(['client', 'domains'])->withCount('users')->orderBy('type')->orderBy('name')->get();
-        $admins = User::role('Administrator')->where('is_active', true)->orderBy('name')->get();
+        $connections = SamlConnection::query()->with('domains')->withCount('users')->orderBy('name')->get();
+
+        $ms = MicrosoftSettings::all();
+        $ms['client_secret'] = $ms['client_secret'] !== '' ? \App\Support\Redactor::FORM_MASK : '';
 
         return view('admin.sso.index', [
             'connections' => $connections,
-            'sso' => SsoPolicy::settings(),
-            'admins' => $admins,
+            'policy' => LoginPolicy::settings(),
+            'ms' => $ms,
+            'msRedirectUri' => MicrosoftSettings::redirectUri(),
+            'passwordUsers' => User::query()->where('password_login_allowed', true)->orderBy('name')->get(['id', 'name', 'email', 'is_active']),
         ]);
     }
 
-    public function create(Request $request)
+    public function create()
     {
-        $type = $request->query('type') === 'client' ? SamlConnection::TYPE_CLIENT : SamlConnection::TYPE_STAFF;
         $connection = new SamlConnection([
-            'type' => $type,
-            'client_id' => $type === 'client' ? $request->query('client_id') : null,
+            'type' => SamlConnection::TYPE_STAFF,
             'jit_provisioning' => true,
-            // Staff connections default to local MFA ON (skip = false); client tenants are trusted to enforce their own MFA.
-            'skip_local_mfa' => $type === SamlConnection::TYPE_CLIENT,
+            // Secure default: keep DomainDash's own MFA unless explicitly told to trust Entra.
+            'skip_local_mfa' => false,
             'enabled' => false,
         ]);
 
@@ -81,10 +82,13 @@ class SamlConnectionsController extends Controller
         [$data, $errors] = $this->prepare($request, $connection);
         $this->throwIf($errors);
 
+        if ($connection->enabled && ! $data['enabled']) {
+            $this->guardLastConnection($connection);
+        }
+
         $old = $this->auditValues($connection);
         DB::transaction(function () use ($data, $connection) {
-            // type and client binding never change after creation.
-            $connection->update(collect($data)->except(['domains', 'type', 'client_id'])->all());
+            $connection->update(collect($data)->except(['domains', 'type'])->all());
             $connection->syncDomains($data['domains']);
         });
 
@@ -98,6 +102,10 @@ class SamlConnectionsController extends Controller
 
     public function destroy(SamlConnection $connection)
     {
+        if ($connection->enabled) {
+            $this->guardLastConnection($connection);
+        }
+
         $old = $this->auditValues($connection);
         $name = $connection->name;
         // Users keep their local account but lose the SSO link (FK nullOnDelete).
@@ -176,52 +184,13 @@ class SamlConnectionsController extends Controller
             ->with('sso_check_info', $info);
     }
 
-    /** "Enforce SSO for staff" and the break-glass accounts. */
-    public function updateSettings(Request $request)
+    /** Staff "Microsoft only" needs a working SAML connection: the last enabled one cannot be switched off or deleted. */
+    private function guardLastConnection(SamlConnection $connection): void
     {
-        $data = $request->validate([
-            'enforce_staff' => 'nullable|boolean',
-            'break_glass' => 'nullable|array',
-            'break_glass.*' => 'integer|exists:users,id',
-        ]);
-
-        $ids = array_map('intval', $data['break_glass'] ?? []);
-        $enforce = (bool) ($data['enforce_staff'] ?? false);
-
-        $candidates = User::query()->whereIn('id', $ids)->get();
-        foreach ($candidates as $u) {
-            if (! $u->hasRole('Administrator') || ! $u->is_active) {
-                throw ValidationException::withMessages(['break_glass' => "{$u->email} must be an active Administrator to be a break-glass account."]);
-            }
-            if ($u->saml_connection_id !== null) {
-                throw ValidationException::withMessages(['break_glass' => "{$u->email} is linked to single sign-on; a break-glass account must be local-only."]);
-            }
+        if (LoginPolicy::staffMode() === LoginPolicy::MICROSOFT_ONLY
+            && ! SamlConnection::query()->where('enabled', true)->whereKeyNot($connection->id)->exists()) {
+            throw ValidationException::withMessages(['enabled' => 'Password sign-in is closed for staff, so the last enabled SAML connection cannot be disabled or deleted. Reopen password sign-in under Login method policy first.']);
         }
-
-        if ($enforce) {
-            if ($candidates->isEmpty()) {
-                throw ValidationException::withMessages(['enforce_staff' => 'Choose at least one break-glass administrator before enforcing SSO, or you could lock everyone out.']);
-            }
-            if (! SamlConnection::query()->where('type', 'staff')->where('enabled', true)->exists()) {
-                throw ValidationException::withMessages(['enforce_staff' => 'Enable a staff SSO connection before enforcing SSO.']);
-            }
-        }
-
-        $before = SsoPolicy::settings();
-        $beforeIds = User::query()->where('is_break_glass', true)->pluck('id')->all();
-
-        DB::transaction(function () use ($ids, $enforce) {
-            User::query()->where('is_break_glass', true)->whereNotIn('id', $ids)->update(['is_break_glass' => false]);
-            User::query()->whereIn('id', $ids)->update(['is_break_glass' => true]);
-            Setting::put('sso', array_merge(SsoPolicy::settings(), ['enforce_staff' => $enforce]));
-        });
-
-        AuditLogger::logSystem('sso.settings.updated', 'Updated SSO enforcement settings', ['function' => 'sso'], [
-            'old_values' => ['enforce_staff' => $before['enforce_staff'], 'break_glass_user_ids' => $beforeIds],
-            'new_values' => ['enforce_staff' => $enforce, 'break_glass_user_ids' => $ids],
-        ]);
-
-        return back()->with('status', 'Sign-in policy saved.');
     }
 
     // ---------------------------------------------------------------------------------------------------
@@ -229,9 +198,17 @@ class SamlConnectionsController extends Controller
     private function prepare(Request $request, ?SamlConnection $existing): array
     {
         $in = $request->all();
-        if ($existing) {
-            $in['type'] = $existing->type;
-            $in['client_id'] = $existing->client_id;
+        $in['type'] = SamlConnection::TYPE_STAFF;
+
+        // Dynamic mapping form: one box of Entra group object IDs per staff role.
+        if (is_array($request->input('group_map'))) {
+            $rows = [];
+            foreach ($request->input('group_map') as $role => $ids) {
+                foreach (preg_split('/[\s,;]+/', (string) $ids, -1, PREG_SPLIT_NO_EMPTY) as $gid) {
+                    $rows[] = ['group_id' => $gid, 'role' => (string) $role];
+                }
+            }
+            $in['group_role_map'] = $rows;
         }
 
         // Metadata import (pasted XML wins over URL fetch). Imported values overwrite the typed IdP fields.
@@ -273,18 +250,17 @@ class SamlConnectionsController extends Controller
     {
         return [
             'connection' => $c,
-            'clients' => Client::query()->orderBy('business_name')->get(['id', 'business_name']),
-            'roles' => Role::query()->where('guard_name', 'web')->orderBy('name')->pluck('name'),
-            'customerRoles' => SsoPolicy::customerRoleNames(),
+            // Staff roles only, read from the roles table every time (custom roles appear automatically).
+            'roles' => SsoPolicy::staffRoleNames(),
             'domainsText' => $c->exists ? implode("\n", $c->domainList()) : '',
-            'mapText' => collect((array) $c->group_role_map)->map(fn ($r) => $r['group_id'].' = '.$r['role'])->implode("\n"),
+            'groupsByRole' => collect((array) $c->group_role_map)->groupBy('role')->map(fn ($rows) => $rows->pluck('group_id')->implode("\n"))->all(),
         ];
     }
 
     private function auditValues(SamlConnection $c): array
     {
         return $c->only([
-            'name', 'type', 'client_id', 'enabled', 'entra_tenant_id', 'idp_entity_id', 'idp_sso_url',
+            'name', 'type', 'enabled', 'entra_tenant_id', 'idp_entity_id', 'idp_sso_url',
             'default_role', 'jit_provisioning', 'skip_local_mfa', 'group_role_map',
         ]) + ['domains' => $c->domainList(), 'idp_x509_cert_set' => (bool) $c->idp_x509_cert, 'idp_x509_cert_2_set' => (bool) $c->idp_x509_cert_2];
     }

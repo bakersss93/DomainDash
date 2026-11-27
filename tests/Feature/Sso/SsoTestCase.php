@@ -37,11 +37,6 @@ abstract class SsoTestCase extends TestCase
         return SamlFixture::connection($attrs + ['type' => 'staff'], $domains, $this->idpKey);
     }
 
-    protected function clientConnection(array $attrs = [], array $domains = ['acme.com']): SamlConnection
-    {
-        return SamlFixture::connection($attrs + ['type' => 'client'], $domains, $this->idpKey);
-    }
-
     /** Start SP-initiated login and return the stored AuthnRequest ID. */
     protected function startLogin(SamlConnection $c): string
     {

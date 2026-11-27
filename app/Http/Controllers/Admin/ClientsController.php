@@ -84,6 +84,8 @@ class ClientsController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
+            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i'],
+            'login_method' => ['nullable', \Illuminate\Validation\Rule::in(['inherit', 'both', 'microsoft_only'])],
             'halopsa_reference' => 'nullable|string|max:255',
             'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
@@ -91,6 +93,7 @@ class ClientsController extends Controller
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated = $this->normaliseLoginFields($validated);
 
         $client = Client::create($validated);
 
@@ -102,6 +105,21 @@ class ClientsController extends Controller
 
         return redirect()->route('admin.clients.index')
             ->with('success', 'Client created successfully.');
+    }
+
+    /** Tenant lock is lower-cased; "Microsoft only" for a client needs Sign in with Microsoft to be configured. */
+    private function normaliseLoginFields(array $validated): array
+    {
+        $validated['microsoft_tenant_id'] = ($validated['microsoft_tenant_id'] ?? '') !== '' ? strtolower($validated['microsoft_tenant_id']) : null;
+        $validated['login_method'] = $validated['login_method'] ?? 'inherit';
+
+        if ($validated['login_method'] === 'microsoft_only' && \App\Services\Auth\LoginPolicy::clientMicrosoftOnlyProblems()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'login_method' => implode(' ', \App\Services\Auth\LoginPolicy::clientMicrosoftOnlyProblems()),
+            ]);
+        }
+
+        return $validated;
     }
 
     /**
@@ -130,6 +148,8 @@ class ClientsController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
+            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i'],
+            'login_method' => ['nullable', \Illuminate\Validation\Rule::in(['inherit', 'both', 'microsoft_only'])],
             'halopsa_reference' => 'nullable|string|max:255',
             'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
@@ -137,6 +157,7 @@ class ClientsController extends Controller
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated = $this->normaliseLoginFields($validated);
 
         Log::info('Validation passed', [
             'validated_data' => $validated

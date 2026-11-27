@@ -25,6 +25,8 @@ class Client extends Model
         'halo_recurring_invoice_name',
         'itglue_org_id',
         'itglue_org_name',    // Added
+        'microsoft_tenant_id',
+        'login_method',
         'active'
     ];
 

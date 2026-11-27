@@ -62,6 +62,24 @@
                     @enderror
                 </div>
 
+                {{-- Microsoft sign-in --}}
+                <div style="margin-bottom:12px;">
+                    <label for="microsoft_tenant_id" style="display:block;font-size:14px;margin-bottom:4px;">Allowed Microsoft tenant ID (optional)</label>
+                    <input id="microsoft_tenant_id" name="microsoft_tenant_id" type="text" placeholder="00000000-0000-0000-0000-000000000000"
+                           value="{{ old('microsoft_tenant_id', $client->microsoft_tenant_id) }}" style="width:100%;">
+                    <div style="font-size:12px;color:var(--dd-text-soft);margin-top:2px;">Locks this client's users to one Microsoft tenant. Filled in automatically the first time a user links their Microsoft account.</div>
+                    @error('microsoft_tenant_id')<div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>@enderror
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label for="login_method" style="display:block;font-size:14px;margin-bottom:4px;">Sign-in method</label>
+                    <select id="login_method" name="login_method" style="width:100%;">
+                        @foreach (['inherit' => 'Use the global client policy', 'both' => 'Password and Microsoft', 'microsoft_only' => 'Microsoft only'] as $val => $label)
+                            <option value="{{ $val }}" @selected(old('login_method', $client->login_method ?? 'inherit') === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('login_method')<div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>@enderror
+                </div>
+
                 {{-- HaloPSA reference --}}
                 <div style="margin-bottom:12px;">
                     <label for="halopsa_reference_display" style="display:block;font-size:14px;margin-bottom:4px;">
@@ -269,16 +287,6 @@
 
         {{-- Integration Actions (only show for existing clients) --}}
         @if($client->exists)
-            @php $ssoConnections = \App\Models\SamlConnection::where('client_id', $client->id)->get(); @endphp
-            <div class="dd-card" style="margin-bottom:24px;">
-                <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Single sign-on (Microsoft Entra ID)</h2>
-                @forelse($ssoConnections as $sso)
-                    <p style="margin-bottom:8px;"><a href="{{ route('admin.sso.edit', $sso) }}">{{ $sso->name }}</a> &mdash; {{ $sso->enabled ? 'enabled' : 'disabled' }}</p>
-                @empty
-                    <p style="margin-bottom:8px;">This client signs in with a password. Add a connection so their staff can use their own Microsoft tenant.</p>
-                @endforelse
-                <a class="ui-btn ui-btn--secondary" href="{{ route('admin.sso.create', ['type' => 'client', 'client_id' => $client->id]) }}">Add SSO connection</a>
-            </div>
             <div class="dd-card" style="margin-bottom:24px;">
                 <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Integration Actions</h2>
 

@@ -14,10 +14,9 @@ use Spatie\Permission\Models\Role;
  *
  * Isolation rules (tested in tests/Feature/Sso/SsoTenantIsolationTest):
  *  - users are found by (connection, Entra object ID) first; email is used only for the first link
- *  - a CLIENT connection only ever resolves to a non-staff user bound to exactly its own client
- *  - a client connection never assigns a role that is not customer-safe (ignored at login even if stored)
- *  - a STAFF connection never touches a user who belongs to a client
- *  - break-glass accounts and users already linked elsewhere are never linked
+ *  - SAML is staff-only: a connection never touches a user who belongs to a client, and never assigns a
+ *    customer-class role (clients use Microsoft sign-in, App\Services\Microsoft\MicrosoftUserResolver)
+ *  - users already linked elsewhere are never linked
  *  - roles are re-derived from the groups on every login; no mapped group means denial
  */
 class SamlUserProvisioner
@@ -56,9 +55,6 @@ class SamlUserProvisioner
             if (! $user->is_active) {
                 throw new SamlException('This account is disabled. Please contact your administrator.', 'inactive', ['user_id' => $user->id]);
             }
-            if ($user->is_break_glass) {
-                throw new SamlException('This account cannot sign in through single sign-on.', 'break_glass', ['user_id' => $user->id]);
-            }
             $this->assertBoundToConnection($c, $user, $isFirstLink);
         }
 
@@ -95,10 +91,6 @@ class SamlUserProvisioner
 
             $user->syncRoles($roles);
 
-            if ($c->isClient()) {
-                $user->clients()->sync([$c->client_id]);
-            }
-
             return $user;
         });
     }
@@ -119,10 +111,8 @@ class SamlUserProvisioner
 
         $roles = array_values(array_unique($roles));
 
-        if ($c->isClient()) {
-            // Ignored (not an error) at login: a stored staff mapping on a client connection grants nothing.
-            $roles = array_values(array_filter($roles, fn ($r) => SsoPolicy::isCustomerSafeRole($r)));
-        }
+        // Customer-class roles can never come from SAML (also refused at save time; ignored here even if stored).
+        $roles = array_values(array_filter($roles, fn ($r) => ! SsoPolicy::isCustomerSafeRole($r)));
 
         return array_values(array_filter($roles, fn ($r) => Role::query()->where('name', $r)->where('guard_name', 'web')->exists()));
     }
@@ -130,10 +120,6 @@ class SamlUserProvisioner
     /** First-link-by-email guard. */
     private function assertLinkable(SamlConnection $c, User $existing): void
     {
-        if ($existing->is_break_glass) {
-            throw new SamlException('This account cannot sign in through single sign-on.', 'break_glass', ['user_id' => $existing->id]);
-        }
-
         if ($existing->saml_connection_id !== null) {
             throw new SamlException('This account is already linked to a different sign-in identity.', 'already_linked', ['user_id' => $existing->id]);
         }
@@ -143,22 +129,11 @@ class SamlUserProvisioner
     {
         $clientIds = $user->clients()->pluck('clients.id')->all();
 
-        if ($c->isClient()) {
-            if (SsoPolicy::isStaff($user)) {
-                throw new SamlException('This account is not a client portal account.', 'staff_on_client_connection', ['user_id' => $user->id]);
-            }
-            // Exactly this client, always: unbound or multi-client accounts are never adopted or kept by a tenant,
-            // and an administrator removing the assignment is not undone by the next sign-in.
-            if (array_map('intval', array_values(array_unique($clientIds))) !== [(int) $c->client_id]) {
-                throw new SamlException('This account is not assigned to this client.', 'wrong_client', ['user_id' => $user->id]);
-            }
-
-            return;
-        }
-
-        // Staff connection.
         if ($clientIds !== []) {
             throw new SamlException('This account is a client portal account and cannot use staff sign-in.', 'client_user_on_staff_connection', ['user_id' => $user->id]);
+        }
+        if ($user->microsoft_oid !== null) {
+            throw new SamlException('This account is linked to Microsoft client sign-in and cannot use staff sign-in.', 'microsoft_linked_user', ['user_id' => $user->id]);
         }
         if ($user->saml_connection_id !== null && $user->saml_connection_id !== $c->id) {
             throw new SamlException('This account is linked to a different connection.', 'wrong_connection', ['user_id' => $user->id]);

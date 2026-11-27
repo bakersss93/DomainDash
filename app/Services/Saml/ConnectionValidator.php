@@ -2,7 +2,6 @@
 
 namespace App\Services\Saml;
 
-use App\Models\Client;
 use App\Models\SamlConnection;
 use App\Models\SamlConnectionDomain;
 use App\Rules\SafeExternalUrl;
@@ -21,11 +20,10 @@ class ConnectionValidator
     public function validate(array $in, ?SamlConnection $existing = null): array
     {
         $errors = [];
-        $type = $in['type'] ?? $existing?->type;
+        $type = SamlConnection::TYPE_STAFF; // SAML is staff-only; any other submitted type is ignored
         $data = [
             'name' => trim((string) ($in['name'] ?? '')),
             'type' => $type,
-            'client_id' => $type === SamlConnection::TYPE_CLIENT ? ($in['client_id'] ?? null) : null,
             'enabled' => (bool) ($in['enabled'] ?? false),
             'entra_tenant_id' => strtolower(trim((string) ($in['entra_tenant_id'] ?? ''))),
             'idp_entity_id' => trim((string) ($in['idp_entity_id'] ?? '')),
@@ -43,14 +41,6 @@ class ConnectionValidator
 
         if ($data['name'] === '') {
             $errors['name'] = 'A name is required.';
-        }
-
-        if (! in_array($type, [SamlConnection::TYPE_STAFF, SamlConnection::TYPE_CLIENT], true)) {
-            $errors['type'] = 'Type must be staff or client.';
-        }
-
-        if ($type === SamlConnection::TYPE_CLIENT && ! Client::query()->whereKey($data['client_id'])->exists()) {
-            $errors['client_id'] = 'A client connection must be bound to an existing client.';
         }
 
         if (! preg_match(self::GUID, $data['entra_tenant_id'])) {
@@ -122,9 +112,9 @@ class ConnectionValidator
 
                 return;
             }
-            if ($data['type'] === SamlConnection::TYPE_CLIENT && ! SsoPolicy::isCustomerSafeRole($role)) {
+            if (SsoPolicy::isCustomerSafeRole($role)) {
                 $field = $role === $data['default_role'] && ! collect($map)->contains('role', $role) ? 'default_role' : 'group_role_map';
-                $errors[$field] = "Client connections can only assign customer roles; \"{$role}\" is a staff role.";
+                $errors[$field] = "Single sign-on connections can only assign staff roles; \"{$role}\" is a customer role. Clients use Microsoft sign-in.";
 
                 return;
             }
@@ -142,21 +132,6 @@ class ConnectionValidator
                 $errors['domains'] = "The domain {$d} is already claimed by another connection.";
 
                 return;
-            }
-
-            // Staff and client domains must not overlap or nest in either direction.
-            $otherType = $data['type'] === SamlConnection::TYPE_CLIENT ? SamlConnection::TYPE_STAFF : SamlConnection::TYPE_CLIENT;
-            $otherDomains = SamlConnectionDomain::query()
-                ->whereIn('saml_connection_id', SamlConnection::query()->where('type', $otherType)->pluck('id'))
-                ->pluck('domain');
-            foreach ($otherDomains as $od) {
-                if ($d === $od || str_ends_with($d, '.'.$od) || str_ends_with($od, '.'.$d)) {
-                    $errors['domains'] = $data['type'] === SamlConnection::TYPE_CLIENT
-                        ? "The domain {$d} overlaps a staff sign-in domain ({$od}) and cannot be used by a client connection."
-                        : "The domain {$d} overlaps a client connection domain ({$od}) and cannot be used by a staff connection.";
-
-                    return;
-                }
             }
         }
     }

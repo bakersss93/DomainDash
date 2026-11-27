@@ -30,102 +30,28 @@ class SsoTenantIsolationTest extends SsoTestCase
         return $u;
     }
 
-    // ---- client connection can only produce customers bound to its own client ---------------------------
+    // ---- SAML is staff-only ---------------------------------------------------------------------------------
 
-    public function test_client_connection_jit_creates_customer_bound_only_to_its_client(): void
-    {
-        $client = Client::create(['business_name' => 'Acme']);
-        $other = Client::create(['business_name' => 'Other']);
-        $c = $this->clientConnection(['client_id' => $client->id, 'group_role_map' => [['group_id' => self::GROUP_CUSTOMER, 'role' => 'Customer']]]);
-
-        $this->ssoLogin($c, ['email' => 'bob@acme.com', 'groups' => [self::GROUP_CUSTOMER]])->assertRedirect();
-
-        $user = User::where('email', 'bob@acme.com')->firstOrFail();
-        $this->assertSame(['Customer'], $user->getRoleNames()->all());
-        $this->assertSame([$client->id], $user->clients()->pluck('clients.id')->all());
-        $this->assertFalse($user->clients->contains($other));
-    }
-
-    public function test_stored_staff_mapping_on_client_connection_is_ignored_at_login(): void
+    public function test_customer_class_roles_never_come_from_saml_even_if_stored(): void
     {
         // Bypass the save-time validator on purpose: simulates a poisoned row / manual DB edit.
-        $c = $this->clientConnection(['group_role_map' => [
-            ['group_id' => self::GROUP_ADMIN, 'role' => 'Administrator'],
-            ['group_id' => self::GROUP_CUSTOMER, 'role' => 'Customer'],
-        ]]);
+        $c = $this->staffConnection(['group_role_map' => [['group_id' => self::GROUP_CUSTOMER, 'role' => 'Customer']]]);
 
-        $this->ssoLogin($c, ['email' => 'mallory@acme.com', 'groups' => [self::GROUP_ADMIN, self::GROUP_CUSTOMER]])->assertRedirect();
-
-        $user = User::where('email', 'mallory@acme.com')->firstOrFail();
-        $this->assertSame(['Customer'], $user->getRoleNames()->all());
-        $this->assertFalse($user->hasRole('Administrator'));
-    }
-
-    public function test_client_connection_with_only_a_staff_mapping_denies_login(): void
-    {
-        $c = $this->clientConnection(['group_role_map' => [['group_id' => self::GROUP_ADMIN, 'role' => 'Administrator']], 'default_role' => 'Technician']);
-
-        $this->ssoLogin($c, ['email' => 'mallory@acme.com', 'groups' => [self::GROUP_ADMIN]])->assertRedirect(route('login'));
+        $this->ssoLogin($c, ['email' => 'bob@contoso.com', 'groups' => [self::GROUP_CUSTOMER]])->assertRedirect(route('login'));
 
         $this->assertGuest();
-        $this->assertSame(0, User::where('email', 'mallory@acme.com')->count());
+        $this->assertSame(0, User::where('email', 'bob@contoso.com')->count());
         $this->assertContains('no_group_match', $this->failedReasons());
     }
 
-    public function test_save_time_validation_rejects_staff_roles_on_client_connections(): void
-    {
-        $client = Client::create(['business_name' => 'Acme']);
-        $payload = [
-            'name' => 'Acme', 'type' => 'client', 'client_id' => $client->id, 'entra_tenant_id' => SamlFixtureTenant::ID,
-            'idp_entity_id' => 'https://sts.windows.net/'.SamlFixtureTenant::ID.'/',
-            'idp_sso_url' => 'https://login.microsoftonline.com/x/saml2', 'idp_x509_cert' => $this->idpKey['cert'],
-            'domains' => 'acme.com', 'group_role_map' => self::GROUP_ADMIN.' = Administrator',
-        ];
-
-        $this->actingAs($this->admin())->post(route('admin.sso.store'), $payload)->assertSessionHasErrors('group_role_map');
-        $this->assertSame(0, SamlConnection::count());
-
-        $this->post(route('admin.sso.store'), array_merge($payload, ['group_role_map' => '', 'default_role' => 'Technician']))->assertSessionHasErrors('default_role');
-        $this->post(route('admin.sso.store'), array_merge($payload, ['group_role_map' => self::GROUP_CUSTOMER.' = Customer']))->assertSessionHasNoErrors();
-        $this->assertSame(1, SamlConnection::count());
-    }
-
-    public function test_customer_role_that_gained_privileged_permissions_is_not_customer_safe(): void
-    {
-        Role::findByName('Customer')->givePermissionTo('users.manage');
-        $c = $this->clientConnection(['group_role_map' => [['group_id' => self::GROUP_CUSTOMER, 'role' => 'Customer']]]);
-
-        $this->ssoLogin($c, ['email' => 'bob@acme.com', 'groups' => [self::GROUP_CUSTOMER]])->assertRedirect(route('login'));
-        $this->assertGuest();
-    }
-
-    // ---- email-domain discovery -------------------------------------------------------------------------
-
-    public function test_client_connection_cannot_claim_staff_domain_or_its_subdomains(): void
+    public function test_domain_cannot_be_claimed_by_two_connections_in_the_admin_form(): void
     {
         $this->staffConnection([], ['contoso.com']);
-        $client = Client::create(['business_name' => 'Acme']);
-        $base = [
-            'name' => 'Acme', 'type' => 'client', 'client_id' => $client->id, 'entra_tenant_id' => SamlFixtureTenant::ID,
-            'idp_entity_id' => 'https://sts.windows.net/'.SamlFixtureTenant::ID.'/',
-            'idp_sso_url' => 'https://login.microsoftonline.com/x/saml2', 'idp_x509_cert' => $this->idpKey['cert'],
-        ];
-        $this->actingAs($this->admin());
-
-        $this->post(route('admin.sso.store'), $base + ['domains' => 'contoso.com'])->assertSessionHasErrors('domains');
-        $this->post(route('admin.sso.store'), $base + ['domains' => 'it.contoso.com'])->assertSessionHasErrors('domains');
-        $this->assertSame(1, SamlConnection::count());
-    }
-
-    public function test_domain_cannot_be_claimed_by_two_connections(): void
-    {
-        $this->clientConnection([], ['acme.com']);
-        $client = Client::create(['business_name' => 'Rival']);
         $payload = [
-            'name' => 'Rival', 'type' => 'client', 'client_id' => $client->id, 'entra_tenant_id' => SamlFixtureTenant::ID,
+            'name' => 'Rival', 'entra_tenant_id' => SamlFixtureTenant::ID,
             'idp_entity_id' => 'https://sts.windows.net/'.SamlFixtureTenant::ID.'/',
             'idp_sso_url' => 'https://login.microsoftonline.com/x/saml2', 'idp_x509_cert' => $this->idpKey['cert'],
-            'domains' => 'ACME.com',
+            'domains' => 'CONTOSO.com',
         ];
 
         $this->actingAs($this->admin())->post(route('admin.sso.store'), $payload)->assertSessionHasErrors('domains');
@@ -133,22 +59,57 @@ class SsoTenantIsolationTest extends SsoTestCase
 
     public function test_database_enforces_domain_uniqueness_across_connections(): void
     {
-        $a = $this->clientConnection([], ['acme.com']);
-        $b = $this->clientConnection([], ['other.com']);
+        $this->staffConnection([], ['contoso.com']);
+        $b = $this->staffConnection([], ['other.com']);
 
         $this->expectException(QueryException::class);
-        SamlConnectionDomain::create(['saml_connection_id' => $b->id, 'domain' => 'acme.com']);
-        $this->assertNotNull($a);
+        SamlConnectionDomain::create(['saml_connection_id' => $b->id, 'domain' => 'contoso.com']);
     }
 
-    public function test_discovery_routes_to_the_connection_that_owns_the_domain_staff_first(): void
+    public function test_assertion_email_outside_the_connections_domains_is_refused(): void
+    {
+        $c = $this->staffConnection(['default_role' => 'Technician'], ['contoso.com']);
+
+        $this->ssoLogin($c, ['email' => 'ceo@elsewhere.com'])->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertSame(0, User::where('email', 'ceo@elsewhere.com')->count());
+        $this->assertContains('domain_not_allowed', $this->failedReasons());
+    }
+
+    public function test_microsoft_linked_client_user_is_never_taken_over_by_saml(): void
+    {
+        $user = User::factory()->create(['email' => 'amy@contoso.com', 'microsoft_oid' => 'aaaaaaaa-0000-0000-0000-0000000000aa', 'microsoft_tid' => SamlFixtureTenant::ID]);
+        $user->assignRole('Technician');
+        $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
+
+        $this->ssoLogin($c, ['email' => 'amy@contoso.com'])->assertRedirect(route('login'));
+
+        $this->assertGuest();
+        $this->assertNull($user->fresh()->saml_connection_id);
+        $this->assertContains('microsoft_linked_user', $this->failedReasons());
+    }
+
+    public function test_users_with_the_password_exception_can_also_use_sso(): void
+    {
+        $bg = User::factory()->create(['email' => 'breakglass@contoso.com', 'password_login_allowed' => true]);
+        $bg->assignRole('Administrator');
+        $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
+
+        $this->ssoLogin($c, ['email' => 'breakglass@contoso.com'])->assertRedirect();
+
+        $this->assertAuthenticatedAs($bg->fresh());
+        $this->assertTrue($bg->fresh()->password_login_allowed);
+    }
+
+    // ---- discovery (staff domains go to SAML; everything else to client OIDC) -------------------------------
+
+    public function test_discovery_routes_a_staff_domain_to_saml(): void
     {
         $staff = $this->staffConnection([], ['contoso.com']);
-        $client = $this->clientConnection([], ['acme.com']);
-        // Poisoned data: a client row sharing the staff domain can only exist by bypassing validation + unique index.
-        DB::table('saml_connection_domains')->where('saml_connection_id', $client->id)->update(['domain' => 'contoso.com.']);
 
         $this->post(route('sso.discover'), ['email' => 'x@contoso.com'])->assertRedirect(route('saml.login', $staff->uuid));
+        // Not configured for clients: unknown domain is told so.
         $this->post(route('sso.discover'), ['email' => 'x@unknown.org'])->assertRedirect(route('login'))->assertSessionHasErrors('sso_email');
     }
 
@@ -159,96 +120,7 @@ class SsoTenantIsolationTest extends SsoTestCase
         $this->post(route('sso.discover'), ['email' => 'x@contoso.com'])->assertRedirect(route('login'))->assertSessionHasErrors('sso_email');
     }
 
-    public function test_assertion_email_outside_the_connections_domains_is_refused(): void
-    {
-        $this->staffConnection([], ['contoso.com']);
-        $c = $this->clientConnection(['default_role' => 'Customer'], ['acme.com']);
-
-        // Client tenant admin asserts an address at the staff domain.
-        $this->ssoLogin($c, ['email' => 'ceo@contoso.com'])->assertRedirect(route('login'));
-
-        $this->assertGuest();
-        $this->assertSame(0, User::where('email', 'ceo@contoso.com')->count());
-        $this->assertContains('domain_not_allowed', $this->failedReasons());
-    }
-
-    // ---- cross-client / staff linking -------------------------------------------------------------------
-
-    public function test_local_user_of_client_a_is_never_linked_via_client_b(): void
-    {
-        $a = Client::create(['business_name' => 'A']);
-        $b = Client::create(['business_name' => 'B']);
-        $victim = User::factory()->create(['email' => 'pat@shared.com']);
-        $victim->assignRole('Customer');
-        $victim->clients()->attach($a->id);
-        $connB = $this->clientConnection(['client_id' => $b->id, 'default_role' => 'Customer'], ['shared.com']);
-
-        $this->ssoLogin($connB, ['email' => 'pat@shared.com'])->assertRedirect(route('login'));
-
-        $this->assertGuest();
-        $victim->refresh();
-        $this->assertNull($victim->saml_connection_id);
-        $this->assertNull($victim->saml_object_id);
-        $this->assertSame([$a->id], $victim->clients()->pluck('clients.id')->all());
-        $this->assertContains('wrong_client', $this->failedReasons());
-    }
-
-    public function test_user_linked_to_client_b_connection_cannot_be_reached_from_client_a_connection(): void
-    {
-        $a = Client::create(['business_name' => 'A']);
-        $b = Client::create(['business_name' => 'B']);
-        $connA = $this->clientConnection(['client_id' => $a->id, 'default_role' => 'Customer'], ['a.com']);
-        $connB = $this->clientConnection(['client_id' => $b->id, 'default_role' => 'Customer'], ['b.com']);
-        $this->ssoLogin($connB, ['email' => 'pat@b.com', 'objectId' => 'bbbbbbbb-0000-0000-0000-000000000009'])->assertRedirect();
-        auth()->logout();
-
-        // Tenant A asserts the same object id AND the same email address.
-        $this->ssoLogin($connA, ['email' => 'pat@b.com', 'objectId' => 'bbbbbbbb-0000-0000-0000-000000000009'])->assertRedirect(route('login'));
-
-        $this->assertGuest();
-        $pat = User::where('email', 'pat@b.com')->first();
-        $this->assertSame($connB->id, $pat->saml_connection_id);
-        $this->assertSame([$b->id], $pat->clients()->pluck('clients.id')->all());
-    }
-
-    public function test_staff_user_is_never_linked_by_a_client_connection(): void
-    {
-        $tech = User::factory()->create(['email' => 'tina@acme.com']);
-        $tech->assignRole('Technician');
-        $c = $this->clientConnection(['default_role' => 'Customer'], ['acme.com']);
-
-        $this->ssoLogin($c, ['email' => 'tina@acme.com'])->assertRedirect(route('login'));
-
-        $this->assertGuest();
-        $this->assertNull($tech->fresh()->saml_connection_id);
-        $this->assertTrue($tech->fresh()->hasRole('Technician'));
-        $this->assertContains('staff_on_client_connection', $this->failedReasons());
-    }
-
-    public function test_unassigned_local_customer_is_not_adopted_by_a_client_tenant_on_email_match(): void
-    {
-        $orphan = User::factory()->create(['email' => 'zed@acme.com']);
-        $orphan->assignRole('Customer');
-        $c = $this->clientConnection(['default_role' => 'Customer'], ['acme.com']);
-
-        $this->ssoLogin($c, ['email' => 'zed@acme.com'])->assertRedirect(route('login'));
-        $this->assertGuest();
-    }
-
-    public function test_existing_local_user_of_this_client_links_on_first_login_and_roles_sync(): void
-    {
-        $client = Client::create(['business_name' => 'Acme']);
-        $user = User::factory()->create(['email' => 'amy@acme.com']);
-        $user->assignRole('Customer');
-        $user->clients()->attach($client->id);
-        $c = $this->clientConnection(['client_id' => $client->id, 'default_role' => 'Customer'], ['acme.com']);
-
-        $this->ssoLogin($c, ['email' => 'AMY@acme.com', 'objectId' => 'aaaaaaaa-0000-0000-0000-0000000000aa'])->assertRedirect();
-
-        $this->assertAuthenticatedAs($user->fresh());
-        $this->assertSame($c->id, $user->fresh()->saml_connection_id);
-        $this->assertSame(1, User::count());
-    }
+    // ---- staff / client linking ---------------------------------------------------------------------------
 
     public function test_client_user_is_never_linked_by_staff_connection(): void
     {
@@ -275,19 +147,6 @@ class SsoTenantIsolationTest extends SsoTestCase
 
         $this->assertGuest();
         $this->assertNull($existing->fresh()->saml_connection_id);
-    }
-
-    public function test_break_glass_accounts_are_never_linked_or_logged_in_via_sso(): void
-    {
-        $bg = User::factory()->create(['email' => 'breakglass@contoso.com', 'is_break_glass' => true]);
-        $bg->assignRole('Administrator');
-        $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
-
-        $this->ssoLogin($c, ['email' => 'breakglass@contoso.com'])->assertRedirect(route('login'));
-
-        $this->assertGuest();
-        $this->assertNull($bg->fresh()->saml_connection_id);
-        $this->assertContains('break_glass', $this->failedReasons());
     }
 
     public function test_linked_user_is_matched_by_object_id_even_if_email_changes(): void

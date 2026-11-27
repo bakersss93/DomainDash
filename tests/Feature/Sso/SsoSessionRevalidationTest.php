@@ -85,15 +85,6 @@ class SsoSessionRevalidationTest extends SsoTestCase
         $res->assertViewIs('auth.mfa-required');
     }
 
-    public function test_staff_connection_defaults_to_local_mfa_and_client_to_trusting_entra(): void
-    {
-        $base = [
-            'name' => 'x', 'entra_tenant_id' => \Tests\Support\SamlFixture::TENANT, 'idp_entity_id' => 'x', 'idp_sso_url' => 'https://x.test', 'idp_x509_cert' => 'x',
-        ];
-        $this->assertFalse(SamlConnection::create($base + ['type' => 'staff'])->fresh()->skip_local_mfa);
-        $this->assertTrue(SamlConnection::create($base + ['type' => 'client'])->fresh()->skip_local_mfa);
-    }
-
     public function test_create_form_defaults_and_warns(): void
     {
         $admin = User::factory()->create(['two_factor_secret' => encrypt('S'), 'two_factor_confirmed_at' => now()]);
@@ -115,30 +106,27 @@ class SsoSessionRevalidationTest extends SsoTestCase
         $this->assertFalse(SsoPolicy::isCustomerSafeRole('Customer'));
     }
 
-    public function test_domain_claims_are_checked_symmetrically(): void
+    public function test_connections_default_to_local_mfa_and_are_always_staff(): void
+    {
+        $base = [
+            'name' => 'x', 'entra_tenant_id' => \Tests\Support\SamlFixture::TENANT, 'idp_entity_id' => 'x', 'idp_sso_url' => 'https://x.test', 'idp_x509_cert' => 'x',
+        ];
+        $this->assertFalse(SamlConnection::create($base + ['type' => 'staff'])->fresh()->skip_local_mfa);
+        $c = SamlConnection::create($base + ['type' => 'client'])->fresh();
+        $this->assertFalse($c->skip_local_mfa);
+        $this->assertSame('staff', $c->type, 'a client type can never be stored');
+    }
+
+    public function test_domain_cannot_be_claimed_by_two_connections(): void
     {
         $this->staffConnection([], ['contoso.com']);
-        $this->clientConnection([], ['acme.com']);
         $v = new ConnectionValidator();
         $base = [
             'name' => 'n', 'entra_tenant_id' => \Tests\Support\SamlFixture::TENANT, 'idp_entity_id' => 'https://sts.windows.net/'.\Tests\Support\SamlFixture::TENANT.'/',
-            'idp_sso_url' => 'https://login.microsoftonline.com/x/saml2', 'idp_x509_cert' => 'x',
+            'idp_sso_url' => 'https://login.microsoftonline.com/x/saml2', 'idp_x509_cert' => 'x', 'domains' => 'CONTOSO.com',
         ];
 
-        // client claims subdomain of staff domain
-        [, $e] = $v->validate($base + ['type' => 'client', 'client_id' => 1, 'domains' => 'eu.contoso.com']);
-        $this->assertArrayHasKey('domains', $e);
-        // staff claims subdomain of client domain
-        [, $e] = $v->validate($base + ['type' => 'staff', 'domains' => 'eu.acme.com']);
-        $this->assertArrayHasKey('domains', $e);
-        $this->assertStringContainsString('client connection', $e['domains']);
-        // staff claims parent of client domain
-        $this->clientConnection([], ['eu.fabrikam.com']);
-        [, $e] = $v->validate($base + ['type' => 'staff', 'domains' => 'fabrikam.com']);
-        $this->assertArrayHasKey('domains', $e);
-        // client claims parent of staff domain
-        $this->staffConnection([], ['it.northwind.com']);
-        [, $e] = $v->validate($base + ['type' => 'client', 'client_id' => 1, 'domains' => 'northwind.com']);
+        [, $e] = $v->validate($base);
         $this->assertArrayHasKey('domains', $e);
     }
 }

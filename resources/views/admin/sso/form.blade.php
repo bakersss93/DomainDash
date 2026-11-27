@@ -3,12 +3,11 @@
 @section('content')
     @php
         $c = $connection;
-        $isClient = $c->type === 'client';
         $v = fn ($f, $d = null) => old($f, $c->$f ?? $d);
     @endphp
     <div class="ui-page" style="max-width: 980px;">
-        <x-ui.page-header :title="$c->exists ? 'Edit SSO connection' : ($isClient ? 'New client SSO connection' : 'New staff SSO connection')"
-                          subtitle="Microsoft Entra ID (SAML 2.0). Fill in the Entra side, then paste the values from the first card into the Entra enterprise application.">
+        <x-ui.page-header :title="$c->exists ? 'Edit staff SSO connection' : 'New staff SSO connection'"
+                          subtitle="Microsoft Entra ID (SAML 2.0) for your own staff. Fill in the Entra side, then paste the values from the first card into the Entra enterprise application.">
             <x-slot name="actions">
                 <x-ui.button :href="route('admin.sso.index')" variant="secondary">Back</x-ui.button>
             </x-slot>
@@ -61,22 +60,12 @@
             @endunless
 
             <x-ui.card title="General">
-                <x-ui.field label="Name" name="name" :value="$v('name')" required help="Shown to admins only, e.g. &quot;Jargon staff&quot; or &quot;Acme Pty Ltd&quot;." />
+                <x-ui.field label="Name" name="name" :value="$v('name')" required help="Shown to admins only, e.g. &quot;Staff sign-in&quot;." />
 
-                @if ($isClient)
-                    <x-ui.field label="Client" name="client_id" as="select" required :help="$c->exists ? 'A connection stays bound to its client for life.' : 'Everyone who signs in through this connection is bound to this client only.'" :disabled="$c->exists">
-                        <option value="">Select a client</option>
-                        @foreach ($clients as $client)
-                            <option value="{{ $client->id }}" @selected((string) $v('client_id') === (string) $client->id)>{{ $client->business_name }}</option>
-                        @endforeach
-                    </x-ui.field>
-                    @if ($c->exists)<input type="hidden" name="client_id" value="{{ $c->client_id }}">@endif
-                @else
-                    <p class="ui-help">Staff connection: signs in your own team. Staff roles can only ever come from a staff connection.</p>
-                @endif
+                <p class="ui-help">Staff only: this connection signs in your own team. Client users sign in with Microsoft sign-in (see Single sign-on).</p>
 
                 <x-ui.field label="Allowed email domains" name="domains" as="textarea" rows="3" :value="old('domains', $domainsText)"
-                            help="One per line. Used to route people to this connection from the login page, and every sign-in must come from one of these domains. A domain can belong to one connection only." />
+                            help="One per line, for example contoso.com. Used to route people to this connection from the login page, and every sign-in must come from one of these domains. A domain can belong to one connection only." />
 
                 <div class="ui-field">
                     <input type="hidden" name="enabled" value="0">
@@ -106,12 +95,22 @@
             </x-ui.card>
 
             <x-ui.card title="Who gets in, and with which role">
-                <x-ui.field label="Group to role mapping" name="group_role_map" as="textarea" rows="5" :value="old('group_role_map', $mapText)"
-                            :help="$isClient ? 'One per line: Entra group Object ID = Role. Client connections can only map customer roles ('.implode(', ', $customerRoles).').' : 'One per line: Entra group Object ID = Role (for example 11111111-2222-3333-4444-555555555555 = Technician).'" />
+                <fieldset class="ui-field">
+                    <legend class="ui-label">Entra group to role mapping</legend>
+                    <p class="ui-help">For each role, paste the Object ID of the Entra security group whose members get it (one per line, several groups allowed). Only staff roles are listed; the list follows the roles defined in DomainDash. Roles are re-read from the groups on every sign-in.</p>
+                    @forelse ($roles as $r)
+                        <div class="ui-field">
+                            <label class="ui-label" for="group_map_{{ \Illuminate\Support\Str::slug($r) }}">{{ $r }}</label>
+                            <textarea class="ui-input" id="group_map_{{ \Illuminate\Support\Str::slug($r) }}" name="group_map[{{ $r }}]" rows="2" placeholder="11111111-2222-3333-4444-555555555555">{{ old('group_map.'.$r, $groupsByRole[$r] ?? '') }}</textarea>
+                        </div>
+                    @empty
+                        <p class="ui-help">No staff roles exist yet.</p>
+                    @endforelse
+                    @error('group_role_map')<div class="ui-error" role="alert">{{ $message }}</div>@enderror
+                </fieldset>
                 <x-ui.field label="Default role (when no group matches)" name="default_role" as="select" help="Leave blank to deny sign-in when no mapped group matches.">
                     <option value="">None (deny)</option>
                     @foreach ($roles as $r)
-                        @continue($isClient && ! in_array($r, $customerRoles, true))
                         <option value="{{ $r }}" @selected($v('default_role') === $r)>{{ $r }}</option>
                     @endforeach
                 </x-ui.field>
@@ -126,7 +125,7 @@
                         <span>Trust Microsoft for MFA (skip DomainDash's own MFA for SSO sign-ins)<small class="ui-help" style="display:block"><strong>Warning:</strong> enabling this relies entirely on Entra Conditional Access enforcing MFA for this application. If no such policy exists, SSO users will sign in with a password only. Leave unticked for staff unless you have verified the policy.</small></span></label>
                 </div>
                 <x-slot name="footer">
-                    <span class="ui-card__hint">Roles are re-read from the groups on every sign-in.</span>
+                    <span class="ui-card__hint">Accounts are matched by Entra object ID after the first sign-in.</span>
                     <x-ui.button type="submit" variant="primary">{{ $c->exists ? 'Save connection' : 'Create connection' }}</x-ui.button>
                 </x-slot>
             </x-ui.card>

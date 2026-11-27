@@ -28,7 +28,11 @@ Route::post('/saml/{connection}/acs', [\App\Http\Controllers\Auth\SamlController
     ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
     ->middleware('throttle:30,1')
     ->name('saml.acs');
-Route::post('/sso/discover', [\App\Http\Controllers\Auth\SamlController::class, 'discover'])->middleware('throttle:10,1')->name('sso.discover');
+
+// "Sign in with Microsoft": one button. Staff domains are sent to SAML, everyone else to client OIDC.
+Route::post('/sso/discover', [\App\Http\Controllers\Auth\MicrosoftController::class, 'discover'])->middleware('throttle:10,1')->name('sso.discover');
+Route::get('/auth/microsoft/redirect', [\App\Http\Controllers\Auth\MicrosoftController::class, 'redirect'])->middleware('throttle:20,1')->name('microsoft.redirect');
+Route::get('/auth/microsoft/callback', [\App\Http\Controllers\Auth\MicrosoftController::class, 'callback'])->middleware('throttle:30,1')->name('microsoft.callback');
 
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
 
@@ -126,8 +130,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
         Route::get('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'index'])->name('admin.sso.index');
         Route::get('/sso/create', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'create'])->name('admin.sso.create');
+        Route::post('/sso/microsoft', [\App\Http\Controllers\Admin\LoginPolicyController::class, 'updateMicrosoft'])->name('admin.sso.microsoft');
         Route::post('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'store'])->name('admin.sso.store');
-        Route::post('/sso/settings', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'updateSettings'])->name('admin.sso.settings');
+        Route::post('/sso/settings', [\App\Http\Controllers\Admin\LoginPolicyController::class, 'updatePolicy'])->name('admin.sso.settings');
         Route::get('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'edit'])->name('admin.sso.edit');
         Route::put('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'update'])->name('admin.sso.update');
         Route::delete('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'destroy'])->name('admin.sso.destroy');
@@ -292,6 +297,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/users/{user}/password', [UsersController::class, 'editPassword'])->name('admin.users.password.edit');
         Route::put('/users/{user}/password', [UsersController::class, 'updatePassword'])->name('admin.users.password.update');
         Route::post('/users/{user}/password-link', [UsersController::class, 'sendPasswordLink'])->name('admin.users.password.link');
+        Route::post('/users/{user}/microsoft-unlink', [UsersController::class, 'unlinkMicrosoft'])->name('admin.users.microsoft.unlink');
         Route::post('/users/{user}/mfa-reset', [UsersController::class, 'resetMfa'])->name('admin.users.mfa.reset');
         Route::post('/users/{user}/impersonate', [UsersController::class, 'impersonate'])->name('admin.users.impersonate');
 

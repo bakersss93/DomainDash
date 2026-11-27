@@ -51,8 +51,15 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
             }
 
-            // "Enforce SSO for staff": password sign-in is closed to staff except break-glass accounts.
-            \App\Services\Saml\SsoPolicy::assertPasswordLoginAllowed($user);
+            // Login-method policy (staff / clients / per client / per-user exception). The answer is the same as for a
+            // wrong password, so the form never confirms that the password was right; the attempt is audited.
+            if (! \App\Services\Auth\LoginPolicy::passwordAllowed($user)) {
+                \App\Services\AuditLogger::logSystem('auth.password.blocked_by_policy', "Password sign-in refused by login-method policy for {$user->email}", [
+                    'function' => 'sso', 'automated' => false, 'user_id' => $user->id, 'mode' => \App\Services\Auth\LoginPolicy::modeFor($user),
+                ], ['user_email' => $user->email]);
+
+                return null;
+            }
 
             return $user;
         });
