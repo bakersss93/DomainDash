@@ -231,3 +231,15 @@ Other notes:
   generated URLs will be `http://` and Entra will reject them.
 * Do not put a connection's SP values behind a login or IP allow-list: Microsoft's browser posts to the Reply URL
   directly, and this single URL is the only CSRF-exempt route (it is protected by the signed assertion instead).
+* **Password-confirm protected actions need a local password.** Revealing a domain EPP / auth code or a hosting
+  password asks the user to re-enter their DomainDash password. SSO-only staff have no local password, so they must set
+  one first (use "Forgot your password?" on the login page to send themselves a reset link). Without it those reveals
+  cannot be completed.
+* **Changing `APP_URL` changes the Entra values.** The Identifier (Entity ID), Reply URL (ACS) and Sign-on URL are
+  built from `APP_URL`. If the domain or scheme changes, update all of them in the Entra Enterprise Application,
+  otherwise sign-in fails with `AADSTS50011` / `AADSTS700016`. In production the application refuses to run if
+  `APP_URL` has no host.
+* **MFA trust is opt-in for staff.** "Trust Microsoft for MFA" is off by default for staff connections. Only enable it
+  after confirming a Conditional Access policy requires MFA for this application. SSO sessions are re-checked on every
+  request: disabling a connection, unlinking a user, or switching the option off ends or tightens existing sessions
+  immediately.

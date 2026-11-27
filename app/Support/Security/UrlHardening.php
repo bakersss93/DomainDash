@@ -23,7 +23,18 @@ class UrlHardening
     {
         $host = parse_url((string) config('app.url'), PHP_URL_HOST);
 
-        return $host ? ['^' . preg_quote(strtolower($host), '/') . '$'] : [];
+        if ($host) {
+            return ['^' . preg_quote(strtolower($host), '/') . '$'];
+        }
+
+        // No usable APP_URL host: in production an empty list would trust every Host header. Fail closed.
+        if (app()->environment('production')) {
+            \Illuminate\Support\Facades\Log::critical('APP_URL has no host; refusing to run without a trusted host (Host-header poisoning defence).');
+
+            throw new \RuntimeException('APP_URL must be set to a full URL (with host) in production.');
+        }
+
+        return [];
     }
 
     /** Pin generated URLs to APP_URL (and https when APP_URL is https). */

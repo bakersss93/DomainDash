@@ -145,4 +145,20 @@ class ApiUserRoleRestrictionTest extends TestCase
 
         $this->post('/api/v1/users', [], ['x-api-key' => $plain])->assertStatus(422)->assertJsonStructure(['errors']);
     }
+
+    public function test_technician_accounts_need_users_admin_scope_for_update_deactivate_and_delete(): void
+    {
+        $plain = $this->key(['users.write']);
+        $tech = User::factory()->create();
+        $tech->assignRole('Technician');
+
+        $this->putJson("/api/v1/users/{$tech->id}", ['is_active' => false], ['x-api-key' => $plain])->assertForbidden();
+        $this->putJson("/api/v1/users/{$tech->id}", ['role' => 'Customer'], ['x-api-key' => $plain])->assertForbidden();
+        $this->deleteJson("/api/v1/users/{$tech->id}", [], ['x-api-key' => $plain])->assertForbidden();
+        $this->assertTrue($tech->fresh()->hasRole('Technician'));
+        $this->assertTrue((bool) $tech->fresh()->is_active);
+
+        $admin = $this->key(['users.write', 'users.admin']);
+        $this->putJson("/api/v1/users/{$tech->id}", ['is_active' => false], ['x-api-key' => $admin])->assertOk();
+    }
 }

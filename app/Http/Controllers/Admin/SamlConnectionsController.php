@@ -44,7 +44,8 @@ class SamlConnectionsController extends Controller
             'type' => $type,
             'client_id' => $type === 'client' ? $request->query('client_id') : null,
             'jit_provisioning' => true,
-            'skip_local_mfa' => true,
+            // Staff connections default to local MFA ON (skip = false); client tenants are trusted to enforce their own MFA.
+            'skip_local_mfa' => $type === SamlConnection::TYPE_CLIENT,
             'enabled' => false,
         ]);
 

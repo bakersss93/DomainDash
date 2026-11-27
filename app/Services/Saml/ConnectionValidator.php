@@ -144,16 +144,18 @@ class ConnectionValidator
                 return;
             }
 
-            if ($data['type'] === SamlConnection::TYPE_CLIENT) {
-                $staffDomains = SamlConnectionDomain::query()
-                    ->whereIn('saml_connection_id', SamlConnection::query()->where('type', SamlConnection::TYPE_STAFF)->pluck('id'))
-                    ->pluck('domain');
-                foreach ($staffDomains as $sd) {
-                    if ($d === $sd || str_ends_with($d, '.'.$sd)) {
-                        $errors['domains'] = "The domain {$d} belongs to staff sign-in and cannot be used by a client connection.";
+            // Staff and client domains must not overlap or nest in either direction.
+            $otherType = $data['type'] === SamlConnection::TYPE_CLIENT ? SamlConnection::TYPE_STAFF : SamlConnection::TYPE_CLIENT;
+            $otherDomains = SamlConnectionDomain::query()
+                ->whereIn('saml_connection_id', SamlConnection::query()->where('type', $otherType)->pluck('id'))
+                ->pluck('domain');
+            foreach ($otherDomains as $od) {
+                if ($d === $od || str_ends_with($d, '.'.$od) || str_ends_with($od, '.'.$d)) {
+                    $errors['domains'] = $data['type'] === SamlConnection::TYPE_CLIENT
+                        ? "The domain {$d} overlaps a staff sign-in domain ({$od}) and cannot be used by a client connection."
+                        : "The domain {$d} overlaps a client connection domain ({$od}) and cannot be used by a staff connection.";
 
-                        return;
-                    }
+                    return;
                 }
             }
         }

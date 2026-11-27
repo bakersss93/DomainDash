@@ -53,6 +53,21 @@ class AuditRetentionFloorTest extends TestCase
         $this->assertNotNull(AuditLog::find($reveal->id));
     }
 
+    public function test_sso_events_are_security_events_kept_for_the_floor(): void
+    {
+        foreach (['sso.login.failed', 'sso.login.success', 'sso.connection.updated', 'sso.settings.updated'] as $a) {
+            $this->assertTrue(SecurityEvents::isSecurityAction($a), $a);
+        }
+
+        $failed = $this->row('sso.login.failed', 200);
+        $old = $this->row('sso.login.failed', 400);
+
+        AuditLogger::pruneOlderThanDays(30);
+
+        $this->assertNotNull(AuditLog::find($failed->id));
+        $this->assertNull(AuditLog::find($old->id));
+    }
+
     public function test_a_security_retention_below_the_floor_is_raised_to_the_floor(): void
     {
         Setting::put('audit', ['retention_days' => 7, 'retention_days_security' => 10]);

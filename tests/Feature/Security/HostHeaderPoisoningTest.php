@@ -31,6 +31,15 @@ class HostHeaderPoisoningTest extends TestCase
         $this->assertSame([], UrlHardening::trustedHostPatterns());
     }
 
+    public function test_missing_app_url_host_fails_closed_in_production(): void
+    {
+        config(['app.url' => '']);
+        $this->app['env'] = 'production';
+
+        $this->expectException(\RuntimeException::class);
+        UrlHardening::trustedHostPatterns();
+    }
+
     public function test_password_reset_link_uses_app_url_even_with_a_forged_host_header(): void
     {
         config(['app.url' => 'https://dash.example.com']);

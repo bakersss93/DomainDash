@@ -17,13 +17,19 @@ class EnsureMfaPolicy
 
         // Deactivated users lose existing sessions immediately.
         if ($user->is_active === false) {
-            \Illuminate\Support\Facades\Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            return $this->endSession($request, 'This user is disabled.');
+        }
 
-            return $request->expectsJson()
-                ? response()->json(['message' => 'This user is disabled.'], 403)
-                : redirect()->route('login');
+        // SSO sessions are re-validated on every request: the connection must still exist and be enabled, and the
+        // user must still be bound to it. Otherwise disabling a connection / unlinking a user ends the session.
+        $samlConnection = null;
+        if ($request->session()->get('auth.via') === 'saml') {
+            $samlConnection = \App\Models\SamlConnection::query()->find($request->session()->get('auth.saml_connection_id'));
+
+            if (! $samlConnection || ! $samlConnection->enabled
+                || (int) $user->saml_connection_id !== (int) $samlConnection->id) {
+                return $this->endSession($request, 'Your single sign-on session is no longer valid.');
+            }
         }
 
         // Fortify's two-factor management endpoints are not used by DomainDash (enrolment and
@@ -62,7 +68,8 @@ class EnsureMfaPolicy
 
         // Entra ID already enforced MFA / conditional access for this SSO session (connection setting),
         // which also satisfies the mandatory-MFA policy below.
-        if ($request->session()->get('auth.via') === 'saml' && $request->session()->get('auth.mfa_satisfied')) {
+        // The bypass only holds while the connection still says to trust Entra for MFA.
+        if ($samlConnection && $request->session()->get('auth.mfa_satisfied') && $samlConnection->skip_local_mfa) {
             $request->session()->forget('mfa.setup');
 
             return $next($request);
@@ -114,6 +121,17 @@ class EnsureMfaPolicy
         }
 
         return $next($request);
+    }
+
+    private function endSession(Request $request, string $message)
+    {
+        \Illuminate\Support\Facades\Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return $request->expectsJson()
+            ? response()->json(['message' => $message], 403)
+            : redirect()->route('login');
     }
 
     private function mustEnrol($user): bool

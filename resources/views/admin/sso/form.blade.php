@@ -123,7 +123,7 @@
                 <div class="ui-field">
                     <input type="hidden" name="skip_local_mfa" value="0">
                     <label class="flex items-start gap-2"><input type="checkbox" name="skip_local_mfa" value="1" @checked(old('skip_local_mfa', $c->skip_local_mfa))>
-                        <span>Trust Microsoft for MFA (skip DomainDash's own MFA for SSO sign-ins)<small class="ui-help" style="display:block">Only tick this if Entra conditional access requires MFA for this application.</small></span></label>
+                        <span>Trust Microsoft for MFA (skip DomainDash's own MFA for SSO sign-ins)<small class="ui-help" style="display:block"><strong>Warning:</strong> enabling this relies entirely on Entra Conditional Access enforcing MFA for this application. If no such policy exists, SSO users will sign in with a password only. Leave unticked for staff unless you have verified the policy.</small></span></label>
                 </div>
                 <x-slot name="footer">
                     <span class="ui-card__hint">Roles are re-read from the groups on every sign-in.</span>

@@ -27,7 +27,7 @@ class SsoPolicy
             return false;
         }
 
-        $privileged = (array) config('saml.privileged_permissions', []);
+        $privileged = \App\Support\Security\StaffPermissions::STAFF_ONLY;
 
         return $role->permissions->pluck('name')->intersect($privileged)->isEmpty();
     }

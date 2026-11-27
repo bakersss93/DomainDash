@@ -41,10 +41,20 @@ class RolePermissionSeeder extends Seeder
         $cust->syncPermissions(['domains.view','services.view','ssl.view','tickets.create']);
 
         // Ensure an initial admin exists (in case InitialAdminSeeder didn't run)
+        $existing = User::where('email', 'admin@domaindash.com')->exists();
+        $plain = null;
+        if (! $existing) {
+            // Never a fixed password. Use ADMIN_INITIAL_PASSWORD if supplied, otherwise generate one and print it once.
+            $plain = env('ADMIN_INITIAL_PASSWORD') ?: \Illuminate\Support\Str::password(24);
+        }
         $user = User::firstOrCreate(
             ['email' => 'admin@domaindash.com'],
-            ['name' => 'System Admin','password' => Hash::make('password')]
+            ['name' => 'System Admin', 'password' => Hash::make($plain ?? \Illuminate\Support\Str::random(40))]
         );
         $user->assignRole('Administrator');
+
+        if ($plain !== null && ! env('ADMIN_INITIAL_PASSWORD') && $this->command) {
+            $this->command->warn("Initial admin created: admin@domaindash.com / {$plain}  (shown once; change it after first sign-in)");
+        }
     }
 }

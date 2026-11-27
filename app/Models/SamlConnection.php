@@ -32,6 +32,10 @@ class SamlConnection extends Model
     {
         static::creating(function (self $c) {
             $c->uuid ??= (string) Str::uuid();
+            // Secure default: staff connections keep DomainDash's own MFA unless explicitly told to trust Entra.
+            if (! array_key_exists('skip_local_mfa', $c->getAttributes())) {
+                $c->skip_local_mfa = $c->type === self::TYPE_CLIENT;
+            }
         });
     }
 

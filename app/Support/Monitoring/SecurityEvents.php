@@ -15,7 +15,7 @@ class SecurityEvents
     /** Action prefixes / exact names. A trailing ".failed" variant is covered by the prefix match. */
     public const PATTERNS = [
         'auth.', 'impersonation.', 'domain.auth-code-read', 'hosting.password-reveal',
-        'apikey.', 'settings.', 'saml.', 'mfa.', 'user.', 'backup.', 'monitoring.settings',
+        'apikey.', 'settings.', 'saml.', 'sso.', 'mfa.', 'user.', 'backup.', 'monitoring.settings',
     ];
 
     public static function isSecurityAction(?string $action): bool
