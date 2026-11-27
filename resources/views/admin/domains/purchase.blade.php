@@ -292,7 +292,7 @@ function searchDomain() {
 
             resultDiv.innerHTML = `
                 <div class="dd-purchase-notice dd-purchase-notice-success">
-                    <p>${data.message}</p>
+                    <p>${ddEsc(data.message)}</p>
                 </div>
             `;
 
@@ -307,7 +307,7 @@ function searchDomain() {
         } else {
             resultDiv.innerHTML = `
                 <div class="dd-purchase-notice dd-purchase-notice-error">
-                    <p>${data.message || 'Domain is not available.'}</p>
+                    <p>${ddEsc(data.message || 'Domain is not available.')}</p>
                 </div>
             `;
             document.getElementById('step-au-validation').style.display = 'none';

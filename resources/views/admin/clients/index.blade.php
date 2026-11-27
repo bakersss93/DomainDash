@@ -692,8 +692,8 @@
             const list = document.getElementById('clientSyncResultDetailList');
             list.innerHTML = details.map((d, idx) => `
                 <div style="padding:10px 12px;${idx < details.length - 1 ? 'border-bottom:1px solid var(--border-subtle);' : ''}display:flex;flex-direction:column;gap:3px;">
-                    <span style="font-size:13px;font-weight:600;color:var(--text);">${d.label}</span>
-                    <span style="font-size:13px;color:${d.success ? '#10b981' : '#ef4444'};">${d.message}</span>
+                    <span style="font-size:13px;font-weight:600;color:var(--text);">${ddEsc(d.label)}</span>
+                    <span style="font-size:13px;color:${d.success ? '#10b981' : '#ef4444'};">${ddEsc(d.message)}</span>
                 </div>`).join('');
             document.getElementById('clientSyncResultDetails').style.display = 'block';
         } else {

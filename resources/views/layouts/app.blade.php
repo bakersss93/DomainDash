@@ -64,6 +64,12 @@
 </head>
 <body>
     <script>
+        // HTML-escape helper for every page that builds markup from server / API text (XSS defence).
+        window.ddEsc = window.ddEsc || function (v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        };
         try {
             if (localStorage.getItem('dd.sidebarCollapsed') === '1' && window.matchMedia('(min-width: 1024px)').matches) {
                 document.body.classList.add('sidebar-collapsed');

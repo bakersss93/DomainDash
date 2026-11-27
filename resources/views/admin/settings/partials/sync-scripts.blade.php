@@ -304,7 +304,7 @@
                     <div style="padding:12px;background:var(--surface-soft, var(--surface-muted));border-radius:6px;margin-bottom:8px;display:grid;grid-template-columns:40px 1fr 1fr 140px 100px;gap:12px;align-items:center;">
                         <input type="checkbox" class="ip2whois-checkbox" data-item-id="${ddEsc(item.id)}" style="width:18px;height:18px;cursor:pointer;border-radius:4px;">
                         <div style="color:var(--text);">${ddEsc(item.name)}</div>
-                        <div style="color:var(--dd-text-soft);font-size:13px;">${item.client || 'No client'}</div>
+                        <div style="color:var(--dd-text-soft);font-size:13px;">${ddEsc(item.client || 'No client')}</div>
                         <div style="color:var(--dd-text-soft);font-size:13px;">${syncedAt}</div>
                         <div style="text-align:center;color:${statusColor};font-size:13px;">${statusText}</div>
                     </div>

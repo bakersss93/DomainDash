@@ -174,7 +174,7 @@ function validateTransfer() {
 
             resultDiv.innerHTML = `
                 <div class="dd-alert-box dd-alert-box--success">
-                    <p style="margin: 0; font-weight: 600;">${data.message}</p>
+                    <p style="margin: 0; font-weight: 600;">${ddEsc(data.message)}</p>
                 </div>
             `;
 
@@ -182,7 +182,7 @@ function validateTransfer() {
         } else {
             resultDiv.innerHTML = `
                 <div class="dd-alert-box dd-alert-box--danger">
-                    <p style="margin: 0; font-weight: 600;">${data.message}</p>
+                    <p style="margin: 0; font-weight: 600;">${ddEsc(data.message)}</p>
                 </div>
             `;
             document.getElementById('step-client').style.display = 'none';
