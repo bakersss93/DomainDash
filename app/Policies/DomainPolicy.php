@@ -43,6 +43,18 @@ class DomainPolicy
             && $user->clients()->where('clients.id', $domain->client_id)->exists();
     }
 
+    /** Re-assigning a domain to a different client is a staff operation. */
+    public function assignClient(User $user, Domain $domain): bool
+    {
+        return $user->isStaff() && $user->can('domains.manage');
+    }
+
+    /** Starting an inbound domain transfer (registrar spend) is a staff operation. */
+    public function transfer(User $user): bool
+    {
+        return $user->isStaff() && $user->can('domains.transfer');
+    }
+
     public function runSync(User $user): bool
     {
         return $user->hasRole('Administrator') && $user->can('sync.run');

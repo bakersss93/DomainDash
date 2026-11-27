@@ -117,6 +117,8 @@ class DomainController extends Controller
 
     public function assignClient(Request $request, Domain $domain)
     {
+        $this->authorize('assignClient', $domain);
+
         $data = $request->validate([
             'client_id' => 'nullable|integer|exists:clients,id',
         ]);
@@ -250,6 +252,8 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
 
     public function transfer(Request $request, SynergyWholesaleClient $synergy)
     {
+        $this->authorize('transfer', Domain::class);
+
         $payload = $request->validate([
             'domainName'=>'required',
             'authInfo'=>'required',

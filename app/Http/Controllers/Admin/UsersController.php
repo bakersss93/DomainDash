@@ -241,7 +241,11 @@ class UsersController extends Controller
             return back()->withErrors(['user' => 'Administrators cannot be impersonated.']);
         }
 
-        session(['impersonate_as' => $user->id, 'impersonator_id' => $admin?->id]);
+        session([
+            'impersonate_as' => $user->id,
+            'impersonator_id' => $admin?->id,
+            'impersonation_started_at' => now()->getTimestamp(),
+        ]);
 
         \App\Services\AuditLogger::logSystem('impersonation.start', "{$admin?->email} started impersonating {$user->email}.", [
             'service' => 'auth',
@@ -270,7 +274,7 @@ class UsersController extends Controller
             'impersonated_user_id' => $impersonated?->id,
         ]);
 
-        $request->session()->forget(['impersonate_as', 'impersonator_id']);
+        $request->session()->forget(['impersonate_as', 'impersonator_id', 'impersonation_started_at']);
 
         return redirect()
             ->route('admin.users')

@@ -54,6 +54,16 @@ class FortifyServiceProvider extends ServiceProvider
             return $user;
         });
 
+        // Same response whether or not the address exists (no account enumeration).
+        $this->app->singleton(\Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse::class, \App\Http\Responses\GenericPasswordResetLinkResponse::class);
+
+        // Fortify registers the confirm-password POST without any throttle.
+        $this->app->booted(function () {
+            $routes = \Illuminate\Support\Facades\Route::getRoutes();
+            $routes->refreshNameLookups();
+            $routes->getByName('password.confirm.store')?->middleware('throttle:6,1');
+        });
+
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 

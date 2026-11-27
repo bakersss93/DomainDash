@@ -21,13 +21,7 @@
                 <x-section-border />
             @endif
 
-            @if (Laravel\Fortify\Features::canManageTwoFactorAuthentication())
-                <div class="mt-10 sm:mt-0">
-                    @livewire('profile.two-factor-authentication-form')
-                </div>
-
-                <x-section-border />
-            @endif
+            {{-- Two-factor management is intentionally not offered here: use Account Settings (/me/mfa/*). --}}
 
             <div class="mt-10 sm:mt-0">
                 @livewire('profile.logout-other-browser-sessions-form')

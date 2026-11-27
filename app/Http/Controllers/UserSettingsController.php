@@ -88,6 +88,7 @@ class UserSettingsController extends Controller
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
+            'remember_token' => \Illuminate\Support\Str::random(60),
         ])->save();
 
         \App\Support\SessionRevoker::revoke($user, $request->session()->getId());

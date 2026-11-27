@@ -24,8 +24,11 @@ class ApiKeysController extends Controller
             'rate_limit_per_hour' => 'required|integer|min:1|max:100000',
             'scopes'              => 'required|array|min:1',
             'scopes.*'            => 'string|in:' . implode(',', $validScopes),
+            'expires_in_days'     => 'nullable|integer|min:1|max:3650',
         ]);
         $gen = ApiKey::generate();
+        // Keys expire by default; API_KEY_DEFAULT_EXPIRY_DAYS=0 restores never-expiring keys.
+        $days = (int) ($data['expires_in_days'] ?? config('domaindash.api_keys.default_expiry_days', 365));
         $plain = $gen['plain'];
         ApiKey::create([
             'name'=>$data['name'],
@@ -34,7 +37,8 @@ class ApiKeysController extends Controller
             'allowed_ips'=>$data['allowed_ips'] ?? null,
             'rate_limit_per_hour'=>$data['rate_limit_per_hour'],
             'scopes'=>$data['scopes'],
-            'active'=>true
+            'active'=>true,
+            'expires_at'=>$days > 0 ? now()->addDays($days) : null,
         ]);
         return back()->with('new_api_key', $plain);
     }

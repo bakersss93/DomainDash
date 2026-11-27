@@ -119,6 +119,8 @@ class DnsController extends Controller
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 
+        abort_unless(\App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, (string) $recordId), 404);
+
         // Native single-call update (no delete-then-add window).
         $synergy->updateDNSRecord(
             $domain->name,
@@ -147,6 +149,8 @@ class DnsController extends Controller
     public function destroy(Domain $domain, $recordId, SynergyWholesaleClient $synergy)
     {
         $this->authorize('manageDns', $domain);
+
+        abort_unless(\App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, (string) $recordId), 404);
 
         $synergy->deleteDNSRecord($domain->name, $recordId);
 

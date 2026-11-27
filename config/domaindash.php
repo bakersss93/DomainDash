@@ -20,8 +20,18 @@ return [
         'enforce' => (bool) env('MFA_ENFORCE', true),
         'required_roles' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('MFA_REQUIRED_ROLES', 'Administrator'))
+            explode(',', (string) env('MFA_REQUIRED_ROLES', 'Administrator,Technician'))
         ))),
+    ],
+
+    'api_keys' => [
+        // Days until a newly created API key expires (0 = never). Can be overridden per key.
+        'default_expiry_days' => (int) env('API_KEY_DEFAULT_EXPIRY_DAYS', 365),
+    ],
+
+    'impersonation' => [
+        // An impersonation session ends automatically after this many minutes.
+        'max_minutes' => (int) env('IMPERSONATION_MAX_MINUTES', 60),
     ],
 
     'security_headers' => [
