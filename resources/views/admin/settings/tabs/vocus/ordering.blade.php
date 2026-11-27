@@ -44,3 +44,11 @@
         @endforeach
     </div>
 </x-settings.form-card>
+
+@php $__cr = (array) (\App\Models\Setting::get('vocus', [])['customer_requests'] ?? []); @endphp
+<x-settings.form-card area="vocus" tab="ordering" title="Customer requests" description="Customers never order or cancel with the carrier. When enabled, their request is logged as a support ticket (Internet category, Settings > HaloPSA > Tickets) for staff to action." save="Save customer requests">
+    <div class="dd-set-form">
+        <x-settings.check label="Allow customers to request new internet services" name="vocus[customer_requests][allow_new]" :checked="!empty($__cr['allow_new'])" help="Needs the internet.order permission on the customer's role." />
+        <x-settings.check label="Allow customers to request cancellation" name="vocus[customer_requests][allow_cancel]" :checked="!empty($__cr['allow_cancel'])" help="Needs the internet.cancel permission; customers can only request cancellation of their own services." />
+    </div>
+</x-settings.form-card>

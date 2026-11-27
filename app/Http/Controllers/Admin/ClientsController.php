@@ -90,9 +90,11 @@ class ClientsController extends Controller
             'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
             'active' => 'nullable|boolean',
+            'internet_diagnostics_enabled' => 'nullable|boolean',
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated['internet_diagnostics_enabled'] = $request->boolean('internet_diagnostics_enabled');
         $validated = $this->normaliseLoginFields($validated);
 
         $client = Client::create($validated);
@@ -154,9 +156,11 @@ class ClientsController extends Controller
             'itglue_org_id' => 'nullable|string|max:255',
             'itglue_org_name' => 'nullable|string|max:255',
             'active' => 'nullable|boolean',
+            'internet_diagnostics_enabled' => 'nullable|boolean',
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated['internet_diagnostics_enabled'] = $request->boolean('internet_diagnostics_enabled');
         $validated = $this->normaliseLoginFields($validated);
 
         Log::info('Validation passed', [

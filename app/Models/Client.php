@@ -27,10 +27,12 @@ class Client extends Model
         'itglue_org_name',    // Added
         'microsoft_tenant_id',
         'login_method',
-        'active'
+        'active',
+        'internet_diagnostics_enabled',
     ];
 
     protected $casts = [
+        'internet_diagnostics_enabled' => 'boolean',
         'halo_synced_at' => 'datetime',
         'itglue_synced_at' => 'datetime',
     ];

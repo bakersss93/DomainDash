@@ -71,6 +71,13 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/tickets/{ticketId}/close', [TicketController::class,'close'])->whereNumber('ticketId')->name('tickets.close');
         Route::post('/tickets', [TicketController::class,'store'])->name('tickets.store');
 
+        // Internet services: read-only customer view of the user's own clients' services (staff are sent to the admin page).
+        Route::get('/internet', [\App\Http\Controllers\CustomerInternetController::class, 'index'])->middleware('permission:internet.view')->name('internet.index');
+        Route::post('/internet/request-new', [\App\Http\Controllers\CustomerInternetController::class, 'requestNew'])->middleware(['permission:internet.order', 'throttle:6,10'])->name('internet.request-new');
+        Route::get('/internet/{service}', [\App\Http\Controllers\CustomerInternetController::class, 'show'])->whereNumber('service')->middleware('permission:internet.view')->name('internet.show');
+        Route::post('/internet/{service}/diagnostic', [\App\Http\Controllers\CustomerInternetController::class, 'diagnostic'])->whereNumber('service')->middleware(['permission:internet.diagnostics', 'throttle:6,10'])->name('internet.diagnostic');
+        Route::post('/internet/{service}/request-cancellation', [\App\Http\Controllers\CustomerInternetController::class, 'requestCancellation'])->whereNumber('service')->middleware(['permission:internet.cancel', 'throttle:6,10'])->name('internet.request-cancellation');
+
         // Domain admin area (permission-driven for Administrator/Technician roles)
         Route::prefix('admin')->group(function () {
             Route::get('/domains', [AdminDomainController::class,'index'])

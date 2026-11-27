@@ -17,7 +17,7 @@ class RolePermissionSeeder extends Seeder
         $perms = [
             'domains.view','domains.manage','dns.manage','domains.transfer','domains.register','domains.renew',
             'services.view','services.manage','ssl.view','ssl.manage',
-            'internet.view','internet.order','internet.manage','internet.cancel',
+            'internet.view','internet.order','internet.manage','internet.cancel','internet.diagnostics',
             'clients.view','clients.manage','users.view','users.manage','users.impersonate',
             'settings.manage','apikeys.manage','analytics.view','tickets.create','sync.run','domain-pricing.view','domain-pricing.manage'
         ];
@@ -38,7 +38,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // Customer defaults (read-only on assigned resources + DNS manage as allowed via checkbox UI)
-        $cust->syncPermissions(['domains.view','services.view','ssl.view','tickets.create']);
+        $cust->syncPermissions(['domains.view','services.view','ssl.view','internet.view','tickets.create']);
 
         // Ensure an initial admin exists (in case InitialAdminSeeder didn't run)
         $existing = User::where('email', 'admin@domaindash.com')->exists();

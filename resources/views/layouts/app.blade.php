@@ -197,6 +197,21 @@
                     </ul>
                 </li>
 
+                {{-- Customers only: shown when at least one of their clients has an internet service --}}
+                @php
+                    $__navUser = auth()->user();
+                    $__showCustomerInternet = $__navUser && ! $__navUser->isStaff() && $__navUser->can('internet.view')
+                        && \App\Models\InternetService::query()->whereIn('client_id', $__navUser->clients()->pluck('clients.id'))->exists();
+                @endphp
+                @if($__showCustomerInternet)
+                    <li class="nav-item">
+                        <a href="{{ route('internet.index') }}" class="nav-link {{ request()->routeIs('internet.*') ? 'active' : '' }}" @if(request()->routeIs('internet.*')) aria-current="page" @endif>
+                            <span class="icon"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
+                            <span class="text">Internet</span>
+                        </a>
+                    </li>
+                @endif
+
                 <li class="nav-item nav-section {{ request()->routeIs('tickets.*') ? 'expanded' : '' }}">
                     <button type="button" class="nav-link nav-toggle" onclick="toggleNav(this)" aria-expanded="false">
                         <span class="icon"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>

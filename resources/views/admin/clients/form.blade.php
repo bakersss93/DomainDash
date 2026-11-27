@@ -260,6 +260,22 @@
                     </label>
                 </div>
 
+                {{-- Customer-facing internet diagnostics (also needs the internet.diagnostics permission on the user's role) --}}
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:14px;margin-bottom:4px;">Internet services</label>
+                    <label style="display:inline-flex;align-items:center;gap:8px;
+                                  padding:6px 12px;border-radius:9999px;
+                                  border:1px solid var(--border-subtle);background:var(--surface-muted);font-size:14px;cursor:pointer;color:var(--text);">
+                        <input type="hidden" name="internet_diagnostics_enabled" value="0">
+                        <input type="checkbox"
+                               name="internet_diagnostics_enabled"
+                               value="1"
+                               {{ old('internet_diagnostics_enabled', $client->internet_diagnostics_enabled ?? false) ? 'checked' : '' }}>
+                        <span>Allow this client's users to run internet diagnostics</span>
+                    </label>
+                    <div style="font-size:12px;color:var(--dd-text-soft);margin-top:4px;">Read-only tests only (authentication log). Users also need the internet.diagnostics permission.</div>
+                </div>
+
                 {{-- Buttons --}}
                 <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;">
                     <div style="display:flex;gap:8px;">
