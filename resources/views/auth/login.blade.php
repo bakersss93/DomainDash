@@ -46,10 +46,28 @@
                     </button>
                 </div>
             </form>
+
+            @if (\App\Models\SamlConnection::query()->where('enabled', true)->exists())
+                <div class="dd-sso-divider" role="separator"><span>or</span></div>
+                <form method="POST" action="{{ route('sso.discover') }}" class="dd-sso-form">
+                    @csrf
+                    <x-label for="sso_email" value="{{ __('Work email') }}" />
+                    <x-input id="sso_email" class="block mt-1 w-full" type="email" name="email" autocomplete="username" required placeholder="you@company.com" />
+                    @error('sso_email') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
+                    <button type="submit" class="dd-sso-btn">
+                        <svg width="18" height="18" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+                        Sign in with Microsoft
+                    </button>
+                </form>
+            @endif
         </div>
     </x-authentication-card>
 
     <style>
+        .dd-sso-divider { display:flex; align-items:center; gap:12px; margin:20px 0 12px; color:#64748b; font-size:0.8rem; }
+        .dd-sso-divider::before, .dd-sso-divider::after { content:""; flex:1; border-top:1px solid #cbd5e1; }
+        .dd-sso-btn { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; margin-top:12px; padding:10px 14px; border:1px solid #8c8c8c; border-radius:12px; background:#fff; color:#1f1f1f; font-weight:600; font-size:0.9rem; cursor:pointer; }
+        .dd-sso-btn:hover { background:#f3f4f6; }
         .dd-password-wrap { position: relative; }
         .dd-password-toggle {
             position: absolute;

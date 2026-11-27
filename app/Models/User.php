@@ -75,6 +75,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'mfa_preference'    => 'string',
             'mfa_prompted_at'    => 'datetime',
             'is_active'          => 'boolean',
+            'is_break_glass'     => 'boolean',
+            'saml_last_login_at' => 'datetime',
         ];
     }
 
@@ -144,6 +146,11 @@ class User extends Authenticatable implements MustVerifyEmail
         $roles = (array) config('domaindash.mfa.required_roles', []);
 
         return $roles !== [] && $this->hasAnyRole($roles);
+    }
+
+    public function samlConnection()
+    {
+        return $this->belongsTo(SamlConnection::class);
     }
 
     public function clients()
