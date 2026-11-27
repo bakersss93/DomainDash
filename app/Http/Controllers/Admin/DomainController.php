@@ -132,9 +132,21 @@ class DomainController extends Controller
         return back()->with('status', 'Client assignment updated for '.$domain->name);
     }
 
-public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
+public function authCode(Request $request, Domain $domain, SynergyWholesaleClient $synergy)
 {
     $this->authorize('view', $domain);
+
+    // Revealing an EPP code needs a recent password confirmation (same rule as the password.confirm middleware).
+    $timeout = (int) config('auth.password_timeout', 10800);
+    if ((time() - (int) $request->session()->get('auth.password_confirmed_at', 0)) > $timeout) {
+        $request->session()->put('url.intended', route('admin.domains.show', $domain) . '#auth-code');
+
+        return response()->json([
+            'ok' => false,
+            'message' => 'Password confirmation required.',
+            'confirm_url' => route('password.confirm'),
+        ], 423);
+    }
 
     try {
         $code = $synergy->getDomainPassword($domain->name);
@@ -143,18 +155,24 @@ public function authCode(Domain $domain, SynergyWholesaleClient $synergy)
             throw new \RuntimeException('No auth/EPP code returned from registrar');
         }
 
+        AuditLogger::logAction('domain.auth-code-read', $domain, "EPP auth code read in the admin portal for {$domain->name}.", [
+            'context' => ['service' => 'domains', 'function' => 'domain.auth-code', 'client_id' => $domain->client_id],
+        ]);
+
         return response()->json([
             'ok'   => true,
             'code' => $code,
         ]);
     } catch (\Throwable $e) {
+        report($e);
+
         return response()->json([
             'ok'      => false,
-            'message' => 'Unable to fetch auth code: '.$e->getMessage(),
+            'message' => 'Unable to fetch auth code.',
         ], 500);
     }
 }
-    
+
     public function bulkSync(\Illuminate\Http\Request $request, SynergyWholesaleClient $synergy)
 {
     $page      = 1;

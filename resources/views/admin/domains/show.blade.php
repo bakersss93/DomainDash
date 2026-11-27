@@ -262,9 +262,14 @@
             var authClose  = document.getElementById('dd-auth-close');
 
             authBtn.addEventListener('click', function () {
-                fetch('{{ route('admin.domains.auth-code', $domain) }}')
+                fetch('{{ route('admin.domains.auth-code', $domain) }}', { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
+                        if (data.confirm_url) {
+                            // Re-confirm the password, then come back to this page.
+                            window.location.href = data.confirm_url;
+                            return;
+                        }
                         if (!data.ok) {
                             alert(data.message || 'Unable to fetch auth code');
                             return;
