@@ -76,4 +76,14 @@ return [
     'notifications' => [
         'cache_seconds' => (int) env('NOTIFICATIONS_CACHE_SECONDS', 5),
     ],
+
+    /*
+    | Backups (domaindash:backup-run). Destination, host fingerprint and encryption password are stored
+    | (encrypted) in Settings > Backups. mysqldump binary can be overridden, e.g. mariadb-dump.
+    */
+    'backup' => [
+        'dump_binary' => env('BACKUP_DUMP_BINARY', 'mysqldump'),
+        // Connection to dump; null = the default database connection.
+        'connection' => null,
+    ],
 ];

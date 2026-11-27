@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
+use App\Services\Backup\BackupService;
 use App\Services\Halo\HaloPsaClient;
 use App\Support\Settings\SettingsAreas;
 
@@ -28,6 +29,7 @@ class SettingsController extends Controller
             'categories' => SettingsAreas::categories(),
             'areas' => SettingsAreas::all(),
             'status' => $this->areaStatus(),
+            'notes' => $this->areaNotes(),
         ]);
     }
 
@@ -65,8 +67,23 @@ class SettingsController extends Controller
             'vocus' => ! empty($vocus['access_key']),
             'ip2whois' => ! empty($ip['api_key']),
             'email' => ! empty($smtp['host']),
-            'backups' => ! empty($backup['host']),
+            // "Configured" is not enough for backups: it must have actually succeeded at least once.
+            'backups' => ! empty($backup['host']) && BackupService::status()['last_success_at'] !== null,
         ];
+    }
+
+    /** Extra one-line hint per tile (currently: last successful backup). */
+    private function areaNotes(): array
+    {
+        $b = BackupService::status();
+        $text = $b['last_success_at']
+            ? 'Last successful backup: ' . \Illuminate\Support\Carbon::parse($b['last_success_at'])->format('Y-m-d H:i') . ' UTC'
+            : (BackupService::isConfigured() ? 'No successful backup yet' : null);
+        if ($b['last_failure_at'] && $b['last_error']) {
+            $text = trim(($text ? $text . '. ' : '') . 'Last attempt failed: ' . $b['last_error']);
+        }
+
+        return ['backups' => $text];
     }
 
     /** Every setting group the forms read, with stored secrets swapped for the "********" placeholder. */
@@ -100,7 +117,7 @@ class SettingsController extends Controller
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
             ]),
-            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00'], (array) Setting::get('backup', [])),
+            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00','host_fingerprint'=>'','encryption_password'=>''], (array) Setting::get('backup', [])),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
             'mfa' => Setting::get('mfa', [
                 'persistence_days' => 30,
