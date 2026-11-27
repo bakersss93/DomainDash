@@ -27,7 +27,9 @@ return [
     'security_headers' => [
         'enabled' => (bool) env('SECURITY_HEADERS', true),
         // Content-Security-Policy is report-only by default so it cannot break
-        // inline scripts/styles; set CSP_ENFORCE=true once reports are clean.
+        // inline scripts/styles; set CSP_ENFORCE=true once reports are clean. Note: the policy allows
+        // 'unsafe-inline'/'unsafe-eval' (Alpine/Livewire), so enforcing gives limited XSS protection until a
+        // nonce rollout; output escaping is the primary XSS defence. See README "Security configuration".
         'csp_enforce' => (bool) env('CSP_ENFORCE', false),
         'csp_report_uri' => env('CSP_REPORT_URI'),
     ],
