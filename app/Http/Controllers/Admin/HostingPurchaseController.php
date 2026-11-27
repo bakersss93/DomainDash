@@ -58,13 +58,20 @@ class HostingPurchaseController extends Controller
             $client = Client::findOrFail($request->client_id);
 
             // Purchase hosting with Synergy
+            // hostingPurchaseService takes the plan *name* (planName) and the
+            // customer's own contact e-mail. Failures (ERR_*) throw.
+            $contactEmail = $client->email ?: null;
+            if (! $contactEmail) {
+                throw new \RuntimeException('The selected client has no e-mail address; add one before purchasing hosting.');
+            }
+
             $result = $this->synergy->purchaseHosting(
                 $request->plan_id,
                 $request->domain,
-                'support@jargonconsulting.com.au'
+                $contactEmail
             );
 
-            if (isset($result['status']) && in_array($result['status'], ['OK', 'pending'])) {
+            if (isset($result['status']) && strtoupper((string) $result['status']) === 'OK') {
                 // Find or create domain record
                 $domain = Domain::where('name', $request->domain)->first();
                 if (!$domain) {

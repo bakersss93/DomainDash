@@ -164,14 +164,15 @@ class DomainPurchaseController extends Controller
 
                 // Use stored contact info from the client
                 $contacts = [
-                    'registrantName' => $client->business_name,
-                    'registrantEmail' => $client->email ?? 'admin@example.com',
-                    'registrantPhone' => $client->phone ?? '+61.400000000',
-                    'registrantAddress' => $client->address ?? '123 Main St',
-                    'registrantCity' => $client->city ?? 'Melbourne',
-                    'registrantState' => $client->state ?? 'VIC',
-                    'registrantPostcode' => $client->postcode ?? '3000',
-                    'registrantCountry' => $client->country ?? 'AU',
+                    'organisation' => $client->business_name,
+                    'contactName' => $client->primary_contact_name ?: $client->business_name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'address' => $client->address,
+                    'suburb' => $client->city,
+                    'state' => $client->state,
+                    'postcode' => $client->postcode,
+                    'country' => $client->country ?: 'AU',
                 ];
             } else {
                 // Create new client with all contact fields
@@ -199,21 +200,26 @@ class DomainPurchaseController extends Controller
                 $user->clients()->attach($client->id);
 
                 $contacts = [
-                    'registrantName' => $request->business_name,
-                    'registrantEmail' => $request->email,
-                    'registrantPhone' => $request->phone,
-                    'registrantAddress' => $request->address,
-                    'registrantCity' => $request->city,
-                    'registrantState' => $request->state,
-                    'registrantPostcode' => $request->postcode,
-                    'registrantCountry' => $request->country,
+                    'organisation' => $request->business_name,
+                    'firstname' => $request->first_name,
+                    'lastname' => $request->last_name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'address' => $request->address,
+                    'suburb' => $request->city,
+                    'state' => $request->state,
+                    'postcode' => $request->postcode,
+                    'country' => $request->country,
                 ];
             }
 
-            // Add .au specific fields if provided
-            $extra = [];
+            // Use Synergy's default nameservers (dnsConfig 5, docs p.147).
+            $extra = ['dnsConfig' => 5];
+
+            // .au specific fields; the client folds these into the JSON
+            // `eligibility` string domainRegister expects.
             if ($request->au_id_type && $request->au_id_number) {
-                $extra = [
+                $extra += [
                     'eligibilityType' => $request->au_eligibility_type ?? 'Company',
                     'eligibilityName' => $request->au_registrant_name,
                     'eligibilityID' => $request->au_id_number,
@@ -226,11 +232,11 @@ class DomainPurchaseController extends Controller
                 $request->domain,
                 $request->years,
                 $contacts,
-                ['ns1.synergywholesale.com', 'ns2.synergywholesale.com'], // Default nameservers
+                [], // no custom nameservers; dnsConfig 5 in $extra selects the defaults
                 $extra
             );
 
-            if (isset($result['status']) && in_array($result['status'], ['OK', 'pending'])) {
+            if (isset($result['status']) && strtoupper((string) $result['status']) === 'OK') {
                 // Create domain in database
                 $domain = Domain::create([
                     'client_id' => $client->id,
@@ -238,9 +244,8 @@ class DomainPurchaseController extends Controller
                     'status' => 'active',
                     'expiry_date' => now()->addYears($request->years),
                     'auto_renew' => false,
-                    'name_servers' => json_encode(['ns1.synergywholesale.com', 'ns2.synergywholesale.com']),
-                    'dns_config' => 'custom_ns',
-                    'registry_id' => $result['domainID'] ?? null,
+                    'name_servers' => SynergyWholesaleClient::DEFAULT_NAMESERVERS,
+                    'dns_config' => 5,
                 ]);
 
                 DB::commit();
@@ -255,7 +260,6 @@ class DomainPurchaseController extends Controller
                         'domain' => $request->domain,
                         'years' => (int) $request->years,
                         'client_id' => $client->id,
-                        'registry_id' => $result['domainID'] ?? null,
                     ],
                 ]);
 

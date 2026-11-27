@@ -27,7 +27,7 @@ class Ip2whoisClient
         }
 
         try {
-            $resp = Http::get($this->baseUrl, [
+            $resp = Http::withMiddleware(app(\App\Services\Monitoring\IntegrationRequestLogger::class)->middleware('ip2whois'))->get($this->baseUrl, [
                 'key' => $this->apiKey,
                 'domain' => $domain,
                 'format' => 'json',

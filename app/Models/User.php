@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -15,7 +15,7 @@ use Laravel\Jetstream\HasTeams;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles; // Added for role management
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasRoles;
     use HasApiTokens;
@@ -124,6 +124,26 @@ class User extends Authenticatable
     {
         return ! empty($this->two_factor_secret)
             && ! empty($this->two_factor_confirmed_at);
+    }
+
+    /**
+     * Whether MFA is mandatory for this user (role-based, see config/domaindash.php).
+     */
+    /** Internal staff (sees all clients); everyone else is tenant-scoped. */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(['Administrator', 'Technician']);
+    }
+
+    public function requiresMfa(): bool
+    {
+        if (! config('domaindash.mfa.enforce', true)) {
+            return false;
+        }
+
+        $roles = (array) config('domaindash.mfa.required_roles', []);
+
+        return $roles !== [] && $this->hasAnyRole($roles);
     }
 
     public function clients()

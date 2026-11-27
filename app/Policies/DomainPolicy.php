@@ -30,6 +30,19 @@ class DomainPolicy
         return false;
     }
 
+    /**
+     * Manage DNS records / nameservers. Staff need dns.manage; any other user
+     * needs dns.manage AND an assignment to the domain's client.
+     */
+    public function manageDns(User $user, Domain $domain): bool
+    {
+        if (! $user->can('dns.manage')) return false;
+        if ($user->hasRole('Administrator') || $user->hasRole('Technician')) return true;
+
+        return $domain->client_id !== null
+            && $user->clients()->where('clients.id', $domain->client_id)->exists();
+    }
+
     public function runSync(User $user): bool
     {
         return $user->hasRole('Administrator') && $user->can('sync.run');

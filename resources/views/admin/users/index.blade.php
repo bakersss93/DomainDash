@@ -1,13 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="dd-page">
-        <div class="dd-users-header">
-            <h1 class="dd-page-title">Users</h1>
-        </div>
+    <div class="ui-page">
+        <x-ui.page-header title="Users" subtitle="Manage portal accounts, roles and access.">
+            <x-slot name="actions">
+                <x-ui.button :href="route('admin.users.create')" variant="primary">
+                    <x-ui.icon name="plus" :size="16" /> New user
+                </x-ui.button>
+            </x-slot>
+        </x-ui.page-header>
 
-        <div class="dd-users-controls" style="display:flex;justify-content:space-between;align-items:center;gap:1.4rem;flex-wrap:nowrap;margin:0 0 1.2rem 0;padding-top:.35rem;">
-            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter" style="display:flex;align-items:center;gap:.85rem;margin:0;">
+        <div class="ui-toolbar">
+            <form method="GET" action="{{ route('admin.users') }}" class="dd-users-filter">
                 <label for="role">Filter by role</label>
                 <div class="role-filter-wrapper">
                     <select name="role"
@@ -21,21 +25,20 @@
                     </select>
                 </div>
             </form>
-            <a href="{{ route('admin.users.create') }}" class="btn-accent dd-users-create-btn" style="margin-left:auto;padding:.66rem 1.2rem;">+ New user</a>
         </div>
 
-        <div class="dd-card">
-            <table class="dd-table-clean">
+        <x-ui.card :flush="true">
+            <x-ui.table>
                 <thead>
                 <tr>
                     <th>First</th>
                     <th>Last</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Client Organisation</th>
+                    <th style="white-space:normal;">Client Organisation</th>
                     <th>Status</th>
                     <th>MFA</th>
-                    <th style="width:260px;">Actions</th>
+                    <th style="text-align:right;">Actions</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -56,70 +59,52 @@
                                 ?: '—' }}
                         </td>
                         <td>
-                            <span class="{{ $user->is_active ? 'dd-status-success' : 'dd-status-muted' }}">{{ $user->is_active ? 'Enabled' : 'Disabled' }}</span>
+                            <x-ui.badge :variant="$user->is_active ? 'success' : 'neutral'">{{ $user->is_active ? 'Enabled' : 'Disabled' }}</x-ui.badge>
                         </td>
                         <td>
-                            {{ ucfirst($user->mfa_preference ?? 'enabled') }} / {{ $user->two_factor_confirmed_at ? 'Configured' : 'Not configured' }}
+                            <x-ui.badge :variant="$user->two_factor_confirmed_at ? 'success' : 'warning'" :title="'MFA policy: '.ucfirst($user->mfa_preference ?? 'enabled')">{{ $user->two_factor_confirmed_at ? 'Configured' : 'Not configured' }}</x-ui.badge>
                         </td>
                         <td>
-                            <div style="display:flex;justify-content:flex-end;gap:12px;align-items:center;">
-                                {{-- Password screen (key icon) --}}
-                                <a href="{{ route('admin.users.edit', ['user' => $user, 'password' => 1]) }}"
-                                   title="Password / reset options"
-                                   style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);text-decoration:none;background:var(--dd-surface-soft);">
-                                    🔑
-                                </a>
+                            <div class="flex flex-nowrap items-center justify-end gap-1.5">
+                                {{-- Password screen --}}
+                                <x-ui.icon-button icon="key" label="Password / reset options" :href="route('admin.users.edit', ['user' => $user, 'password' => 1])" />
 
-                                {{-- Reset MFA (shield icon) --}}
+                                {{-- Reset MFA --}}
                                 <form method="POST"
                                       action="{{ route('admin.users.mfa.reset', $user) }}"
                                       onsubmit="return confirm('Reset MFA for this user? They will need to re-enrol.');">
                                     @csrf
-                                    <button type="submit"
-                                            title="Reset MFA"
-                                            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-danger) 15%, transparent);">
-                                        🛡️
-                                    </button>
+                                    <x-ui.icon-button icon="shield" label="Reset MFA" type="submit" />
                                 </form>
 
-                                {{-- Edit user (cog icon) --}}
-                                <a href="{{ route('admin.users.edit', $user) }}"
-                                   title="Edit user"
-                                   style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);text-decoration:none;background:var(--dd-surface-soft);">
-                                    ⚙️
-                                </a>
+                                {{-- Edit user --}}
+                                <x-ui.icon-button icon="cog" label="Edit user" :href="route('admin.users.edit', $user)" />
 
-                                {{-- Impersonate (person icon) --}}
+                                {{-- Impersonate --}}
                                 <form method="POST"
                                       action="{{ route('admin.users.impersonate', $user) }}">
                                     @csrf
-                                    <button type="submit"
-                                            title="Impersonate user"
-                                            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-accent) 15%, transparent);">
-                                        👤
-                                    </button>
+                                    <x-ui.icon-button icon="user" label="Impersonate user" type="submit" />
                                 </form>
 
-                                {{-- Delete user (trash icon) --}}
+                                {{-- Delete user --}}
                                 <form method="POST"
                                       action="{{ route('admin.users.destroy', $user) }}"
                                       onsubmit="return confirm('Delete this user account permanently?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit"
-                                            title="Delete user"
-                                            style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--dd-border);background:color-mix(in srgb, var(--dd-danger) 18%, transparent);">
-                                        🗑️
-                                    </button>
+                                    <x-ui.icon-button icon="trash" label="Delete user" variant="danger" type="submit" />
                                 </form>
                             </div>
                         </td>
                     </tr>
                 @endforeach
                 </tbody>
-            </table>
+            </x-ui.table>
 
-            {{ $users->links() }}
-        </div>
+            @if ($users->hasPages())
+                <div class="px-4 py-3">{{ $users->links() }}</div>
+            @endif
+        </x-ui.card>
     </div>
 @endsection

@@ -1,0 +1,50 @@
+# DomainDash queue worker (HaloPSA / IT Glue sync, Synergy sync, heartbeat).
+#
+# Install (as root):
+#   cp deploy/queue/domaindash-queue.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now domaindash-queue
+#
+# Adjust the values marked EDIT:
+#   WorkingDirectory  EDIT: the app directory (default /var/www/domaindash)
+#   --queue           EDIT: must list INTEGRATIONS_QUEUE from .env first, then "default".
+#                     If INTEGRATIONS_QUEUE is unset the app uses "default": then use --queue=default.
+#   --timeout         EDIT: must be LARGER than the longest job timeout (config/integrations.php,
+#                     sync.timeouts: 240s) and SMALLER than DB_QUEUE_RETRY_AFTER (default 360).
+#                     Jobs also set their own $timeout, which takes precedence over this flag.
+#   --max-time=3600   The worker exits after an hour and systemd restarts it (frees memory).
+#
+# The worker runs as www-data: it only needs READ access to the code and WRITE access to
+# storage/ (see README -> Platform HTTPS: the code tree stays root-owned and not writable
+# by www-data; only storage/ is www-data-owned).
+#
+# After EVERY deploy:   php artisan queue:restart   (the worker finishes its job, exits, systemd restarts it
+#                       on the new code).
+
+[Unit]
+Description=DomainDash queue worker
+After=network-online.target mariadb.service mysql.service postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/domaindash
+ExecStart=/usr/bin/php artisan queue:work --queue=default --sleep=3 --tries=3 --timeout=300 --max-time=3600
+Restart=always
+RestartSec=5
+# Give a running job time to finish on stop/restart (> --timeout).
+TimeoutStopSec=330
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=domaindash-queue
+
+# Hardening (the worker only writes to storage/ and, with SQLite, database/)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/domaindash/storage /var/www/domaindash/bootstrap/cache /var/www/domaindash/database
+
+[Install]
+WantedBy=multi-user.target

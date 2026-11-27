@@ -19,6 +19,10 @@ use App\Http\Controllers\Api\UserController;
 Route::middleware([ApiKeyAuth::class . ':domains.read'])->group(function () {
     Route::get('/v1/domains', [DomainController::class, 'index']);
     Route::get('/v1/domains/{domain}', [DomainController::class, 'show']);
+});
+
+// EPP/auth codes are transfer-capable secrets: separate scope (SEC-20).
+Route::middleware([ApiKeyAuth::class . ':domains.auth-code'])->group(function () {
     Route::get('/v1/domains/{domain}/auth-code', [DomainController::class, 'authCode']);
 });
 
@@ -50,7 +54,7 @@ Route::middleware([ApiKeyAuth::class . ':dns.write'])->group(function () {
 Route::middleware([ApiKeyAuth::class . ':clients.read'])->group(function () {
     Route::get('/v1/clients', [ClientController::class, 'index']);
     Route::get('/v1/clients/{client}', [ClientController::class, 'show']);
-    Route::get('/v1/clients/{client}/domains', [DomainController::class, 'index']);
+    Route::get('/v1/clients/{client}/domains', [DomainController::class, 'clientDomains']);
 });
 
 Route::middleware([ApiKeyAuth::class . ':clients.write'])->group(function () {

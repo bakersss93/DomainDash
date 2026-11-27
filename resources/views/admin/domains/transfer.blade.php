@@ -2,7 +2,7 @@
 
 @section('content')
 <div style="max-width: 1200px;">
-    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Transfer Domain</h1>
+    <h1>Transfer Domain</h1>
 
     <div id="app-transfer-domain">
         <!-- Step 1: Enter Domain and EPP Code -->

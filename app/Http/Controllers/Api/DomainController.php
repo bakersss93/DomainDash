@@ -24,7 +24,24 @@ class DomainController extends Controller
         }
 
         return response()->json(
-            $q->orderBy('name')->paginate((int) $request->get('per_page', 100))
+            $q->orderBy('name')->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
+        );
+    }
+
+    /**
+     * Domains belonging to one client (GET /v1/clients/{client}/domains).
+     */
+    public function clientDomains(Request $request, \App\Models\Client $client): JsonResponse
+    {
+        $q = Domain::select('id', 'name', 'expiry_date', 'client_id')
+            ->where('client_id', $client->id);
+
+        if ($request->filled('status')) {
+            $q->where('status', $request->status);
+        }
+
+        return response()->json(
+            $q->orderBy('name')->paginate(min(100, max(1, (int) $request->get('per_page', 100))))
         );
     }
 
@@ -60,9 +77,9 @@ class DomainController extends Controller
             $response = $synergy->listDomains($page, $limit);
 
             if (($response['status'] ?? null) !== 'OK') {
-                return response()->json([
-                    'message' => 'Synergy error: ' . ($response['errorMessage'] ?? 'Unknown error'),
-                ], 502);
+                \Log::warning('Synergy domain sync failed', ['status' => $response['status'] ?? null, 'error' => $response['errorMessage'] ?? null]);
+
+                return response()->json(['message' => 'Registrar request failed. Try again later.'], 502);
             }
 
             foreach ($response['domainList'] ?? [] as $entry) {
@@ -125,8 +142,8 @@ class DomainController extends Controller
         ], ['new_values' => ['years' => (int) $request->years]]);
 
         return response()->json([
-            'ok'      => ($res['status'] ?? null) === 'OK',
-            'message' => $res['errorMessage'] ?? 'Renewal submitted.',
+            'ok'      => str_starts_with(strtoupper((string) ($res['status'] ?? '')), 'OK'),
+            'message' => str_starts_with(strtoupper((string) ($res['status'] ?? '')), 'OK') ? 'Renewal submitted.' : 'Renewal was not accepted by the registrar.',
         ]);
     }
 
@@ -139,9 +156,16 @@ class DomainController extends Controller
                 return response()->json(['ok' => false, 'message' => 'No auth code returned from registrar.'], 502);
             }
 
+            AuditLogger::logSystem('domain.auth-code-read', "EPP auth code read via API for {$domain->name}.", [
+                'service' => 'api',
+                'function' => 'domain.auth-code',
+                'client_id' => $domain->client_id,
+            ]);
+
             return response()->json(['ok' => true, 'code' => $code]);
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'message' => 'Unable to fetch auth code: ' . $e->getMessage()], 500);
+            report($e);
+            return response()->json(['ok' => false, 'message' => 'Unable to fetch auth code.'], 500);
         }
     }
 
@@ -172,7 +196,7 @@ class DomainController extends Controller
         ], ['new_values' => ['domain' => $payload['domainName']]]);
 
         return response()->json([
-            'ok'      => ($res['status'] ?? null) === 'OK',
+            'ok'      => str_starts_with(strtoupper((string) ($res['status'] ?? '')), 'OK'),
             'message' => $res['errorMessage'] ?? 'Transfer initiated.',
         ]);
     }

@@ -21,9 +21,16 @@ class Client extends Model
         'country',
         'abn',
         'halopsa_reference',  // Changed from halopsa_id
+        'halo_recurring_invoice_id',
+        'halo_recurring_invoice_name',
         'itglue_org_id',
         'itglue_org_name',    // Added
         'active'
+    ];
+
+    protected $casts = [
+        'halo_synced_at' => 'datetime',
+        'itglue_synced_at' => 'datetime',
     ];
 
     public function users()

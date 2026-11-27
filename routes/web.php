@@ -33,6 +33,8 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
 
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
 
+        Route::get('/notifications/summary', [UserNotificationController::class, 'summary'])->name('notifications.summary');
+        Route::post('/notifications/read-all', [UserNotificationController::class, 'markAllRead'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [UserNotificationController::class, 'markRead'])->name('notifications.read');
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -111,11 +113,75 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
+        // Option lists + mapping-table CRUD for the settings pages (Administrator area, JSON).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/options/{source}', [\App\Http\Controllers\Admin\SettingsOptionsController::class, 'show'])->where('source', '[a-z0-9.-]+')->name('admin.settings.options');
+            Route::get('/settings/mappings/{mapping}', [\App\Http\Controllers\Admin\MappingController::class, 'index'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.index');
+            Route::post('/settings/mappings/{mapping}', [\App\Http\Controllers\Admin\MappingController::class, 'store'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.store');
+            Route::put('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'update'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.update');
+            Route::delete('/settings/mappings/{mapping}/{id}', [\App\Http\Controllers\Admin\MappingController::class, 'destroy'])->where('mapping', '[a-z0-9.-]+')->name('admin.settings.mappings.destroy');
+        });
+        // Assets tabs of HaloPSA / IT Glue: one mapping per DomainDash entity (domains, internet, hosting, SSL).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/asset-mappings/{provider}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'index'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.index');
+            Route::post('/settings/asset-mappings/{provider}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'store'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.store');
+            Route::put('/settings/asset-mappings/{provider}/{entity}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'update'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.update');
+            Route::delete('/settings/asset-mappings/{provider}/{entity}', [\App\Http\Controllers\Admin\AssetMappingController::class, 'destroy'])->whereIn('provider', ['halo', 'itglue'])->name('admin.settings.asset-mappings.destroy');
+        });
         Route::get('/settings/halo/ticket-types', [SettingsController::class,'haloTicketTypes'])->name('admin.settings.halo.ticket-types');
         Route::get('/settings/halo/ticket-statuses', [SettingsController::class,'haloTicketStatuses'])->name('admin.settings.halo.ticket-statuses');
+        // Asset type / field pickers for the HaloPSA + IT Glue mapping cards (admin only, read-only toward the vendors).
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::get('/settings/halo/asset-types', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloAssetTypes'])->name('admin.settings.halo.asset-types');
+            Route::get('/settings/halo/asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloAssetTypeFields'])->whereNumber('id')->name('admin.settings.halo.asset-type-fields');
+            Route::post('/settings/halo/preview-mapping', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'haloPreview'])->name('admin.settings.halo.preview-mapping');
+            Route::get('/settings/itglue/flexible-asset-types', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypes'])->name('admin.settings.itglue.types');
+            Route::get('/settings/itglue/flexible-asset-types/{id}/fields', [\App\Http\Controllers\Admin\IntegrationMappingController::class, 'itglueTypeFields'])->whereNumber('id')->name('admin.settings.itglue.type-fields');
+        });
+        // Halo billing: item picker search + plan/item link (JSON, Administrator area).
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::get('/settings/halo/items', [\App\Http\Controllers\Admin\HaloBillingController::class, 'items'])->name('admin.settings.halo.items');
+            Route::put('/settings/vocus/plans/{plan}/halo-item', [\App\Http\Controllers\Admin\HaloBillingController::class, 'linkItem'])->name('admin.settings.vocus.plans.halo-item');
+        });
+        // Billing used to be its own settings tile; its only home is HaloPSA -> Billing.
+        Route::get('/settings/halo-billing', fn () => redirect('/admin/settings/halopsa?tab=billing', 301))->name('admin.settings.halo-billing');
+        Route::post('/settings/halo/billing/preview', [\App\Http\Controllers\Admin\HaloBillingController::class, 'preview'])->middleware('throttle:30,1')->name('admin.settings.halo.billing.preview');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::get('/settings/{area}', [SettingsController::class,'area'])->where('area', '[a-z0-9-]+')->name('admin.settings.area');
+        // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
+        Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {
+            Route::put('/realms', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateRealms'])->name('admin.settings.vocus.realms');
+            Route::put('/scopes', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateScopes'])->name('admin.settings.vocus.scopes');
+            Route::get('/plans', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'plans'])->name('admin.settings.vocus.plans');
+            Route::post('/plans', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'storePlan'])->name('admin.settings.vocus.plans.store');
+            Route::put('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updatePlan'])->name('admin.settings.vocus.plans.update');
+            Route::delete('/plans/{plan}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'destroyPlan'])->name('admin.settings.vocus.plans.destroy');
+            Route::put('/plan-mapping', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateMapping'])->name('admin.settings.vocus.plan-mapping');
+            Route::put('/named-tiers', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'updateTiers'])->name('admin.settings.vocus.named-tiers');
+            Route::post('/plans/import/preview', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importPreview'])->name('admin.settings.vocus.plans.import.preview');
+            Route::post('/plans/import/apply', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'importApply'])->name('admin.settings.vocus.plans.import.apply');
+            Route::delete('/services/{service}', [\App\Http\Controllers\Admin\VocusSettingsController::class, 'destroyService'])->name('admin.settings.vocus.services.destroy');
+        });
+        Route::get('/https', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'index'])->name('admin.https');
+        Route::post('/https/letsencrypt', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
+        Route::post('/https/upload', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'upload'])->name('admin.https.upload');
+        Route::post('/https/force', [\App\Http\Controllers\Admin\PlatformHttpsController::class, 'force'])->name('admin.https.force');
         Route::get('/audit', [AuditLogController::class, 'index'])->name('admin.audit.index');
         Route::post('/audit/retention', [AuditLogController::class, 'updateRetention'])->name('admin.audit.retention');
+        // Audit Logs tabs (JSON): server-side search / paging, detail, export, delete. Administrator + MFA only.
+        Route::middleware('throttle:120,1')->prefix('audit')->group(function () {
+            Route::get('/find', [AuditLogController::class, 'find'])->name('admin.audit.find');
+            Route::get('/vocus', [AuditLogController::class, 'vocus'])->name('admin.audit.vocus');
+            Route::get('/vocus/export.csv', [AuditLogController::class, 'vocusCsv'])->name('admin.audit.vocus.csv');
+            Route::get('/vocus/summary', [AuditLogController::class, 'vocusSummary'])->name('admin.audit.vocus.summary');
+            Route::get('/data/{tab}', [AuditLogController::class, 'data'])->name('admin.audit.data');
+            Route::get('/entry/{tab}/{id}', [AuditLogController::class, 'show'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.show');
+            Route::get('/entry/{tab}/{id}/export', [AuditLogController::class, 'export'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.export');
+            Route::delete('/entry/{tab}/{id}', [AuditLogController::class, 'destroy'])->where('id', '[A-Za-z0-9:_-]+')->name('admin.audit.destroy');
+        });
+        // Notification centre: admin summary (alerts + in-progress + notifications) and per-user alert snooze.
+        Route::get('/notifications/summary', [UserNotificationController::class, 'summary'])->name('admin.notifications.summary');
+        Route::post('/notifications/alerts/snooze', [UserNotificationController::class, 'snoozeAlert'])->name('admin.notifications.alerts.snooze');
         Route::get('/notifications/templates', [EmailNotificationTemplatesController::class, 'index'])->name('admin.notifications.templates');
         Route::post('/notifications/templates', [EmailNotificationTemplatesController::class, 'storeTemplate'])->name('admin.notifications.templates.store');
         Route::post('/notifications/templates/{template}', [EmailNotificationTemplatesController::class, 'updateTemplate'])->name('admin.notifications.templates.template.update');
@@ -124,18 +190,34 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // ============================================================================
         // SYNC ROUTES
         // ============================================================================
-        Route::get('/sync/halo/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloClients']);
-        Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
-        Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
-        Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
+        // Every sync route requires the sync.run permission (Administrator has it via the seeder).
+        Route::middleware('permission:sync.run')->group(function () {
+            Route::get('/sync/halo/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloClients']);
+            Route::post('/sync/halo/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloClients']);
+            Route::get('/sync/halo/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getHaloDomains']);
+            Route::post('/sync/halo/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncHaloDomains']);
 
-        Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
-        Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
-        Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
-        Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
-        Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
-        Route::get('/sync/ip2whois/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getIp2whoisDomains']);
-        Route::post('/sync/ip2whois/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncIp2whoisDomains']);
+            Route::get('/sync/assets/{provider}/{entity}', [\App\Http\Controllers\Admin\SyncController::class, 'assetList'])->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate']);
+            Route::post('/sync/assets/{provider}/{entity}/sync', [\App\Http\Controllers\Admin\SyncController::class, 'assetSync'])->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate'])->middleware('throttle:12,1');
+
+            Route::get('/sync/itglue/clients', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueClients']);
+            Route::post('/sync/itglue/clients/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueClients']);
+            Route::get('/sync/itglue/suggest/{clientId}', [\App\Http\Controllers\Admin\SyncController::class, 'suggestItGlueOrg']);
+            Route::get('/sync/itglue/configurations', [\App\Http\Controllers\Admin\SyncController::class, 'getItGlueConfigurations']);
+            Route::post('/sync/itglue/configurations/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncItGlueConfigurations']);
+            Route::get('/sync/ip2whois/domains', [\App\Http\Controllers\Admin\SyncController::class, 'getIp2whoisDomains']);
+            Route::post('/sync/ip2whois/domains/sync', [\App\Http\Controllers\Admin\SyncController::class, 'syncIp2whoisDomains']);
+
+            // Background sync control: dispatch jobs and report progress (no remote calls in-request)
+            Route::post('/sync/halo/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshHalo'])->middleware('throttle:6,1');
+            Route::post('/sync/itglue/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshItGlue'])->middleware('throttle:6,1');
+            Route::post('/sync/clients/{client}/{provider}/refresh', [\App\Http\Controllers\Admin\SyncController::class, 'refreshClient'])
+                ->whereIn('provider', ['halo', 'itglue'])->middleware('throttle:12,1');
+            Route::post('/sync/halo/domains/run-now', [\App\Http\Controllers\Admin\SyncController::class, 'runHaloDomainsNow'])->middleware('throttle:3,1');
+            Route::get('/sync/status', [\App\Http\Controllers\Admin\SyncController::class, 'syncStatus']);
+            Route::get('/sync/runs/{run}', [\App\Http\Controllers\Admin\SyncController::class, 'showRun']);
+            Route::get('/sync/runs/{run}/items', [\App\Http\Controllers\Admin\SyncController::class, 'runItems']);
+        });
 
         // ============================================================================
         // CLIENTS ROUTES
@@ -150,16 +232,19 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // HaloPSA Import Routes
         Route::get('/clients/halo-clients', [ClientsController::class, 'haloClients'])->name('admin.clients.haloClients');
         Route::post('/clients/import-halo', [ClientsController::class, 'importHaloClients'])->name('admin.clients.importHalo');
-        Route::post('/clients/import-halo/confirm', [ClientsController::class, 'confirmImportHalo'])->name('admin.clients.importHalo.confirm');
         
         // ITGlue Integration Routes
         Route::get('/clients/itglue/search', [ClientsController::class,'itglueSearch'])->name('admin.clients.itglue.search');
-        Route::post('/clients/{client}/itglue/link', [ClientsController::class, 'linkItglue'])->name('admin.clients.itglue.link');
         Route::post('/clients/{client}/itglue/sync-domains', [ClientsController::class, 'syncDomainsToItglue'])->name('admin.clients.itglue.syncDomains');
         
         // HaloPSA DNS Sync Routes
         Route::post('/clients/{client}/halo/sync-dns', [ClientsController::class, 'syncDnsToHalo'])->name('admin.clients.halo.syncDns');
         Route::post('/clients/{client}/halo/link-domains', [ClientsController::class, 'linkDomainsFromHalo'])->name('admin.clients.halo.linkDomains');
+        // HaloPSA recurring invoice a client's internet services are billed on
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::get('/clients/{client}/halo/recurring-invoices', [\App\Http\Controllers\Admin\HaloBillingController::class, 'clientRecurringInvoices'])->name('admin.clients.halo.recurringInvoices');
+            Route::put('/clients/{client}/halo/recurring-invoice', [\App\Http\Controllers\Admin\HaloBillingController::class, 'setClientRecurringInvoice'])->name('admin.clients.halo.recurringInvoice');
+        });
 
         // ============================================================================
         // DOMAIN PURCHASE / TRANSFER (admin only)
@@ -202,8 +287,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         // INTERNET SERVICES ROUTES (Vocus WSM)
         // ============================================================================
         Route::get('/services/internet', [InternetController::class, 'index'])->name('admin.services.internet');
-        Route::post('/services/internet/sync', [InternetController::class, 'sync'])->name('admin.services.internet.sync');
-        Route::post('/services/internet/import', [InternetController::class, 'importByIds'])->name('admin.services.internet.import');
+        Route::post('/services/internet/sync', [InternetController::class, 'sync'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.sync');
+        Route::post('/services/internet/import', [InternetController::class, 'importByIds'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.import');
+        Route::post('/services/internet/halo-sync', [\App\Http\Controllers\Admin\HaloBillingController::class, 'syncAll'])->middleware(['permission:sync.run', 'throttle:6,1'])->name('admin.services.internet.halo-sync');
         Route::get('/services/internet/qualify', [InternetController::class, 'qualify'])->name('admin.services.internet.qualify');
         Route::post('/services/internet/qualify/lookup', [InternetController::class, 'qualifyLookup'])->name('admin.services.internet.qualify.lookup');
         Route::post('/services/internet/qualify/check', [InternetController::class, 'qualifyCheck'])->name('admin.services.internet.qualify.check');
@@ -212,7 +298,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/internet/transfer', [InternetController::class, 'transfer'])->name('admin.services.internet.transfer');
         Route::post('/services/internet/transfer', [InternetController::class, 'transferStore'])->name('admin.services.internet.transfer.store');
         Route::get('/services/internet/{service}', [InternetController::class, 'show'])->name('admin.services.internet.show');
+        Route::get('/services/internet/{service}/halo/recurring-invoices', [\App\Http\Controllers\Admin\HaloBillingController::class, 'serviceRecurringInvoices'])->middleware(['permission:sync.run', 'throttle:30,1'])->name('admin.services.internet.halo.recurringInvoices');
+        Route::put('/services/internet/{service}/halo/recurring-invoice', [\App\Http\Controllers\Admin\HaloBillingController::class, 'setServiceRecurringInvoice'])->middleware(['permission:sync.run', 'throttle:30,1'])->name('admin.services.internet.halo.recurringInvoice');
+        Route::post('/services/internet/{service}/halo-sync', [\App\Http\Controllers\Admin\HaloBillingController::class, 'syncService'])->middleware(['permission:sync.run', 'throttle:12,1'])->name('admin.services.internet.halo-sync.one');
         Route::post('/services/internet/{service}/poll', [InternetController::class, 'pollStatus'])->name('admin.services.internet.poll');
+        Route::post('/services/internet/{service}/sandbox-poll', [InternetController::class, 'sandboxPoll'])->middleware('throttle:12,1')->name('admin.services.internet.sandboxPoll');
         Route::post('/services/internet/{service}/assign-client', [InternetController::class, 'assignClient'])->name('admin.services.internet.assignClient');
         Route::post('/services/internet/{service}/status', [InternetController::class, 'setStatus'])->name('admin.services.internet.setStatus');
         Route::post('/services/internet/{service}/diagnostic', [InternetController::class, 'diagnostic'])->name('admin.services.internet.diagnostic');
@@ -223,6 +313,9 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/services/hosting', [ServicesController::class, 'index'])->name('admin.services.hosting');
         Route::get('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'index'])->name('admin.services.hosting.purchase');
         Route::post('/services/hosting/purchase', [\App\Http\Controllers\Admin\HostingPurchaseController::class,'purchase'])->name('admin.services.hosting.purchase.store');
+        Route::post('/assets/{provider}/{entity}/{id}/sync', [\App\Http\Controllers\Admin\AssetSyncController::class, 'syncOne'])
+            ->whereIn('provider', ['halo', 'itglue'])->whereIn('entity', ['internet_service', 'hosting_service', 'ssl_certificate'])->whereNumber('id')
+            ->middleware(['permission:sync.run', 'throttle:12,1'])->name('admin.assets.sync');
         Route::post('/services/hosting/sync', [ServicesController::class, 'sync'])->name('admin.services.hosting.sync');
         Route::get('/services/hosting/{service}', [ServicesController::class, 'show'])->name('admin.services.hosting.show');
         Route::get('/services/hosting/{service}/details', [ServicesController::class, 'details'])->name('admin.services.hosting.details');
@@ -247,4 +340,12 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/services/ssl/{ssl}/assign-client', [\App\Http\Controllers\Admin\SslController::class,'assignClient'])->whereNumber('ssl')->name('admin.services.ssl.assignClient');
         Route::post('/services/ssl/decode-csr', [\App\Http\Controllers\Admin\SslController::class,'decodeCsr'])->name('admin.services.ssl.decodeCsr');
     });
+});
+
+// ---------------------------------------------------------------------------
+// OpenAPI document downloads (same audience as the API Keys page)
+// ---------------------------------------------------------------------------
+Route::middleware(['auth', 'verified', 'mfa.policy', 'role:Administrator'])->group(function () {
+    Route::get('/api-docs/openapi.yaml', [\App\Http\Controllers\Admin\ApiDocsController::class, 'yaml'])->name('admin.apidocs.yaml');
+    Route::get('/api-docs/openapi.json', [\App\Http\Controllers\Admin\ApiDocsController::class, 'json'])->name('admin.apidocs.json');
 });

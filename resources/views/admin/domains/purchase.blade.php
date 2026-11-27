@@ -560,280 +560,111 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <style>
-    .dd-domain-purchase-page .dd-page-title {
-        font-size: 2.2rem;
-        line-height: 1.15;
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-        color: var(--dd-text);
+    .dd-domain-purchase-page .dd-card h2 {
+        font-size: var(--dd-text-lg);
+        margin-bottom: 1rem;
     }
-
-    .dd-domain-purchase-page .dd-card {
-        border: 1px solid var(--dd-border);
-        background: linear-gradient(150deg, var(--dd-surface), var(--dd-surface-soft));
-    }
-
-    .dd-domain-purchase-page h2 {
-        font-size: 1.75rem !important;
-        line-height: 1.2;
-        font-weight: 650;
-        margin-bottom: 1.1rem !important;
-        color: var(--dd-text) !important;
-    }
-
-    .dd-domain-purchase-page #step-search h2,
-    .dd-domain-purchase-page #step-au-validation h2,
-    .dd-domain-purchase-page #step-client h2 {
-        font-size: 2rem !important;
-        margin-bottom: 1.25rem !important;
-    }
-
     .dd-domain-purchase-page .dd-search-row {
         display: grid !important;
-        grid-template-columns: minmax(0, 1fr) minmax(190px, 220px) auto;
-        gap: 12px;
+        grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem) auto;
+        gap: 0.75rem;
         align-items: stretch;
     }
-
     .dd-domain-purchase-page .dd-search-extension-wrap {
         display: block;
         width: 100%;
     }
-
-    .dd-domain-purchase-page input[type="text"],
-    .dd-domain-purchase-page input[type="email"],
-    .dd-domain-purchase-page .fancy-select {
-        min-height: 48px;
-        background: var(--dd-surface-soft) !important;
-        border: 1px solid var(--dd-border) !important;
-        color: var(--dd-text) !important;
-        border-radius: 12px !important;
-    }
-
-    .dd-domain-purchase-page #domain-name {
-        color: var(--dd-text) !important;
-        font-weight: 500;
-    }
-
     .dd-domain-purchase-page .dd-search-input,
     .dd-domain-purchase-page .dd-search-extension {
         width: 100%;
-        min-height: 56px;
-        border-radius: 14px !important;
-        border: 1px solid #b6c3d6 !important;
-        background: #ffffff !important;
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
-        padding: 0 14px !important;
+        min-height: 3rem;
+        padding: 0 0.875rem;
     }
-
-    .dd-domain-purchase-page .dd-search-input:focus,
-    .dd-domain-purchase-page .dd-search-extension:focus {
-        outline: none;
-        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
-    }
-
-    .dd-domain-purchase-page input::placeholder {
-        color: color-mix(in srgb, var(--dd-text-soft) 92%, transparent) !important;
-        opacity: 1;
-    }
-
-    html.dark .dd-domain-purchase-page .dd-search-input,
-    html.dark .dd-domain-purchase-page .dd-search-extension {
-        border-color: color-mix(in srgb, #324664 62%, var(--dd-border) 38%) !important;
-        background: #1c2c47 !important;
-        color: #e2e8f0 !important;
-    }
-
-    .dd-domain-purchase-page .dd-search-extension option {
-        background: #ffffff;
-        color: #111827;
-    }
-
-    .dd-domain-purchase-page #step-au-validation input[type="text"],
-    .dd-domain-purchase-page #step-au-validation input[type="email"],
-    .dd-domain-purchase-page #step-au-validation .fancy-select,
-    .dd-domain-purchase-page #step-client input[type="text"],
-    .dd-domain-purchase-page #step-client input[type="email"],
-    .dd-domain-purchase-page #step-client .fancy-select {
-        border: 1px solid #b6c3d6 !important;
-        background: #ffffff !important;
-        color: #111827 !important;
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 0 0 1px rgba(182, 195, 214, 0.35);
-    }
-
-    .dd-domain-purchase-page #step-au-validation .fancy-select option,
-    .dd-domain-purchase-page #step-client .fancy-select option {
-        background: #ffffff;
-        color: #111827;
-    }
-
-    .dd-domain-purchase-page #step-au-validation input[type="text"]:focus,
-    .dd-domain-purchase-page #step-au-validation input[type="email"]:focus,
-    .dd-domain-purchase-page #step-au-validation .fancy-select:focus,
-    .dd-domain-purchase-page #step-client input[type="text"]:focus,
-    .dd-domain-purchase-page #step-client input[type="email"]:focus,
-    .dd-domain-purchase-page #step-client .fancy-select:focus {
-        outline: none;
-        border-color: color-mix(in srgb, var(--dd-accent) 60%, #8ba6c7 40%) !important;
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-accent) 20%, transparent);
-    }
-
-    html.dark .dd-domain-purchase-page .dd-search-extension option {
-        background: #0f172a;
-        color: #e2e8f0;
-    }
-
-    html.dark .dd-domain-purchase-page #step-au-validation input[type="text"],
-    html.dark .dd-domain-purchase-page #step-au-validation input[type="email"],
-    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select,
-    html.dark .dd-domain-purchase-page #step-client input[type="text"],
-    html.dark .dd-domain-purchase-page #step-client input[type="email"],
-    html.dark .dd-domain-purchase-page #step-client .fancy-select {
-        border-color: color-mix(in srgb, #324664 62%, var(--dd-border) 38%) !important;
-        background: #1c2c47 !important;
-        color: #e2e8f0 !important;
-    }
-
-    html.dark .dd-domain-purchase-page #step-au-validation .fancy-select option,
-    html.dark .dd-domain-purchase-page #step-client .fancy-select option {
-        background: #0f172a;
-        color: #e2e8f0;
-    }
-
     .dd-domain-purchase-page input:-webkit-autofill,
     .dd-domain-purchase-page input:-webkit-autofill:hover,
     .dd-domain-purchase-page input:-webkit-autofill:focus {
         -webkit-text-fill-color: var(--dd-text) !important;
         caret-color: var(--dd-text);
-        -webkit-box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
-        box-shadow: 0 0 0 1000px var(--dd-surface-soft) inset !important;
+        -webkit-box-shadow: 0 0 0 1000px var(--dd-surface) inset !important;
+        box-shadow: 0 0 0 1000px var(--dd-surface) inset !important;
         transition: background-color 9999s ease-in-out 0s;
     }
-
-    .dd-domain-purchase-page .fancy-select-wrapper::after {
-        color: var(--dd-text-soft) !important;
-    }
-
-    .dd-domain-purchase-page p,
-    .dd-domain-purchase-page li,
-    .dd-domain-purchase-page label {
-        color: var(--dd-text-soft) !important;
-    }
-
     .dd-domain-purchase-page .btn-accent {
-        min-height: 48px;
-        border-radius: 14px;
+        min-height: 3rem;
     }
-
     .dd-domain-purchase-page .dd-purchase-notice {
-        padding: 16px;
-        border-radius: 10px;
-        border-width: 1px;
-        border-style: solid;
+        padding: 0.875rem 1rem;
+        border-radius: var(--dd-radius);
+        border: 1px solid transparent;
     }
-
     .dd-domain-purchase-page .dd-purchase-notice p {
         margin: 0;
         font-weight: 600;
     }
-
     .dd-domain-purchase-page .dd-purchase-notice-success {
-        background: #ecfdf5;
-        border-color: #10b981;
+        background: var(--dd-status-success-bg);
+        border-color: color-mix(in srgb, var(--dd-status-success-fg) 30%, transparent);
     }
-
     .dd-domain-purchase-page .dd-purchase-notice-success p {
-        color: #065f46 !important;
+        color: var(--dd-status-success-fg);
     }
-
     .dd-domain-purchase-page .dd-purchase-notice-error {
-        background: #fef2f2;
-        border-color: #ef4444;
+        background: var(--dd-status-danger-bg);
+        border-color: color-mix(in srgb, var(--dd-status-danger-fg) 30%, transparent);
     }
-
     .dd-domain-purchase-page .dd-purchase-notice-error p {
-        color: #991b1b !important;
+        color: var(--dd-status-danger-fg);
     }
-
     .dd-existing-client-summary {
-        margin-top: 14px;
-        padding: 14px;
+        margin-top: 0.875rem;
+        padding: 0.875rem;
         border: 1px solid var(--dd-border);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--dd-surface-soft) 86%, transparent);
+        border-radius: var(--dd-radius-lg);
+        background: var(--dd-surface-soft);
     }
-
     .dd-existing-client-summary-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 10px;
+        gap: 0.75rem;
+        margin-bottom: 0.625rem;
     }
-
     .dd-existing-client-summary-header h3 {
         margin: 0;
-        color: var(--dd-text);
         font-size: 1rem;
     }
-
     .dd-existing-client-grid {
         margin: 0;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px 16px;
+        gap: 0.625rem 1rem;
     }
-
     .dd-existing-client-grid dt {
-        font-size: 12px;
+        font-size: var(--dd-text-xs);
         color: var(--dd-text-soft);
     }
-
     .dd-existing-client-grid dd {
-        margin: 2px 0 0;
-        color: var(--dd-text);
+        margin: 0.125rem 0 0;
         font-weight: 600;
     }
-
     .dd-existing-client-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: 0.75rem;
     }
-
     .dd-existing-client-form-grid label {
         display: block;
-        margin-bottom: 6px;
+        margin-bottom: 0.375rem;
         color: var(--dd-text-soft);
-        font-size: 13px;
+        font-size: var(--dd-text-sm);
     }
-
     .dd-existing-client-form-grid input {
         width: 100%;
     }
-
-    html.dark .dd-domain-purchase-page .dd-purchase-notice-success {
-        background: #0f2f26;
-    }
-
-    html.dark .dd-domain-purchase-page .dd-purchase-notice-success p {
-        color: #6ee7b7 !important;
-    }
-
-    html.dark .dd-domain-purchase-page .dd-purchase-notice-error {
-        background: #3a161c;
-    }
-
-    html.dark .dd-domain-purchase-page .dd-purchase-notice-error p {
-        color: #fecaca !important;
-    }
-
     @media (max-width: 900px) {
         .dd-domain-purchase-page .dd-search-row {
             grid-template-columns: minmax(0, 1fr);
         }
-
         .dd-existing-client-grid,
         .dd-existing-client-form-grid {
             grid-template-columns: 1fr;

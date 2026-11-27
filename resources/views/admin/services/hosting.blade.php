@@ -9,7 +9,7 @@
 </div>
 <div class="dd-page">
 <div class="dd-card">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">
+    <h1 class="dd-page-title">
         Hosting Services
     </h1>
 

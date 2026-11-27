@@ -4,17 +4,11 @@
     <div style="max-width:1180px;margin:0 auto;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px;">
             <div>
-                <h1 style="font-size:30px;font-weight:700;letter-spacing:-0.02em;margin-bottom:6px;">Email Notification Builder</h1>
+                <h1>Email Notification Builder</h1>
                 <p style="font-size:14px;color:var(--text-muted);margin:0;">Triggers are now database-driven. Create event notifications first, then tune templates from the library below.</p>
             </div>
             <button type="button" id="show-variable-library" class="btn-accent">Placeholder Variables</button>
         </div>
-
-        @if(session('status'))
-            <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:12px;padding:12px 14px;color:var(--success-text);margin-bottom:14px;">
-                {{ session('status') }}
-            </div>
-        @endif
 
         @if($errors->any())
             <div style="background:color-mix(in srgb, var(--danger-text) 12%, transparent);border:1px solid color-mix(in srgb, var(--danger-text) 35%, transparent);border-radius:12px;padding:12px 14px;color:var(--danger-text);margin-bottom:14px;">

@@ -7,36 +7,37 @@
         <span>Syncing SSL certificates...</span>
     </div>
 </div>
-<div class="dd-page">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">SSL Certificates</h1>
-
-    @if(session('status'))
-        <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('status') }}</div>
-    @endif
+<div class="ui-page">
+    <x-ui.page-header title="SSL Certificates" subtitle="Certificates, expiry and client assignment.">
+        <x-slot name="actions">
+            <form method="POST" action="{{ route('admin.services.ssl.sync') }}">
+                @csrf
+                <x-ui.button type="submit" variant="secondary">
+                    <x-ui.icon name="refresh" :size="16" /> Sync from Synergy
+                </x-ui.button>
+            </form>
+        </x-slot>
+    </x-ui.page-header>
 
     @if(session('ssl_action_message'))
         <div class="dd-alert dd-alert-success" style="margin-bottom:12px;">{{ session('ssl_action_message') }}</div>
     @endif
 
-    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
-        <form method="GET" style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
-            <select name="client_id" class="dd-input dd-input-inline" style="flex:1;min-width:240px;">
+    <div class="ui-toolbar">
+        <form method="GET" class="flex flex-1 flex-wrap items-center gap-2">
+            <label for="ssl-client-filter" class="sr-only">Filter by client</label>
+            <select id="ssl-client-filter" name="client_id" class="dd-input" style="flex:1;min-width:14rem;max-width:28rem;">
                 <option value="">All Clients</option>
                 @foreach($clients as $c)
                     <option value="{{ $c->id }}" @selected(request('client_id')==$c->id)>{{ $c->business_name }}</option>
                 @endforeach
             </select>
-            <button type="submit" class="btn-accent">Filter</button>
-        </form>
-
-        <form method="POST" action="{{ route('admin.services.ssl.sync') }}" style="flex:0 0 auto;">
-            @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">Sync from Synergy</button>
+            <button type="submit" class="ui-btn ui-btn--primary">Filter</button>
         </form>
     </div>
 
-    <div class="dd-card">
-        <table>
+    <x-ui.card :flush="true">
+        <x-ui.table>
             <thead>
                 <tr>
                     <th>SSL Certificate</th>
@@ -73,80 +74,38 @@
                             —
                         @endif
                     </td>
-                    <td>{{ $ssl->status ?: '—' }}</td>
+                    <td>@if($ssl->status)<x-ui.badge :status="$ssl->status">{{ ucfirst($ssl->status) }}</x-ui.badge>@else — @endif</td>
                     <td>{{ optional($ssl->client)->business_name ?: '—' }}</td>
                     <td>
                         <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;font-size:14px;">
-                            <span title="Toggle details">▾</span>
+                            <span class="ui-muted" title="Toggle details"><x-ui.icon name="chevron-down" :size="16" /></span>
                         </div>
                     </td>
                 </tr>
 
-                <tr data-ssl-panel="{{ $rowId }}" class="dd-domain-panel">
-                    <td colspan="6">
-                        <div class="dd-domain-panel-inner">
-                            <div class="dd-domain-panel-header">
-                                <div>
-                                    <div style="font-weight:600;">{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}</div>
-                                    <div style="font-size:13px;opacity:.8;">
-                                        {{ $ssl->status ?: 'Status unknown' }}
-                                        @if($expiresInDays !== null)
-                                            • expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
-                                        @endif
-                                        @if($ssl->cert_id)
-                                            • Cert ID {{ $ssl->cert_id }}
-                                        @endif
-                                    </div>
-                                </div>
-                                <div style="font-size:13px;opacity:.7;">Product: {{ $ssl->display_product_name }}</div>
-                            </div>
+                <x-ui.row-detail data-ssl-panel="{{ $rowId }}" :title="$ssl->common_name ?: 'Certificate #'.$ssl->id" :colspan="6">
+                    <x-slot:meta>
+                        {{ $ssl->status ?: 'Status unknown' }}@if($expiresInDays !== null) • expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}@endif @if($ssl->cert_id) • Cert ID {{ $ssl->cert_id }}@endif
+                    </x-slot:meta>
+                    <x-slot:aside>Product: {{ $ssl->display_product_name }}</x-slot:aside>
 
-                            <div class="dd-domain-options-grid">
-                                <a href="{{ route('admin.services.ssl.show', $ssl) }}" class="dd-domain-option">
-                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-                                    <div class="dd-domain-option-label">Overview</div>
-                                </a>
-
-                                <form method="POST" action="{{ route('admin.services.ssl.renew', $ssl) }}" class="dd-domain-option-form" onsubmit="return confirm('Renew this SSL now?');">
-                                    @csrf
-                                    <button type="submit" class="dd-domain-option-btn">
-                                        <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
-                                        <div class="dd-domain-option-label">Renew</div>
-                                    </button>
-                                </form>
-
-                                <button type="button" class="dd-domain-option" data-assign-client="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}" data-client-id="{{ $ssl->client_id }}">
-                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                                    <div class="dd-domain-option-label">Assign client</div>
-                                </button>
-
-                                <button type="button" class="dd-domain-option" data-open-bundle="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">
-                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                                    <div class="dd-domain-option-label">Get cert / bundle</div>
-                                </button>
-
-                                <button type="button" class="dd-domain-option" data-open-rekey="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">
-                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
-                                    <div class="dd-domain-option-label">Rekey / reissue</div>
-                                </button>
-
-                                <form method="POST" action="{{ route('admin.services.ssl.resendCompletionEmail', $ssl) }}" class="dd-domain-option-form">
-                                    @csrf
-                                    <button type="submit" class="dd-domain-option-btn">
-                                        <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-                                        <div class="dd-domain-option-label">Resend completion email</div>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
+                    <x-ui.action-grid label="Certificate actions">
+                        <x-ui.action-tile :href="route('admin.services.ssl.show', $ssl)" icon="eye">Overview</x-ui.action-tile>
+                        <x-ui.action-tile :action="route('admin.services.ssl.renew', $ssl)" confirm="Renew this SSL now?" icon="refresh">Renew</x-ui.action-tile>
+                        <x-ui.action-tile icon="users" data-assign-client="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}" data-client-id="{{ $ssl->client_id }}">Assign client</x-ui.action-tile>
+                        <x-ui.action-tile icon="file" data-open-bundle="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">Get cert / bundle</x-ui.action-tile>
+                        <x-ui.action-tile icon="key" data-open-rekey="{{ $ssl->id }}" data-ssl-name="{{ $ssl->common_name ?: 'Certificate #'.$ssl->id }}">Rekey / reissue</x-ui.action-tile>
+                        <x-ui.action-tile :action="route('admin.services.ssl.resendCompletionEmail', $ssl)" icon="mail">Resend completion email</x-ui.action-tile>
+                    </x-ui.action-grid>
+                </x-ui.row-detail>
             @endforeach
             </tbody>
-        </table>
+        </x-ui.table>
 
-        {{ $ssls->withQueryString()->links() }}
-    </div>
+        @if ($ssls->hasPages())
+            <div class="px-4 py-3">{{ $ssls->withQueryString()->links() }}</div>
+        @endif
+    </x-ui.card>
 
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
         <div class="dd-modal-backdrop"></div>
@@ -473,104 +432,6 @@
     <style>
         @keyframes ssl-sync-spin {
             to { transform: rotate(360deg); }
-        }
-
-        tr[data-ssl-panel] {
-            display: none;
-            height: 0;
-        }
-        tr[data-ssl-panel] > td {
-            padding: 0;
-            border: 0;
-        }
-        tr[data-ssl-panel].open {
-            display: table-row;
-            height: auto;
-        }
-
-        .dd-domain-panel-inner {
-            max-height: 0;
-            padding: 0;
-            margin-top: 0;
-            border: 0;
-            overflow: hidden;
-            opacity: 0;
-            transform: translateY(-4px);
-            transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease, padding 0.2s ease, margin-top 0.2s ease, border-width 0.2s ease;
-        }
-
-        tr[data-ssl-panel].open > td > .dd-domain-panel-inner {
-            max-height: 700px;
-            opacity: 1;
-            transform: translateY(0);
-            padding: 16px 18px 18px;
-            margin-top: 0;
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-            background: var(--surface-elevated);
-        }
-
-        .dd-domain-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            border-radius: 6px;
-            background: var(--surface-muted);
-            border: 1px solid var(--border-subtle);
-            margin-bottom: 14px;
-        }
-
-        .dd-domain-options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 10px;
-        }
-
-        .dd-domain-option,
-        .dd-domain-option-btn {
-            display: flex;
-            align-items: center;
-            padding: 10px 14px;
-            border-radius: 12px;
-            background: var(--bg);
-            border: 1px solid var(--border-subtle);
-            text-decoration: none;
-            font-size: 14px;
-            cursor: pointer;
-            width: 100%;
-            min-height: 52px;
-            box-sizing: border-box;
-            transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
-        }
-
-        .dd-domain-option:hover,
-        .dd-domain-option-btn:hover {
-            background: var(--surface-muted);
-            border-color: var(--accent);
-            transform: translateY(-1px);
-        }
-
-        .dd-domain-option-btn {
-            background: transparent;
-            color: inherit;
-            height: 100%;
-        }
-
-        .dd-domain-option-form {
-            margin: 0;
-        }
-
-        .dd-domain-option-icon {
-            width: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 8px;
-        }
-
-        .dd-domain-option-label {
-            flex: 1;
         }
 
         .dd-modal {

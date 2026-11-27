@@ -144,9 +144,10 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Registration is opt-in (ALLOW_REGISTRATION=true); see config/domaindash.php.
+        ...(filter_var(env('ALLOW_REGISTRATION', false), FILTER_VALIDATE_BOOL) ? [Features::registration()] : []),
         Features::resetPasswords(),
-        // Features::emailVerification(),
+        Features::emailVerification(),
         Features::updateProfileInformation(),
         Features::updatePasswords(),
         Features::twoFactorAuthentication([

@@ -1031,13 +1031,6 @@ class TicketController extends Controller
 
     private function sanitizeActionHtml(string $html): string
     {
-        $sanitized = preg_replace('#<script\b[^>]*>(.*?)</script>#is', '', $html) ?? '';
-        $sanitized = preg_replace('#\son[a-zA-Z]+\s*=\s*(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)#i', '', $sanitized) ?? '';
-        $sanitized = preg_replace('#\s(href|src)\s*=\s*([\"\'])\s*javascript:[^\\2]*\\2#i', '', $sanitized) ?? '';
-
-        return strip_tags(
-            $sanitized,
-            '<p><br><strong><em><b><i><u><a><ul><ol><li><blockquote><code><pre><span><div><img>'
-        );
+        return \App\Support\HtmlSanitizer::clean($html);
     }
 }

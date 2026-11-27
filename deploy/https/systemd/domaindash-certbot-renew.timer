@@ -1,0 +1,10 @@
+[Unit]
+Description=Twice-daily certbot renewal for DomainDash (pip installs have no renewal timer)
+
+[Timer]
+OnCalendar=*-*-* 03,15:00:00
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

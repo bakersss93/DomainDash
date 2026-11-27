@@ -1,3 +1,3 @@
-<button {{ $attributes->merge(['type' => 'button', 'class' => 'btn-secondary disabled:opacity-40']) }}>
+<button {{ $attributes->merge(['type' => 'button', 'class' => 'ui-btn ui-btn--secondary']) }}>
     {{ $slot }}
 </button>

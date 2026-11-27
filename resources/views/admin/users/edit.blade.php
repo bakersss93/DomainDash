@@ -19,20 +19,20 @@
                         <div class="dd-account-field">
                             <label for="first_name">First Name</label>
                             <input class="dd-account-input" id="first_name" name="first_name" type="text" required value="{{ old('first_name', $first) }}">
-                            @error('first_name')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                            @error('first_name')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="dd-account-field">
                             <label for="last_name">Last Name</label>
                             <input class="dd-account-input" id="last_name" name="last_name" type="text" required value="{{ old('last_name', $last) }}">
-                            @error('last_name')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                            @error('last_name')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                         </div>
                     </div>
 
                     <div class="dd-account-field">
                         <label for="email">Email Address</label>
                         <input class="dd-account-input" id="email" name="email" type="email" required value="{{ old('email', $user->email) }}">
-                        @error('email')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                        @error('email')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
                     <h3 class="dd-account-subtitle">Access Controls</h3>
@@ -45,7 +45,7 @@
                             <option value="Technician" {{ $currentRole === 'Technician' ? 'selected' : '' }}>Technician</option>
                             <option value="Customer" {{ $currentRole === 'Customer' ? 'selected' : '' }}>Customer</option>
                         </select>
-                        @error('role')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                        @error('role')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
 
@@ -56,7 +56,7 @@
                             <span>Enable user account</span>
                         </label>
                         <small class="dd-account-help-text">If disabled, this user cannot log in and will be told to contact the system administrator.</small>
-                        @error('is_active')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                        @error('is_active')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="dd-account-field">
@@ -66,7 +66,7 @@
                             <option value="enforced" {{ old('mfa_preference', $user->mfa_preference) === 'enforced' ? 'selected' : '' }}>Enforced (required)</option>
                             <option value="disabled" {{ old('mfa_preference', $user->mfa_preference) === 'disabled' ? 'selected' : '' }}>Disabled</option>
                         </select>
-                        @error('mfa_preference')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                        @error('mfa_preference')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="dd-account-field">
@@ -87,15 +87,15 @@
                                             {{ $label }}
                                         </label>
                                     @empty
-                                        <div style="font-size:13px;color:#6b7280;">No clients created yet.</div>
+                                        <div style="font-size:13px;color:var(--dd-text-soft);">No clients created yet.</div>
                                     @endforelse
                                 </div>
                             </div>
                         </div>
-                        @error('client_ids')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                        @error('client_ids')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
 
-                    <div class="dd-account-actions" style="display:flex;justify-content:flex-start;gap:12px;margin-top:1.6rem;padding-top:1rem;border-top:1px solid #334155;">
+                    <div class="dd-account-actions" style="justify-content:flex-start;">
                         <button type="submit" class="btn-accent">Save changes</button>
                         <button type="button" class="dd-account-secondary" onclick="window.location.href='{{ route('admin.users') }}'">Cancel</button>
                     </div>
@@ -146,7 +146,7 @@
                         <label for="password_confirmation">Confirm Password</label>
                         <input class="dd-account-input" id="password_confirmation" name="password_confirmation" type="password" required>
                     </div>
-                    @error('password')<div style="color:#dc2626;font-size:12px;margin-top:4px;">{{ $message }}</div>@enderror
+                    @error('password')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     <button type="submit" class="btn-accent">Save password</button>
                 </form>
 
@@ -252,332 +252,4 @@
 
         })();
     </script>
-
-    <style>
-        .dd-account-wrap {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-right: 8px;
-        }
-
-        .dd-account-card {
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 20px !important;
-            background: linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--bg) 70%, var(--primary) 30%) 0%,
-                color-mix(in srgb, var(--bg) 86%, var(--primary) 14%) 100%
-            ) !important;
-            box-shadow: 0 30px 50px color-mix(in srgb, var(--text) 24%, transparent) !important;
-            padding: 26px !important;
-        }
-
-        .dd-account-grid {
-            display: grid !important;
-            grid-template-columns: minmax(0, 1fr) 340px !important;
-            gap: 20px !important;
-            align-items: start !important;
-        }
-
-        .dd-account-grid > form {
-            min-width: 0;
-        }
-
-        .dd-account-aside {
-            align-self: start;
-            border: 1px solid var(--border-subtle) !important;
-            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
-            border-radius: 14px !important;
-            padding: 16px !important;
-        }
-
-        .dd-account-row {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 14px !important;
-        }
-
-        .dd-account-main-form {
-            display: grid !important;
-            gap: 14px !important;
-        }
-
-        .dd-account-section-title {
-            margin: 0 0 4px 0 !important;
-        }
-
-        .dd-account-subtitle {
-            margin: 6px 0 2px !important;
-        }
-
-        .dd-account-field {
-            display: grid !important;
-            gap: 6px !important;
-        }
-
-        .dd-account-input,
-        .dd-account-field select {
-            width: 100% !important;
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 12px !important;
-            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
-            color: var(--text) !important;
-            padding: 11px 12px !important;
-        }
-
-        .dd-account-field select,
-        .client-picker-toggle {
-            appearance: none !important;
-            background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%) !important;
-            background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px) !important;
-            background-size: 6px 6px, 6px 6px !important;
-            background-repeat: no-repeat !important;
-            padding-right: 34px !important;
-        }
-
-        .client-picker-toggle {
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 12px !important;
-            background-color: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
-            color: var(--text) !important;
-            min-height: 46px !important;
-            display: flex !important;
-            align-items: center !important;
-        }
-
-        .client-picker-arrow {
-            display: none !important;
-        }
-
-        .client-picker-list {
-            display: grid !important;
-            gap: 8px !important;
-            max-height: 220px !important;
-            overflow-y: auto !important;
-            padding-right: 2px !important;
-        }
-
-        .client-picker-item {
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            padding: 8px 10px !important;
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 10px !important;
-            background: color-mix(in srgb, var(--bg) 86%, var(--primary) 14%) !important;
-            line-height: 1.3 !important;
-        }
-
-        .client-picker-checkbox {
-            appearance: none !important;
-            width: 16px !important;
-            height: 16px !important;
-            border-radius: 5px !important;
-            border: 1px solid var(--border-subtle) !important;
-            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
-            display: inline-grid !important;
-            place-content: center !important;
-            flex-shrink: 0 !important;
-            margin: 0 !important;
-        }
-
-        .client-picker-checkbox:checked {
-            background: var(--accent) !important;
-            border-color: var(--accent) !important;
-        }
-
-        .client-picker-checkbox:checked::before {
-            content: "";
-            width: 4px;
-            height: 8px;
-            border: solid #ffffff;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-            margin-top: -1px;
-        }
-
-
-        .dd-account-toggle-field {
-            margin-bottom: 16px !important;
-            padding: 12px 14px !important;
-            border: 1px solid var(--border-subtle) !important;
-            border-radius: 12px !important;
-            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%) !important;
-        }
-
-        .dd-account-checkbox-row {
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-            margin: 0 !important;
-            cursor: pointer !important;
-            font-weight: 600 !important;
-        }
-
-        .dd-account-checkbox {
-            appearance: none !important;
-            width: 18px !important;
-            height: 18px !important;
-            border-radius: 6px !important;
-            border: 1px solid var(--border-subtle) !important;
-            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%) !important;
-            display: inline-grid !important;
-            place-content: center !important;
-            flex-shrink: 0 !important;
-        }
-
-        .dd-account-checkbox:checked {
-            background: var(--accent) !important;
-            border-color: var(--accent) !important;
-        }
-
-        .dd-account-checkbox:checked::before {
-            content: "";
-            width: 5px;
-            height: 9px;
-            border: solid #ffffff;
-            border-width: 0 2px 2px 0;
-            transform: rotate(45deg);
-            margin-top: -1px;
-        }
-
-        .dd-account-help-text {
-            color: var(--text-muted) !important;
-            display: block !important;
-            margin-top: 8px !important;
-            line-height: 1.35 !important;
-        }
-
-        .dd-account-header h1,
-        .dd-account-section-title,
-        .dd-account-subtitle,
-        .dd-account-field label,
-        .dd-account-aside h3 {
-            color: var(--text) !important;
-        }
-
-        .dd-account-header p,
-        .dd-account-aside p,
-        .dd-account-aside li {
-            color: var(--text-muted) !important;
-        }
-
-        .dd-account-aside p {
-            margin-bottom: 0.55rem !important;
-        }
-
-        .dd-account-aside ul {
-            margin: 0 !important;
-            padding-left: 1rem !important;
-        }
-
-        .dd-account-password-btn {
-            border: 1px solid var(--border-subtle) !important;
-            background: color-mix(in srgb, var(--bg) 78%, var(--accent) 22%) !important;
-            color: var(--text) !important;
-            border-radius: 14px !important;
-            padding: 0 20px !important;
-            text-decoration: none !important;
-            margin-top: 0.3rem !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            min-height: 52px !important;
-            min-width: 160px !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.01em;
-        }
-
-        .dd-account-actions .btn-accent,
-        .dd-account-actions .dd-account-secondary,
-        .dd-account-modal .btn-accent {
-            min-height: 52px !important;
-            min-width: 160px !important;
-            border-radius: 14px !important;
-            padding: 0 20px !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.01em;
-        }
-
-        .dd-account-modal-open {
-            overflow: hidden;
-        }
-
-        .dd-account-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(2, 6, 23, 0.75);
-            display: grid;
-            place-items: center;
-            z-index: 80;
-            padding: 18px;
-        }
-
-        .dd-account-modal-backdrop[hidden] {
-            display: none !important;
-        }
-
-        .dd-account-modal {
-            width: min(900px, 100%);
-            border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            background: color-mix(in srgb, var(--bg) 78%, var(--primary) 22%);
-            box-shadow: 0 24px 44px color-mix(in srgb, var(--text) 28%, transparent);
-            padding: 20px;
-        }
-
-        .dd-account-modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.35rem;
-        }
-
-        .dd-account-modal-header h2,
-        .dd-account-modal h3 {
-            margin: 0;
-            color: var(--text);
-        }
-
-        .dd-account-modal-intro,
-        .dd-account-modal p {
-            color: var(--text-muted);
-        }
-
-        .dd-account-modal-close {
-            border: 1px solid var(--border-subtle);
-            background: color-mix(in srgb, var(--bg) 84%, var(--primary) 16%);
-            color: var(--text);
-            border-radius: 8px;
-            width: 36px;
-            height: 36px;
-            font-size: 22px;
-            line-height: 1;
-        }
-
-        .dd-account-modal-grid {
-            margin-top: 1rem;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .dd-account-modal-form {
-            border: 1px solid var(--border-subtle);
-            border-radius: 12px;
-            padding: 14px;
-            background: color-mix(in srgb, var(--bg) 88%, var(--primary) 12%);
-        }
-
-        @media (max-width: 1024px) {
-            .dd-account-grid,
-            .dd-account-row,
-            .dd-account-modal-grid {
-                grid-template-columns: 1fr !important;
-            }
-        }
-    </style>
 @endsection

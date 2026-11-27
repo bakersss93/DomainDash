@@ -325,38 +325,26 @@
 {{-- Inline CSS so it always loads, regardless of layout stacks --}}
 <style>
     :root {
-        --dd-card-radius: 18px;
-        --dd-card-padding: 18px 20px;
-
-        --dd-pill-radius: 9999px;
-        --dd-pill-padding: 8px 14px;
-
-        --dd-card-bg: #ffffff;
-        --dd-card-border: #d1d5db;
-        --dd-pill-bg: #f3f4f6;
-        --dd-pill-border: #d1d5db;
-        --dd-text-color: #111827;
-        --dd-header-bg: #020617;
-        --dd-header-text: #f9fafb;
-        --dd-row-alt-bg: #f9f9fb;
-        --dd-overlay-bg: rgba(15,23,42,0.65);
+        --dd-card-radius: var(--dd-radius-lg);
+        --dd-pill-radius: var(--dd-radius);
+        --dd-card-padding: 1.25rem;
+        --dd-pill-padding: 0.5rem 0.875rem;
+        --dd-card-bg: var(--dd-surface);
+        --dd-card-border: var(--dd-border);
+        --dd-pill-bg: var(--dd-surface);
+        --dd-pill-border: var(--dd-border-strong);
+        --dd-text-color: var(--dd-text);
+        --dd-text-muted: var(--dd-text-soft);
+        --dd-header-bg: var(--dd-surface-soft);
+        --dd-header-text: var(--dd-text-soft);
+        --dd-row-alt-bg: transparent;
+        --dd-hover-bg: var(--dd-surface-muted);
+        --dd-progress-bg: var(--dd-surface-muted);
+        --dd-progress-fill: var(--dd-accent);
+        --dd-overlay-bg: var(--dd-backdrop);
     }
 
-    /* Dark mode – lighter grey pill background */
-    body.dark-mode,
-    body[data-theme="dark"],
-    html.dark,
-    html[data-theme="dark"] {
-        --dd-card-bg: #020617;
-        --dd-card-border: #1f2937;
-        --dd-pill-bg: #1f2937;
-        --dd-pill-border: #4b5563;
-        --dd-text-color: #e5e7eb;
-        --dd-header-bg: #020617;
-        --dd-header-text: #f9fafb;
-        --dd-row-alt-bg: #111827;
-        --dd-overlay-bg: rgba(15,23,42,0.85);
-    }
+
 
     .dd-dns-card {
         border-radius: var(--dd-card-radius);
@@ -367,11 +355,6 @@
         color: var(--dd-text-color);
     }
 
-    .dd-dns-title {
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 4px;
-    }
 
     .dd-dns-subtitle {
         font-size: 14px;
@@ -387,6 +370,7 @@
 
     .dd-dns-toolbar {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 12px;
         margin-bottom: 14px;
@@ -409,27 +393,9 @@
         overflow-x: auto;
     }
 
-    .dd-dns-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-    }
 
-    .dd-dns-table thead tr {
-        background: var(--dd-header-bg);
-        color: var(--dd-header-text);
-    }
 
-    .dd-dns-table th,
-    .dd-dns-table td {
-        padding: 8px 10px;
-        text-align: left;
-        border-bottom: 1px solid rgba(148,163,184,0.4);
-    }
 
-    .dd-dns-table tbody tr:nth-child(even) {
-        background: var(--dd-row-alt-bg);
-    }
 
     .dd-dns-actions {
         display: flex;
@@ -471,10 +437,6 @@
         width: 100%;
     }
 
-    .dd-pill-btn {
-        border-radius: 12px !important;
-        padding: 8px 16px !important;
-    }
 
     /* Shared modal styling (both options + add record) */
     .dd-dns-modal.dd-hidden {

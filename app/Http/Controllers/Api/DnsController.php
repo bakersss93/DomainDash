@@ -27,7 +27,8 @@ class DnsController extends Controller
 
             return response()->json(['domain_id' => $domain->id, 'domain' => $domain->name, 'records' => $records]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Unable to retrieve DNS zone: ' . $e->getMessage()], 502);
+            report($e);
+            return response()->json(['message' => 'Unable to retrieve DNS zone.'], 502);
         }
     }
 
@@ -51,7 +52,8 @@ class DnsController extends Controller
                 $data['prio'] ?? 0
             );
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to add DNS record: ' . $e->getMessage()], 502);
+            report($e);
+            return response()->json(['message' => 'Failed to add DNS record.'], 502);
         }
 
         AuditLogger::logSystem('dns.create', "DNS record added via API for {$domain->name}.", [
@@ -74,9 +76,9 @@ class DnsController extends Controller
         ]);
 
         try {
-            $synergy->deleteDNSRecord($domain->name, $recordId);
-            $synergy->addDNSRecord(
+            $synergy->updateDNSRecord(
                 $domain->name,
+                $recordId,
                 $data['host'] ?? '',
                 $data['type'],
                 $data['content'],
@@ -84,7 +86,8 @@ class DnsController extends Controller
                 $data['prio'] ?? 0
             );
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to update DNS record: ' . $e->getMessage()], 502);
+            report($e);
+            return response()->json(['message' => 'Failed to update DNS record.'], 502);
         }
 
         AuditLogger::logSystem('dns.update', "DNS record updated via API for {$domain->name}.", [
@@ -101,7 +104,8 @@ class DnsController extends Controller
         try {
             $synergy->deleteDNSRecord($domain->name, $recordId);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to delete DNS record: ' . $e->getMessage()], 502);
+            report($e);
+            return response()->json(['message' => 'Failed to delete DNS record.'], 502);
         }
 
         AuditLogger::logSystem('dns.delete', "DNS record deleted via API for {$domain->name}.", [
@@ -116,7 +120,7 @@ class DnsController extends Controller
     public function updateOptions(Request $request, Domain $domain, SynergyWholesaleClient $synergy): JsonResponse
     {
         $data = $request->validate([
-            'dns_mode'      => 'required|integer|in:1,2,3,4',
+            'dns_mode'      => 'required|integer|in:1,2,3,4,5,7',
             'nameservers'   => 'array',
             'nameservers.*' => 'nullable|string|max:255',
         ]);
@@ -127,7 +131,8 @@ class DnsController extends Controller
         try {
             $synergy->updateNameServers($domain->name, $nameservers, $dnsMode, null);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to update nameservers: ' . $e->getMessage()], 502);
+            report($e);
+            return response()->json(['message' => 'Failed to update nameservers.'], 502);
         }
 
         $domain->dns_config = $dnsMode;

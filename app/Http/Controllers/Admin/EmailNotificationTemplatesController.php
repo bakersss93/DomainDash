@@ -52,6 +52,26 @@ class EmailNotificationTemplatesController extends Controller
             'body' => "A synchronisation task failed in DomainDash.\n\nJob: {{sync.job_name}}\nFailure time: {{sync.failed_at}}\nError: {{sync.error_message}}\n\nReview details in the admin dashboard.",
             'admin_recipient_email' => 'ops@example.com',
         ],
+        [
+            'name' => 'Platform HTTPS Certificate Expiring',
+            'slug' => 'platform-https-expiring',
+            'trigger_event' => 'platform_https_expiring',
+            'audience' => 'admin',
+            'title' => 'Platform HTTPS Certificate Expiring',
+            'subject' => 'DomainDash HTTPS certificate for {{https.hostname}} expires in {{https.days_left}} day(s)',
+            'body' => "The TLS certificate serving DomainDash ({{https.hostname}}) expires on {{https.expiry_date}} ({{https.days_left}} day(s) left).\n\nReview Settings > Platform HTTPS and renew or upload a new certificate.",
+            'admin_recipient_email' => null,
+        ],
+        [
+            'name' => 'Platform HTTPS Renewal Failed',
+            'slug' => 'platform-https-renewal-failed',
+            'trigger_event' => 'platform_https_renewal_failed',
+            'audience' => 'admin',
+            'title' => 'Platform HTTPS Renewal Failed',
+            'subject' => 'DomainDash HTTPS certificate renewal failed',
+            'body' => "Automatic renewal of the DomainDash TLS certificate failed.\n\nError: {{https.error}}\n\nReview Settings > Platform HTTPS (request log) and troubleshoot DNS / the certctl helper.",
+            'admin_recipient_email' => null,
+        ],
     ];
 
     private const VARIABLE_LIBRARY = [
@@ -66,11 +86,17 @@ class EmailNotificationTemplatesController extends Controller
         ['key' => '{{sync.job_name}}', 'description' => 'Name of the sync task that ran.'],
         ['key' => '{{sync.failed_at}}', 'description' => 'Timestamp when sync failed.'],
         ['key' => '{{sync.error_message}}', 'description' => 'Failure reason returned by the sync task.'],
+        ['key' => '{{https.hostname}}', 'description' => 'Platform HTTPS certificate hostname.'],
+        ['key' => '{{https.expiry_date}}', 'description' => 'Platform HTTPS certificate expiry date.'],
+        ['key' => '{{https.days_left}}', 'description' => 'Days until the platform certificate expires.'],
+        ['key' => '{{https.error}}', 'description' => 'Platform HTTPS renewal failure reason.'],
         ['key' => '{{auth.reset_link}}', 'description' => 'Signed password reset URL for the user.'],
         ['key' => '{{auth.reset_expires_at}}', 'description' => 'Password reset link expiration timestamp.'],
     ];
 
     private const EVENT_OPTIONS = [
+        'platform_https_expiring' => 'Platform HTTPS certificate expiring',
+        'platform_https_renewal_failed' => 'Platform HTTPS renewal failed',
         'domain_expiring' => 'Upcoming domain expiry',
         'ssl_expiring' => 'Upcoming SSL expiry',
         'disk_space_warning_hosting' => 'Disk space warning (hosting)',

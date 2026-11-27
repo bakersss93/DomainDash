@@ -15,12 +15,17 @@ class Domain extends Model
         'client_id','name','status','expiry_date','auto_renew','name_servers','dns_config','registry_id','transfer_status','halo_asset_id','itglue_id','whois_data','whois_synced_at'
     ];
 
+    /** Raw WHOIS blobs are not exposed through JSON/API serialisation. */
+    protected $hidden = ['whois_data'];
+
     protected $casts = [
         'name_servers' => 'array',
         'auto_renew'   => 'boolean',
         'expiry_date'  => 'date',
         'whois_data'   => 'array',
-        'whois_synced_at' => 'datetime'
+        'whois_synced_at' => 'datetime',
+        'halo_synced_at' => 'datetime',
+        'itglue_synced_at' => 'datetime',
     ];
 
     public function client()

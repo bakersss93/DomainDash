@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Request;
 class AuditLogger
 {
     /**
+     * Number of deliberate (non generic-HTTP) events written in this process. AuditRequestActions compares it
+     * before / after a request to avoid writing a second, generic row for something a controller already logged.
+     */
+    public static int $explicitWrites = 0;
+
+    /**
      * Log an audit event
      *
      * @param string $action The action performed (create, update, delete, sync, etc.)
@@ -20,10 +26,25 @@ class AuditLogger
      */
     public static function log(string $action, $auditable, array $options = []): AuditLog
     {
+        if (! str_starts_with($action, 'http.')) {
+            self::$explicitWrites++;
+        }
+
         $auditableType = is_object($auditable) ? get_class($auditable) : $auditable;
         $auditableId = is_object($auditable) ? $auditable->id : ($options['auditable_id'] ?? null);
 
         $user = Auth::user();
+
+        // While impersonating, record the real administrator on every row.
+        try {
+            if (app()->bound('request') && request()->hasSession() && ($impersonator = request()->session()->get('impersonator_id'))) {
+                $ctx = (array) ($options['context'] ?? []);
+                $ctx['impersonator_id'] = $ctx['impersonator_id'] ?? $impersonator;
+                $options['context'] = $ctx;
+            }
+        } catch (\Throwable $e) {
+            // never let audit decoration break the request
+        }
 
         return AuditLog::create([
             'user_id' => $user?->id,
@@ -32,9 +53,10 @@ class AuditLogger
             'auditable_type' => $auditableType,
             'auditable_id' => $auditableId,
             'description' => $options['description'] ?? null,
-            'old_values' => $options['old_values'] ?? null,
-            'new_values' => $options['new_values'] ?? null,
-            'context' => $options['context'] ?? null,
+            // Defence in depth: nothing secret-like is ever persisted, whatever the caller.
+            'old_values' => \App\Support\Redactor::redact($options['old_values'] ?? null),
+            'new_values' => \App\Support\Redactor::redact($options['new_values'] ?? null),
+            'context' => \App\Support\Redactor::redact($options['context'] ?? null),
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
@@ -93,10 +115,23 @@ class AuditLogger
         ], $additionalData));
     }
 
+    /** Is this action debug noise (only recorded when monitoring.verbose / the Verbose setting is on)? */
+    public static function isNoise(string $action): bool
+    {
+        return in_array($action, (array) config('monitoring.noise_actions', []), true);
+    }
+
     public static function pruneOlderThanDays(int $days): int
     {
         $cutoff = Carbon::now()->subDays(max(1, $days));
+        $total = 0;
 
-        return AuditLog::query()->where('created_at', '<', $cutoff)->delete();
+        // Chunked so a large backlog never holds one long delete lock.
+        do {
+            $deleted = AuditLog::query()->where('created_at', '<', $cutoff)->limit(5000)->delete();
+            $total += $deleted;
+        } while ($deleted >= 5000);
+
+        return $total;
     }
 }

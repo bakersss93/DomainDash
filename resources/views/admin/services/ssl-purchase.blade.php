@@ -2,7 +2,7 @@
 
 @section('content')
 <div style="max-width: 1200px;">
-    <h1 style="font-size: 24px; font-weight: 600; margin-bottom: 24px;">Purchase SSL Certificate</h1>
+    <h1>Purchase SSL Certificate</h1>
 
     @if(isset($error))
         <div class="dd-alert-box dd-alert-box--danger">
@@ -67,13 +67,13 @@
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">CSR *</label>
             <textarea id="csr" class="dd-input" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"
-                style="font-family: monospace; font-size: 13px;"></textarea>
+                style="font-family: monospace;"></textarea>
         </div>
 
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; font-weight: 500;">Private Key *</label>
             <textarea id="private-key" class="dd-input" rows="5" placeholder="-----BEGIN PRIVATE KEY-----"
-                style="font-family: monospace; font-size: 13px;"></textarea>
+                style="font-family: monospace;"></textarea>
         </div>
 
         <div class="dd-alert-box dd-alert-box--info">

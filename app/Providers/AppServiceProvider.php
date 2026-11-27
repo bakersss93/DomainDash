@@ -2,7 +2,8 @@
 
 namespace App\Providers;
 
-use App\Services\AuditLogger;
+use App\Support\Monitoring\ChangeTracker;
+use App\Support\Monitoring\SystemEventAuditor;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Auth\Events\Failed;
@@ -15,7 +16,9 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use App\Support\MailSettings;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,7 +29,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One client (and one credentials lookup / WSDL parse) per request or
+        // queue job; scoped instances are flushed between queued jobs.
+        $this->app->scoped(\App\Services\Synergy\SynergyWholesaleClient::class);
+        $this->app->scoped(\App\Services\Vocus\VocusWsmClient::class);
+        // Monitoring settings + integration request logger: one instance per request / queued job.
+        $this->app->scoped(\App\Services\Monitoring\MonitoringSettings::class);
+        $this->app->scoped(\App\Services\Monitoring\IntegrationRequestLogger::class);
+        $this->app->bind(\App\Services\Https\TxtResolver::class, \App\Services\Https\PhpTxtResolver::class);
+        $this->app->bind(\App\Services\Https\AcmeDnsHook::class, fn ($app) => new \App\Services\Https\AcmeDnsHook(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class),
+            $app->make(\App\Services\Https\TxtResolver::class),
+        ));
+        $this->app->bind(\App\Services\Https\ZoneFinder::class, fn ($app) => new \App\Services\Https\ZoneFinder(
+            $app->make(\App\Services\Synergy\SynergyWholesaleClient::class)
+        ));
     }
 
     /**
@@ -34,240 +51,80 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Validation\Rules\Password::defaults(function () {
+            // Strong policy in production; Laravel's default (min 8) elsewhere so local/test data stays easy.
+            return $this->app->isProduction()
+                ? \Illuminate\Validation\Rules\Password::min(12)->mixedCase()->numbers()->uncompromised()
+                : \Illuminate\Validation\Rules\Password::min(8);
+        });
+
+        // Pre-auth throttle for the API (before any key lookup / bcrypt work).
+        \Illuminate\Support\Facades\RateLimiter::for('api-ip', function (\Illuminate\Http\Request $request) {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(120)->by('api-ip:' . $request->ip());
+        });
+
+        // Shared budgets for queued Halo / IT Glue calls across all workers.
+        RateLimiter::for('halo-api', fn () => Limit::perMinute((int) config('integrations.halo.rate_limit_per_minute', 120)));
+        RateLimiter::for('itglue-api', fn () => Limit::perMinute((int) config('integrations.itglue.rate_limit_per_minute', 400)));
+
+        \App\Models\InternetService::observe(\App\Observers\InternetServiceObserver::class);
+
         if (Schema::hasTable('settings')) {
             MailSettings::applyFromDatabase();
         }
 
+        // Monitoring: meaningful events only. See App\Support\Monitoring\SystemEventAuditor and docs/review/19-monitoring-logs.md.
         Event::listen(Login::class, function (Login $event): void {
-            AuditLogger::logSystem(
-                'auth.login',
-                'User logged in successfully.',
-                [
-                    'function' => 'authentication',
-                    'service' => 'auth',
-                    'user_id' => $event->user->id,
-                ],
-                [
-                    'user_email' => $event->user->email,
-                    'new_values' => [
-                        'remember' => $event->remember,
-                    ],
-                ]
-            );
+            SystemEventAuditor::auth('auth.login', 'Signed in: ' . $event->user->email, $event->user->email, [
+                'user_id' => $event->user->id,
+                'remember' => $event->remember,
+            ]);
         });
 
         Event::listen(Failed::class, function (Failed $event): void {
-            AuditLogger::logSystem(
-                'auth.login_failed',
-                'Failed login attempt.',
-                [
-                    'function' => 'authentication',
-                    'service' => 'auth',
-                ],
-                [
-                    'user_email' => $event->credentials['email'] ?? null,
-                    'new_values' => [
-                        'guard' => $event->guard,
-                        'email' => $event->credentials['email'] ?? null,
-                    ],
-                ]
-            );
+            SystemEventAuditor::auth('auth.login_failed', 'Failed sign-in attempt', $event->credentials['email'] ?? null, [
+                'guard' => $event->guard,
+            ]);
         });
 
-        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
-            if (! $this->shouldAuditConsoleCommand($event->command)) {
-                return;
+        Event::listen(\Illuminate\Auth\Events\Logout::class, function ($event): void {
+            if ($event->user ?? null) {
+                SystemEventAuditor::auth('auth.logout', 'Signed out: ' . $event->user->email, $event->user->email);
             }
-            if (! Schema::hasTable('audit_logs')) {
-                return;
-            }
-
-            AuditLogger::logSystem(
-                'console.command_started',
-                sprintf('Console command started: %s', $event->command ?? 'unknown'),
-                [
-                    'function' => 'console-command',
-                    'service' => 'artisan',
-                    'automated' => app()->runningInConsole(),
-                ],
-                [
-                    'new_values' => [
-                        'command' => $event->command,
-                        'input' => $event->input?->getArguments(),
-                    ],
-                ]
-            );
         });
-
-        Event::listen(CommandFinished::class, function (CommandFinished $event): void {
-            if (! $this->shouldAuditConsoleCommand($event->command)) {
-                return;
-            }
-            if (! Schema::hasTable('audit_logs')) {
-                return;
-            }
-
-            AuditLogger::logSystem(
-                'console.command_finished',
-                sprintf('Console command finished: %s', $event->command ?? 'unknown'),
-                [
-                    'function' => 'console-command',
-                    'service' => 'artisan',
-                    'automated' => app()->runningInConsole(),
-                ],
-                [
-                    'new_values' => [
-                        'command' => $event->command,
-                        'exit_code' => $event->exitCode,
-                    ],
-                ]
-            );
+        Event::listen(\Illuminate\Auth\Events\Lockout::class, function ($event): void {
+            SystemEventAuditor::auth('auth.lockout', 'Sign-in locked out after too many attempts', (string) $event->request->input('email'), ['ip' => $event->request->ip()]);
         });
-
-        Event::listen(ScheduledTaskStarting::class, function (ScheduledTaskStarting $event): void {
-            AuditLogger::logSystem(
-                'scheduler.task_started',
-                sprintf('Scheduled task started: %s', $event->task->description),
-                [
-                    'function' => 'scheduler-task',
-                    'service' => 'scheduler',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'description' => $event->task->description,
-                        'command' => $event->task->command,
-                        'expression' => $event->task->expression,
-                    ],
-                ]
-            );
+        Event::listen(\Illuminate\Auth\Events\PasswordReset::class, function ($event): void {
+            SystemEventAuditor::auth('auth.password_reset', 'Password reset completed: ' . $event->user->email, $event->user->email);
         });
-
-        Event::listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
-            AuditLogger::logSystem(
-                'scheduler.task_finished',
-                sprintf('Scheduled task finished: %s', $event->task->description),
-                [
-                    'function' => 'scheduler-task',
-                    'service' => 'scheduler',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'description' => $event->task->description,
-                        'command' => $event->task->command,
-                        'expression' => $event->task->expression,
-                        'runtime_seconds' => $event->runtime,
-                        'exit_code' => $event->task->exitCode,
-                    ],
-                ]
-            );
-        });
-
-        Event::listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
-            AuditLogger::logSystem(
-                'scheduler.task_skipped',
-                sprintf('Scheduled task skipped: %s', $event->task->description),
-                [
-                    'function' => 'scheduler-task',
-                    'service' => 'scheduler',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'description' => $event->task->description,
-                        'command' => $event->task->command,
-                        'expression' => $event->task->expression,
-                    ],
-                ]
-            );
-        });
-
-        Event::listen(ScheduledTaskFailed::class, function (ScheduledTaskFailed $event): void {
-            AuditLogger::logSystem(
-                'scheduler.task_failed',
-                sprintf('Scheduled task failed: %s', $event->task->description),
-                [
-                    'function' => 'scheduler-task',
-                    'service' => 'scheduler',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'description' => $event->task->description,
-                        'command' => $event->task->command,
-                        'expression' => $event->task->expression,
-                        'error' => $event->exception->getMessage(),
-                    ],
-                ]
-            );
-        });
-
-        Event::listen(JobProcessing::class, function (JobProcessing $event): void {
-            AuditLogger::logSystem(
-                'queue.job_started',
-                sprintf('Queue job started: %s', $event->job->resolveName()),
-                [
-                    'function' => 'queue-job',
-                    'service' => 'queue',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'connection' => $event->connectionName,
-                        'queue' => $event->job->getQueue(),
-                        'job_name' => $event->job->resolveName(),
-                    ],
-                ]
-            );
-        });
-
-        Event::listen(JobProcessed::class, function (JobProcessed $event): void {
-            AuditLogger::logSystem(
-                'queue.job_finished',
-                sprintf('Queue job finished: %s', $event->job->resolveName()),
-                [
-                    'function' => 'queue-job',
-                    'service' => 'queue',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'connection' => $event->connectionName,
-                        'queue' => $event->job->getQueue(),
-                        'job_name' => $event->job->resolveName(),
-                    ],
-                ]
-            );
-        });
-
-        Event::listen(JobFailed::class, function (JobFailed $event): void {
-            AuditLogger::logSystem(
-                'queue.job_failed',
-                sprintf('Queue job failed: %s', $event->job->resolveName()),
-                [
-                    'function' => 'queue-job',
-                    'service' => 'queue',
-                    'automated' => true,
-                ],
-                [
-                    'new_values' => [
-                        'connection' => $event->connectionName,
-                        'queue' => $event->job->getQueue(),
-                        'job_name' => $event->job->resolveName(),
-                        'error' => $event->exception->getMessage(),
-                    ],
-                ]
-            );
-        });
-    }
-
-    private function shouldAuditConsoleCommand(?string $command): bool
-    {
-        if ($command === null) {
-            return true;
+        foreach ([
+            'Laravel\\Fortify\\Events\\TwoFactorAuthenticationEnabled' => ['auth.mfa_enabled', 'MFA enrolment started'],
+            'Laravel\\Fortify\\Events\\TwoFactorAuthenticationConfirmed' => ['auth.mfa_confirmed', 'MFA enrolment confirmed'],
+            'Laravel\\Fortify\\Events\\TwoFactorAuthenticationDisabled' => ['auth.mfa_disabled', 'MFA disabled'],
+            'Laravel\\Fortify\\Events\\TwoFactorAuthenticationFailed' => ['auth.mfa_failed', 'Failed MFA challenge'],
+            'Laravel\\Fortify\\Events\\RecoveryCodeReplaced' => ['auth.mfa_recovery_used', 'MFA recovery code used'],
+        ] as $class => [$action, $text]) {
+            Event::listen($class, function ($event) use ($action, $text): void {
+                SystemEventAuditor::auth($action, $text . ': ' . ($event->user->email ?? 'unknown user'), $event->user->email ?? null);
+            });
         }
 
-        return ! in_array($command, ['schedule:run', 'schedule:work'], true);
+        // Eloquent changes made during a mutating HTTP request feed the old -> new diff of its activity row.
+        foreach (['created', 'updated', 'deleted'] as $eloquentEvent) {
+            Event::listen("eloquent.{$eloquentEvent}: *", function (string $name, array $payload) use ($eloquentEvent): void {
+                ChangeTracker::record($eloquentEvent, $payload[0] ?? null);
+            });
+        }
+
+        Event::listen(CommandStarting::class, [SystemEventAuditor::class, 'commandStarting']);
+        Event::listen(CommandFinished::class, [SystemEventAuditor::class, 'commandFinished']);
+        Event::listen(ScheduledTaskStarting::class, [SystemEventAuditor::class, 'taskStarting']);
+        Event::listen(ScheduledTaskFinished::class, [SystemEventAuditor::class, 'taskFinished']);
+        Event::listen(ScheduledTaskSkipped::class, [SystemEventAuditor::class, 'taskSkipped']);
+        Event::listen(ScheduledTaskFailed::class, [SystemEventAuditor::class, 'taskFailed']);
+        Event::listen(JobProcessing::class, [SystemEventAuditor::class, 'jobProcessing']);
+        Event::listen(JobProcessed::class, [SystemEventAuditor::class, 'jobProcessed']);
+        Event::listen(JobFailed::class, [SystemEventAuditor::class, 'jobFailed']);
     }
 }

@@ -36,22 +36,28 @@ class TicketController extends Controller
                 return response()->json(['data' => [], 'message' => 'Client not found or has no HaloPSA reference.']);
             }
 
-            $tickets = $halo->listTicketsForClient(
-                (int) $client->halopsa_reference,
-                $typeIds,
-                $page,
-                $perPage
-            );
+            try {
+                $tickets = $halo->listTicketsForClient(
+                    (int) $client->halopsa_reference,
+                    $typeIds,
+                    $page,
+                    $perPage
+                );
+            } catch (\RuntimeException $e) {
+                return response()->json(['message' => 'HaloPSA request failed: ' . $e->getMessage()], 502);
+            }
         } else {
-            // Iterate clients that have a halopsa_reference
-            $clients = Client::whereNotNull('halopsa_reference')->get();
-            foreach ($clients as $c) {
-                try {
-                    $batch = $halo->listTicketsForClient((int) $c->halopsa_reference, $typeIds, 1, $perPage);
-                    $tickets = array_merge($tickets, $batch);
-                } catch (\Throwable) {
-                    // skip failed clients
-                }
+            // One paged Halo call (cached 60s) narrowed to linked clients,
+            // instead of one call per client.
+            $refs = Client::whereNotNull('halopsa_reference')->pluck('halopsa_reference')->map(fn ($r) => (int) $r)->all();
+            if ($refs === []) {
+                return response()->json(['data' => [], 'current_page' => $page, 'per_page' => $perPage, 'total' => 0]);
+            }
+
+            try {
+                $tickets = $halo->listTicketsPage($refs, $typeIds, $page, $perPage)['tickets'];
+            } catch (\RuntimeException $e) {
+                return response()->json(['message' => 'HaloPSA request failed: ' . $e->getMessage()], 502);
             }
         }
 

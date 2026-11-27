@@ -4,10 +4,6 @@
 <div class="dd-page dd-domain-pricing-page">
     <h1 class="dd-page-title">Domain Pricing</h1>
 
-    @if(session('status'))
-        <div class="dd-alert dd-alert-success" style="margin-bottom: 1rem;">{{ session('status') }}</div>
-    @endif
-
     @if($errors->any())
         <div class="dd-alert dd-alert-error" style="margin-bottom: 1rem;">
             <ul style="margin:0; padding-left:1.2rem;">
@@ -27,9 +23,9 @@
             <button type="submit" class="btn-accent">Import Pricing</button>
         </form>
         @else
-        <p style="margin:0; color:#6b7280;">You have view access only. Import is disabled.</p>
+        <p style="margin:0; color:var(--dd-text-soft);">You have view access only. Import is disabled.</p>
         @endcan
-        <p style="margin-top:0.75rem; color:#6b7280;">Imports from Synergy CSV and upserts by TLD. Sale prices are used until sale end date.</p>
+        <p style="margin-top:0.75rem; color:var(--dd-text-soft);">Imports from Synergy CSV and upserts by TLD. Sale prices are used until sale end date.</p>
     </div>
 
     <div class="dd-card" style="margin-bottom: 1rem;">
@@ -41,7 +37,7 @@
             <button type="submit" class="btn-accent">Apply Markup</button>
         </form>
         @else
-        <p style="margin:0; color:#6b7280;">You have view access only. Bulk markup is disabled.</p>
+        <p style="margin:0; color:var(--dd-text-soft);">You have view access only. Bulk markup is disabled.</p>
         @endcan
     </div>
 
@@ -99,9 +95,9 @@
                         <td>
                             {{ $effectivePrice !== null ? '$' . number_format((float) $effectivePrice, 2) : 'N/A' }}
                             @if($saleActive)
-                                <span style="font-size:12px; color:#059669;">(sale active)</span>
+                                <span style="font-size:12px; color:var(--dd-status-success-fg);">(sale active)</span>
                             @elseif($saleEnded)
-                                <span style="font-size:12px; color:#b45309;">(ended)</span>
+                                <span style="font-size:12px; color:var(--dd-status-warning-fg);">(ended)</span>
                             @endif
                         </td>
                         <td>
@@ -131,13 +127,13 @@
                     </tr>
                 @empty
                     <tr id="pricing-empty-row">
-                        <td colspan="7" style="text-align:center; color:#6b7280;">No pricing loaded yet. Import a CSV to begin.</td>
+                        <td colspan="7" style="text-align:center; color:var(--dd-text-soft);">No pricing loaded yet. Import a CSV to begin.</td>
                     </tr>
                 @endforelse
                 </tbody>
             </table>
         </div>
-        <p id="pricing-filter-empty" style="display:none; margin-top:0.8rem; color:#6b7280;">No rows match your current search/filter selection.</p>
+        <p id="pricing-filter-empty" style="display:none; margin-top:0.8rem; color:var(--dd-text-soft);">No rows match your current search/filter selection.</p>
     </div>
 </div>
 
@@ -266,7 +262,7 @@
 .dd-domain-pricing-page .dd-pricing-label {
     display: block;
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--dd-text-soft);
     margin-bottom: 0.35rem;
 }
 

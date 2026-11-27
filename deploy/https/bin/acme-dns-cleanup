@@ -1,0 +1,11 @@
+#!/bin/bash
+# certbot --manual-cleanup-hook. Env from certbot: CERTBOT_DOMAIN, CERTBOT_VALIDATION.
+# The artisan command validates both strictly before touching Synergy DNS.
+set -euo pipefail
+
+APP_DIR='@APP_DIR@'
+PHP_BIN='@PHP_BIN@'
+
+export APP_ENV=production LOG_CHANNEL=stderr CACHE_STORE=array SESSION_DRIVER=array QUEUE_CONNECTION=sync
+cd "$APP_DIR"
+exec "$PHP_BIN" artisan domaindash:acme-dns cleanup

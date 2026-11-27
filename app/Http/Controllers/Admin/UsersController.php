@@ -51,10 +51,11 @@ class UsersController extends Controller
             'role'         => 'required|in:Administrator,Technician,Customer',
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
-            'password'     => 'nullable|string|min:8|confirmed',
+            'password'     => ['nullable', 'string', \Illuminate\Validation\Rules\Password::defaults(), 'confirmed'],
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
             'is_active' => 'nullable|boolean',
         ]);
+        $data['mfa_preference'] = $this->effectiveMfaPreference($data['role'], $data['mfa_preference']);
 
         $password = $data['password'] ?: Str::random(12);
 
@@ -65,6 +66,8 @@ class UsersController extends Controller
             'mfa_preference' => $data['mfa_preference'],
             'is_active' => $request->boolean('is_active', true),
         ]);
+        // Admin-created accounts are trusted; MustVerifyEmail must not lock them out.
+        $user->forceFill(['email_verified_at' => now()])->save();
 
         // assign role (Spatie)
         $user->syncRoles([$data['role']]);
@@ -119,6 +122,10 @@ class UsersController extends Controller
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
             'is_active' => 'nullable|boolean',
         ]);
+        $data['mfa_preference'] = $this->effectiveMfaPreference($data['role'], $data['mfa_preference']);
+
+        $previousRole = optional($user->roles->first())->name;
+        $wasActive = (bool) $user->is_active;
 
         $user->update([
             'name'  => trim($data['first_name'].' '.$data['last_name']),
@@ -129,6 +136,10 @@ class UsersController extends Controller
 
         $user->syncRoles([$data['role']]);
         $user->clients()->sync($data['client_ids'] ?? []);
+
+        if ($previousRole !== $data['role'] || ($wasActive && ! $user->is_active)) {
+            \App\Support\SessionRevoker::revoke($user, $request->user()?->is($user) ? $request->session()->getId() : null);
+        }
 
         return redirect()
             ->route('admin.users')
@@ -149,12 +160,14 @@ class UsersController extends Controller
     public function updatePassword(Request $request, User $user)
     {
         $data = $request->validate([
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::defaults(), 'confirmed'],
         ]);
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
         ])->save();
+
+        \App\Support\SessionRevoker::revoke($user, $request->user()?->is($user) ? $request->session()->getId() : null);
 
         return redirect()
             ->route('admin.users')
@@ -214,9 +227,28 @@ class UsersController extends Controller
     /**
      * Start impersonation.
      */
-    public function impersonate(User $user)
+    public function impersonate(Request $request, User $user)
     {
-        session(['impersonate_as' => $user->id]);
+        $admin = $request->user();
+
+        if ($admin && $admin->is($user)) {
+            return back()->withErrors(['user' => 'You cannot impersonate yourself.']);
+        }
+        if (! $user->is_active) {
+            return back()->withErrors(['user' => 'Inactive users cannot be impersonated.']);
+        }
+        if ($user->hasRole('Administrator')) {
+            return back()->withErrors(['user' => 'Administrators cannot be impersonated.']);
+        }
+
+        session(['impersonate_as' => $user->id, 'impersonator_id' => $admin?->id]);
+
+        \App\Services\AuditLogger::logSystem('impersonation.start', "{$admin?->email} started impersonating {$user->email}.", [
+            'service' => 'auth',
+            'function' => 'impersonation',
+            'impersonator_id' => $admin?->id,
+            'impersonated_user_id' => $user->id,
+        ]);
 
         return redirect()
             ->route('dashboard')
@@ -228,10 +260,31 @@ class UsersController extends Controller
      */
     public function stopImpersonate(Request $request)
     {
-        $request->session()->forget('impersonate_as');
+        $impersonatorId = $request->session()->get('impersonator_id');
+        $impersonated = $request->user();
+
+        \App\Services\AuditLogger::logSystem('impersonation.stop', "Impersonation of {$impersonated?->email} stopped.", [
+            'service' => 'auth',
+            'function' => 'impersonation',
+            'impersonator_id' => $impersonatorId,
+            'impersonated_user_id' => $impersonated?->id,
+        ]);
+
+        $request->session()->forget(['impersonate_as', 'impersonator_id']);
 
         return redirect()
             ->route('admin.users')
             ->with('status', 'Stopped impersonating.');
+    }
+
+    /**
+     * Roles that require MFA cannot opt out: force 'enforced' instead of 'disabled'.
+     */
+    private function effectiveMfaPreference(string $role, string $preference): string
+    {
+        $required = config('domaindash.mfa.enforce', true)
+            && in_array($role, (array) config('domaindash.mfa.required_roles', []), true);
+
+        return ($required && $preference === 'disabled') ? 'enforced' : $preference;
     }
 }

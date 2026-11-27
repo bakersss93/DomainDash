@@ -38,49 +38,40 @@
         border-radius: 8px;
     }
 </style>
-<div style="max-width:1080px;display:grid;gap:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-        <div>
-            <h1 class="dd-page-title" style="font-size:1.6rem;margin-bottom:6px;">Ticket #{{ $ticketId }}</h1>
-            <p style="margin:0;color:var(--text-muted);">{{ $ticketSummary }}</p>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button type="button" id="open-reply-modal" class="btn-accent">Submit Reply</button>
-            <button type="button" id="open-close-modal" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;">Close Ticket</button>
-            <a href="{{ route('tickets.index', ['client_id' => $selectedClientId]) }}" style="padding:9px 12px;border-radius:10px;border:1px solid var(--border-subtle);text-decoration:none;color:var(--text-muted);">Back to tickets</a>
+<div class="ui-page" style="display:grid;gap:1rem;">
+    <x-ui.page-header :title="'Ticket #'.$ticketId" :subtitle="$ticketSummary">
+        <x-slot name="actions">
+            <x-ui.button :href="route('tickets.index', ['client_id' => $selectedClientId])" variant="ghost">Back to tickets</x-ui.button>
             @if($portalUrl)
-                <a href="{{ $portalUrl }}" target="_blank" rel="noopener noreferrer" class="btn-accent" style="text-decoration:none;">Open in Client Portal</a>
+                <x-ui.button :href="$portalUrl" variant="secondary" target="_blank" rel="noopener noreferrer">Open in Client Portal <x-ui.icon name="external" :size="14" /></x-ui.button>
             @endif
-        </div>
-    </div>
-
-    @if(session('status'))
-        <div style="background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.45);color:#10b981;border-radius:12px;padding:12px 14px;">
-            {{ session('status') }}
-        </div>
-    @endif
+            <button type="button" id="open-close-modal" class="ui-btn ui-btn--danger">Close Ticket</button>
+            <button type="button" id="open-reply-modal" class="ui-btn ui-btn--primary">Submit Reply</button>
+        </x-slot>
+    </x-ui.page-header>
 
     @if($errors->any())
-        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);color:#ef4444;border-radius:12px;padding:12px 14px;">
-            <strong>Unable to complete action.</strong>
+        <x-ui.alert variant="danger"><strong>Unable to complete action.</strong>
             <ul style="margin:8px 0 0 18px;padding:0;">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
-            </ul>
-        </div>
+            </ul></x-ui.alert>
     @endif
 
-    <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:12px 14px;display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
-        <div><strong>Client</strong><br>{{ $selectedClient->business_name }}</div>
-        <div><strong>Status</strong><br>{{ $ticketStatus }}</div>
-        <div><strong>Service</strong><br>{{ $ticketService }}</div>
-        <div><strong>Type</strong><br>{{ $ticketType }}</div>
-        <div><strong>Last Update</strong><br>{{ $ticketUpdated }}</div>
+    <div class="ui-stat-grid">
+        <x-ui.stat label="Client" :value="$selectedClient->business_name" />
+        <div class="ui-stat">
+            <span class="ui-stat__label">Status</span>
+            <span><x-ui.badge :status="$ticketStatus">{{ $ticketStatus }}</x-ui.badge></span>
+        </div>
+        <x-ui.stat label="Service" :value="$ticketService" />
+        <x-ui.stat label="Type" :value="$ticketType" />
+        <x-ui.stat label="Last Update" :value="$ticketUpdated" />
     </div>
 
-    <div style="background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;overflow:hidden;">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border-subtle);font-weight:600;">Client Visible Communications / Email Actions</div>
+    <div class="ui-card" style="overflow:hidden;">
+        <div class="ui-card__header"><h2 class="ui-card__title">Client Visible Communications / Email Actions</h2></div>
         <div style="max-height:520px;overflow:auto;padding:10px;">
             @forelse($actions as $action)
                 @php
@@ -114,47 +105,47 @@
                         $actionDetailsHtml = nl2br(e($actionDetails));
                     }
                 @endphp
-                <div style="padding:14px;border:1px solid var(--border-subtle);border-radius:10px;display:grid;gap:8px;margin-bottom:10px;background:rgba(15,23,42,0.36);">
+                <div style="padding:0.875rem 1rem;border:1px solid var(--dd-border);border-radius:var(--dd-radius);display:grid;gap:0.5rem;margin-bottom:0.625rem;background:var(--dd-surface-soft);">
                     <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
                         <strong>{{ $actionAuthor }}</strong>
-                        <span style="color:var(--text-muted);font-size:12px;">{{ $actionDate }}</span>
+                        <span class="ui-muted" style="font-size:12px;">{{ $actionDate }}</span>
                     </div>
                     <div class="dd-ticket-action-content" style="white-space:normal;overflow-wrap:anywhere;">{!! $actionDetailsHtml !!}</div>
                 </div>
             @empty
-                <div style="padding:14px;color:var(--text-muted);">No client-visible communications were returned for this ticket.</div>
+                <x-ui.empty-state title="No communications yet" text="No client-visible communications were returned for this ticket." />
             @endforelse
         </div>
     </div>
 
-    <div id="reply-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.72);z-index:12050;align-items:center;justify-content:center;padding:16px;">
-        <form method="POST" action="{{ route('tickets.reply', ['ticketId' => $ticketId]) }}" style="width:min(720px, 96vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;display:grid;gap:10px;">
+    <div id="reply-modal" role="dialog" aria-modal="true" aria-labelledby="ticket-reply-title" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop);z-index:12050;align-items:center;justify-content:center;padding:1rem;">
+        <form method="POST" action="{{ route('tickets.reply', ['ticketId' => $ticketId]) }}" class="ui-modal__dialog" style="width:min(720px, 96vw);display:grid;gap:0.75rem;">
             @csrf
             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                <label for="ticket_reply" style="font-weight:600;">Reply to technician / provide update</label>
-                <button type="button" id="close-reply-modal" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;color:var(--text-muted);cursor:pointer;">Close</button>
+                <label for="ticket_reply_editor" id="ticket-reply-title" class="ui-label">Reply to technician / provide update</label>
+                <button type="button" id="close-reply-modal" class="ui-btn ui-btn--ghost ui-btn--sm">Close</button>
             </div>
             <input type="hidden" id="ticket_reply" name="message" value="{{ old('message') }}">
-            <div id="ticket_reply_editor" contenteditable="true" style="width:100%;min-height:220px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 11px;background:var(--bg);color:var(--text);overflow:auto;"></div>
+            <div id="ticket_reply_editor" contenteditable="true" role="textbox" aria-multiline="true" class="ui-input" style="width:100%;min-height:220px;overflow:auto;"></div>
             <div>
-                <button class="btn-accent" type="submit">Submit Reply</button>
+                <button class="ui-btn ui-btn--primary" type="submit">Submit Reply</button>
             </div>
         </form>
     </div>
 
-    <div id="close-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.72);z-index:12050;align-items:center;justify-content:center;padding:16px;">
-        <form method="POST" action="{{ route('tickets.close', ['ticketId' => $ticketId]) }}" style="width:min(640px, 96vw);background:var(--surface-elevated);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;display:grid;gap:10px;">
+    <div id="close-modal" role="dialog" aria-modal="true" aria-labelledby="ticket-close-title" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop);z-index:12050;align-items:center;justify-content:center;padding:1rem;">
+        <form method="POST" action="{{ route('tickets.close', ['ticketId' => $ticketId]) }}" class="ui-modal__dialog" style="width:min(640px, 96vw);display:grid;gap:0.75rem;">
             @csrf
             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                <label for="close_reason" style="font-weight:600;">Reason for closure</label>
-                <button type="button" id="close-close-modal" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-subtle);background:transparent;color:var(--text-muted);cursor:pointer;">Close</button>
+                <label for="close_reason_editor" id="ticket-close-title" class="ui-label">Reason for closure</label>
+                <button type="button" id="close-close-modal" class="ui-btn ui-btn--ghost ui-btn--sm">Close</button>
             </div>
             <input type="hidden" id="close_reason" name="reason" value="{{ old('reason') }}">
-            <div id="close_reason_editor" contenteditable="true" style="width:100%;min-height:180px;border:1px solid var(--border-subtle);border-radius:10px;padding:10px 11px;background:var(--bg);color:var(--text);overflow:auto;"></div>
+            <div id="close_reason_editor" contenteditable="true" role="textbox" aria-multiline="true" class="ui-input" style="width:100%;min-height:180px;overflow:auto;"></div>
             <div>
-                <button type="submit" style="padding:9px 12px;border-radius:10px;border:1px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;">Confirm Close Ticket</button>
+                <button type="submit" class="ui-btn ui-btn--danger">Confirm Close Ticket</button>
             </div>
         </form>
     </div>

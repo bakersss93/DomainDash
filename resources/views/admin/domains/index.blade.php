@@ -8,8 +8,17 @@
         </div>
     </div>
 
-    <div class="dd-page">
-    <h1 class="dd-page-title" style="font-size:1.45rem;">Domains</h1>
+    <div class="ui-page">
+    <x-ui.page-header title="Domains" subtitle="Registered domains, expiry and client assignment.">
+        <x-slot name="actions">
+            <form method="POST" action="{{ route('admin.domains.bulkSync') }}">
+                @csrf
+                <x-ui.button type="submit" variant="secondary">
+                    <x-ui.icon name="refresh" :size="16" /> Bulk domain sync
+                </x-ui.button>
+            </form>
+        </x-slot>
+    </x-ui.page-header>
 
     @php
         $currentSort = request('sort', $sort ?? 'name');
@@ -46,31 +55,26 @@
     @endphp
 
     {{-- Search + bulk sync row --}}
-    <div class="dd-toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin-bottom:14px;">
+    <div class="ui-toolbar">
         <form method="GET"
               action="{{ route('admin.domains') }}"
-              style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:nowrap;">
+              class="flex flex-1 flex-wrap items-center gap-2">
+            <label for="domain-search" class="sr-only">Search domains</label>
             <input
-                type="text"
+                type="search"
+                id="domain-search"
                 name="q"
                 value="{{ $search }}"
                 placeholder="Search domains…"
-                class="dd-input dd-input-inline"
-                style="flex:1;min-width:260px;"
+                class="dd-input"
+                style="flex:1;min-width:14rem;max-width:32rem;"
             >
-            <button type="submit" class="btn-accent">Search</button>
-        </form>
-
-        <form method="POST" action="{{ route('admin.domains.bulkSync') }}" style="flex:0 0 auto;">
-            @csrf
-            <button type="submit" class="btn-accent" style="white-space:nowrap;">
-                Bulk domain sync
-            </button>
+            <button type="submit" class="ui-btn ui-btn--primary">Search</button>
         </form>
     </div>
 
-    <div class="dd-card">
-    <table>
+    <x-ui.card :flush="true">
+    <x-ui.table>
         <thead>
         <tr>
             <th>{!! $ddSortLink('name', 'Domain Name') !!}</th>
@@ -110,7 +114,7 @@
             {{-- SUMMARY ROW --}}
             <tr data-domain-toggle="{{ $rowId }}" class="dd-domain-row" style="cursor:pointer;">
                 <td>{{ $domain->name }}</td>
-                <td>{{ $domain->status ?? '—' }}</td>
+                <td><x-ui.badge :status="$domain->status">{{ $domain->status ?? '—' }}</x-ui.badge></td>
                 <td class="{{ $isDanger ? 'danger' : '' }}">
                     @if($expiresInDays !== null)
                         {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
@@ -137,103 +141,39 @@
                             @endif
                         </button>
 
-                        <span title="Toggle details"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                        <span class="ui-muted" title="Toggle details"><x-ui.icon name="chevron-down" :size="16" /></span>
                     </div>
                 </td>
             </tr>
 
             {{-- DETAILS ROW --}}
-            <tr data-domain-panel="{{ $rowId }}" class="dd-domain-panel">
-                <td colspan="6">
-                    <div class="dd-domain-panel-inner">
-                        <div class="dd-domain-panel-header">
-                            <div>
-                                <div style="font-weight:600;">{{ $domain->name }}</div>
-                                <div style="font-size:13px;opacity:.8;">
-                                    {{ $domain->status ?? 'Status unknown' }}
-                                    @if($expiresInDays !== null)
-                                        • expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}
-                                    @endif
-                                </div>
-                            </div>
-                            <div style="font-size:13px;opacity:.7;">
-                                DNS: {{ $dnsLabel }}
-                            </div>
-                        </div>
+            <x-ui.row-detail data-domain-panel="{{ $rowId }}" :title="$domain->name" :colspan="6">
+                <x-slot:meta>
+                    {{ $domain->status ?? 'Status unknown' }}@if($expiresInDays !== null) • @if($expiresInDays < 0)expired {{ abs($expiresInDays) }} day{{ abs($expiresInDays) === 1 ? '' : 's' }} ago @elseif($expiresInDays === 0)expires today @else expires in {{ $expiresInDays }} day{{ $expiresInDays === 1 ? '' : 's' }}@endif @endif
+                </x-slot:meta>
+                <x-slot:aside>DNS: {{ $dnsLabel }}</x-slot:aside>
 
-                        <div class="dd-domain-options-grid">
-                            {{-- Overview --}}
-                            <a href="{{ route('admin.domains.show', $domain) }}" class="dd-domain-option">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-                                <div class="dd-domain-option-label">Overview</div>
-                            </a>
-
-                            {{-- DNS / Nameservers --}}
-                            <a href="{{ route('dns.index', $domain->id) }}" class="dd-domain-option">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
-                                <div class="dd-domain-option-label">Nameservers &amp; DNS</div>
-                            </a>
-
-                            {{-- Renew --}}
-                            <form method="POST"
-                                  action="{{ route('admin.domains.renew', $domain) }}"
-                                  class="dd-domain-option-form"
-                                  onsubmit="return confirm('Renew this domain now?');">
-                                @csrf
-                                <button type="submit" class="dd-domain-option-btn">
-                                    <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
-                                    <div class="dd-domain-option-label">Renew</div>
-                                </button>
-                            </form>
-
-                            {{-- Assign client (same popup) --}}
-                            <button type="button"
-                                    class="dd-domain-option"
-                                    data-assign-client="{{ $domain->id }}"
-                                    data-domain-name="{{ $domain->name }}">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                                <div class="dd-domain-option-label">Assign client</div>
-                            </button>
-
-                            {{-- Transfer placeholder --}}
-                            <a href="#" class="dd-domain-option">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
-                                <div class="dd-domain-option-label">Initiate transfer</div>
-                            </a>
-
-                            {{-- Transactions placeholder --}}
-                            <a href="#" class="dd-domain-option">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
-                                <div class="dd-domain-option-label">Transactions</div>
-                            </a>
-
-                            {{-- Auth code (takes you to overview section) --}}
-                            <a href="{{ route('admin.domains.show', $domain) }}#auth-code" class="dd-domain-option">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-                                <div class="dd-domain-option-label">Password / auth code</div>
-                            </a>
-
-                            {{-- WHOIS sync --}}
-                            <button type="button" class="dd-domain-option" onclick="syncDomainWhois({{ $domain->id }}, '{{ $domain->name }}')">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-                                <div class="dd-domain-option-label">WHOIS sync</div>
-                            </button>
-
-                            {{-- Delete placeholder --}}
-                            <a href="#" class="dd-domain-option dd-domain-option-danger">
-                                <div class="dd-domain-option-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></div>
-                                <div class="dd-domain-option-label">Delete domain</div>
-                            </a>
-                        </div>
-                    </div>
-                </td>
-            </tr>
+                <x-ui.action-grid label="Domain actions">
+                    <x-ui.action-tile :href="route('admin.domains.show', $domain)" icon="eye">Overview</x-ui.action-tile>
+                    <x-ui.action-tile :href="route('dns.index', $domain->id)" icon="server">Nameservers &amp; DNS</x-ui.action-tile>
+                    <x-ui.action-tile :action="route('admin.domains.renew', $domain)" confirm="Renew this domain now?" icon="refresh">Renew</x-ui.action-tile>
+                    <x-ui.action-tile icon="users" data-assign-client="{{ $domain->id }}" data-domain-name="{{ $domain->name }}">Assign client</x-ui.action-tile>
+                    {{-- Not wired up yet: shown disabled instead of linking to "#" --}}
+                    <x-ui.action-tile icon="upload-cloud" disabled title="Not available yet">Initiate transfer</x-ui.action-tile>
+                    <x-ui.action-tile icon="list" disabled title="Not available yet">Transactions</x-ui.action-tile>
+                    <x-ui.action-tile :href="route('admin.domains.show', $domain).'#auth-code'" icon="lock">Password / auth code</x-ui.action-tile>
+                    <x-ui.action-tile icon="search" onclick="syncDomainWhois({{ $domain->id }}, '{{ $domain->name }}')">WHOIS sync</x-ui.action-tile>
+                    <x-ui.action-tile icon="trash" variant="danger" disabled title="Not available yet">Delete domain</x-ui.action-tile>
+                </x-ui.action-grid>
+            </x-ui.row-detail>
         @endforeach
         </tbody>
-    </table>
+    </x-ui.table>
 
-    {{ $domains->links() }}
-    </div>
+    @if ($domains->hasPages())
+        <div class="px-4 py-3">{{ $domains->links() }}</div>
+    @endif
+    </x-ui.card>
 
     {{-- Assign client modal --}}
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
@@ -275,7 +215,7 @@
 
                 <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
                     <button type="submit" class="btn-accent">Save</button>
-                    <button type="button" class="btn-accent" id="dd-assign-cancel">
+                    <button type="button" class="btn-secondary" id="dd-assign-cancel">
                         Cancel
                     </button>
                 </div>
@@ -490,246 +430,6 @@
     <style>
         @keyframes bulk-sync-spin {
             to { transform: rotate(360deg); }
-        }
-
-        /* Hide the details row when closed so there is no blank space */
-        tr[data-domain-panel] {
-            display: none;
-            height: 0;
-        }
-        tr[data-domain-panel] > td {
-            padding: 0;
-            border: 0;
-        }
-        tr[data-domain-panel].open {
-            display: table-row;
-            height: auto;
-        }
-
-        .dd-domain-panel-inner {
-            max-height: 0;
-            padding: 0;
-            margin-top: 0;
-            border: 0;
-            overflow: hidden;
-            opacity: 0;
-            transform: translateY(-4px);
-            transition:
-                max-height 0.25s ease,
-                opacity 0.2s ease,
-                transform 0.2s ease,
-                padding 0.2s ease,
-                margin-top 0.2s ease,
-                border-width 0.2s ease;
-        }
-
-        tr[data-domain-panel].open > td > .dd-domain-panel-inner {
-            max-height: 600px;
-            opacity: 1;
-            transform: translateY(0);
-            padding: 16px 18px 18px;
-            margin-top: 0;
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-            background: var(--surface-elevated);
-        }
-
-        .dd-domain-panel-header {
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            padding:8px 12px;
-            border-radius:6px;
-            background:var(--surface-muted);
-            border:1px solid var(--border-subtle);
-            margin-bottom:14px;
-        }
-
-        .dd-domain-options-grid {
-            display:grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap:10px;
-        }
-
-        .dd-domain-option,
-        .dd-domain-option-btn {
-            display:flex;
-            align-items:center;
-            padding:10px 14px;
-            border-radius:12px;
-            background:var(--bg);
-            border:1px solid var(--border-subtle);
-            text-decoration:none;
-            font-size:14px;
-            cursor:pointer;
-            width:100%;
-            min-height:52px;
-            box-sizing:border-box;
-            transition:background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
-        }
-
-        .dd-domain-option:hover,
-        .dd-domain-option-btn:hover {
-            background:var(--surface-muted);
-            border-color:var(--accent);
-            transform:translateY(-1px);
-        }
-
-        .dd-domain-option-btn {
-            background:transparent;
-            color:inherit;
-            height:100%;
-        }
-
-        .dd-domain-option-form {
-            margin: 0;
-        }
-
-        .dd-domain-option-icon {
-            width:24px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            margin-right:8px;
-        }
-
-        .dd-domain-option-label {
-            flex:1;
-        }
-
-        .dd-domain-option-danger {
-            border-color:#b91c1c;
-        }
-
-        .dd-domain-option-danger:hover {
-            background:#7f1d1d;
-        }
-
-        /* Modal */
-        .dd-modal {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 60;
-        }
-        .dd-modal-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(15,23,42,0.75);
-        }
-        .dd-modal-dialog {
-            position: relative;
-            background:var(--surface-elevated);
-            border-radius:12px;
-            padding:16px 18px 18px;
-            border:1px solid var(--border-subtle);
-            width:420px;
-            max-width:95%;
-            box-shadow:0 20px 40px rgba(0,0,0,.6);
-        }
-
-        /* Searchable combobox */
-        .dd-combobox {
-            position: relative;
-            display: flex;
-            align-items: center;
-            background: var(--bg);
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-            padding: 0 36px 0 14px;
-            min-height: 44px;
-            cursor: text;
-        }
-        .dd-combobox-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--text);
-            font-size: 14px;
-        }
-        .dd-combobox-arrow {
-            position: absolute;
-            right: 12px;
-            font-size: 12px;
-            color: #9ca3af;
-            pointer-events: none;
-        }
-        .dd-combobox-list {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(100% + 4px);
-            background: var(--surface-elevated);
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: 0 15px 35px rgba(0,0,0,.65);
-            max-height: 260px;
-            overflow-y: auto;
-            z-index: 80;
-            display: none;
-        }
-        .dd-combobox.open .dd-combobox-list {
-            display: block;
-        }
-        .dd-combobox-list-item {
-            padding: 8px 12px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .dd-combobox-list-item:hover,
-        .dd-combobox-list-item.is-highlighted {
-            background: var(--surface-muted);
-        }
-
-        html.dark tr[data-domain-panel].open > td > .dd-domain-panel-inner {
-            border-color: #1f2937;
-            background: #0f172a;
-        }
-
-        html.dark .dd-domain-panel-header {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-domain-option,
-        html.dark .dd-domain-option-btn {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-domain-option:hover,
-        html.dark .dd-domain-option-btn:hover {
-            background: #0f172a;
-        }
-
-        html.dark .dd-modal-dialog {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox {
-            background: #0f172a;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox-input {
-            color: #e5e7eb;
-        }
-
-        html.dark .dd-combobox-list {
-            background: #020617;
-            border-color: #1f2937;
-        }
-
-        html.dark .dd-combobox-list-item:hover,
-        html.dark .dd-combobox-list-item.is-highlighted {
-            background: #111827;
-        }
-        .dd-combobox select.dd-hidden-select {
-            display: none;
         }
     </style>
     </div>
