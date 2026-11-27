@@ -138,9 +138,21 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'branding'      => 'array',
-            'smtp'          => 'array',
-            'synergy'       => 'array',
+            'branding'      => 'array:primary,accent,text,bg,button_text,primary_dark,accent_dark,text_dark,bg_dark,button_text_dark',
+            'branding.*'    => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'smtp'          => 'array:host,port,username,password,encryption,from,from_name',
+            'smtp.host'     => ['nullable', 'string', 'max:255', new \App\Rules\SafeHostname()],
+            'smtp.port'     => 'nullable|integer|min:1|max:65535',
+            'smtp.username' => 'nullable|string|max:255',
+            'smtp.password' => 'nullable|string|max:255',
+            'smtp.encryption' => 'nullable|in:tls,ssl',
+            'smtp.from'     => 'nullable|email|max:255',
+            'smtp.from_name' => 'nullable|string|max:120',
+            'synergy'       => 'array:reseller_id,api_key,wsdl_path',
+            'synergy.reseller_id' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'synergy.api_key' => 'nullable|string|max:255',
+            // Must pass the same trusted-location check the SOAP clients apply (synergywholesale.com or a local app file).
+            'synergy.wsdl_path' => ['nullable', 'string', 'max:500', new \App\Rules\TrustedWsdlLocation()],
             'halo'          => 'array',
             'halo.base_url' => ['nullable', 'string', 'max:255', new \App\Rules\SafeExternalUrl()],
             'halo.auth_server' => ['nullable', 'string', 'max:255', new \App\Rules\SafeExternalUrl()],
@@ -193,7 +205,8 @@ class SettingsController extends Controller
             'itglue.flexible_asset_type_name' => 'nullable|string|max:180',
             'itglue.flexible_asset_traits' => 'nullable|array',
             'itglue.flexible_asset_traits.*' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9_-]+$/'],
-            'ip2whois'      => 'array',
+            'ip2whois'      => 'array:api_key',
+            'ip2whois.api_key' => 'nullable|string|max:255',
             'vocus'                   => 'array',
             'vocus.access_key'        => 'nullable|string|max:64',
             'vocus.alias_key'         => 'nullable|string|max:64',
@@ -201,7 +214,7 @@ class SettingsController extends Controller
             'vocus.login_url'         => ['nullable', 'url:https', 'max:255', new \App\Rules\SafeExternalUrl()],
             'vocus.cert_password'     => 'nullable|string|max:255',
             'vocus.environment'       => 'nullable|in:production,sandbox',
-            'vocus.sandbox_ip'        => 'nullable|ip',
+            'vocus.sandbox_ip'        => ['nullable', 'ip', new \App\Rules\PublicIp()],
             'vocus.sandbox_pin_ip'    => 'nullable|in:0,1',
             'vocus.order_defaults'               => 'nullable|array',
             'vocus.order_defaults.auth_type'     => ['nullable', \Illuminate\Validation\Rule::in(\App\Services\Vocus\VocusOptions::AUTH_TYPES)],
@@ -216,12 +229,19 @@ class SettingsController extends Controller
             'sync_schedule.*.enabled' => 'nullable|boolean',
             'sync_schedule.*.frequency' => 'nullable|in:hourly,daily,weekly',
             'sync_schedule.*.time' => 'nullable|date_format:H:i',
-            'backup'        => 'array',
-            'backup.host'   => 'nullable|string|max:255',
+            'backup'        => 'array:host,port,username,password,path,retention,time,host_fingerprint,encryption_password',
+            'backup.host'   => ['nullable', 'string', 'max:255', new \App\Rules\SafeHostname()],
+            'backup.host_fingerprint' => ['nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9:+\/=_-]+$/'],
+            'backup.encryption_password' => ['nullable', 'string', 'max:255', function ($attr, $value, $fail) {
+                // "********" is the form placeholder meaning "keep the stored password".
+                if ($value !== null && $value !== \App\Support\Redactor::FORM_MASK && mb_strlen($value) < 12) {
+                    $fail('The backup encryption password must be at least 12 characters.');
+                }
+            }],
             'backup.port'   => 'nullable|integer|min:1|max:65535',
             'backup.username' => 'nullable|string|max:255',
             'backup.password' => 'nullable|string|max:255',
-            'backup.path'   => 'nullable|string|max:255',
+            'backup.path'   => ['nullable', 'string', 'max:255', 'not_regex:/(^|\/)\.\.(\/|$)/'],
             'backup.retention' => 'nullable|integer|min:1|max:365',
             'backup.time'   => 'nullable|date_format:H:i',
             'notifications' => 'array',

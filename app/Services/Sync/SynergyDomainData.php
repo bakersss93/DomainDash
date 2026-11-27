@@ -16,7 +16,8 @@ class SynergyDomainData
     private function soap(): ?array
     {
         $cfg = Setting::get('synergy', []);
-        $wsdl = $cfg['wsdl_path'] ?? null;
+        // Same trusted resolution as SynergyWholesaleClient: an untrusted stored path falls back to the bundled WSDL.
+        $wsdl = \App\Support\Security\TrustedWsdl::resolve($cfg['wsdl_path'] ?? null);
         $reseller = $cfg['reseller_id'] ?? null;
         $key = $cfg['api_key'] ?? null;
 

@@ -86,4 +86,10 @@ return [
         // Connection to dump; null = the default database connection.
         'connection' => null,
     ],
+
+    /*
+    | Settings validation (SMTP host, SFTP backup host) rejects private / loopback addresses (SSRF guard).
+    | Set DOMAINDASH_ALLOW_PRIVATE_HOSTS=true only if you deliberately use an internal mail relay / backup server.
+    */
+    'allow_private_hosts' => (bool) env('DOMAINDASH_ALLOW_PRIVATE_HOSTS', false),
 ];
