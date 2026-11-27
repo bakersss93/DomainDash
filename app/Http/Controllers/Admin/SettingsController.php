@@ -234,6 +234,7 @@ class SettingsController extends Controller
             'mfa.issuer' => 'nullable|string|max:120',
             'audit' => 'array',
             'audit.retention_days' => 'nullable|integer|min:1|max:3650',
+            'audit.retention_days_security' => ['nullable', 'integer', 'min:' . (int) config('monitoring.security_retention_floor_days', 365), 'max:3650'],
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
         ]);
 

@@ -231,6 +231,8 @@ class AuditLogController extends Controller
             'retention_days_outbound' => 'nullable|integer|min:1|max:3650',
             'retention_days_inbound' => 'nullable|integer|min:1|max:3650',
             'retention_days_jobs' => 'nullable|integer|min:1|max:3650',
+            // Security events: floor of 365 days (config monitoring.security_retention_floor_days).
+            'retention_days_security' => ['nullable', 'integer', 'min:' . (int) config('monitoring.security_retention_floor_days', 365), 'max:3650'],
             'outbound_level' => 'nullable|in:errors,all',
             'inbound_level' => 'nullable|in:errors,all',
             'verbose' => 'nullable|boolean',
@@ -246,6 +248,7 @@ class AuditLogController extends Controller
             'retention_days_outbound' => isset($validated['retention_days_outbound']) ? (int) $validated['retention_days_outbound'] : null,
             'retention_days_inbound' => isset($validated['retention_days_inbound']) ? (int) $validated['retention_days_inbound'] : null,
             'retention_days_jobs' => isset($validated['retention_days_jobs']) ? (int) $validated['retention_days_jobs'] : null,
+            'retention_days_security' => isset($validated['retention_days_security']) ? (int) $validated['retention_days_security'] : null,
             'outbound_level' => $validated['outbound_level'] ?? null,
             'inbound_level' => $validated['inbound_level'] ?? null,
         ], fn ($v) => $v !== null));

@@ -24,6 +24,7 @@
                 <x-ui.field label="Keep outbound requests (days)" name="retention_days_outbound" type="number" :value="$monitoring['retention']['outbound']" min="1" max="3650" />
                 <x-ui.field label="Keep inbound requests (days)" name="retention_days_inbound" type="number" :value="$monitoring['retention']['inbound']" min="1" max="3650" />
                 <x-ui.field label="Keep job history (days)" name="retention_days_jobs" type="number" :value="$monitoring['retention']['jobs']" min="1" max="3650" />
+                <x-ui.field :label="'Keep security events (days, minimum ' . config('monitoring.security_retention_floor_days', 365) . ')'" name="retention_days_security" type="number" :value="$monitoring['retention']['security']" :min="config('monitoring.security_retention_floor_days', 365)" max="3650" />
 
                 <x-ui.field label="Outbound request logging" name="outbound_level" as="select" help="Errors only keeps the table small; All requests is for troubleshooting.">
                     <option value="errors" @selected($monitoring['outbound_level'] === 'errors')>Errors only</option>

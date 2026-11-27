@@ -46,7 +46,7 @@ class AuditLogger
             // never let audit decoration break the request
         }
 
-        return AuditLog::create([
+        $log = AuditLog::create([
             'user_id' => $user?->id,
             'user_email' => $options['user_email'] ?? $user?->email,
             'action' => $action,
@@ -60,6 +60,30 @@ class AuditLogger
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
+
+        self::forwardToSyslog($log);
+
+        return $log;
+    }
+
+    /** Optional tamper-resistant copy: AUDIT_SYSLOG=true sends every audit event to the `audit_syslog` log channel. */
+    private static function forwardToSyslog(AuditLog $log): void
+    {
+        if (! config('monitoring.syslog', false) || str_starts_with((string) $log->action, 'http.get')) {
+            return;
+        }
+
+        try {
+            \Illuminate\Support\Facades\Log::channel('audit_syslog')->info('audit ' . json_encode([
+                'action' => $log->action,
+                'user' => $log->user_email,
+                'ip' => $log->ip_address,
+                'description' => mb_substr((string) $log->description, 0, 300),
+                'at' => optional($log->created_at)->toIso8601String(),
+            ], JSON_UNESCAPED_SLASHES));
+        } catch (\Throwable) {
+            // an unavailable syslog must never break the request
+        }
     }
 
     /**
@@ -121,14 +145,27 @@ class AuditLogger
         return in_array($action, (array) config('monitoring.noise_actions', []), true);
     }
 
-    public static function pruneOlderThanDays(int $days): int
+    /**
+     * Delete audit rows older than $days. Security events (see SecurityEvents) are only deleted once they are also
+     * older than $securityDays, which can never be lower than the configured floor (default 365 days).
+     */
+    public static function pruneOlderThanDays(int $days, ?int $securityDays = null): int
     {
+        $floor = max(1, (int) config('monitoring.security_retention_floor_days', 365));
+        $securityDays = max($floor, $securityDays ?? $floor, 1);
         $cutoff = Carbon::now()->subDays(max(1, $days));
+        $securityCutoff = Carbon::now()->subDays($securityDays);
         $total = 0;
 
         // Chunked so a large backlog never holds one long delete lock.
         do {
-            $deleted = AuditLog::query()->where('created_at', '<', $cutoff)->limit(5000)->delete();
+            $deleted = AuditLog::query()
+                ->where('created_at', '<', $cutoff)
+                ->where(function ($q) use ($securityCutoff) {
+                    $q->where(fn ($n) => \App\Support\Monitoring\SecurityEvents::whereNotSecurity($n))
+                      ->orWhere('created_at', '<', $securityCutoff);
+                })
+                ->limit(5000)->delete();
             $total += $deleted;
         } while ($deleted >= 5000);
 

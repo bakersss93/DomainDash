@@ -112,6 +112,15 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Optional copy of audit events (AUDIT_SYSLOG=true); see config/monitoring.php.
+        'audit_syslog' => [
+            'driver' => 'syslog',
+            'level' => 'info',
+            'ident' => 'domaindash-audit',
+            'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
+            'replace_placeholders' => true,
+        ],
+
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
