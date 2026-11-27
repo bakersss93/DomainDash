@@ -44,6 +44,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\ApplyImpersonation::class,
+            // MFA / is_active policy for EVERY authenticated web request (Jetstream, Fortify, Livewire too).
+            \App\Http\Middleware\EnsureMfaPolicy::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
 

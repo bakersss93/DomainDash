@@ -75,6 +75,10 @@ class DnsController extends Controller
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 
+        if (! \App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, $recordId)) {
+            return response()->json(['message' => 'DNS record not found for this domain.'], 404);
+        }
+
         try {
             $synergy->updateDNSRecord(
                 $domain->name,
@@ -101,6 +105,10 @@ class DnsController extends Controller
 
     public function destroy(Domain $domain, string $recordId, SynergyWholesaleClient $synergy): JsonResponse
     {
+        if (! \App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, $recordId)) {
+            return response()->json(['message' => 'DNS record not found for this domain.'], 404);
+        }
+
         try {
             $synergy->deleteDNSRecord($domain->name, $recordId);
         } catch (\Throwable $e) {

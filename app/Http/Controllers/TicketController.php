@@ -173,6 +173,7 @@ class TicketController extends Controller
             if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
                 abort(403, 'You are not allowed to view this ticket.');
             }
+            $this->assertTicketTypeAllowed($ticket, 'view');
 
             $actions = array_values(array_filter(
                 $halo->getTicketActions($ticketId),
@@ -311,6 +312,7 @@ class TicketController extends Controller
             if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
                 abort(403, 'You are not allowed to reply to this ticket.');
             }
+            $this->assertTicketTypeAllowed($ticket, 'reply to');
 
             $message = trim((string) $data['message']);
             $currentStatusId = $this->extractTicketStatusId($ticket);
@@ -378,6 +380,7 @@ class TicketController extends Controller
             if ($ticketClientId !== (int) $selectedClient->halopsa_reference) {
                 abort(403, 'You are not allowed to close this ticket.');
             }
+            $this->assertTicketTypeAllowed($ticket, 'close');
 
             $closeReason = trim((string) $data['reason']);
             $closedStatus = $this->resolveClosedStatus($halo);
@@ -435,6 +438,19 @@ class TicketController extends Controller
         }
 
         return $clients->first()?->id;
+    }
+
+    /**
+     * Same filter as the ticket list: only tickets whose Halo type is one of the configured
+     * ticket-type mappings may be opened, replied to or closed from the portal.
+     */
+    private function assertTicketTypeAllowed(array $ticket, string $verb): void
+    {
+        $allowed = $this->ticketTypeIds();
+
+        if ($allowed === [] || ! in_array($this->extractTicketTypeId($ticket), $allowed, true)) {
+            abort(403, 'You are not allowed to '.$verb.' this ticket.');
+        }
     }
 
     private function ticketTypeIds(): array

@@ -14,15 +14,17 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
     /**
-     * Roles an API key may assign. Administrator is never assignable through the
-     * API unless the key additionally carries the explicit users.admin scope.
+     * Roles an API key may assign. Only Customer is assignable with users.write; the staff roles
+     * (Technician, Administrator) need the explicit users.admin scope, because a staff account
+     * can see every client's data.
      */
     private function assignableRoles(Request $request): array
     {
         $key = $request->attributes->get('api_key');
-        $roles = ['Technician', 'Customer'];
+        $roles = ['Customer'];
 
         if ($key && $key->allowsScope('users.admin')) {
+            $roles[] = 'Technician';
             $roles[] = 'Administrator';
         }
 
@@ -101,6 +103,13 @@ class UserController extends Controller
             'is_active' => 'nullable|boolean',
             'role'      => ['nullable', 'string', Rule::in($this->assignableRoles($request))],
         ]);
+
+        // Changing a sign-in address lets the caller take over the account via password reset.
+        $key = $request->attributes->get('api_key');
+        if (isset($data['email']) && strcasecmp($data['email'], (string) $user->email) !== 0
+            && ! ($key && $key->allowsScope('users.admin'))) {
+            return response()->json(['message' => 'Changing a user email address requires the users.admin scope.'], 403);
+        }
 
         $user->fill(array_intersect_key($data, array_flip(['name', 'email', 'is_active'])));
         $user->save();

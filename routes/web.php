@@ -64,20 +64,20 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
                 ->whereNumber('domain')
                 ->name('admin.domains.show');
             Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])
-                ->middleware('permission:sync.run')
+                ->middleware(['role:Administrator|Technician', 'permission:sync.run'])
                 ->name('admin.domains.bulkSync');
             Route::post('/domains/availability', [AdminDomainController::class,'searchAvailability'])
-                ->middleware('permission:domains.register')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.register'])
                 ->name('admin.domains.availability');
             Route::post('/domains/{domain}/renew', [AdminDomainController::class,'renew'])
-                ->middleware('permission:domains.renew')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.renew'])
                 ->whereNumber('domain')
                 ->name('admin.domains.renew');
             Route::post('/domains/transfer', [AdminDomainController::class,'transfer'])
-                ->middleware('permission:domains.transfer')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.transfer'])
                 ->name('admin.domains.transfer');
             Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])
-                ->middleware('permission:domains.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.manage'])
                 ->whereNumber('domain')
                 ->name('admin.domains.assignClient');
             Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])
@@ -86,19 +86,19 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
                 ->name('admin.domains.auth-code');
 
             Route::get('/domains/pricing', [DomainPricingController::class, 'index'])
-                ->middleware('permission:domain-pricing.view')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.view'])
                 ->name('admin.domains.pricing');
             Route::post('/domains/pricing/import', [DomainPricingController::class, 'import'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.import');
             Route::post('/domains/pricing/bulk-markup', [DomainPricingController::class, 'bulkMarkup'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.bulk-markup');
             Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.sell-price');
             Route::put('/domains/pricing/{domainPricing}/common-domain', [DomainPricingController::class, 'updateCommonDomain'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.common-domain');
         });
 

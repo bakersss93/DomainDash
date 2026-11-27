@@ -57,9 +57,9 @@ class ApiUserRoleRestrictionTest extends TestCase
 
         $this->postJson('/api/v1/users', $this->payload(['role' => 'Nope']), ['x-api-key' => $plain])->assertStatus(422);
 
-        $this->postJson('/api/v1/users', $this->payload(['role' => 'Technician']), ['x-api-key' => $plain])->assertCreated();
+        $this->postJson('/api/v1/users', $this->payload(['role' => 'Customer']), ['x-api-key' => $plain])->assertCreated();
         $user = User::where('email', 'new@example.com')->firstOrFail();
-        $this->assertTrue($user->hasRole('Technician'));
+        $this->assertTrue($user->hasRole('Customer'));
         $this->assertSame('enforced', $user->mfa_preference);
     }
 
