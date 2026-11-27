@@ -78,6 +78,9 @@ class AppServiceProvider extends ServiceProvider
             MailSettings::applyFromDatabase();
         }
 
+        // Never let reset / invitation links be written to the log mailer in production (B11).
+        Event::listen(\Illuminate\Mail\Events\MessageSending::class, \App\Listeners\RefuseSensitiveMailViaLogMailer::class);
+
         // Monitoring: meaningful events only. See App\Support\Monitoring\SystemEventAuditor and docs/review/19-monitoring-logs.md.
         Event::listen(Login::class, function (Login $event): void {
             SystemEventAuditor::auth('auth.login', 'Signed in: ' . $event->user->email, $event->user->email, [

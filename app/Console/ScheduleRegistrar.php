@@ -62,6 +62,12 @@ class ScheduleRegistrar
             ->name('scheduled-backup-run')
             ->description('Command: run scheduled backup');
 
+        // Failed-job payloads can contain customer data: drop them after 30 days.
+        $schedule->command('queue:prune-failed', ['--hours' => 720])
+            ->dailyAt('03:45')
+            ->name('scheduled-queue-prune-failed')
+            ->description('Command: prune failed queue jobs older than 30 days');
+
         // Audit retention housekeeping
         $schedule->command('domaindash:audit-prune')
             ->dailyAt('03:30')
