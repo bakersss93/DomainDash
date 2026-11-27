@@ -51,6 +51,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Links in emails (password reset, invitations) must use APP_URL, never the request's Host header (B1).
+        if (! $this->app->environment('local') && ! $this->app->runningUnitTests()) {
+            \App\Support\Security\UrlHardening::apply();
+        }
+
         \Illuminate\Validation\Rules\Password::defaults(function () {
             // Strong policy in production; Laravel's default (min 8) elsewhere so local/test data stays easy.
             return $this->app->isProduction()

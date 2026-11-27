@@ -15,6 +15,16 @@
 #      Enable this block only AFTER step 2 succeeds - a 443 ssl listener with no certificate
 #      in the snippet fails nginx -t.
 
+# Catch-all: any request whose Host header is not our hostname gets no answer (defence against Host-header
+# poisoning of password-reset links; the app additionally pins URLs to APP_URL). Requires nginx >= 1.19.4
+# for ssl_reject_handshake (Ubuntu 22.04+). Keep it ABOVE the real server block.
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    ssl_reject_handshake on;
+    return 444;
+}
+
 server {
     # "listen ... ssl http2" works on every nginx version Ubuntu ships (1.18 / 1.24).
     # On nginx >= 1.25.1 you may instead use "listen 443 ssl;" plus "http2 on;".
@@ -44,10 +54,16 @@ server {
 
 # OPTIONAL - only if you ever open port 80 (it is closed on this deployment, so leave commented).
 # Redirects plain HTTP to HTTPS at nginx level; the app also redirects when "Force HTTPS" is on.
+# The first block drops requests with an unknown Host header; the second redirects our own hostname.
 #
+# server {
+#     listen 80 default_server;
+#     listen [::]:80 default_server;
+#     return 444;
+# }
 # server {
 #     listen 80;
 #     listen [::]:80;
 #     server_name dash.example.com;
-#     return 301 https://$host$request_uri;
+#     return 301 https://dash.example.com$request_uri;
 # }
