@@ -60,6 +60,14 @@ class EnsureMfaPolicy
             }
         }
 
+        // Entra ID already enforced MFA / conditional access for this SSO session (connection setting),
+        // which also satisfies the mandatory-MFA policy below.
+        if ($request->session()->get('auth.via') === 'saml' && $request->session()->get('auth.mfa_satisfied')) {
+            $request->session()->forget('mfa.setup');
+
+            return $next($request);
+        }
+
         // Mandatory MFA (required role, or per-user "enforced" preference): block EVERYTHING except
         // the setup flow until 2FA is confirmed. The dashboard URL renders only the setup page.
         // An administrator impersonating someone has already passed their own MFA.

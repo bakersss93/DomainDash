@@ -51,6 +51,9 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
             }
 
+            // "Enforce SSO for staff": password sign-in is closed to staff except break-glass accounts.
+            \App\Services\Saml\SsoPolicy::assertPasswordLoginAllowed($user);
+
             return $user;
         });
 

@@ -269,6 +269,16 @@
 
         {{-- Integration Actions (only show for existing clients) --}}
         @if($client->exists)
+            @php $ssoConnections = \App\Models\SamlConnection::where('client_id', $client->id)->get(); @endphp
+            <div class="dd-card" style="margin-bottom:24px;">
+                <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Single sign-on (Microsoft Entra ID)</h2>
+                @forelse($ssoConnections as $sso)
+                    <p style="margin-bottom:8px;"><a href="{{ route('admin.sso.edit', $sso) }}">{{ $sso->name }}</a> &mdash; {{ $sso->enabled ? 'enabled' : 'disabled' }}</p>
+                @empty
+                    <p style="margin-bottom:8px;">This client signs in with a password. Add a connection so their staff can use their own Microsoft tenant.</p>
+                @endforelse
+                <a class="ui-btn ui-btn--secondary" href="{{ route('admin.sso.create', ['type' => 'client', 'client_id' => $client->id]) }}">Add SSO connection</a>
+            </div>
             <div class="dd-card" style="margin-bottom:24px;">
                 <h2 style="font-size:16px;font-weight:600;margin-bottom:12px;">Integration Actions</h2>
 

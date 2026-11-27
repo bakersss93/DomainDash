@@ -252,6 +252,11 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ route('admin.sso.index') }}" class="nav-link {{ request()->routeIs('admin.sso.*') ? 'active' : '' }}" @if(request()->routeIs('admin.sso.*')) aria-current="page" @endif>
+                                    Single Sign-On
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ route('admin.notifications.templates') }}" class="nav-link {{ request()->routeIs('admin.notifications.templates*') ? 'active' : '' }}" @if(request()->routeIs('admin.notifications.templates*')) aria-current="page" @endif>
                                     Email Templates
                                 </a>

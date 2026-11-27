@@ -17,6 +17,19 @@ use App\Http\Controllers\Admin\InternetController;
 use App\Http\Controllers\UserNotificationController;
 
 
+// ---------------------------------------------------------------------------------------------------------
+// Microsoft Entra ID SAML single sign-on (public endpoints; connection is addressed by an unguessable UUID)
+// ---------------------------------------------------------------------------------------------------------
+Route::get('/saml/{connection}/metadata', [\App\Http\Controllers\Auth\SamlController::class, 'metadata'])->name('saml.metadata');
+Route::get('/saml/{connection}/login', [\App\Http\Controllers\Auth\SamlController::class, 'login'])->middleware('throttle:20,1')->name('saml.login');
+// The ACS is a cross-site POST from Microsoft, so it cannot carry a CSRF token. It is authenticated by the signed
+// assertion + a single-use server-side AuthnRequest ID instead. CSRF stays on for every other route.
+Route::post('/saml/{connection}/acs', [\App\Http\Controllers\Auth\SamlController::class, 'acs'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->middleware('throttle:30,1')
+    ->name('saml.acs');
+Route::post('/sso/discover', [\App\Http\Controllers\Auth\SamlController::class, 'discover'])->middleware('throttle:10,1')->name('sso.discover');
+
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
 
 Route::middleware(['auth','verified','mfa.policy'])->group(function () {
@@ -111,6 +124,16 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::put('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'updateRolePermissions'])->name('admin.permissions.roles.update');
         Route::delete('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'destroyRole'])->name('admin.permissions.roles.destroy');
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
+        Route::get('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'index'])->name('admin.sso.index');
+        Route::get('/sso/create', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'create'])->name('admin.sso.create');
+        Route::post('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'store'])->name('admin.sso.store');
+        Route::post('/sso/settings', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'updateSettings'])->name('admin.sso.settings');
+        Route::get('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'edit'])->name('admin.sso.edit');
+        Route::put('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'update'])->name('admin.sso.update');
+        Route::delete('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'destroy'])->name('admin.sso.destroy');
+        Route::post('/sso/{connection}/refresh-metadata', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'refresh'])->name('admin.sso.refresh');
+        Route::post('/sso/{connection}/check', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'check'])->name('admin.sso.check');
+
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         // Option lists + mapping-table CRUD for the settings pages (Administrator area, JSON).
