@@ -17,6 +17,12 @@ class MonitoringUiTest extends TestCase
     use MonitoringHelpers;
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['domaindash.mfa.enforce' => true, 'domaindash.mfa.required_roles' => ['Administrator']]);
+    }
+
     // ---- access control ----------------------------------------------------
 
     public function test_every_monitoring_endpoint_is_admin_only(): void

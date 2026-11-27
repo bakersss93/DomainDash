@@ -26,6 +26,7 @@ class LoginPolicyController extends Controller
             'client_secret' => 'nullable|string|max:512',
             'allowed_tenants' => 'nullable|string|max:5000',
             'trust_mfa_clients' => 'nullable|boolean',
+            'require_client_tenant' => 'nullable|boolean',
         ]);
 
         $current = MicrosoftSettings::all();
@@ -35,6 +36,7 @@ class LoginPolicyController extends Controller
             'client_secret' => $data['client_secret'] ?? '',
             'allowed_tenants' => [],
             'trust_mfa_clients' => (bool) ($data['trust_mfa_clients'] ?? false),
+            'require_client_tenant' => (bool) ($data['require_client_tenant'] ?? false),
         ];
         // Blank or the "********" placeholder keeps the stored secret.
         $new = Redactor::preserveSecrets($new, $current);
@@ -106,7 +108,7 @@ class LoginPolicyController extends Controller
     {
         return [
             'enabled' => $s['enabled'], 'client_id' => $s['client_id'], 'app_key_stored' => ($s['client_secret'] ?? '') !== '',
-            'allowed_tenants' => $s['allowed_tenants'], 'trust_mfa_clients' => $s['trust_mfa_clients'],
+            'allowed_tenants' => $s['allowed_tenants'], 'trust_mfa_clients' => $s['trust_mfa_clients'], 'require_client_tenant' => $s['require_client_tenant'],
         ];
     }
 }

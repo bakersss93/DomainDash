@@ -74,7 +74,7 @@ abstract class MicrosoftTestCase extends TestCase
     {
         $u = User::factory()->create(['email' => $email] + $attrs);
         $u->assignRole('Customer');
-        $u->clients()->attach(($client ?? Client::create(['business_name' => 'Acme']))->id);
+        $u->clients()->attach(($client ?? Client::create(['business_name' => 'Acme', 'microsoft_tenant_id' => self::TID]))->id);
 
         return $u;
     }

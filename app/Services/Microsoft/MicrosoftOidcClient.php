@@ -184,6 +184,7 @@ class MicrosoftOidcClient
             upn: $upn !== '' ? $upn : null,
             email: $email !== '' ? $email : null,
             emailDomainOwnerVerified: filter_var($c['xms_edov'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            amr: isset($c['amr']) && is_array($c['amr']) ? array_values(array_filter(array_map(fn ($v) => is_string($v) ? strtolower($v) : null, $c['amr']))) : [],
             name: isset($c['name']) && is_string($c['name']) ? Str::limit($c['name'], 190, '') : null,
         );
     }

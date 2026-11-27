@@ -19,7 +19,11 @@ class MicrosoftSettings
             'client_id' => '',
             'client_secret' => '',
             'allowed_tenants' => [],
-            'trust_mfa_clients' => true,
+            // Off by default: Microsoft v2 ID tokens only carry `amr` when the optional claim is configured, and a
+            // tenant's MFA policy is not ours to verify. Even when on, the token itself must say "mfa".
+            'trust_mfa_clients' => false,
+            // On by default: a client's users may only sign in when that client has its tenant ID recorded.
+            'require_client_tenant' => true,
         ], (array) Setting::get(self::KEY, []));
     }
 
@@ -53,6 +57,11 @@ class MicrosoftSettings
     public static function trustMfa(): bool
     {
         return (bool) self::all()['trust_mfa_clients'];
+    }
+
+    public static function requireClientTenant(): bool
+    {
+        return (bool) self::all()['require_client_tenant'];
     }
 
     /** Derived from APP_URL (never from the request Host header). */

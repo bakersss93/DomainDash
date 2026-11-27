@@ -149,7 +149,8 @@ own tenant. Any client user whose organisation has a Microsoft work or school ac
 
 * **Application (client) ID** and **Client secret** (stored encrypted; leave the box blank later to keep the stored secret).
 * **Allowed Microsoft tenant IDs (optional)**: leave empty to accept any organisation (the user must still exist). Fill it in to restrict sign-in to a short list of tenants.
-* **Trust Microsoft sign-in for MFA (clients)**: on by default. When on, a client who signed in with Microsoft is not asked for DomainDash's own MFA, because their own tenant (Conditional Access) is expected to enforce it. When off, DomainDash MFA is still required.
+* **Require a tenant ID for each client before its users can sign in with Microsoft**: on by default (recommended). While on, a user is refused (`tenant_not_configured`), at first link and at every later sign-in, unless **every** client they belong to has its *Microsoft tenant ID* set (Clients > Edit). The global allowed-tenants list does **not** substitute for it. Turning it off restores the old behaviour (a client with no tenant accepts any tenant, and the tenant is recorded when its single user first links); the settings page then shows a warning because anyone controlling any Microsoft tenant could claim a client user whose email matches their sign-in name.
+* **Trust Microsoft sign-in for MFA (clients)**: **off by default**. Microsoft v2 ID tokens only contain the `amr` (authentication methods) claim if you add it as an optional claim on the app registration, and Microsoft documents it as not reliably present, so trust cannot be assumed. When on, DomainDash skips its own MFA only if the ID token's `amr` contains `mfa`; otherwise (including when `amr` is missing) DomainDash MFA is still required. To use it, add the optional claim: app registration > **Token configuration > Add optional claim > ID > amr**.
 * Tick **Enable** and save.
 
 ## 2C. Client tenants may need admin consent
@@ -172,9 +173,13 @@ tenant under **Enterprise applications > DomainDash client sign-in > Permissions
   identity. A different Microsoft account with the same name is refused, whatever the email says. If someone leaves or changes tenant, an
   administrator opens **Users > Edit** and clicks **Unlink Microsoft account**; the next sign-in links again.
 * Staff accounts, disabled accounts and accounts with no client are refused.
-* **Lock a client to one tenant** (strongly recommended): on **Clients > Edit**, *Allowed Microsoft tenant ID*. If you leave it blank,
-  DomainDash fills it in the first time a user (assigned to only that one client) links, so later sign-ins must come from the same tenant.
-  For the highest assurance, enter the client's tenant ID yourself before inviting their users.
+* **Each client needs its tenant ID** (required by default, see 2B): on **Clients > Edit**, *Allowed Microsoft tenant ID*. With the requirement on,
+  users of a client without a tenant ID cannot sign in or link (`tenant_not_configured`) and nothing is filled in automatically. Enter the
+  client's tenant ID yourself before inviting their users. Only if you switch the requirement off does DomainDash fill the tenant in on the first link of a single-client user.
+* **Finding a client's tenant ID**: ask the client's administrator to open the Microsoft Entra admin center (<https://entra.microsoft.com>) and read **Overview > Tenant ID**.
+  Without their help, open `https://login.microsoftonline.com/<their domain, e.g. contoso.com>/v2.0/.well-known/openid-configuration` in a browser: the
+  `issuer` value is `https://login.microsoftonline.com/<GUID>/v2.0`, and that GUID is the tenant ID.
+* Changing a client's tenant ID or sign-in method signs out all of that client's users straight away.
 * A signed-in client user can see their linked Microsoft account in **Account Settings**.
 
 ## 2E. Optional: PowerShell (Microsoft.Graph) for the app registration
@@ -230,7 +235,7 @@ To undo a policy in an emergency, sign in with the break-glass Administrator and
 ## MFA with Microsoft sign-in
 
 * Staff (SAML): per connection, *Trust Microsoft for MFA* (default off).
-* Clients: global setting *Trust Microsoft sign-in for MFA (clients)* (default on).
+* Clients: global setting *Trust Microsoft sign-in for MFA (clients)* (default **off**). When on it only applies if the ID token's `amr` claim contains `mfa`.
 * Trust is checked on **every request**: switching it off, disabling the feature, unlinking the user, or changing them into a staff user ends or tightens their current session straight away.
 
 ---
@@ -254,6 +259,7 @@ DomainDash shows a short message on the login page and records the exact reason 
 | `link_mismatch` | The user is already linked to a different Microsoft account. Unlink it on the user's edit page if the change is genuine. |
 | `staff_user` | Staff use their organisation login (SAML); enter the work email so DomainDash routes to it. |
 | `no_client`, `inactive` | The user has no client assigned, or is disabled. |
+| `tenant_not_configured` | "Require a tenant ID for each client" is on and one of the user's clients has no Microsoft tenant ID. Set it on the client's edit page (see 2D). |
 | `tenant_not_allowed`, `client_tenant_mismatch` | The person's Microsoft tenant is not on the allowed list, or is not the tenant locked to their client. |
 | `identity_in_use` | That Microsoft account is already linked to another DomainDash user. |
 | `idp_error` | Microsoft returned an error (for example the user cancelled, or the client's admin has not consented). See 2C. |

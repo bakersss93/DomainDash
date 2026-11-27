@@ -58,7 +58,12 @@ class CustomerInternetController extends Controller
 
         $canDiagnose = $user->can('diagnose', $service);
         $history = $canDiagnose
-            ? $service->diagnostics()->where('run_by_user_id', '!=', null)->where('diagnostic_type', 'AUTH-LOG')->take(5)->get()
+            ? $service->diagnostics()
+                // Only runs by users of this service's own client; staff runs are never shown to customers.
+                ->whereHas('runBy', fn ($q) => $q
+                    ->whereHas('clients', fn ($c) => $c->where('clients.id', $service->client_id))
+                    ->whereDoesntHave('roles', fn ($r) => $r->whereIn('name', ['Administrator', 'Technician'])))
+                ->where('diagnostic_type', 'AUTH-LOG')->take(5)->get()
                 ->map(fn (InternetServiceDiagnostic $d) => $this->presentAuthLog($d))
             : collect();
 

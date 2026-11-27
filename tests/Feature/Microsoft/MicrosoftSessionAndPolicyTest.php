@@ -31,8 +31,9 @@ class MicrosoftSessionAndPolicyTest extends MicrosoftTestCase
 
     public function test_trusting_microsoft_satisfies_mandatory_local_mfa(): void
     {
+        $this->configureMicrosoft(['trust_mfa_clients' => true]);
         $user = $this->customer('amy@acme.com', null, ['mfa_preference' => 'enforced']);
-        $this->signIn()->assertRedirect(config('fortify.home', '/dashboard'));
+        $this->signIn(['amr' => ['pwd', 'mfa']])->assertRedirect(config('fortify.home', '/dashboard'));
 
         $this->assertTrue(session('auth.mfa_satisfied'));
         $this->assertSame(self::OID, session('auth.microsoft_oid'));
@@ -60,8 +61,9 @@ class MicrosoftSessionAndPolicyTest extends MicrosoftTestCase
 
     public function test_mfa_trust_is_dropped_mid_session_when_the_setting_is_switched_off(): void
     {
+        $this->configureMicrosoft(['trust_mfa_clients' => true]);
         $this->customer('amy@acme.com', null, ['mfa_preference' => 'enforced']);
-        $this->signIn();
+        $this->signIn(['amr' => ['mfa']]);
         $this->dash()->assertSuccessful();
 
         $this->configureMicrosoft(['trust_mfa_clients' => false]);

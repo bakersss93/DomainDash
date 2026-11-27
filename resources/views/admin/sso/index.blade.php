@@ -67,9 +67,20 @@
                 <x-ui.field label="Allowed Microsoft tenant IDs (optional)" name="allowed_tenants" as="textarea" rows="3" :value="old('allowed_tenants', $tenantsText)"
                             help="One tenant ID per line. Leave empty to accept any organisation (a user must still already exist in DomainDash). You can also lock a single client to one tenant on the client's edit page." />
                 <div class="ui-field">
+                    <input type="hidden" name="require_client_tenant" value="0">
+                    <label class="flex items-start gap-2"><input type="checkbox" name="require_client_tenant" value="1" @checked(old('require_client_tenant', $ms['require_client_tenant']))>
+                        <span>Require a tenant ID for each client before its users can sign in with Microsoft<small class="ui-help" style="display:block">On (recommended): a user can only sign in, or link their Microsoft account for the first time, when every client they belong to has its Microsoft tenant ID set on the client's edit page. The allowed tenants list above does not replace this.</small></span></label>
+                    @unless (old('require_client_tenant', $ms['require_client_tenant']))
+                        <p class="ui-help" role="alert"><strong>Warning:</strong> with this off, anyone who controls ANY Microsoft tenant and holds a sign-in name matching a client user's email can claim that account on first sign-in. Only turn it off if you accept that risk.</p>
+                    @endunless
+                </div>
+                <div class="ui-field">
                     <input type="hidden" name="trust_mfa_clients" value="0">
                     <label class="flex items-start gap-2"><input type="checkbox" name="trust_mfa_clients" value="1" @checked(old('trust_mfa_clients', $ms['trust_mfa_clients']))>
-                        <span>Trust Microsoft sign-in for MFA (clients)<small class="ui-help" style="display:block">On: a client who signed in with Microsoft is not asked for DomainDash's own MFA (their own tenant's MFA / Conditional Access applies). Off: DomainDash's MFA is still required.</small></span></label>
+                        <span>Trust Microsoft sign-in for MFA (clients)<small class="ui-help" style="display:block">Off (default): DomainDash's own MFA is still required. On: DomainDash's MFA is skipped only when the Microsoft ID token itself contains the <code>mfa</code> authentication method (<code>amr</code> claim). Microsoft only sends <code>amr</code> in v2 ID tokens if you add it as an optional claim on the app registration, and the client's tenant controls how MFA is enforced, so leave this off unless you have verified it.</small></span></label>
+                    @if (old('trust_mfa_clients', $ms['trust_mfa_clients']))
+                        <p class="ui-help" role="alert"><strong>Warning:</strong> MFA is delegated to each client's own Microsoft tenant policy. Users whose sign-in has no <code>mfa</code> claim still get DomainDash's MFA.</p>
+                    @endif
                 </div>
                 <x-slot name="footer">
                     <span class="ui-card__hint">Needs delegated permissions openid, profile, email (User.Read). See docs/microsoft-sign-in.md.</span>

@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\DB;
  *     case-insensitively. The `email` claim is mutable and unverified (nOAuth), so it is ignored unless
  *     `xms_edov` says the tenant verified the domain owner.
  *  3. A user already linked to a different identity is refused; so is a staff user (staff use SAML).
- *  4. A client may be locked to one Entra tenant (clients.microsoft_tenant_id). With exactly one client the tenant is
- *     recorded on first link when still empty.
+ *  4. Every client of the user must have its Entra tenant (clients.microsoft_tenant_id) recorded when the setting
+ *     "require a tenant ID for each client" is on (default); the tenant must match. Only when that requirement is
+ *     off is a missing tenant tolerated, and then recorded on first link for a user with exactly one client.
  */
 class MicrosoftUserResolver
 {
@@ -58,22 +59,27 @@ class MicrosoftUserResolver
         if ($clients->isEmpty()) {
             throw new MicrosoftOidcException('This account is not assigned to a client. Please contact your administrator.', 'no_client', ['user_id' => $user->id]);
         }
+        $requireTenant = MicrosoftSettings::requireClientTenant();
         foreach ($clients as $client) {
             $lock = strtolower(trim((string) $client->microsoft_tenant_id));
+            if ($requireTenant && $lock === '') {
+                // The global allowed-tenants list deliberately does not substitute for a per-client tenant.
+                throw new MicrosoftOidcException('Microsoft sign-in has not been set up for your organisation yet. Please contact your administrator.', 'tenant_not_configured', ['user_id' => $user->id, 'client_id' => $client->id, 'tid' => $id->tenantId]);
+            }
             if ($lock !== '' && $lock !== $id->tenantId) {
                 throw new MicrosoftOidcException('Your Microsoft organisation is not the one registered for this account.', 'client_tenant_mismatch', ['user_id' => $user->id, 'client_id' => $client->id, 'tid' => $id->tenantId]);
             }
         }
 
         try {
-            DB::transaction(function () use ($user, $id, $firstLink, $clients) {
+            DB::transaction(function () use ($user, $id, $firstLink, $clients, $requireTenant) {
                 $attrs = ['microsoft_last_login_at' => now()];
                 if ($firstLink) {
                     $attrs += ['microsoft_oid' => $id->objectId, 'microsoft_tid' => $id->tenantId, 'microsoft_linked_at' => now()];
                 }
                 $user->forceFill($attrs)->save();
 
-                if ($firstLink && $clients->count() === 1 && trim((string) $clients->first()->microsoft_tenant_id) === '') {
+                if (! $requireTenant && $firstLink && $clients->count() === 1 && trim((string) $clients->first()->microsoft_tenant_id) === '') {
                     Client::query()->whereKey($clients->first()->id)->whereNull('microsoft_tenant_id')->update(['microsoft_tenant_id' => $id->tenantId]);
                 }
             });

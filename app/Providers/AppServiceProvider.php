@@ -82,6 +82,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(\Illuminate\Mail\Events\MessageSending::class, \App\Listeners\RefuseSensitiveMailViaLogMailer::class);
 
         // Monitoring: meaningful events only. See App\Support\Monitoring\SystemEventAuditor and docs/review/19-monitoring-logs.md.
+        Event::listen(Login::class, \App\Listeners\PromotePendingSsoSession::class);
         Event::listen(Login::class, function (Login $event): void {
             SystemEventAuditor::auth('auth.login', 'Signed in: ' . $event->user->email, $event->user->email, [
                 'user_id' => $event->user->id,

@@ -93,7 +93,8 @@ class MicrosoftController extends Controller
     private function completeLogin(Request $request, User $user, MicrosoftIdentity $identity)
     {
         $first = $user->wasChanged('microsoft_oid');
-        $trust = MicrosoftSettings::trustMfa();
+        // Trust only when the setting is on AND this ID token states that MFA was performed.
+        $trust = MicrosoftSettings::trustMfa() && $identity->mfaClaimed();
 
         if ($first) {
             $this->audit('auth.microsoft.linked', "Microsoft account linked for {$user->email}", $user, ['tid' => $identity->tenantId, 'oid' => $identity->objectId]);
@@ -101,7 +102,10 @@ class MicrosoftController extends Controller
 
         if (! $trust && $user->hasConfiguredMfa()) {
             $request->session()->regenerate();
-            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => false, 'auth.via_pending' => 'microsoft']);
+            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => false, 'auth.via_pending' => [
+                'via' => 'microsoft', 'user_id' => $user->getKey(),
+                'keys' => ['auth.microsoft_oid' => $identity->objectId, 'auth.microsoft_tid' => $identity->tenantId],
+            ]]);
             $this->audit('auth.microsoft.login.mfa_pending', "Microsoft identity accepted for {$user->email}; local MFA challenge required", $user, ['tid' => $identity->tenantId]);
 
             return redirect()->route('two-factor.login');

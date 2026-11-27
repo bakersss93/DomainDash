@@ -169,6 +169,22 @@ class ClientsController extends Controller
 
         $client->update($validated);
 
+        // A different tenant or sign-in method invalidates what the client's users signed in with.
+        if ($client->wasChanged(['microsoft_tenant_id', 'login_method'])) {
+            $revoked = 0;
+            foreach ($client->users()->get() as $u) {
+                $revoked += \App\Support\SessionRevoker::revoke($u);
+            }
+            \App\Services\AuditLogger::logSystem('client.sso_settings.changed', "Microsoft tenant / sign-in method changed for {$client->business_name}; client user sessions revoked", [
+                'function' => 'sso', 'automated' => false,
+            ] + [
+                'client_id' => $client->id,
+                'old' => ['microsoft_tenant_id' => $originalValues['microsoft_tenant_id'] ?? null, 'login_method' => $originalValues['login_method'] ?? null],
+                'new' => ['microsoft_tenant_id' => $client->microsoft_tenant_id, 'login_method' => $client->login_method],
+                'sessions_revoked' => $revoked,
+            ]);
+        }
+
         // Log the update to audit log
         \App\Services\AuditLogger::logUpdate(
             $client,

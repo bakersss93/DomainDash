@@ -5,6 +5,11 @@ namespace App\Services\Microsoft;
 /** Claims from a fully validated Entra ID token. Only fields the matcher may rely on are exposed. */
 final class MicrosoftIdentity
 {
+    public function mfaClaimed(): bool
+    {
+        return in_array('mfa', $this->amr, true);
+    }
+
     public function __construct(
         public readonly string $tenantId,
         public readonly string $objectId,
@@ -14,6 +19,8 @@ final class MicrosoftIdentity
         public readonly ?string $email,
         public readonly bool $emailDomainOwnerVerified,
         public readonly ?string $name,
+        /** @var list<string> `amr` claim values (empty when the token carries none). */
+        public readonly array $amr = [],
     ) {
     }
 }

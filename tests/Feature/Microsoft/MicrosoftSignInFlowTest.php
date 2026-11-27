@@ -328,7 +328,7 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
     public function test_global_allowed_tenant_list(): void
     {
         $this->configureMicrosoft(['allowed_tenants' => [self::OTHER_TID]]);
-        $this->customer();
+        $this->customer('amy@acme.com', Client::create(['business_name' => 'Other', 'microsoft_tenant_id' => self::OTHER_TID]));
 
         $this->signIn()->assertRedirect(route('login'));
         $this->assertGuest();
@@ -340,6 +340,7 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
 
     public function test_client_tenant_lock_is_enforced_and_auto_filled_on_first_link(): void
     {
+        $this->configureMicrosoft(['require_client_tenant' => false]);
         $locked = Client::create(['business_name' => 'Locked', 'microsoft_tenant_id' => self::OTHER_TID]);
         $this->customer('amy@acme.com', $locked);
 
@@ -356,6 +357,7 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
 
     public function test_tenant_is_not_auto_filled_for_a_user_with_several_clients(): void
     {
+        $this->configureMicrosoft(['require_client_tenant' => false]);
         $a = Client::create(['business_name' => 'A']);
         $b = Client::create(['business_name' => 'B']);
         $u = $this->customer('amy@acme.com', $a);

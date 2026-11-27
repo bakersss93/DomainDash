@@ -23,6 +23,12 @@ class VocusCertificationTest extends TestCase
     use MonitoringHelpers;
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['domaindash.mfa.enforce' => true, 'domaindash.mfa.required_roles' => ['Administrator']]);
+    }
+
     private const SECRET = 'AK-never-store-this-9f3a';
 
     private function client(FakeSoap $soap, string $env = 'sandbox'): VocusWsmClient

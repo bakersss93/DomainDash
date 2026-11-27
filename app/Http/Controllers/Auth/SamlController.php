@@ -66,7 +66,9 @@ class SamlController extends Controller
         // Entra enforced MFA/conditional access, or DomainDash must still challenge locally.
         if (! $c->skip_local_mfa && $user->hasConfiguredMfa()) {
             $request->session()->regenerate();
-            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => false, 'auth.via_pending' => 'saml']);
+            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => false, 'auth.via_pending' => [
+                'via' => 'saml', 'user_id' => $user->getKey(), 'keys' => ['auth.saml_connection_id' => $c->id],
+            ]]);
             $this->audit('sso.login.mfa_pending', $c, $user->email, "SSO identity accepted for {$user->email}; local MFA challenge required", $user);
 
             return redirect()->route('two-factor.login');
