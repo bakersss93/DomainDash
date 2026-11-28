@@ -4,10 +4,12 @@ summary: Let client users sign in with their own Microsoft work accounts, and de
 category: security
 order: 20
 audience: integration
-related: [staff-sso-saml, users-roles-permissions-mfa, audit-logs-and-retention]
+related: [staff-sso-saml, microsoft-partner-connection, users-roles-permissions-mfa, audit-logs-and-retention]
 ---
 
-Clients do not get their own Entra app and there is no group mapping. You register **one** multi-tenant app in your own Entra tenant. Any client user whose organisation has a Microsoft work or school account can then use **Sign in with Microsoft**, but **only if you already created that user** in {company}. Unknown people are refused and never created.
+Clients do not get their own Entra app and there is no group mapping. You register **one** multi-tenant app in your own Entra tenant. A client user whose organisation has a Microsoft work or school account can then sign in with Microsoft, but **only if you already created that user** in {company} **and switched on Enable Microsoft sign-in for them** (section 3). Unknown people are refused and never created.
+
+There is no always-visible Microsoft button on the login page. People type their email first; if their account is set up for Microsoft sign-in they are taken to the **Single sign-on** view (see [Logging in](/support/help/getting-started/logging-in)). Everyone else just sees the password form, so the page never reveals which addresses exist.
 
 The full guide, PowerShell snippets and all troubleshooting reasons are in `docs/microsoft-sign-in.md`.
 
@@ -34,17 +36,28 @@ On **Admin > Settings > Single sign-on > Sign in with Microsoft (clients)**:
 
 ### Finding a client's tenant ID
 
-Ask the client's administrator to open the Microsoft Entra admin centre and read **Overview > Tenant ID**. Without their help, open `https://login.microsoftonline.com/contoso.com/v2.0/.well-known/openid-configuration` (replace `contoso.com` with their domain). The GUID in the `issuer` value is the tenant ID.
+If you are a Microsoft partner (CSP or GDAP), you do not have to look these up one by one: the [Microsoft Partner connection](/support/help/integrations/microsoft-partner-connection) reads your customer tenants and maps each to a client, which fills in the client's **Allowed Microsoft tenant ID** for you.
+
+Otherwise ask the client's administrator to open the Microsoft Entra admin centre and read **Overview > Tenant ID**. Without their help, open `https://login.microsoftonline.com/contoso.com/v2.0/.well-known/openid-configuration` (replace `contoso.com` with their domain). The GUID in the `issuer` value is the tenant ID.
 
 ### Admin consent
 
 If a client's tenant blocks users from approving apps they see "Need admin approval". Their Entra administrator approves once with `https://login.microsoftonline.com/organizations/adminconsent?client_id=<Application (client) ID>`.
 
+## 3. Switch it on for each user
+
+Microsoft sign-in is **off by default for every user**. Switching the global setting on does not change anyone's login.
+
+1. **Admin > Users > Edit** (or the create form) and tick **Enable Microsoft sign-in**. Only administrators see this switch.
+2. Save. The change is audited as `user.sso_enabled.changed`.
+
+The next time that person types their email on the login page they see **Single sign-on** with **Log in with Microsoft**. If the switch is off, or Microsoft sign-in cannot be used for them (for example their client has no tenant ID while **Require a tenant ID** is on), they get the normal password form. A refused Microsoft attempt is recorded as `sso_not_enabled`.
+
 ## How a client user is matched
 
 - The user's **sign-in name (UPN)** must equal the email of an existing {company} user (upper and lower case ignored).
 - On first sign-in {company} links that Microsoft identity (tenant ID and object ID) to the user. From then on only that exact identity can sign in. If someone leaves or moves tenant, open **Admin > Users > Edit** and select **Unlink Microsoft account**.
-- Staff, disabled and no-client users are refused.
+- Users without **Enable Microsoft sign-in**, staff, disabled and no-client users are refused.
 - Changing a client's tenant ID or sign-in method signs out that client's users straight away.
 
 ## Login-method policy
@@ -56,10 +69,11 @@ If a client's tenant blocks users from approving apps they see "Need admin appro
 | **Staff** | Password and Microsoft, or Microsoft only |
 | **Clients** | Password and Microsoft, or Microsoft only |
 | Per client (**Admin > Clients > Edit > Sign-in method**) | Use the global client policy, Password and Microsoft, or Microsoft only |
-| Per user (**Admin > Users > Edit**, administrators only) | **May also use a password** (exception) |
+| Per user (**Admin > Users > Edit**, administrators only) | **Enable Microsoft sign-in** (needed to use Microsoft at all) and **May also use a password (exception to the login-method policy)** |
 
 Rules:
 
+- The password is allowed when the policy is *Password and Microsoft*, or when the user has **May also use a password**. So a user on *Microsoft only* without the exception gets the **Single sign-on** view with no password box; a user with both sees **Use password instead** under the button.
 - The per-user exception always wins. A user with several clients is held to the strictest of them.
 - A blocked person who types a correct password sees the same error as for a wrong password, and `auth.password.blocked_by_policy` is written to the audit log.
 - {company} refuses to save *Microsoft only* for staff unless an **enabled staff SAML connection** exists **and** at least one **active Administrator** has the password exception (your break-glass login), and refuses it for clients unless Sign in with Microsoft is configured and enabled.
@@ -69,7 +83,7 @@ Rules:
 1. Confirm staff can sign in with Microsoft.
 2. Create a break-glass Administrator with a long random password and its own authenticator, tick **May also use a password**, and test it.
 3. Switch staff to *Microsoft only*.
-4. Switch clients over client by client with the per-client override.
+4. Switch **Enable Microsoft sign-in** on for client users, then switch clients over client by client with the per-client override.
 
 > **Warning:** Always keep a working break-glass Administrator. If a policy locks everyone out, the way back is to sign in as that account and change the policy.
 
@@ -79,6 +93,7 @@ Each failed sign-in shows a short message on the login page and the exact reason
 
 | `reason` | Meaning and fix |
 |---|---|
+| `sso_not_enabled` | **Enable Microsoft sign-in** is off for that user. Switch it on at **Admin > Users > Edit**. |
 | `unknown_user` | No {company} user matches the sign-in name. Create the user first. A UPN is not always their mail address. |
 | `link_mismatch` | Already linked to a different Microsoft account. Unlink it on the user's edit page if genuine. |
 | `tenant_not_configured` | "Require a tenant ID" is on and a client has none. Set it on **Clients > Edit**. |

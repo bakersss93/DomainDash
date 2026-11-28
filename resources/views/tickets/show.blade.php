@@ -45,8 +45,10 @@
             @if($portalUrl)
                 <x-ui.button :href="$portalUrl" variant="secondary" target="_blank" rel="noopener noreferrer">Open in Client Portal <x-ui.icon name="external" :size="14" /></x-ui.button>
             @endif
-            <button type="button" id="open-close-modal" class="ui-btn ui-btn--danger">Close Ticket</button>
-            <button type="button" id="open-reply-modal" class="ui-btn ui-btn--primary">Submit Reply</button>
+            @can('tickets.create')
+                <button type="button" id="open-close-modal" class="ui-btn ui-btn--danger">Close Ticket</button>
+                <button type="button" id="open-reply-modal" class="ui-btn ui-btn--primary">Submit Reply</button>
+            @endcan
         </x-slot>
     </x-ui.page-header>
 
@@ -118,6 +120,7 @@
         </div>
     </div>
 
+    @can('tickets.create')
     <div id="reply-modal" role="dialog" aria-modal="true" aria-labelledby="ticket-reply-title" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop);z-index:12050;align-items:center;justify-content:center;padding:1rem;">
         <form method="POST" action="{{ route('tickets.reply', ['ticketId' => $ticketId]) }}" class="ui-modal__dialog" style="width:min(720px, 96vw);display:grid;gap:0.75rem;">
             @csrf
@@ -149,6 +152,7 @@
             </div>
         </form>
     </div>
+    @endcan
 </div>
 
 <script>

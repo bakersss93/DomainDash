@@ -50,6 +50,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'updateAccount'])->name('me.account.update');
         Route::post('/me/account/password', [\App\Http\Controllers\UserSettingsController::class, 'changePassword'])->name('me.account.password');
         Route::post('/me/account/mfa-reenroll', [\App\Http\Controllers\UserSettingsController::class, 'reEnrollMfa'])->name('me.account.mfa-reenroll');
+        Route::post('/me/account/mfa-recovery-codes', [\App\Http\Controllers\UserSettingsController::class, 'regenerateRecoveryCodes'])->middleware('throttle:5,1')->name('me.account.mfa-recovery-codes');
         Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
         Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
         Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');
@@ -76,12 +77,12 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/support/help/{category}/{slug}', [\App\Http\Controllers\HelpController::class, 'show'])->where(['category' => '[a-z0-9][a-z0-9-]*', 'slug' => '[a-z0-9][a-z0-9-]*'])->name('help.show');
 
         // Tickets
-        Route::get('/tickets/create', [TicketController::class,'create'])->name('tickets.create');
+        Route::get('/tickets/create', [TicketController::class,'create'])->middleware('permission:tickets.create')->name('tickets.create');
         Route::get('/tickets', [TicketController::class,'index'])->name('tickets.index');
         Route::get('/tickets/{ticketId}', [TicketController::class,'show'])->whereNumber('ticketId')->name('tickets.show');
-        Route::post('/tickets/{ticketId}/reply', [TicketController::class,'reply'])->whereNumber('ticketId')->name('tickets.reply');
-        Route::post('/tickets/{ticketId}/close', [TicketController::class,'close'])->whereNumber('ticketId')->name('tickets.close');
-        Route::post('/tickets', [TicketController::class,'store'])->name('tickets.store');
+        Route::post('/tickets/{ticketId}/reply', [TicketController::class,'reply'])->whereNumber('ticketId')->middleware('permission:tickets.create')->name('tickets.reply');
+        Route::post('/tickets/{ticketId}/close', [TicketController::class,'close'])->whereNumber('ticketId')->middleware('permission:tickets.create')->name('tickets.close');
+        Route::post('/tickets', [TicketController::class,'store'])->middleware('permission:tickets.create')->name('tickets.store');
 
         // Internet services: read-only customer view of the user's own clients' services (staff are sent to the admin page).
         Route::get('/internet', [\App\Http\Controllers\CustomerInternetController::class, 'index'])->middleware('permission:internet.view')->name('internet.index');

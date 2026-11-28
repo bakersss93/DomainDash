@@ -218,9 +218,53 @@ class UserSettingsController extends Controller
 
         $request->session()->forget('mfa.setup');
 
+        // The plain recovery codes are only ever returned here (once, right after enrolment is confirmed)
+        // and by regenerateRecoveryCodes(); the stored copy is encrypted at rest.
         return response()->json([
             'configured' => true,
+            'recovery_codes' => $this->storedRecoveryCodes($user),
         ]);
+    }
+
+    /** Replace the recovery codes after proving possession of the authenticator (current TOTP code, not a recovery code). */
+    public function regenerateRecoveryCodes(Request $request, TwoFactorAuthenticationProvider $provider): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->hasConfiguredMfa()) {
+            return response()->json(['message' => 'Set up MFA before generating recovery codes.'], 422);
+        }
+
+        $data = Validator::make($request->all(), [
+            'mfa_code' => ['required', 'string'],
+        ])->validate();
+
+        $this->assertValidMfaCode($user, $data['mfa_code'], $provider);
+
+        $codes = Collection::times(8, fn () => RecoveryCode::generate())->all();
+        $user->forceFill(['two_factor_recovery_codes' => encrypt(json_encode($codes))])->save();
+
+        \App\Support\Monitoring\SystemEventAuditor::auth(
+            'auth.mfa_recovery_regenerated',
+            'MFA recovery codes regenerated: ' . $user->email,
+            $user->email
+        );
+
+        return response()->json(['recovery_codes' => $codes]);
+    }
+
+    /** @return array<int, string> */
+    private function storedRecoveryCodes($user): array
+    {
+        if (empty($user->two_factor_recovery_codes)) {
+            return [];
+        }
+
+        try {
+            return array_values((array) json_decode(decrypt($user->two_factor_recovery_codes), true));
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     public function dismissMfaPrompt(Request $request)

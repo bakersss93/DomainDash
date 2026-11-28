@@ -17,7 +17,7 @@ API keys let automation (a monitoring tool, a script, an automation platform) ca
 2. **Name**: what the key is for, for example `Monitoring integration`.
 3. **Allowed IPs (optional)**: comma-separated addresses or ranges, for example `1.2.3.4, 10.0.0.0/8`. Blank allows any address. Restricting is strongly recommended.
 4. **Rate limit per hour**: requests per hour for this key (default 1000, 1 to 100000).
-5. **Scopes**: tick only what the integration needs. The form labels the scopes "optional", but the server **rejects a key with no scopes**, so choose at least one.
+5. **Scopes**: tick only what the integration needs. A key must have **at least one scope**; the server rejects a key with none.
 6. Select the create button. The **API key ready** window shows the key **once**. Select the copy button and store it in your password manager.
 
 > **Warning:** Only a prefix and a hash are stored, so a lost key cannot be shown again. Use **Regenerate** to issue a new one.

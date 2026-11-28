@@ -10,5 +10,5 @@
         alt="{{ config('app.name', 'DomainDash') }} logo"
         class="h-20 w-auto rounded-xl"
     >
-    <span class="mt-3 text-sm font-semibold tracking-wide text-muted uppercase">DomainDash</span>
+    <span class="mt-3 text-sm font-semibold tracking-wide text-muted uppercase">{{ \App\Support\Branding::companyName() }}</span>
 </div>

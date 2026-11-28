@@ -8,7 +8,7 @@ permission: dns.manage
 related: [managing-dns-records, dns-propagation-and-mistakes]
 ---
 
-The **DNS options** button on a domain's DNS page decides who runs the domain's DNS. Most people should leave it on **DNS Hosting**.
+The **DNS options** button on a domain's DNS page (shown only to accounts with the `dns.manage` permission) decides who runs the domain's DNS. Most people should leave it on **DNS Hosting**.
 
 ## The four modes
 

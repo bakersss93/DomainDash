@@ -20,7 +20,7 @@
         <x-settings.input label="Backup encryption password" name="backup[encryption_password]" :value="$s['encryption_password'] ?? ''" :secret="true" help="Required, min 12 characters. The zip is AES-256 encrypted with it. Store it somewhere safe: without it a backup cannot be opened." />
         <x-settings.input label="Remote path" name="backup[path]" :value="$s['path'] ?? '/'" />
         <x-settings.input label="Keep backups (count)" name="backup[retention]" type="number" :value="$s['retention'] ?? 7" help="Older files are removed after each run." />
-        <x-settings.input label="Run time" name="backup[time]" :value="$s['time'] ?? '02:00'" placeholder="HH:MM" help="24-hour, server timezone." />
+        <x-settings.input label="Run time" name="backup[time]" :value="($s['time'] ?? '') ?: '03:00'" placeholder="HH:MM" maxlength="5" pattern="^([01]\d|2[0-3]):[0-5]\d$" title="24-hour HH:MM" help="24-hour HH:MM, server timezone. Default 03:00." />
         <x-settings.input label="Disk usage alert at (%)" name="notifications[disk_threshold_percent]" type="number" :value="$n['disk_threshold_percent'] ?? 90" />
     </div>
 </x-settings.form-card>

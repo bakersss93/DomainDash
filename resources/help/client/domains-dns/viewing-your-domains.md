@@ -35,7 +35,7 @@ Select a row to open its details panel. For customer accounts the useful tiles a
 - **Overview**: the full details page.
 - **Nameservers & DNS**: the DNS records page. See [Managing DNS records](/support/help/domains-dns/managing-dns-records).
 
-The other tiles in the panel (such as **Renew**, **Assign client** and **WHOIS sync**) are tools for your provider's staff and do not work on a customer account.
+Staff-only tools (such as **Renew**, **Assign client**, **Initiate transfer**, **Transactions**, **WHOIS sync** and **Delete domain**) and the **Bulk domain sync** button are not shown on customer accounts. The same applies to the assign-client icon in the list and the **Client / categories** box on the overview page.
 
 ## The overview page
 
@@ -45,7 +45,7 @@ The other tiles in the panel (such as **Renew**, **Assign client** and **WHOIS s
 - **Nameserver information**: the nameservers the domain currently uses.
 - **WHOIS** details, when your provider has synced them.
 
-> **Note:** The **Get auth code** button (the transfer or EPP code) is released by your provider's staff, not by customer accounts. If you are moving a domain away, [raise a ticket](/tickets/create) and ask for the transfer code.
+> **Note:** The **Get auth code** row (the transfer or EPP code) only appears for accounts that have been given permission to release it, which is normally your provider's staff, not customer accounts. If you are moving a domain away, [raise a ticket](/tickets/create) and ask for the transfer code.
 
 ## Renewing a domain
 

@@ -19,7 +19,7 @@ DNS records tell the internet where your website and email live. You manage them
 
 The page is called **DNS records for your-domain**. It shows the **Current DNS mode** and a table with these columns: **Hostname**, **Type**, **Content**, **TTL**, **Priority** and **Actions**.
 
-You need the `dns.manage` permission to change records. Without it you can look at the page, but saving, adding or deleting is refused. Ask your provider if you need it.
+Your account needs the `dns.manage` permission to change records. Without it the page is **read-only**: you can see the records, but the **Add record** and **DNS options** buttons, the editable fields and the **Actions** column (**Save** and **Delete**) are not shown, and the server refuses changes even if someone tries to send them. Ask your provider if you need to make changes.
 
 ## Add a record
 
@@ -28,7 +28,7 @@ You need the `dns.manage` permission to change records. Without it you can look 
    - **Host**: the name the record applies to. Use `@` for the domain itself (for example `example.com`), or just the part in front, such as `www` or `mail`. Don't type the whole domain.
    - **Type**: choose from **A, AAAA, CNAME, MX, TXT, SRV, NS**.
    - **Content**: the value, such as an IP address or a hostname.
-   - **TTL**: how long, in seconds, other computers may remember the answer. The form starts at 3600 (one hour). The smallest value is 60 and the largest the form accepts is 86400 (one day).
+   - **TTL**: how long, in seconds, other computers may remember the answer. The form starts at 3600 (one hour). The smallest value is 60 and the largest is 86400 (one day). Anything outside that range is rejected.
    - **Priority**: only used by MX (and SRV) records. Leave it at 0 for everything else.
 3. Select **Save record**.
 

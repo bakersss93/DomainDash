@@ -15,19 +15,21 @@ related: [staff-sso-saml, client-microsoft-sign-in, api-keys-and-scopes]
 | **Technician** | Your support staff | Works with the permissions assigned to the role. Staff role. |
 | **Customer** | Your clients' users | Sees only the clients they are assigned to. |
 
-You can add more roles. A role is just a named bundle of permissions.
+You can add more roles on **Admin > Roles & Permissions**. A role is just a named bundle of permissions, and every role you create appears in the **Permission Group** list when you create or edit a user. A custom role counts as a staff role if it holds any staff-only permission (below), otherwise it is a customer role.
 
 ## Create a user
 
 1. **Admin > Users**, then the create button. (The list can be filtered by role and shows **Status** and **MFA**.)
 2. **Personal Information**: **First Name**, **Last Name**, **Email Address**.
 3. **Access Controls**:
-   - **Permission Group**: the role.
+   - **Permission Group**: the role. The list shows every role, custom ones included. Only Administrators can assign the Administrator role.
    - **Enable user account**: disabled users cannot log in.
    - **MFA Policy**: see below.
    - **Client Organisation(s)**: for customers, tick the client(s) whose data they may see. A customer with no client sees nothing.
 4. **Password & Security > Set Password** is optional. Leave it empty and send a reset link later.
 5. **Save user**.
+
+Administrators also see **Enable Microsoft sign-in** (off by default; required before the person can use Microsoft sign-in, see [Staff SSO](/support/help/security/staff-sso-saml) and [Client Microsoft sign-in](/support/help/security/client-microsoft-sign-in)).
 
 On **Edit User** you can also use **Reset Password** (set a password or **Send reset email**), **Unlink Microsoft account**, the sign-in policy exception **May also use a password**, impersonate the user (needs `users.impersonate`; sessions end after 60 minutes by default) and **Delete User**.
 
@@ -70,9 +72,9 @@ Customer help articles that describe a feature are hidden from users who lack th
 - **Per user (MFA Policy):** **Enabled (user can configure)**, **Enforced (required)** or **Disabled**. Disabled is not accepted for roles that must use MFA.
 - **Global defaults:** **Admin > Settings > MFA and audit > Multi-factor**:
   - **Remember a browser for (days)** (1 to 365), with **Allow remembered devices**.
-  - **Primary method**: authenticator app (TOTP) or email one-time passcode. Enrolment and sign-in use the authenticator app in this version.
+  - The only second factor is an authenticator app (TOTP). An "email one-time passcode" option is not offered because it is not implemented.
   - **Issuer label**: the name shown in the authenticator app.
-  - **Allow recovery codes**.
+  - **Allow recovery codes**: stored, but not yet enforced; recovery codes are always available. Users are shown eight single-use recovery codes when they finish enrolment, and can regenerate them from Account Settings with a current authenticator code (audited). Recovery codes are accepted at the sign-in code step.
 - **Microsoft sign-in:** you can trust Microsoft's own MFA per staff connection or for clients. Default is off. See [Staff SSO](/support/help/security/staff-sso-saml).
 
 Users enrol themselves: see the customer article [Setting up and using MFA](/support/help/getting-started/setting-up-mfa).

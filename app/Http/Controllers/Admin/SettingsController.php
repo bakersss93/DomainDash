@@ -118,7 +118,7 @@ class SettingsController extends Controller
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
             ]),
-            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00','host_fingerprint'=>'','encryption_password'=>''], (array) Setting::get('backup', [])),
+            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'03:00','host_fingerprint'=>'','encryption_password'=>''], (array) Setting::get('backup', [])),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
             'mfa' => Setting::get('mfa', [
                 'persistence_days' => 30,
@@ -139,8 +139,10 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'branding'      => 'array:primary,accent,text,bg,button_text,primary_dark,accent_dark,text_dark,bg_dark,button_text_dark',
-            'branding.*'    => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'branding'      => 'array:company_name,primary,accent,text,bg,button_text,primary_dark,accent_dark,text_dark,bg_dark,button_text_dark',
+            'branding.company_name' => ['nullable', 'string', 'max:100'],
+            ...collect(['primary','accent','text','bg','button_text','primary_dark','accent_dark','text_dark','bg_dark','button_text_dark'])
+                ->mapWithKeys(fn ($k) => ["branding.$k" => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/']])->all(),
             'smtp'          => 'array:host,port,username,password,encryption,from,from_name',
             'smtp.host'     => ['nullable', 'string', 'max:255', new \App\Rules\SafeHostname()],
             'smtp.port'     => 'nullable|integer|min:1|max:65535',

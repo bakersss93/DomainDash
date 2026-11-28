@@ -61,8 +61,10 @@
         </x-ui.card>
     @endforelse
 
+    @can('tickets.create')
     <x-ui.card title="Still stuck?" description="If the guides don't answer your question, our team is happy to help." style="margin-top:1.5rem;">
         <x-ui.button :href="route('tickets.create')" variant="primary"><x-ui.icon name="plus" :size="16" /> Raise a ticket</x-ui.button>
     </x-ui.card>
+    @endcan
 </div>
 @endsection

@@ -9,14 +9,25 @@
     </div>
 
     <div class="ui-page">
-    <x-ui.page-header title="Domains" subtitle="Registered domains, expiry and client assignment.">
+    @php
+        // Staff-only controls: shown only when the matching server-side check (route middleware / policy) would pass.
+        $ddUser = auth()->user();
+        $ddIsStaff = (bool) $ddUser?->isStaff();
+        $ddCanSync = $ddIsStaff && $ddUser->can('sync.run');
+        $ddCanRenew = $ddIsStaff && $ddUser->can('domains.renew');
+        $ddCanAssign = $ddIsStaff && $ddUser->can('domains.manage');
+        $ddCanAuthCode = $ddUser?->can('domains.transfer');
+    @endphp
+    <x-ui.page-header title="Domains" subtitle="{{ $ddIsStaff ? 'Registered domains, expiry and client assignment.' : 'Your domains and when they expire.' }}">
         <x-slot name="actions">
+            @if($ddCanSync)
             <form method="POST" action="{{ route('admin.domains.bulkSync') }}">
                 @csrf
                 <x-ui.button type="submit" variant="secondary">
                     <x-ui.icon name="refresh" :size="16" /> Bulk domain sync
                 </x-ui.button>
             </form>
+            @endif
         </x-slot>
     </x-ui.page-header>
 
@@ -129,7 +140,8 @@
                         {{-- Auto-renew icon placeholder --}}
                         <span title="Auto renew status"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
 
-                        {{-- Assign / change client icon --}}
+                        {{-- Assign / change client icon (staff only) --}}
+                        @if($ddCanAssign)
                         <button type="button"
                                 data-assign-client="{{ $domain->id }}"
                                 data-domain-name="{{ $domain->name }}"
@@ -140,6 +152,7 @@
                                 <span title="Assign client"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span>
                             @endif
                         </button>
+                        @endif
 
                         <span class="ui-muted" title="Toggle details"><x-ui.icon name="chevron-down" :size="16" /></span>
                     </div>
@@ -156,14 +169,26 @@
                 <x-ui.action-grid label="Domain actions">
                     <x-ui.action-tile :href="route('admin.domains.show', $domain)" icon="eye">Overview</x-ui.action-tile>
                     <x-ui.action-tile :href="route('dns.index', $domain->id)" icon="server">Nameservers &amp; DNS</x-ui.action-tile>
+                    @if($ddCanRenew)
                     <x-ui.action-tile :action="route('admin.domains.renew', $domain)" confirm="Renew this domain now?" icon="refresh">Renew</x-ui.action-tile>
+                    @endif
+                    @if($ddCanAssign)
                     <x-ui.action-tile icon="users" data-assign-client="{{ $domain->id }}" data-domain-name="{{ $domain->name }}">Assign client</x-ui.action-tile>
+                    @endif
+                    @if($ddIsStaff)
                     {{-- Not wired up yet: shown disabled instead of linking to "#" --}}
                     <x-ui.action-tile icon="upload-cloud" disabled title="Not available yet">Initiate transfer</x-ui.action-tile>
                     <x-ui.action-tile icon="list" disabled title="Not available yet">Transactions</x-ui.action-tile>
+                    @endif
+                    @if($ddCanAuthCode)
                     <x-ui.action-tile :href="route('admin.domains.show', $domain).'#auth-code'" icon="lock">Password / auth code</x-ui.action-tile>
+                    @endif
+                    @if($ddCanSync)
                     <x-ui.action-tile icon="search" onclick="syncDomainWhois({{ $domain->id }}, @js($domain->name))">WHOIS sync</x-ui.action-tile>
+                    @endif
+                    @if($ddIsStaff)
                     <x-ui.action-tile icon="trash" variant="danger" disabled title="Not available yet">Delete domain</x-ui.action-tile>
+                    @endif
                 </x-ui.action-grid>
             </x-ui.row-detail>
         @endforeach
@@ -176,6 +201,7 @@
     </x-ui.card>
 
     {{-- Assign client modal --}}
+    @if($ddCanAssign)
     <div id="dd-assign-modal" class="dd-modal" style="display:none;">
         <div class="dd-modal-backdrop"></div>
         <div class="dd-modal-dialog">
@@ -222,6 +248,7 @@
             </form>
         </div>
     </div>
+    @endif
 
 
     <script>

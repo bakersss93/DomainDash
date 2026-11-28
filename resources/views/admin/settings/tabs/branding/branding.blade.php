@@ -6,6 +6,13 @@
     ];
 @endphp
 <x-settings.form-card area="branding" tab="branding" title="Colours and logo" description="Applied across the dashboard and client-facing pages." save="Save branding" :multipart="true">
+    <div class="dd-set-field" style="margin-bottom:1rem;">
+        <label for="branding-company_name" class="dd-set-label">Company name</label>
+        <input id="branding-company_name" type="text" name="branding[company_name]" maxlength="100" value="{{ old('branding.company_name', $b['company_name'] ?? '') }}" placeholder="{{ config('app.name') }}" class="ui-input">
+        <small class="dd-set-help">Shown on the login page ("Log in to ...") and in Help articles. Leave blank to use the application name.</small>
+        @error('branding.company_name')<p class="ui-error" role="alert">{{ $message }}</p>@enderror
+    </div>
+
     <div class="dd-set-split">
         @foreach ($palette as $mode => $colours)
             <fieldset class="dd-set-colours">

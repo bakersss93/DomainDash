@@ -505,7 +505,7 @@
                 </div>
 
                 <div class="ak-field" style="margin-bottom:0;">
-                    <label class="ak-label">Scopes <span>(optional — leave all unchecked for full access)</span></label>
+                    <label class="ak-label">Scopes <span>(required — select at least one)</span></label>
 
                     @php
                         $selectedScopes = old('scopes', []);
@@ -596,7 +596,7 @@
                 </div>
 
                 <div class="ak-field" style="margin-bottom:0;">
-                    <label class="ak-label">Scopes <span>(leave all unchecked for full access)</span></label>
+                    <label class="ak-label">Scopes <span>(required — select at least one)</span></label>
                     <div style="margin-top:6px;" id="edit-scopes-container">
                         @foreach($scopeGroups as $groupLabel => $groupScopes)
                             <div class="ak-scope-group">

@@ -23,7 +23,7 @@ related: [dns-examples]      # optional: slugs shown under "Related articles"
 
 - Plain English, short steps, numbered lists. Callouts are blockquotes that start with `**Tip:**`, `**Note:**`, `**Warning:**` or `**Important:**`.
 - Raw HTML is escaped and `javascript:` links are dropped when rendering, so don't use HTML.
-- Placeholders: `{company}` (the branding company name, falling back to the application name) and `{app_url}`. Use `example.com` and `contoso.com` in examples. Never put an owner's name or domain in an article.
+- Placeholders: `{company}` (the **Company name** set in Admin > Settings > Branding, which the login page heading "Log in to ..." also uses; falls back to the application name) and `{app_url}`. Use `example.com` and `contoso.com` in examples. Never put an owner's name or domain in an article.
 - Internal links: `/support/help/{category}/{slug}` or `/tickets/create`. A test checks every link points at a real article.
 - Document only what exists in the product, with the menu path and field names as they appear on screen. When a step happens in another vendor's portal and could not be verified, say so ("check in your provider's portal").
 - Integration articles are for the people who configure the product. Client articles must not mention internal settings.

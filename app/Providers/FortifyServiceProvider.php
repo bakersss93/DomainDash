@@ -103,12 +103,10 @@ class FortifyServiceProvider extends ServiceProvider
                     default => 'sso',
                 };
             }
-            $branding = \App\Models\Setting::get('branding', []);
-
             return view('auth.login', [
                 'email' => $valid ? $email : '',
                 'state' => $state,
-                'brand' => (string) ($branding['name'] ?? (config('app.name') && config('app.name') !== 'Laravel' ? config('app.name') : 'DomainDash')),
+                'brand' => \App\Support\Branding::companyName(),
             ]);
         });
 

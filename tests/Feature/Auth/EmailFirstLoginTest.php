@@ -152,7 +152,7 @@ class EmailFirstLoginTest extends SsoTestCase
 
     public function test_heading_uses_platform_branding_name_not_client_name(): void
     {
-        Setting::put('branding', ['name' => 'Jargon Portal']);
+        Setting::put('branding', ['company_name' => 'Jargon Portal']);
         $this->assertStringContainsString('Log in to Jargon Portal', $this->stepFor('x@y.com'));
     }
 

@@ -8,6 +8,21 @@ use Illuminate\Support\Facades\Schema;
 
 class ScheduleRegistrar
 {
+    /** Backup run time from Settings > Backups (HH:MM, server timezone); falls back to 03:00 when missing or invalid. */
+    public static function backupTime(): string
+    {
+        $time = null;
+        try {
+            $time = Schema::hasTable('settings') ? data_get((array) Setting::get('backup', []), 'time') : null;
+        } catch (\Throwable) {
+            // settings unavailable: use the default
+        }
+
+        $time = trim((string) $time);
+
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time) ? $time : '03:00';
+    }
+
     public static function register(Schedule $schedule): void
     {
         // Nightly domain/hosting/SSL sync
@@ -59,7 +74,7 @@ class ScheduleRegistrar
 
         // Backup
         $schedule->command('domaindash:backup-run')
-            ->dailyAt('03:00')
+            ->dailyAt(self::backupTime())
             ->name('scheduled-backup-run')
             ->description('Command: run scheduled backup');
 

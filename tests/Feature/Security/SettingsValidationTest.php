@@ -104,6 +104,23 @@ class SettingsValidationTest extends TestCase
         $this->save(['vocus' => ['sandbox_ip' => '8.8.8.8']])->assertSessionHasNoErrors();
     }
 
+    public function test_company_name_saves_and_feeds_login_and_help_placeholder(): void
+    {
+        $this->save(['branding' => ['company_name' => 'Fabrikam IT']])->assertSessionHasNoErrors();
+        $this->assertSame('Fabrikam IT', Setting::get('branding')['company_name']);
+        $this->assertSame('Fabrikam IT', \App\Support\Branding::companyName());
+        $this->assertSame('Fabrikam IT', app(\App\Support\Help\HelpRenderer::class)->company());
+        $this->save(['branding' => ['company_name' => str_repeat('a', 101)]])->assertSessionHasErrors('branding.company_name');
+    }
+
+    public function test_company_name_falls_back_to_app_name(): void
+    {
+        config(['app.name' => 'Acme Portal']);
+        $this->assertSame('Acme Portal', \App\Support\Branding::companyName());
+        config(['app.name' => 'Laravel']);
+        $this->assertSame('DomainDash', \App\Support\Branding::companyName());
+    }
+
     public function test_branding_colours_must_be_hex(): void
     {
         $this->save(['branding' => ['primary' => 'red;}</style><script>']])->assertSessionHasErrors('branding.primary');

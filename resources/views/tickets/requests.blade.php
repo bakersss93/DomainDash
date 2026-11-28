@@ -10,9 +10,11 @@
     </div>
     <x-ui.page-header title="Support Requests" subtitle="HaloPSA tickets limited to the ticket types configured in Admin Settings.">
         <x-slot name="actions">
+            @can('tickets.create')
             <x-ui.button :href="route('tickets.create')" variant="primary">
                 <x-ui.icon name="plus" :size="16" /> Log Support Ticket
             </x-ui.button>
+            @endcan
         </x-slot>
     </x-ui.page-header>
 

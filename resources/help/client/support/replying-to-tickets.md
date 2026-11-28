@@ -4,6 +4,7 @@ summary: Read updates on a ticket, send a reply, and close it when it's resolved
 category: support
 order: 20
 audience: client
+permission: tickets.create
 related: [raising-a-ticket, notifications]
 ---
 
@@ -13,6 +14,8 @@ related: [raising-a-ticket, notifications]
 2. Select the ticket. The page is titled **Ticket #** followed by its number, with the summary underneath.
 
 At the top you see the **Client**, **Status**, **Service**, **Type** and **Last Update**. Below is **Client Visible Communications / Email Actions**: the messages and updates between you and the support team. Internal notes are not shown.
+
+> **Note:** **Submit Reply** and **Close Ticket** only appear if your account is allowed to log tickets. You can always read your tickets. If the buttons are missing and you need them, ask your administrator.
 
 ## Send a reply
 

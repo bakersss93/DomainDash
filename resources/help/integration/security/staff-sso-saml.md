@@ -61,6 +61,17 @@ Back in {company}, open the connection:
 
 Roles are re-read from the groups at every sign-in. Removing someone from a group removes the role (and their sessions) at their next sign-in attempt.
 
+## 5. Switch it on per user
+
+The login page asks for the email first and only offers **Single sign-on** to people whose account has **Enable Microsoft sign-in** switched on (**Admin > Users > Edit**, administrators only).
+
+- **Staff created by SAML on first sign-in** get the switch automatically.
+- **Staff who already exist** need it ticked once, otherwise they see the normal password form and a SAML attempt is refused as `sso_not_enabled`.
+- Their email domain must also be on the enabled connection's **Allowed email domains**.
+- The staff person types their email, sees **Single sign-on**, and selects **Log in with Microsoft**. If their policy also allows a password (**Password and Microsoft**, or the user's **May also use a password** exception) a **Use password instead** link is shown too.
+
+Mapped groups can point at any role that is not customer-class, including custom roles you created under **Admin > Roles & Permissions**. A role counts as staff-class when it holds any staff-only permission.
+
 ## Certificate rollover
 
 Before the SAML certificate expires: add a **New Certificate** in Entra (inactive), select **Refresh certificates from metadata URL** in {company} so both are trusted, then **Make certificate active** in Entra, test, and remove the old one. **Check configuration** warns 30 days before expiry.

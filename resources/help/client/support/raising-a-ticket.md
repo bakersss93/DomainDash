@@ -4,6 +4,7 @@ summary: Log a support or service request and find your tickets afterwards.
 category: support
 order: 10
 audience: client
+permission: tickets.create
 related: [replying-to-tickets, notifications]
 ---
 

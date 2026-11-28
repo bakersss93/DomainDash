@@ -41,16 +41,7 @@ class HelpRenderer
 
     public function company(): string
     {
-        $name = null;
-        try {
-            $name = data_get((array) Setting::get('branding', []), 'company_name');
-        } catch (\Throwable) {
-            // settings table unavailable (very early boot): fall through to the app name
-        }
-
-        $name = trim((string) ($name ?: config('app.name', 'DomainDash')));
-
-        return $name !== '' ? $name : 'DomainDash';
+        return \App\Support\Branding::companyName();
     }
 
     public function appUrl(): string

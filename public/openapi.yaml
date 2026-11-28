@@ -263,7 +263,7 @@ components:
           example: mail.example.com.au
         ttl:
           type: integer
-          description: Time-to-live in seconds (60–604800)
+          description: Time-to-live in seconds (60–86400)
           default: 3600
           example: 3600
         prio:
@@ -299,7 +299,7 @@ components:
         ttl:
           type: integer
           minimum: 60
-          maximum: 604800
+          maximum: 86400
           default: 3600
           example: 3600
         prio:

@@ -38,7 +38,7 @@ class DnsController extends Controller
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
             'content' => 'required|string|max:2000',
-            'ttl'     => 'required|integer|min:60|max:604800',
+            'ttl'     => 'required|integer|min:60|max:86400',
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 
@@ -71,7 +71,7 @@ class DnsController extends Controller
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
             'content' => 'required|string|max:2000',
-            'ttl'     => 'required|integer|min:60|max:604800',
+            'ttl'     => 'required|integer|min:60|max:86400',
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 

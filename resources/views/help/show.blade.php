@@ -31,6 +31,7 @@
                     </ul>
                 </x-ui.card>
             @endif
+            @can('tickets.create')
             <x-ui.card>
                 <div class="help-stuck">
                     <h2>Still stuck?</h2>
@@ -38,6 +39,7 @@
                     <x-ui.button :href="route('tickets.create')" variant="primary">Raise a ticket</x-ui.button>
                 </div>
             </x-ui.card>
+            @endcan
             <a href="{{ route('help.index') }}" class="ui-btn ui-btn--ghost">Back to Help</a>
         </aside>
     </div>

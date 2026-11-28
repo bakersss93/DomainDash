@@ -2434,6 +2434,19 @@ html.dark .badge-red { color: #1a0a0a; }
     color: #1b1d22;
 }
 
+.mfa-recovery-list {
+    margin: 0.875rem 0 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius-lg);
+    background: var(--dd-surface-2, var(--dd-surface));
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--dd-text-sm);
+    columns: 2;
+    white-space: pre;
+    user-select: all;
+}
+
 .mfa-step { display: none; }
 .mfa-step.is-visible { display: block; }
 .mfa-modal-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 0.875rem; }

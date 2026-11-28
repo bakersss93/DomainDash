@@ -206,6 +206,8 @@ class BatchAAuthHardeningTest extends TestCase
             ]],
         ]);
         $client = Client::create(['business_name' => 'C', 'halopsa_reference' => 77]);
+        Permission::findOrCreate('tickets.create');
+        Role::findByName('Customer')->givePermissionTo('tickets.create');
         $user = $this->user('Customer');
         $user->clients()->attach($client->id);
 

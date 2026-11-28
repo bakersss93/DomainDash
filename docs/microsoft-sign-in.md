@@ -10,7 +10,7 @@ DomainDash is not tied to any one company. Every name, domain and URL below come
 ## How it works, in plain English
 
 There are two separate ways to sign in with Microsoft. People never see which one is used: they type their work email
-(or just click the button) on the login page and DomainDash picks the right one.
+on the login page and DomainDash picks the right one (see "Email-first login" at the end of this guide).
 
 | | Staff (your team) | Clients (your customers' users) |
 |---|---|---|
