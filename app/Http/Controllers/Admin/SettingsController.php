@@ -66,6 +66,7 @@ class SettingsController extends Controller
             'synergy' => ! empty($syn['api_key']),
             'vocus' => ! empty($vocus['access_key']),
             'ip2whois' => ! empty($ip['api_key']),
+            'microsoft-partner' => \App\Services\Microsoft\Partner\PartnerSettings::configured(),
             'email' => ! empty($smtp['host']),
             // "Configured" is not enough for backups: it must have actually succeeded at least once.
             'backups' => ! empty($backup['host']) && BackupService::status()['last_success_at'] !== null,

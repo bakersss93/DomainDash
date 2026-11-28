@@ -37,6 +37,12 @@ class Client extends Model
         'itglue_synced_at' => 'datetime',
     ];
 
+    /** The Microsoft partner customer tenant mapped to this client (Settings > Microsoft Partner). */
+    public function partnerTenant()
+    {
+        return $this->hasOne(PartnerCustomerTenant::class, 'tenant_id', 'microsoft_tenant_id');
+    }
+
     public function users()
     {
         return $this->belongsToMany(User::class, 'client_user');

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class RunSyncTaskCommand extends Command
 {
-    protected $signature = 'domaindash:sync-task {task : sync-domains|sync-hosting-services|sync-halo-assets|sync-itglue}';
+    protected $signature = 'domaindash:sync-task {task : sync-domains|sync-hosting-services|sync-halo-assets|sync-itglue|sync-microsoft-partner}';
 
     protected $description = 'Runs a configured DomainDash sync task for scheduler automation';
 
@@ -26,6 +26,7 @@ class RunSyncTaskCommand extends Command
             'sync-hosting-services' => $this->runHostingServiceSync(),
             'sync-halo-assets' => $this->runHaloAssetSync(),
             'sync-itglue' => $this->runItGlueSync(),
+            'sync-microsoft-partner' => $this->runPartnerSync(),
             default => self::INVALID,
         };
     }
@@ -144,6 +145,15 @@ class RunSyncTaskCommand extends Command
     {
         app(SyncDispatcher::class)->scheduleItGluePipeline();
         $this->info('IT Glue sync queued (SyncItGlueOrganizationsJob, SyncItGlueConfigurationsJob). Run a queue worker to process it.');
+
+        return self::SUCCESS;
+    }
+
+    /** Queue the Microsoft partner customer tenant mirror (no-op run recorded when it is not configured). */
+    private function runPartnerSync(): int
+    {
+        app(SyncDispatcher::class)->refreshPartnerTenants(null, true);
+        $this->info('Microsoft partner tenant sync queued (SyncPartnerTenantsJob). Run a queue worker to process it.');
 
         return self::SUCCESS;
     }

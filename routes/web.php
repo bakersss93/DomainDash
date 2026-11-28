@@ -182,6 +182,13 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/settings/halo-billing', fn () => redirect('/admin/settings/halopsa?tab=billing', 301))->name('admin.settings.halo-billing');
         Route::post('/settings/halo/billing/preview', [\App\Http\Controllers\Admin\HaloBillingController::class, 'preview'])->middleware('throttle:30,1')->name('admin.settings.halo.billing.preview');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::middleware('throttle:30,1')->prefix('settings/microsoft-partner')->group(function () {
+            Route::post('/', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'update'])->name('admin.partner.update');
+            Route::post('/test', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'test'])->name('admin.partner.test');
+            Route::post('/sync', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'sync'])->name('admin.partner.sync');
+            Route::post('/tenants/{tenant}/map', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'map'])->whereNumber('tenant')->name('admin.partner.map');
+            Route::delete('/tenants/{tenant}/map', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'clear'])->whereNumber('tenant')->name('admin.partner.clear');
+        });
         Route::get('/settings/{area}', [SettingsController::class,'area'])->where('area', '[a-z0-9-]+')->name('admin.settings.area');
         // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
         Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {

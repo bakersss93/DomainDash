@@ -84,7 +84,7 @@ class ClientsController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
-            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i'],
+            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', new \App\Rules\UniqueClientTenant(request()->route('client')?->id)],
             'login_method' => ['nullable', \Illuminate\Validation\Rule::in(['inherit', 'both', 'microsoft_only'])],
             'halopsa_reference' => 'nullable|string|max:255',
             'itglue_org_id' => 'nullable|string|max:255',
@@ -150,7 +150,7 @@ class ClientsController extends Controller
         $validated = $request->validate([
             'business_name' => 'required|string|max:255',
             'abn' => 'nullable|string|max:50',
-            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i'],
+            'microsoft_tenant_id' => ['nullable', 'regex:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', new \App\Rules\UniqueClientTenant(request()->route('client')?->id)],
             'login_method' => ['nullable', \Illuminate\Validation\Rule::in(['inherit', 'both', 'microsoft_only'])],
             'halopsa_reference' => 'nullable|string|max:255',
             'itglue_org_id' => 'nullable|string|max:255',
@@ -171,18 +171,7 @@ class ClientsController extends Controller
 
         // A different tenant or sign-in method invalidates what the client's users signed in with.
         if ($client->wasChanged(['microsoft_tenant_id', 'login_method'])) {
-            $revoked = 0;
-            foreach ($client->users()->get() as $u) {
-                $revoked += \App\Support\SessionRevoker::revoke($u);
-            }
-            \App\Services\AuditLogger::logSystem('client.sso_settings.changed', "Microsoft tenant / sign-in method changed for {$client->business_name}; client user sessions revoked", [
-                'function' => 'sso', 'automated' => false,
-            ] + [
-                'client_id' => $client->id,
-                'old' => ['microsoft_tenant_id' => $originalValues['microsoft_tenant_id'] ?? null, 'login_method' => $originalValues['login_method'] ?? null],
-                'new' => ['microsoft_tenant_id' => $client->microsoft_tenant_id, 'login_method' => $client->login_method],
-                'sessions_revoked' => $revoked,
-            ]);
+            \App\Services\Microsoft\ClientTenantChange::revokeAndAudit($client, $originalValues);
         }
 
         // Log the update to audit log
