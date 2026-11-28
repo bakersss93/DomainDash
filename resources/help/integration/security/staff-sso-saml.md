@@ -70,7 +70,7 @@ The login page asks for the email first and only offers **Single sign-on** to pe
 - Their email domain must also be on the enabled connection's **Allowed email domains**.
 - The staff person types their email, sees **Single sign-on**, and selects **Log in with Microsoft**. If their policy also allows a password (**Password and Microsoft**, or the user's **May also use a password** exception) a **Use password instead** link is shown too.
 
-Mapped groups can point at any role that is not customer-class, including custom roles you created under **Admin > Roles & Permissions**. A role counts as staff-class when it holds any staff-only permission.
+Mapped groups can point at the staff roles, **Administrator** and **Technician**. Custom roles created under **Admin > Roles & Permissions** are client-level roles, so they cannot be mapped from Entra groups.
 
 ## Certificate rollover
 

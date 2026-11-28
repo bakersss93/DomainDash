@@ -12,7 +12,7 @@ class PermissionsController extends Controller
 {
     private function isStaffRole(string $name): bool
     {
-        return in_array($name, ['Administrator', 'Technician'], true);
+        return \App\Services\Saml\SsoPolicy::isStaffRole($name);
     }
 
     public function index()

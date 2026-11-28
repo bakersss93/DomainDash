@@ -8,26 +8,29 @@ use Spatie\Permission\Models\Role;
 class SsoPolicy
 {
     /**
-     * A role is staff-class when it is one of the internal staff roles or holds ANY staff-only permission. This is
-     * derived, so custom roles from Settings > Permissions classify themselves: grant a staff permission and the role
-     * becomes staff-class, with no config list to keep in sync.
+     * Staff roles are exactly the internal staff roles (StaffPermissions::STAFF_ROLES). This matches
+     * User::isStaff(), the policies and PermissionsController, so every part of the app agrees on who is staff.
      */
     public static function isStaffRole(string $roleName): bool
     {
-        if (in_array($roleName, \App\Support\Security\StaffPermissions::STAFF_ROLES, true)) {
-            return true;
+        return in_array($roleName, \App\Support\Security\StaffPermissions::STAFF_ROLES, true);
+    }
+
+    /**
+     * A role customer-class users may hold: it exists, is not a staff role and holds no staff-only permission.
+     * A custom role that somehow holds a staff-only permission is neither staff nor customer-safe, so it can
+     * be neither mapped from Entra groups nor used for client sign-in (fail closed).
+     */
+    public static function isCustomerSafeRole(string $roleName): bool
+    {
+        if (self::isStaffRole($roleName)) {
+            return false;
         }
 
         $role = Role::query()->where('name', $roleName)->where('guard_name', 'web')->first();
 
-        return $role === null || $role->permissions->pluck('name')
-            ->intersect(\App\Support\Security\StaffPermissions::STAFF_ONLY)->isNotEmpty();
-    }
-
-    /** A role customer-class users may hold: it exists and is not staff-class. */
-    public static function isCustomerSafeRole(string $roleName): bool
-    {
-        return ! self::isStaffRole($roleName);
+        return $role !== null && $role->permissions->pluck('name')
+            ->intersect(\App\Support\Security\StaffPermissions::STAFF_ONLY)->isEmpty();
     }
 
     /** The enabled staff SAML connection that serves this email's domain, if any. */

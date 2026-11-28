@@ -41,7 +41,15 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::authenticateUsing(function (Request $request) {
             $user = User::query()->where('email', $request->string('email')->toString())->first();
 
-            if (! $user || ! Hash::check($request->string('password')->toString(), $user->password)) {
+            if (! $user) {
+                // Spend the same hashing time as for a real account, so response time does not reveal
+                // whether the address exists.
+                Hash::check($request->string('password')->toString(), self::dummyHash());
+
+                return null;
+            }
+
+            if (! Hash::check($request->string('password')->toString(), $user->password)) {
                 return null;
             }
 
@@ -82,7 +90,10 @@ class FortifyServiceProvider extends ServiceProvider
 
         // Email-first step 1 and the SSO action: 10 per minute per IP + email. Applies to every address alike.
         RateLimiter::for('login-identify', function (Request $request) {
-            return Limit::perMinute(10)->by(Str::transliterate(Str::lower((string) $request->input('email')).'|'.$request->ip()));
+            return [
+                Limit::perMinute(10)->by(Str::transliterate(Str::lower((string) $request->input('email')).'|'.$request->ip())),
+                Limit::perMinute(60)->by('ip|'.$request->ip()),
+            ];
         });
 
         // Lookup used by the login page while the email is typed: 20 per minute per IP.
@@ -113,5 +124,13 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('two-factor', function (Request $request) {
             return Limit::perMinute(5)->by($request->session()->get('login.id'));
         });
+    }
+
+    /** A bcrypt hash of a random value, created once per process, used only to equalise timing. */
+    private static function dummyHash(): string
+    {
+        static $hash = null;
+
+        return $hash ??= Hash::make(\Illuminate\Support\Str::random(40));
     }
 }

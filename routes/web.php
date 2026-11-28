@@ -53,7 +53,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/me/account/mfa-recovery-codes', [\App\Http\Controllers\UserSettingsController::class, 'regenerateRecoveryCodes'])->middleware('throttle:5,1')->name('me.account.mfa-recovery-codes');
         Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
         Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
-        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');
+        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->middleware('throttle:5,1')->name('me.mfa.confirm');
         Route::post('/me/mfa/dismiss', [\App\Http\Controllers\UserSettingsController::class, 'dismissMfaPrompt'])->name('me.mfa.dismiss');
 
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');

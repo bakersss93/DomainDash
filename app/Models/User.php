@@ -139,7 +139,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /** Internal staff (sees all clients); everyone else is tenant-scoped. */
     public function isStaff(): bool
     {
-        return $this->hasAnyRole(['Administrator', 'Technician']);
+        return $this->hasAnyRole(\App\Support\Security\StaffPermissions::STAFF_ROLES);
     }
 
     public function requiresMfa(): bool

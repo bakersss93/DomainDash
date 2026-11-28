@@ -300,4 +300,6 @@ Other notes:
 * **Enable Microsoft sign-in** (user edit page, Administrators) is required for every EXISTING user on both SAML and client
   Microsoft sign-in; refusals are audited as `sso_not_enabled`. Staff created by SAML JIT get it automatically.
 * "Keep me logged in" carries through both SSO paths (SAML stores it with the pending request, OIDC in the session).
-* A role is staff-class if it is Administrator/Technician or holds any staff-only permission (`StaffPermissions::STAFF_ONLY`).
+* Staff roles are exactly Administrator and Technician (`StaffPermissions::STAFF_ROLES`), the same rule `User::isStaff()` uses.
+  A custom role is customer-class only if it holds no staff-only permission; a custom role that somehow holds one is refused
+  for both SAML mapping and client Microsoft sign-in.

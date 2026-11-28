@@ -205,6 +205,11 @@ class UserSettingsController extends Controller
             return response()->json(['message' => 'Start MFA setup before confirming the code.'], 422);
         }
 
+        // Only an unconfirmed enrolment can be confirmed; otherwise this would re-reveal the recovery codes.
+        if ($user->two_factor_confirmed_at !== null) {
+            return response()->json(['message' => 'Multi-factor authentication is already set up.'], 409);
+        }
+
         $valid = $provider->verify(decrypt($user->two_factor_secret), $data['code']);
 
         if (! $valid) {
