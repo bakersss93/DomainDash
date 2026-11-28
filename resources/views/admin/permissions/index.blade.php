@@ -38,12 +38,18 @@
 
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.55rem 1rem;">
                             @foreach($permissions as $permission)
-                                <label style="display:flex;align-items:center;gap:0.5rem;color:var(--dd-text);font-size:0.92rem;">
+                                <label style="display:flex;align-items:{{ isset($labels[$permission->name]) ? 'flex-start' : 'center' }};gap:0.5rem;color:var(--dd-text);font-size:0.92rem;">
                                     <input type="checkbox"
                                            name="permissions[]"
                                            value="{{ $permission->name }}"
                                            @checked($role->hasPermissionTo($permission->name))>
-                                    <span>{{ $permission->name }}</span>
+                                    <span>
+                                        {{ $permission->name }}
+                                        @if(isset($labels[$permission->name]))
+                                            <strong style="display:block;font-size:0.85rem;">{{ $labels[$permission->name]['label'] }}</strong>
+                                            <small style="display:block;color:var(--dd-text-soft);font-size:0.8rem;">{{ $labels[$permission->name]['description'] }}</small>
+                                        @endif
+                                    </span>
                                 </label>
                             @endforeach
                         </div>

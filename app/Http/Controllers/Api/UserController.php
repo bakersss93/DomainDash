@@ -14,15 +14,17 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
     /**
-     * Roles an API key may assign. Administrator is never assignable through the
-     * API unless the key additionally carries the explicit users.admin scope.
+     * Roles an API key may assign. Only Customer is assignable with users.write; the staff roles
+     * (Technician, Administrator) need the explicit users.admin scope, because a staff account
+     * can see every client's data.
      */
     private function assignableRoles(Request $request): array
     {
         $key = $request->attributes->get('api_key');
-        $roles = ['Technician', 'Customer'];
+        $roles = ['Customer'];
 
         if ($key && $key->allowsScope('users.admin')) {
+            $roles[] = 'Technician';
             $roles[] = 'Administrator';
         }
 
@@ -34,7 +36,8 @@ class UserController extends Controller
     {
         $key = $request->attributes->get('api_key');
 
-        return ! $user->hasRole('Administrator') || ($key && $key->allowsScope('users.admin'));
+        // Any staff-role holder (Administrator or Technician) needs the explicit users.admin scope.
+        return ! $user->hasAnyRole(\App\Support\Security\StaffPermissions::STAFF_ROLES) || ($key && $key->allowsScope('users.admin'));
     }
 
     public function index(Request $request): JsonResponse
@@ -92,7 +95,7 @@ class UserController extends Controller
     public function update(Request $request, User $user): JsonResponse
     {
         if (! $this->canManageTarget($request, $user)) {
-            return response()->json(['message' => 'Administrator accounts cannot be modified through the API.'], 403);
+            return response()->json(['message' => 'Staff accounts cannot be modified through the API without the users.admin scope.'], 403);
         }
 
         $data = $request->validate([
@@ -101,6 +104,13 @@ class UserController extends Controller
             'is_active' => 'nullable|boolean',
             'role'      => ['nullable', 'string', Rule::in($this->assignableRoles($request))],
         ]);
+
+        // Changing a sign-in address lets the caller take over the account via password reset.
+        $key = $request->attributes->get('api_key');
+        if (isset($data['email']) && strcasecmp($data['email'], (string) $user->email) !== 0
+            && ! ($key && $key->allowsScope('users.admin'))) {
+            return response()->json(['message' => 'Changing a user email address requires the users.admin scope.'], 403);
+        }
 
         $user->fill(array_intersect_key($data, array_flip(['name', 'email', 'is_active'])));
         $user->save();
@@ -115,7 +125,7 @@ class UserController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         if (! $this->canManageTarget($request, $user)) {
-            return response()->json(['message' => 'Administrator accounts cannot be deleted through the API.'], 403);
+            return response()->json(['message' => 'Staff accounts cannot be deleted through the API without the users.admin scope.'], 403);
         }
 
         if ($user->hasRole('Administrator') && User::role('Administrator')->count() <= 1) {

@@ -10,18 +10,25 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionsController extends Controller
 {
+    private function isStaffRole(string $name): bool
+    {
+        return in_array($name, ['Administrator', 'Technician'], true);
+    }
+
     public function index()
     {
         // Ensure recently added permission keys are present in existing environments
         // where seeders may not have been re-run.
-        foreach (['domain-pricing.view', 'domain-pricing.manage'] as $permissionName) {
+        foreach (['domain-pricing.view', 'domain-pricing.manage', 'help.integrations.view'] as $permissionName) {
             Permission::findOrCreate($permissionName);
         }
 
         $roles = Role::orderBy('name')->get();
         $permissions = Permission::orderBy('name')->get();
 
-        return view('admin.permissions.index', compact('roles','permissions'));
+        $labels = \App\Support\Security\PermissionLabels::all();
+
+        return view('admin.permissions.index', compact('roles','permissions','labels'));
     }
 
     public function storeRole(Request $request)
@@ -42,7 +49,16 @@ class PermissionsController extends Controller
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ]);
 
-        $role->syncPermissions($data['permissions'] ?? []);
+        $granted = $data['permissions'] ?? [];
+
+        if (! $this->isStaffRole($role->name)) {
+            $forbidden = array_values(array_intersect($granted, \App\Support\Security\StaffPermissions::STAFF_ONLY));
+            if ($forbidden !== []) {
+                return back()->withErrors(['permissions' => 'These permissions are staff-only and cannot be granted to '.$role->name.': '.implode(', ', $forbidden).'.']);
+            }
+        }
+
+        $role->syncPermissions($granted);
 
         return back()->with('status', 'Permissions updated for '.$role->name.'.');
     }
@@ -68,6 +84,12 @@ class PermissionsController extends Controller
         foreach (['Technician','Customer'] as $roleName) {
             $role = Role::where('name',$roleName)->firstOrFail();
             $granted = array_keys($data['permissions'][$roleName] ?? []);
+            if (! $this->isStaffRole($roleName)) {
+                $forbidden = array_values(array_intersect($granted, \App\Support\Security\StaffPermissions::STAFF_ONLY));
+                if ($forbidden !== []) {
+                    return back()->withErrors(['permissions' => 'These permissions are staff-only and cannot be granted to '.$roleName.': '.implode(', ', $forbidden).'.']);
+                }
+            }
             $role->syncPermissions($granted);
         }
         return back()->with('status','Permissions updated');

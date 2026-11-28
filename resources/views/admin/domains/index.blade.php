@@ -162,7 +162,7 @@
                     <x-ui.action-tile icon="upload-cloud" disabled title="Not available yet">Initiate transfer</x-ui.action-tile>
                     <x-ui.action-tile icon="list" disabled title="Not available yet">Transactions</x-ui.action-tile>
                     <x-ui.action-tile :href="route('admin.domains.show', $domain).'#auth-code'" icon="lock">Password / auth code</x-ui.action-tile>
-                    <x-ui.action-tile icon="search" onclick="syncDomainWhois({{ $domain->id }}, '{{ $domain->name }}')">WHOIS sync</x-ui.action-tile>
+                    <x-ui.action-tile icon="search" onclick="syncDomainWhois({{ $domain->id }}, @js($domain->name))">WHOIS sync</x-ui.action-tile>
                     <x-ui.action-tile icon="trash" variant="danger" disabled title="Not available yet">Delete domain</x-ui.action-tile>
                 </x-ui.action-grid>
             </x-ui.row-detail>

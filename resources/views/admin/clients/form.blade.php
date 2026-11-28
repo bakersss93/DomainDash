@@ -62,6 +62,36 @@
                     @enderror
                 </div>
 
+                {{-- Microsoft sign-in --}}
+                <div style="margin-bottom:12px;">
+                    <label for="microsoft_tenant_id" style="display:block;font-size:14px;margin-bottom:4px;">Allowed Microsoft tenant ID (optional)</label>
+                    <input id="microsoft_tenant_id" name="microsoft_tenant_id" type="text" placeholder="00000000-0000-0000-0000-000000000000"
+                           value="{{ old('microsoft_tenant_id', $client->microsoft_tenant_id) }}" style="width:100%;">
+                    <div style="font-size:12px;color:var(--dd-text-soft);margin-top:2px;">Locks this client's users to one Microsoft tenant. Filled in automatically the first time a user links their Microsoft account.</div>
+                    @error('microsoft_tenant_id')<div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>@enderror
+                    @if ($client->exists && $client->microsoft_tenant_id)
+                        @php $partnerTenant = $client->partnerTenant; @endphp
+                        <div style="font-size:12px;margin-top:4px;">
+                            Microsoft partner customer:
+                            @if ($partnerTenant)
+                                <strong>{{ $partnerTenant->display_name ?? 'Unnamed tenant' }}</strong>@if ($partnerTenant->default_domain) ({{ $partnerTenant->default_domain }})@endif
+                            @else
+                                not in the synced partner customer list
+                            @endif
+                            &middot; <a href="{{ route('admin.settings.area', ['area' => 'microsoft-partner', 'tab' => 'customers']) }}">Manage mapping</a>
+                        </div>
+                    @endif
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label for="login_method" style="display:block;font-size:14px;margin-bottom:4px;">Sign-in method</label>
+                    <select id="login_method" name="login_method" style="width:100%;">
+                        @foreach (['inherit' => 'Use the global client policy', 'both' => 'Password and Microsoft', 'microsoft_only' => 'Microsoft only'] as $val => $label)
+                            <option value="{{ $val }}" @selected(old('login_method', $client->login_method ?? 'inherit') === $val)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('login_method')<div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>@enderror
+                </div>
+
                 {{-- HaloPSA reference --}}
                 <div style="margin-bottom:12px;">
                     <label for="halopsa_reference_display" style="display:block;font-size:14px;margin-bottom:4px;">
@@ -240,6 +270,22 @@
                                {{ $isActive ? 'checked' : '' }}>
                         <span>Active</span>
                     </label>
+                </div>
+
+                {{-- Customer-facing internet diagnostics (also needs the internet.diagnostics permission on the user's role) --}}
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:14px;margin-bottom:4px;">Internet services</label>
+                    <label style="display:inline-flex;align-items:center;gap:8px;
+                                  padding:6px 12px;border-radius:9999px;
+                                  border:1px solid var(--border-subtle);background:var(--surface-muted);font-size:14px;cursor:pointer;color:var(--text);">
+                        <input type="hidden" name="internet_diagnostics_enabled" value="0">
+                        <input type="checkbox"
+                               name="internet_diagnostics_enabled"
+                               value="1"
+                               {{ old('internet_diagnostics_enabled', $client->internet_diagnostics_enabled ?? false) ? 'checked' : '' }}>
+                        <span>Allow this client's users to run internet diagnostics</span>
+                    </label>
+                    <div style="font-size:12px;color:var(--dd-text-soft);margin-top:4px;">Read-only tests only (authentication log). Users also need the internet.diagnostics permission.</div>
                 </div>
 
                 {{-- Buttons --}}

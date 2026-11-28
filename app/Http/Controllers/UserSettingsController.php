@@ -30,6 +30,12 @@ class UserSettingsController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'mfa_configured' => $user->hasConfiguredMfa(),
+            'microsoft' => [
+                'linked' => $user->microsoft_oid !== null,
+                'tenant_id' => $user->microsoft_tid,
+                'upn' => $user->microsoft_oid !== null ? $user->email : null,
+                'linked_at' => optional($user->microsoft_linked_at)->toIso8601String(),
+            ],
         ]);
     }
 
@@ -88,6 +94,7 @@ class UserSettingsController extends Controller
 
         $user->forceFill([
             'password' => Hash::make($data['password']),
+            'remember_token' => \Illuminate\Support\Str::random(60),
         ])->save();
 
         \App\Support\SessionRevoker::revoke($user, $request->session()->getId());

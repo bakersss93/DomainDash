@@ -7,7 +7,7 @@ namespace App\Support;
  *
  * Uses symfony/html-sanitizer with a strict allow-list: no scripts, styles,
  * event handlers, forms or iframes; only http(s)/mailto links (forced
- * rel=noopener noreferrer, target=_blank) and https images. If the library is
+ * rel=noopener noreferrer, target=_blank). Images are dropped (no remote loading). If the library is
  * not installed the fallback renders the content as escaped plain text, which
  * is always safe.
  */
@@ -37,9 +37,9 @@ class HtmlSanitizer
 
         $config = $config
             ->allowElement('a', ['href'])
-            ->allowElement('img', ['src', 'alt'])
             ->allowLinkSchemes(['http', 'https', 'mailto'])
-            ->allowMediaSchemes(['https'])
+            // No <img> at all: remote images in ticket HTML are tracking pixels / internal-URL probes (B8).
+            ->allowMediaSchemes([])
             ->allowRelativeLinks(false)
             ->allowRelativeMedias(false)
             ->forceAttribute('a', 'rel', 'noopener noreferrer nofollow')

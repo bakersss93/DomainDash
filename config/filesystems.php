@@ -33,7 +33,14 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private data (Vocus client certificate + key, backups, uploads) is never served over HTTP, signed or not.
+            'serve' => false,
+            // Files 0600 / directories 0700: only the web user can read them.
+            'visibility' => 'private',
+            'permissions' => [
+                'file' => ['public' => 0644, 'private' => 0600],
+                'dir' => ['public' => 0755, 'private' => 0700],
+            ],
             'throw' => false,
             'report' => false,
         ],

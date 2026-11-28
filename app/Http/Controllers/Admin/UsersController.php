@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class UsersController extends Controller
 {
@@ -25,18 +28,20 @@ class UsersController extends Controller
         }
 
         $users = $q->orderBy('name')->paginate(25);
+        $roles = Role::query()->where('guard_name', 'web')->orderBy('name')->get();
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', compact('users', 'roles'));
     }
 
     /**
      * Show create user form.
      */
-    public function create()
+    public function create(Request $request)
     {
         $clients = Client::orderBy('business_name')->get();
+        $roles = $this->assignableRoles($request);
 
-        return view('admin.users.create', compact('clients'));
+        return view('admin.users.create', compact('clients', 'roles'));
     }
 
     /**
@@ -48,16 +53,17 @@ class UsersController extends Controller
             'first_name'   => 'required|string|max:255',
             'last_name'    => 'required|string|max:255',
             'email'        => 'required|email|unique:users,email',
-            'role'         => 'required|in:Administrator,Technician,Customer',
+            'role'         => ['required', 'string', $this->roleRule()],
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
             'password'     => ['nullable', 'string', \Illuminate\Validation\Rules\Password::defaults(), 'confirmed'],
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
             'is_active' => 'nullable|boolean',
         ]);
+        $this->assertMayAssign($request, $data['role']);
         $data['mfa_preference'] = $this->effectiveMfaPreference($data['role'], $data['mfa_preference']);
 
-        $password = $data['password'] ?: Str::random(12);
+        $password = ($data['password'] ?? null) ?: Str::random(12);
 
         $user = User::create([
             'name'     => trim($data['first_name'].' '.$data['last_name']),
@@ -67,7 +73,11 @@ class UsersController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]);
         // Admin-created accounts are trusted; MustVerifyEmail must not lock them out.
-        $user->forceFill(['email_verified_at' => now()])->save();
+        $user->forceFill([
+            'email_verified_at' => now(),
+            // Microsoft sign-in is an administrator-only switch (see update()).
+            'sso_enabled' => (bool) $request->user()?->hasRole('Administrator') && $request->boolean('sso_enabled'),
+        ])->save();
 
         // assign role (Spatie)
         $user->syncRoles([$data['role']]);
@@ -87,8 +97,9 @@ class UsersController extends Controller
     /**
      * Show edit user form.
      */
-    public function edit(User $user)
+    public function edit(Request $request, User $user)
     {
+        $roles = $this->assignableRoles($request, $user);
         $clients = Client::orderBy('business_name')->get();
         $currentRole      = optional($user->roles->first())->name;
         $currentClientIds = $user->clients->pluck('id')->all();
@@ -103,7 +114,8 @@ class UsersController extends Controller
             'currentRole',
             'currentClientIds',
             'first',
-            'last'
+            'last',
+            'roles'
         ));
     }
 
@@ -116,34 +128,116 @@ class UsersController extends Controller
             'first_name'   => 'required|string|max:255',
             'last_name'    => 'required|string|max:255',
             'email'        => 'required|email|unique:users,email,'.$user->id,
-            'role'         => 'required|in:Administrator,Technician,Customer',
+            'role'         => ['required', 'string', $this->roleRule()],
             'client_ids'   => 'array',
             'client_ids.*' => 'integer|exists:clients,id',
             'mfa_preference' => 'required|in:disabled,enabled,enforced',
             'is_active' => 'nullable|boolean',
         ]);
+        $this->assertMayAssign($request, $data['role'], $user);
         $data['mfa_preference'] = $this->effectiveMfaPreference($data['role'], $data['mfa_preference']);
 
         $previousRole = optional($user->roles->first())->name;
         $wasActive = (bool) $user->is_active;
+        $wasExempt = (bool) $user->password_login_allowed;
 
-        $user->update([
-            'name'  => trim($data['first_name'].' '.$data['last_name']),
-            'email' => $data['email'],
-            'mfa_preference' => $data['mfa_preference'],
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        // The password exception is an administrator-only control; for anyone else the field is ignored.
+        $isAdmin = (bool) $request->user()?->hasRole('Administrator');
+        $exempt = $isAdmin ? $request->boolean('password_login_allowed') : $wasExempt;
+        // Same for the per-user "Enable Microsoft sign-in" switch.
+        $wasSso = (bool) $user->sso_enabled;
+        $sso = $isAdmin ? $request->boolean('sso_enabled') : $wasSso;
 
-        $user->syncRoles([$data['role']]);
-        $user->clients()->sync($data['client_ids'] ?? []);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $data, $request, $exempt, $sso) {
+            $user->update([
+                'name'  => trim($data['first_name'].' '.$data['last_name']),
+                'email' => $data['email'],
+                'mfa_preference' => $data['mfa_preference'],
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+            $user->forceFill(['password_login_allowed' => $exempt, 'sso_enabled' => $sso])->save();
 
-        if ($previousRole !== $data['role'] || ($wasActive && ! $user->is_active)) {
+            $user->syncRoles([$data['role']]);
+            $user->clients()->sync($data['client_ids'] ?? []);
+
+            $this->assertStillRecoverable();
+        });
+
+        if ($isAdmin && $wasExempt !== $exempt) {
+            \App\Services\AuditLogger::logAction('user.password_exception.changed', $user, ($exempt ? 'Granted' : 'Removed')." the password sign-in exception for {$user->email}", [
+                'old_values' => ['password_login_allowed' => $wasExempt], 'new_values' => ['password_login_allowed' => $exempt],
+            ]);
+        }
+
+        if ($isAdmin && $wasSso !== $sso) {
+            \App\Services\AuditLogger::logAction('user.sso_enabled.changed', $user, ($sso ? 'Enabled' : 'Disabled')." Microsoft sign-in for {$user->email}", [
+                'old_values' => ['sso_enabled' => $wasSso], 'new_values' => ['sso_enabled' => $sso],
+            ]);
+        }
+
+        if ($previousRole !== $data['role'] || ($wasActive && ! $user->is_active) || ($wasSso && ! $sso)) {
             \App\Support\SessionRevoker::revoke($user, $request->user()?->is($user) ? $request->session()->getId() : null);
         }
 
         return redirect()
             ->route('admin.users')
             ->with('status', 'User updated successfully.');
+    }
+
+    /** Every role from Settings > Permissions (custom roles included); only Administrators may hand out Administrator. */
+    private function assignableRoles(Request $request, ?User $editing = null)
+    {
+        $isAdmin = (bool) $request->user()?->hasRole('Administrator');
+
+        return Role::query()->where('guard_name', 'web')->orderBy('name')->get()
+            ->when(! $isAdmin, fn ($roles) => $roles->reject(fn ($r) => $r->name === 'Administrator'
+                && ! ($editing && $editing->hasRole('Administrator'))))
+            ->values();
+    }
+
+    private function roleRule()
+    {
+        return Rule::exists('roles', 'name')->where('guard_name', 'web');
+    }
+
+    /** Only Administrators may assign the Administrator role, or change a user who holds it. */
+    private function assertMayAssign(Request $request, string $role, ?User $target = null): void
+    {
+        if ($request->user()?->hasRole('Administrator')) {
+            return;
+        }
+        if ($role === 'Administrator' || $target?->hasRole('Administrator')) {
+            throw ValidationException::withMessages(['role' => 'Only an Administrator can assign the Administrator role or change an Administrator.']);
+        }
+    }
+
+    /** While staff password sign-in is closed, an active Administrator with the password exception must always remain. */
+    private function assertStillRecoverable(): void
+    {
+        if (\App\Services\Auth\LoginPolicy::staffMode() === \App\Services\Auth\LoginPolicy::MICROSOFT_ONLY
+            && ! User::role('Administrator')->where('is_active', true)->where('password_login_allowed', true)->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'password_login_allowed' => 'Password sign-in is closed for staff, so at least one active Administrator must keep the "may also use password" exception.',
+            ]);
+        }
+    }
+
+    /** Administrator removes a client user's Microsoft link (they re-link on their next Microsoft sign-in). */
+    public function unlinkMicrosoft(Request $request, User $user)
+    {
+        abort_unless($request->user()?->hasRole('Administrator'), 403);
+
+        if ($user->microsoft_oid === null) {
+            return back()->with('status', 'This user has no linked Microsoft account.');
+        }
+
+        $old = ['microsoft_tid' => $user->microsoft_tid, 'microsoft_oid' => $user->microsoft_oid];
+        $user->forceFill(['microsoft_oid' => null, 'microsoft_tid' => null, 'microsoft_linked_at' => null])->save();
+        \App\Support\SessionRevoker::revoke($user);
+
+        \App\Services\AuditLogger::logAction('auth.microsoft.unlinked', $user, "Microsoft account unlinked for {$user->email}", ['old_values' => $old]);
+
+        return back()->with('status', 'Microsoft account unlinked.');
     }
 
     /**
@@ -215,9 +309,13 @@ class UsersController extends Controller
         }
 
         $email = $user->email;
-        $user->clients()->detach();
-        $user->syncRoles([]);
-        $user->delete();
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+            $user->clients()->detach();
+            $user->syncRoles([]);
+            $user->delete();
+
+            $this->assertStillRecoverable();
+        });
 
         return redirect()
             ->route('admin.users')
@@ -241,7 +339,11 @@ class UsersController extends Controller
             return back()->withErrors(['user' => 'Administrators cannot be impersonated.']);
         }
 
-        session(['impersonate_as' => $user->id, 'impersonator_id' => $admin?->id]);
+        session([
+            'impersonate_as' => $user->id,
+            'impersonator_id' => $admin?->id,
+            'impersonation_started_at' => now()->getTimestamp(),
+        ]);
 
         \App\Services\AuditLogger::logSystem('impersonation.start', "{$admin?->email} started impersonating {$user->email}.", [
             'service' => 'auth',
@@ -270,7 +372,7 @@ class UsersController extends Controller
             'impersonated_user_id' => $impersonated?->id,
         ]);
 
-        $request->session()->forget(['impersonate_as', 'impersonator_id']);
+        $request->session()->forget(['impersonate_as', 'impersonator_id', 'impersonation_started_at']);
 
         return redirect()
             ->route('admin.users')

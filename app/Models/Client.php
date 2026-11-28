@@ -25,13 +25,23 @@ class Client extends Model
         'halo_recurring_invoice_name',
         'itglue_org_id',
         'itglue_org_name',    // Added
-        'active'
+        'microsoft_tenant_id',
+        'login_method',
+        'active',
+        'internet_diagnostics_enabled',
     ];
 
     protected $casts = [
+        'internet_diagnostics_enabled' => 'boolean',
         'halo_synced_at' => 'datetime',
         'itglue_synced_at' => 'datetime',
     ];
+
+    /** The Microsoft partner customer tenant mapped to this client (Settings > Microsoft Partner). */
+    public function partnerTenant()
+    {
+        return $this->hasOne(PartnerCustomerTenant::class, 'tenant_id', 'microsoft_tenant_id');
+    }
 
     public function users()
     {

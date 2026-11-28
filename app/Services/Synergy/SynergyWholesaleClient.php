@@ -115,29 +115,7 @@ class SynergyWholesaleClient
 
     protected function isTrustedWsdlLocation(string $location): bool
     {
-        if (preg_match('#^https://([^/:]+)(:\d+)?/#i', $location, $m)) {
-            $host = strtolower($m[1]);
-
-            return $host === 'synergywholesale.com' || str_ends_with($host, '.synergywholesale.com');
-        }
-
-        if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $location)) {
-            return false;
-        }
-
-        $real = realpath($location);
-        if ($real === false) {
-            return false;
-        }
-
-        foreach ([base_path('resources'), storage_path('app')] as $root) {
-            $root = realpath($root);
-            if ($root !== false && str_starts_with($real, $root . DIRECTORY_SEPARATOR)) {
-                return true;
-            }
-        }
-
-        return false;
+        return \App\Support\Security\TrustedWsdl::isTrusted($location);
     }
 
     protected function resolveEndpoint(): ?string

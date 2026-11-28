@@ -31,6 +31,12 @@ return Application::configure(basePath: dirname(__DIR__))
             | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
             | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO);
 
+        // Host-header poisoning (B1): only the APP_URL host is accepted (skipped for local env / unit tests by Laravel).
+        $middleware->trustHosts(
+            at: fn () => \App\Support\Security\UrlHardening::trustedHostPatterns(),
+            subdomains: false,
+        );
+
         $middleware->web(prepend: [
             \App\Http\Middleware\ForceHttps::class,
         ]);
@@ -38,6 +44,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\ApplyImpersonation::class,
+            // MFA / is_active policy for EVERY authenticated web request (Jetstream, Fortify, Livewire too).
+            \App\Http\Middleware\EnsureMfaPolicy::class,
             \App\Http\Middleware\AuditRequestActions::class,
         ]);
 

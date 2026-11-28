@@ -61,8 +61,10 @@ return [
         // Features::termsAndPrivacyPolicy(),
         // Features::profilePhotos(),
         // Features::api(),
-        Features::teams(['invitations' => true]),
-        Features::accountDeletion(),
+        // Teams, team invitations and self-service account deletion are intentionally OFF:
+        // tenancy is modelled by Client <-> User, and accounts are managed by administrators.
+        // Features::teams(['invitations' => true]),
+        // Features::accountDeletion(),
     ],
 
     /*

@@ -23,6 +23,7 @@ class ScheduleRegistrar
         self::scheduleSyncTask($schedule, $syncSchedule['sync_hosting_services'] ?? [], 'sync-hosting-services', 'sync-hosting-services', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'sync-halo-assets', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'sync-itglue', $timezone);
+        self::scheduleSyncTask($schedule, $syncSchedule['sync_microsoft_partner'] ?? [], 'sync-microsoft-partner', 'sync-microsoft-partner', $timezone);
 
         // Halo / IT Glue local mirrors (queued; no-ops when the integration is not configured).
         // Pushes to Halo / IT Glue stay on the admin-configured sync_halo_assets / sync_itglue tasks above.
@@ -61,6 +62,12 @@ class ScheduleRegistrar
             ->dailyAt('03:00')
             ->name('scheduled-backup-run')
             ->description('Command: run scheduled backup');
+
+        // Failed-job payloads can contain customer data: drop them after 30 days.
+        $schedule->command('queue:prune-failed', ['--hours' => 720])
+            ->dailyAt('03:45')
+            ->name('scheduled-queue-prune-failed')
+            ->description('Command: prune failed queue jobs older than 30 days');
 
         // Audit retention housekeeping
         $schedule->command('domaindash:audit-prune')

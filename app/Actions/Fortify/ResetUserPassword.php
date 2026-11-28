@@ -24,6 +24,10 @@ class ResetUserPassword implements ResetsUserPasswords
 
         $user->forceFill([
             'password' => Hash::make($input['password']),
+            'remember_token' => \Illuminate\Support\Str::random(60),
         ])->save();
+
+        // A reset means the old password may have been compromised: end every existing session.
+        \App\Support\SessionRevoker::revoke($user);
     }
 }

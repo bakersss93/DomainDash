@@ -41,6 +41,12 @@ chown root:"$WEB_USER" .env && chmod 640 .env
 # storage/: writable by the web user.
 chown -R "$WEB_USER":"$WEB_USER" storage
 chmod -R ug+rwX storage
+# Secrets live here (Vocus certificate + key, backups, logs, SQLite database): nobody but the web user (and root).
+chgrp -R "$WEB_USER" database
+chmod -R o-rwx storage database
+if compgen -G "database/*.sqlite" >/dev/null; then
+    chmod -R g+rwX database   # SQLite needs the web user to write the file and its journal in this directory
+fi
 sudo -u "$WEB_USER" php artisan view:cache
 
 echo "==> Restarting workers and php-fpm"

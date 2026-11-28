@@ -148,7 +148,8 @@ return [
         ...(filter_var(env('ALLOW_REGISTRATION', false), FILTER_VALIDATE_BOOL) ? [Features::registration()] : []),
         Features::resetPasswords(),
         Features::emailVerification(),
-        Features::updateProfileInformation(),
+        // Profile information (name/email) is changed via /me/account, which re-checks the password.
+        // Features::updateProfileInformation(),
         Features::updatePasswords(),
         Features::twoFactorAuthentication([
             'confirm' => true,
