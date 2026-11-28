@@ -19,7 +19,8 @@ class RolePermissionSeeder extends Seeder
             'services.view','services.manage','ssl.view','ssl.manage',
             'internet.view','internet.order','internet.manage','internet.cancel','internet.diagnostics',
             'clients.view','clients.manage','users.view','users.manage','users.impersonate',
-            'settings.manage','apikeys.manage','analytics.view','tickets.create','sync.run','domain-pricing.view','domain-pricing.manage'
+            'settings.manage','apikeys.manage','analytics.view','tickets.create','sync.run','domain-pricing.view','domain-pricing.manage',
+            'help.integrations.view'
         ];
 
         foreach ($perms as $p) { Permission::findOrCreate($p); }
@@ -34,7 +35,8 @@ class RolePermissionSeeder extends Seeder
         // Technician defaults
         $tech->syncPermissions([
             'domains.view','dns.manage','domains.transfer','domains.register','services.view','ssl.view',
-            'internet.view','internet.order','internet.manage','tickets.create','domain-pricing.view'
+            'internet.view','internet.order','internet.manage','tickets.create','domain-pricing.view',
+            'help.integrations.view'
         ]);
 
         // Customer defaults (read-only on assigned resources + DNS manage as allowed via checkbox UI)

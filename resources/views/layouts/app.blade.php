@@ -212,7 +212,7 @@
                     </li>
                 @endif
 
-                <li class="nav-item nav-section {{ request()->routeIs('tickets.*') ? 'expanded' : '' }}">
+                <li class="nav-item nav-section {{ request()->routeIs('tickets.*') || request()->routeIs('help.*') ? 'expanded' : '' }}">
                     <button type="button" class="nav-link nav-toggle" onclick="toggleNav(this)" aria-expanded="false">
                         <span class="icon"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
                         <span class="text">Support</span>
@@ -227,6 +227,11 @@
                         <li class="nav-item">
                             <a href="{{ route('tickets.index') }}" class="nav-link {{ request()->routeIs('tickets.index') ? 'active' : '' }}" @if(request()->routeIs('tickets.index')) aria-current="page" @endif>
                                 View Support Requests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('help.index') }}" class="nav-link {{ request()->routeIs('help.*') ? 'active' : '' }}" @if(request()->routeIs('help.*')) aria-current="page" @endif>
+                                Help
                             </a>
                         </li>
                     </ul>

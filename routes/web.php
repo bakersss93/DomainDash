@@ -63,6 +63,11 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::delete('/domains/{domain}/dns/{recordId}', [DnsController::class, 'destroy'])->middleware('permission:dns.manage')->name('dns.destroy');
         Route::post('/domains/{domain}/dns/options', [DnsController::class, 'updateOptions'])->middleware('permission:dns.manage')->name('dns.options');
        
+        // Support > Help: knowledge-base articles (client how-tos for everyone, integration guides for staff).
+        Route::get('/support/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+        Route::get('/support/help/{category}', [\App\Http\Controllers\HelpController::class, 'category'])->where('category', '[a-z0-9][a-z0-9-]*')->name('help.category');
+        Route::get('/support/help/{category}/{slug}', [\App\Http\Controllers\HelpController::class, 'show'])->where(['category' => '[a-z0-9][a-z0-9-]*', 'slug' => '[a-z0-9][a-z0-9-]*'])->name('help.show');
+
         // Tickets
         Route::get('/tickets/create', [TicketController::class,'create'])->name('tickets.create');
         Route::get('/tickets', [TicketController::class,'index'])->name('tickets.index');

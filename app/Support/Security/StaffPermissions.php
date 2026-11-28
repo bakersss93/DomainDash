@@ -14,6 +14,8 @@ class StaffPermissions
         'clients.view', 'clients.manage', 'users.view', 'users.manage', 'users.impersonate',
         'settings.manage', 'apikeys.manage', 'analytics.view', 'sync.run',
         'domain-pricing.view', 'domain-pricing.manage',
+        // Integration set-up articles in Support > Help (API keys, certificates, SSO). Never for customer roles.
+        'help.integrations.view',
     ];
 
     /** Role names that are internal staff roles. */
