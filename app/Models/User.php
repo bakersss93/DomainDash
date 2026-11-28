@@ -78,6 +78,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'mfa_prompted_at'    => 'datetime',
             'is_active'          => 'boolean',
             'password_login_allowed' => 'boolean',
+            'sso_enabled' => 'boolean',
             'microsoft_linked_at' => 'datetime',
             'microsoft_last_login_at' => 'datetime',
             'saml_last_login_at' => 'datetime',

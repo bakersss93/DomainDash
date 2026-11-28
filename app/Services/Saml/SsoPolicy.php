@@ -7,27 +7,41 @@ use Spatie\Permission\Models\Role;
 
 class SsoPolicy
 {
-    /** @return list<string> */
-    public static function customerRoleNames(): array
+    /**
+     * A role is staff-class when it is one of the internal staff roles or holds ANY staff-only permission. This is
+     * derived, so custom roles from Settings > Permissions classify themselves: grant a staff permission and the role
+     * becomes staff-class, with no config list to keep in sync.
+     */
+    public static function isStaffRole(string $roleName): bool
     {
-        return array_values((array) config('saml.customer_roles', ['Customer']));
-    }
-
-    /** A role customer-class users may hold: on the customer allow-list and without any privileged permission. */
-    public static function isCustomerSafeRole(string $roleName): bool
-    {
-        if (! in_array($roleName, self::customerRoleNames(), true)) {
-            return false;
+        if (in_array($roleName, \App\Support\Security\StaffPermissions::STAFF_ROLES, true)) {
+            return true;
         }
 
         $role = Role::query()->where('name', $roleName)->where('guard_name', 'web')->first();
-        if (! $role) {
-            return false;
+
+        return $role === null || $role->permissions->pluck('name')
+            ->intersect(\App\Support\Security\StaffPermissions::STAFF_ONLY)->isNotEmpty();
+    }
+
+    /** A role customer-class users may hold: it exists and is not staff-class. */
+    public static function isCustomerSafeRole(string $roleName): bool
+    {
+        return ! self::isStaffRole($roleName);
+    }
+
+    /** The enabled staff SAML connection that serves this email's domain, if any. */
+    public static function staffConnectionForEmail(string $email): ?\App\Models\SamlConnection
+    {
+        $domain = str_contains($email, '@') ? strtolower(substr(strrchr($email, '@'), 1)) : '';
+        if ($domain === '') {
+            return null;
         }
 
-        $privileged = \App\Support\Security\StaffPermissions::STAFF_ONLY;
-
-        return $role->permissions->pluck('name')->intersect($privileged)->isEmpty();
+        return \App\Models\SamlConnection::query()
+            ->where('enabled', true)
+            ->whereHas('domains', fn ($q) => $q->where('domain', $domain))
+            ->first();
     }
 
     /** Staff = anything that is not purely customer-class (a user with no roles is treated as staff: fail closed). */

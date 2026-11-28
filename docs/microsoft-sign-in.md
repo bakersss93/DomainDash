@@ -290,3 +290,14 @@ Other notes:
 * Behind a reverse proxy, make sure Laravel trusts it (`X-Forwarded-Proto: https`), or generated URLs will be `http://` and Microsoft will reject them.
 * **Changing `APP_URL` changes the values in Entra.** Update the SAML Identifier / Reply URL / Sign-on URL **and** the app registration's Redirect URI.
 * The only CSRF-exempt route is the SAML Reply URL (protected by the signed assertion). The client callback is a normal GET protected by a one-time `state`, `nonce` and PKCE.
+
+## Email-first login and per-user enablement
+
+* The login page asks for the email first. Unknown, inactive, non-SSO and "SSO unavailable" addresses all get the same
+  password view. An SSO-enabled account gets "Single sign-on" with **Log in with Microsoft**; if its policy allows a password
+  there is also **Use password instead**. With JavaScript the view switches while typing (`POST /login/method`, 20/min per IP,
+  uniform minimum response time, local database reads only); without it the **Continue** button does the same server side.
+* **Enable Microsoft sign-in** (user edit page, Administrators) is required for every EXISTING user on both SAML and client
+  Microsoft sign-in; refusals are audited as `sso_not_enabled`. Staff created by SAML JIT get it automatically.
+* "Keep me logged in" carries through both SSO paths (SAML stores it with the pending request, OIDC in the session).
+* A role is staff-class if it is Administrator/Technician or holds any staff-only permission (`StaffPermissions::STAFF_ONLY`).

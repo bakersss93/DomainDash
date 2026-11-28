@@ -213,7 +213,7 @@ class SamlAssertionValidationTest extends SsoTestCase
         $routes = app('router')->getRoutes();
 
         $this->assertContains($csrf, $routes->getByName('saml.acs')->excludedMiddleware());
-        foreach (['saml.login', 'saml.metadata', 'sso.discover', 'admin.sso.store', 'admin.sso.settings'] as $name) {
+        foreach (['saml.login', 'saml.metadata', 'login.sso', 'login.identify', 'login.method', 'admin.sso.store', 'admin.sso.settings'] as $name) {
             $this->assertNotContains($csrf, $routes->getByName($name)->excludedMiddleware(), $name);
         }
     }

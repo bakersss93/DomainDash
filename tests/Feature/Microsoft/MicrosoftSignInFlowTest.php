@@ -287,9 +287,9 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
 
     public function test_staff_users_cannot_use_client_sign_in(): void
     {
-        $tech = User::factory()->create(['email' => 'tina@acme.com']);
+        $tech = User::factory()->create(['sso_enabled' => true, 'email' => 'tina@acme.com']);
         $tech->assignRole('Technician');
-        $none = User::factory()->create(['email' => 'norole@acme.com']); // no role = treated as staff (fail closed)
+        $none = User::factory()->create(['sso_enabled' => true, 'email' => 'norole@acme.com']); // no role = treated as staff (fail closed)
 
         $this->signIn(['preferred_username' => 'tina@acme.com'])->assertRedirect(route('login'));
         $this->signIn(['preferred_username' => 'norole@acme.com'])->assertRedirect(route('login'));
@@ -302,7 +302,7 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
 
     public function test_staff_with_an_existing_link_is_still_refused(): void
     {
-        $tech = User::factory()->create(['email' => 'tina@acme.com', 'microsoft_oid' => self::OID, 'microsoft_tid' => self::TID]);
+        $tech = User::factory()->create(['sso_enabled' => true, 'email' => 'tina@acme.com', 'microsoft_oid' => self::OID, 'microsoft_tid' => self::TID]);
         $tech->assignRole('Technician');
 
         $this->signIn()->assertRedirect(route('login'));
@@ -313,7 +313,7 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
     public function test_inactive_and_unassigned_users_are_refused(): void
     {
         $this->customer('off@acme.com', null, ['is_active' => false]);
-        $orphan = User::factory()->create(['email' => 'orphan@acme.com']);
+        $orphan = User::factory()->create(['sso_enabled' => true, 'email' => 'orphan@acme.com']);
         $orphan->assignRole('Customer');
 
         $this->signIn(['preferred_username' => 'off@acme.com'])->assertRedirect(route('login'));
@@ -385,34 +385,31 @@ class MicrosoftSignInFlowTest extends MicrosoftTestCase
         $this->get(route('microsoft.redirect'))->assertRedirect(route('login'));
     }
 
-    // ---- one button: discovery ---------------------------------------------------------------------------------
 
-    public function test_discovery_sends_staff_domains_to_saml_and_everyone_else_to_microsoft_with_a_hint(): void
+
+
+    public function test_existing_users_need_sso_enabled_and_the_refusal_is_audited(): void
     {
-        $staff = \Tests\Support\SamlFixture::connection(['type' => 'staff'], ['contoso.com']);
+        $user = $this->customer('amy@acme.com', null, ['sso_enabled' => false]);
 
-        $this->post(route('sso.discover'), ['email' => 'tech@contoso.com'])->assertRedirect(route('saml.login', $staff->uuid));
-        $this->get(route('microsoft.redirect', ['login_hint' => 'tech@contoso.com']))->assertRedirect(route('saml.login', $staff->uuid));
+        $this->signIn()->assertRedirect(route('login'));
 
-        $res = $this->post(route('sso.discover'), ['email' => 'amy@acme.com']);
-        $this->assertStringContainsString('login.microsoftonline.com/organizations/oauth2/v2.0/authorize', $res->headers->get('Location'));
-        $this->assertStringContainsString('login_hint=amy%40acme.com', $res->headers->get('Location'));
-
-        $res = $this->post(route('sso.discover'), ['email' => '']);
-        $this->assertStringNotContainsString('login_hint', $res->headers->get('Location'));
+        $this->assertGuest();
+        $this->assertNull($user->fresh()->microsoft_oid, 'must not link');
+        $this->assertContains('sso_not_enabled', $this->failedReasons());
+        $this->assertTrue(AuditLog::where('action', 'auth.microsoft.login.failed')->exists());
     }
 
-    public function test_discovery_without_microsoft_or_saml_reports_it(): void
+    public function test_keep_me_logged_in_carries_through_the_microsoft_round_trip(): void
     {
-        $this->configureMicrosoft(['enabled' => false]);
+        $user = $this->customer();
+        $this->withSession(['sso.remember' => true]);
 
-        $this->post(route('sso.discover'), ['email' => 'amy@acme.com'])->assertRedirect(route('login'))->assertSessionHasErrors('sso_email');
-    }
+        $res = $this->signIn();
 
-    public function test_login_page_shows_the_button_when_microsoft_is_configured(): void
-    {
-        $this->get('/login')->assertOk()->assertSee('Sign in with Microsoft');
-        $this->configureMicrosoft(['enabled' => false]);
-        $this->get('/login')->assertOk()->assertDontSee('Sign in with Microsoft');
+        $this->assertAuthenticatedAs($user->fresh());
+        $remembered = collect($res->headers->getCookies())->contains(fn ($c) => str_starts_with($c->getName(), 'remember_web_'));
+        $this->assertTrue($remembered);
+        $this->assertNull(session('sso.remember'));
     }
 }

@@ -193,7 +193,7 @@ class MicrosoftSessionAndPolicyTest extends MicrosoftTestCase
 
     public function test_client_policy_does_not_touch_staff_and_staff_policy_does_not_touch_clients(): void
     {
-        $tech = User::factory()->create(['email' => 'tech@x.com']);
+        $tech = User::factory()->create(['sso_enabled' => true, 'email' => 'tech@x.com']);
         $tech->assignRole('Technician');
         $cust = $this->customer('cust@x.com');
 

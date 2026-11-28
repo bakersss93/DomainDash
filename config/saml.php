@@ -1,12 +1,6 @@
 <?php
 
 return [
-    /*
-    | Roles a CLIENT connection may ever assign. Everything else is staff-class. A role listed here is still
-    | refused for client connections if it carries any staff-only permission (App\Support\Security\StaffPermissions).
-    */
-    'customer_roles' => ['Customer'],
-
     /* Allowed clock skew in seconds applied on top of the library's own checks (library constant is 180s). */
     'clock_skew' => 60,
 

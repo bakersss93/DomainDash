@@ -79,7 +79,7 @@ class SsoTenantIsolationTest extends SsoTestCase
 
     public function test_microsoft_linked_client_user_is_never_taken_over_by_saml(): void
     {
-        $user = User::factory()->create(['email' => 'amy@contoso.com', 'microsoft_oid' => 'aaaaaaaa-0000-0000-0000-0000000000aa', 'microsoft_tid' => SamlFixtureTenant::ID]);
+        $user = User::factory()->create(['sso_enabled' => true, 'email' => 'amy@contoso.com', 'microsoft_oid' => 'aaaaaaaa-0000-0000-0000-0000000000aa', 'microsoft_tid' => SamlFixtureTenant::ID]);
         $user->assignRole('Technician');
         $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
 
@@ -92,7 +92,7 @@ class SsoTenantIsolationTest extends SsoTestCase
 
     public function test_users_with_the_password_exception_can_also_use_sso(): void
     {
-        $bg = User::factory()->create(['email' => 'breakglass@contoso.com', 'password_login_allowed' => true]);
+        $bg = User::factory()->create(['sso_enabled' => true, 'email' => 'breakglass@contoso.com', 'password_login_allowed' => true]);
         $bg->assignRole('Administrator');
         $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
 
@@ -102,30 +102,14 @@ class SsoTenantIsolationTest extends SsoTestCase
         $this->assertTrue($bg->fresh()->password_login_allowed);
     }
 
-    // ---- discovery (staff domains go to SAML; everything else to client OIDC) -------------------------------
 
-    public function test_discovery_routes_a_staff_domain_to_saml(): void
-    {
-        $staff = $this->staffConnection([], ['contoso.com']);
-
-        $this->post(route('sso.discover'), ['email' => 'x@contoso.com'])->assertRedirect(route('saml.login', $staff->uuid));
-        // Not configured for clients: unknown domain is told so.
-        $this->post(route('sso.discover'), ['email' => 'x@unknown.org'])->assertRedirect(route('login'))->assertSessionHasErrors('sso_email');
-    }
-
-    public function test_discovery_ignores_disabled_connections(): void
-    {
-        $this->staffConnection(['enabled' => false], ['contoso.com']);
-
-        $this->post(route('sso.discover'), ['email' => 'x@contoso.com'])->assertRedirect(route('login'))->assertSessionHasErrors('sso_email');
-    }
 
     // ---- staff / client linking ---------------------------------------------------------------------------
 
     public function test_client_user_is_never_linked_by_staff_connection(): void
     {
         $client = Client::create(['business_name' => 'Acme']);
-        $user = User::factory()->create(['email' => 'amy@contoso.com']);
+        $user = User::factory()->create(['sso_enabled' => true, 'email' => 'amy@contoso.com']);
         $user->assignRole('Customer');
         $user->clients()->attach($client->id);
         $c = $this->staffConnection(['default_role' => 'Administrator'], ['contoso.com']);
@@ -139,7 +123,7 @@ class SsoTenantIsolationTest extends SsoTestCase
 
     public function test_staff_email_link_requires_domain_in_connection(): void
     {
-        $existing = User::factory()->create(['email' => 'sam@elsewhere.com']);
+        $existing = User::factory()->create(['sso_enabled' => true, 'email' => 'sam@elsewhere.com']);
         $existing->assignRole('Technician');
         $c = $this->staffConnection(['default_role' => 'Technician'], ['contoso.com']);
 
@@ -195,7 +179,7 @@ class SsoTenantIsolationTest extends SsoTestCase
         $this->assertGuest();
         $this->assertSame(0, User::where('email', 'new@contoso.com')->count());
 
-        $existing = User::factory()->create(['email' => 'old@contoso.com']);
+        $existing = User::factory()->create(['sso_enabled' => true, 'email' => 'old@contoso.com']);
         $existing->assignRole('Technician');
         $this->ssoLogin($c, ['email' => 'old@contoso.com'])->assertRedirect();
         $this->assertAuthenticatedAs($existing->fresh());

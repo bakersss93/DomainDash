@@ -4,6 +4,7 @@ namespace App\Services\Saml;
 
 use App\Models\SamlConnection;
 use App\Models\User;
+use App\Services\Auth\LoginPolicy;
 use App\Support\SessionRevoker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -17,6 +18,7 @@ use Spatie\Permission\Models\Role;
  *  - SAML is staff-only: a connection never touches a user who belongs to a client, and never assigns a
  *    customer-class role (clients use Microsoft sign-in, App\Services\Microsoft\MicrosoftUserResolver)
  *  - users already linked elsewhere are never linked
+ *  - an EXISTING user needs sso_enabled (admin switch); JIT-created staff get it automatically
  *  - roles are re-derived from the groups on every login; no mapped group means denial
  */
 class SamlUserProvisioner
@@ -55,6 +57,9 @@ class SamlUserProvisioner
             if (! $user->is_active) {
                 throw new SamlException('This account is disabled. Please contact your administrator.', 'inactive', ['user_id' => $user->id]);
             }
+            if ($refusal = LoginPolicy::microsoftRefusal($user)) {
+                throw new SamlException('Single sign-on is not enabled for this account. Please contact your administrator.', $refusal, ['user_id' => $user->id]);
+            }
             $this->assertBoundToConnection($c, $user, $isFirstLink);
         }
 
@@ -79,7 +84,8 @@ class SamlUserProvisioner
                     'mfa_preference' => $c->skip_local_mfa ? 'disabled' : 'enforced',
                     'is_active' => true,
                 ]);
-                $user->forceFill(['email_verified_at' => now()]);
+                // JIT staff exist only because of SSO, so it is on for them (existing users need an admin to enable it).
+                $user->forceFill(['email_verified_at' => now(), 'sso_enabled' => true]);
             }
 
             $user->forceFill([

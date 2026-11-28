@@ -29,8 +29,15 @@ Route::post('/saml/{connection}/acs', [\App\Http\Controllers\Auth\SamlController
     ->middleware('throttle:30,1')
     ->name('saml.acs');
 
-// "Sign in with Microsoft": one button. Staff domains are sent to SAML, everyone else to client OIDC.
-Route::post('/sso/discover', [\App\Http\Controllers\Auth\MicrosoftController::class, 'discover'])->middleware('throttle:10,1')->name('sso.discover');
+// Email-first login: step 1 (email), "use a different email", and the single-sign-on action of step 2.
+Route::middleware('guest')->group(function () {
+    Route::post('/login/email', [\App\Http\Controllers\Auth\LoginStepController::class, 'identify'])->middleware('throttle:login-identify')->name('login.identify');
+    Route::post('/login/method', [\App\Http\Controllers\Auth\LoginStepController::class, 'method'])->middleware('throttle:login-method')->name('login.method');
+    Route::get('/login/mode/{mode}', [\App\Http\Controllers\Auth\LoginStepController::class, 'mode'])->name('login.mode');
+    Route::get('/login/change-email', [\App\Http\Controllers\Auth\LoginStepController::class, 'reset'])->name('login.reset');
+    Route::post('/login/sso', [\App\Http\Controllers\Auth\LoginStepController::class, 'sso'])->middleware('throttle:login-identify')->name('login.sso');
+});
+// Client Microsoft sign-in (OIDC) callback, plus the hint-only entry point.
 Route::get('/auth/microsoft/redirect', [\App\Http\Controllers\Auth\MicrosoftController::class, 'redirect'])->middleware('throttle:20,1')->name('microsoft.redirect');
 Route::get('/auth/microsoft/callback', [\App\Http\Controllers\Auth\MicrosoftController::class, 'callback'])->middleware('throttle:30,1')->name('microsoft.callback');
 

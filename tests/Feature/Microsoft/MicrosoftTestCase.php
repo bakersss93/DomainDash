@@ -72,7 +72,7 @@ abstract class MicrosoftTestCase extends TestCase
 
     protected function customer(string $email = 'amy@acme.com', ?Client $client = null, array $attrs = []): User
     {
-        $u = User::factory()->create(['email' => $email] + $attrs);
+        $u = User::factory()->create($attrs + ['email' => $email, 'sso_enabled' => true]);
         $u->assignRole('Customer');
         $u->clients()->attach(($client ?? Client::create(['business_name' => 'Acme', 'microsoft_tenant_id' => self::TID]))->id);
 

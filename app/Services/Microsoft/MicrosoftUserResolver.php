@@ -4,6 +4,7 @@ namespace App\Services\Microsoft;
 
 use App\Models\Client;
 use App\Models\User;
+use App\Services\Auth\LoginPolicy;
 use App\Services\Saml\SsoPolicy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +48,9 @@ class MicrosoftUserResolver
 
         if (! $user->is_active) {
             throw new MicrosoftOidcException('This account is disabled. Please contact your administrator.', 'inactive', ['user_id' => $user->id]);
+        }
+        if ($refusal = LoginPolicy::microsoftRefusal($user)) {
+            throw new MicrosoftOidcException('Microsoft sign-in is not enabled for this account. Please contact your administrator.', $refusal, ['user_id' => $user->id]);
         }
         if (SsoPolicy::isStaff($user)) {
             throw new MicrosoftOidcException('Staff accounts sign in with their organisation login. Enter your work email and use "Sign in with Microsoft".', 'staff_user', ['user_id' => $user->id]);

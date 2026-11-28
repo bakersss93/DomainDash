@@ -77,6 +77,69 @@ class LoginPolicy
         return $user->password_login_allowed && $mode === self::MICROSOFT_ONLY ? $base.', password allowed by exception' : $base;
     }
 
+    // ---- Microsoft sign-in -----------------------------------------------------------------------------------
+
+    /**
+     * Is a Microsoft sign-in route available for this user (configuration only, ignores the per-user switch)?
+     *
+     * @return array{type:'saml',connection:\App\Models\SamlConnection}|array{type:'microsoft'}|null
+     */
+    public static function microsoftRouteFor(User $user): ?array
+    {
+        if (SsoPolicy::isStaff($user)) {
+            $connection = $user->saml_connection_id !== null
+                ? SamlConnection::query()->where('enabled', true)->find($user->saml_connection_id)
+                : SsoPolicy::staffConnectionForEmail(strtolower((string) $user->email));
+
+            return $connection ? ['type' => 'saml', 'connection' => $connection] : null;
+        }
+
+        if (! MicrosoftSettings::configured() || $user->saml_connection_id !== null) {
+            return null;
+        }
+        $clients = $user->clients()->get(['clients.id', 'clients.microsoft_tenant_id']);
+        if ($clients->isEmpty()) {
+            return null;
+        }
+        if (MicrosoftSettings::requireClientTenant() && $clients->contains(fn ($c) => trim((string) $c->microsoft_tenant_id) === '')) {
+            return null;
+        }
+
+        return ['type' => 'microsoft'];
+    }
+
+    /** Reason a Microsoft sign-in must be refused for an EXISTING user, regardless of method availability. */
+    public static function microsoftRefusal(User $user): ?string
+    {
+        return $user->sso_enabled ? null : 'sso_not_enabled';
+    }
+
+    /** can_use_microsoft = account active && sso_enabled && a method is available. */
+    public static function canUseMicrosoft(User $user): bool
+    {
+        return $user->is_active && self::microsoftRefusal($user) === null && self::microsoftRouteFor($user) !== null;
+    }
+
+    /**
+     * What the email-first login shows for this address. Unknown, inactive, non-SSO and "SSO unavailable" all return
+     * the same password step, so the answer reveals nothing beyond "this account uses single sign-on". Only local
+     * database reads: no external service is called.
+     *
+     * @return array{mode:'password'|'sso', password:bool, user:?User, route:?array}
+     */
+    public static function stepFor(string $email): array
+    {
+        $email = strtolower(trim($email));
+        $user = $email === '' ? null : User::query()->whereRaw('lower(email) = ?', [$email])->first();
+
+        // sso_enabled is checked first so the common (non-SSO / unknown) path costs one query in both cases.
+        if ($user && $user->sso_enabled && $user->is_active && ($route = self::microsoftRouteFor($user))) {
+            return ['mode' => 'sso', 'password' => self::passwordAllowed($user), 'user' => $user, 'route' => $route];
+        }
+
+        return ['mode' => 'password', 'password' => true, 'user' => null, 'route' => null];
+    }
+
     // ---- refusal rules ---------------------------------------------------------------------------------------
 
     /** @return list<string> reasons staff "Microsoft only" must not be (or stay) on */

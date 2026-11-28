@@ -84,7 +84,7 @@ class SamlService
     }
 
     /** Build the redirect to Entra and remember the request ID. */
-    public function beginLogin(SamlConnection $c, ?string $returnTo = null): string
+    public function beginLogin(SamlConnection $c, ?string $returnTo = null, bool $remember = false): string
     {
         $auth = new Auth($this->settingsArray($c));
         $url = $auth->login(null, [], false, false, true, false);
@@ -95,6 +95,7 @@ class SamlService
             'request_id' => $requestId,
             'saml_connection_id' => $c->id,
             'return_to' => $returnTo,
+            'remember' => $remember,
             'expires_at' => now()->addSeconds((int) config('saml.request_ttl', 600)),
         ]);
 
@@ -104,7 +105,7 @@ class SamlService
     /**
      * Validate a base64 SAMLResponse posted to the ACS of $c.
      *
-     * @return array{0: SamlIdentity, 1: ?string} identity and the return_to remembered at login start
+     * @return array{0: SamlIdentity, 1: ?string, 2: bool} identity, the return_to and the "keep me logged in" choice remembered at login start
      *
      * @throws SamlException
      */
@@ -214,6 +215,7 @@ class SamlService
         return [
             new SamlIdentity($objectId, $tenant, $nameId, $email, $this->firstClaim($attrs, (array) $claims['name']), $groups, $assertionId),
             $consumed->return_to,
+            (bool) ($consumed->remember ?? false),
         ];
     }
 

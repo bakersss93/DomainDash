@@ -37,11 +37,11 @@ class SsoPolicyAndAdminTest extends SsoTestCase
 
     public function test_staff_microsoft_only_blocks_password_login_for_staff_but_not_exceptions_or_clients(): void
     {
-        $tech = User::factory()->create(['email' => 'tech@contoso.com']);
+        $tech = User::factory()->create(['sso_enabled' => true, 'email' => 'tech@contoso.com']);
         $tech->assignRole('Technician');
-        $bg = User::factory()->create(['email' => 'bg@contoso.com', 'password_login_allowed' => true]);
+        $bg = User::factory()->create(['sso_enabled' => true, 'email' => 'bg@contoso.com', 'password_login_allowed' => true]);
         $bg->assignRole('Administrator');
-        $cust = User::factory()->create(['email' => 'cust@acme.com']);
+        $cust = User::factory()->create(['sso_enabled' => true, 'email' => 'cust@acme.com']);
         $cust->assignRole('Customer');
 
         // Before the policy everyone can use a password.
@@ -130,7 +130,7 @@ class SsoPolicyAndAdminTest extends SsoTestCase
     public function test_local_mfa_challenge_is_required_when_connection_does_not_trust_entra(): void
     {
         $c = $this->staffConnection(['default_role' => 'Technician', 'skip_local_mfa' => false]);
-        $user = User::factory()->create(['email' => 'mfa@contoso.com', 'two_factor_secret' => encrypt('S'), 'two_factor_confirmed_at' => now()]);
+        $user = User::factory()->create(['sso_enabled' => true, 'email' => 'mfa@contoso.com', 'two_factor_secret' => encrypt('S'), 'two_factor_confirmed_at' => now()]);
         $user->assignRole('Technician');
 
         $this->ssoLogin($c, ['email' => 'mfa@contoso.com'])->assertRedirect(route('two-factor.login'));
@@ -199,12 +199,13 @@ class SsoPolicyAndAdminTest extends SsoTestCase
 
     public function test_mapping_form_lists_staff_roles_dynamically_and_never_customer_roles(): void
     {
-        \Spatie\Permission\Models\Role::findOrCreate('Auditor')->givePermissionTo('domains.view');
+        \Spatie\Permission\Models\Role::findOrCreate('Auditor')->givePermissionTo('users.manage'); // staff-class: holds a staff-only permission
+        \Spatie\Permission\Models\Role::findOrCreate('Viewer')->givePermissionTo('domains.view'); // custom customer-class role
         $this->actingAs($this->admin());
 
         $page = $this->get(route('admin.sso.create'))->assertOk();
         $page->assertSee('group_map[Technician]', false)->assertSee('group_map[Administrator]', false)->assertSee('group_map[Auditor]', false);
-        $page->assertDontSee('group_map[Customer]', false);
+        $page->assertDontSee('group_map[Customer]', false)->assertDontSee('group_map[Viewer]', false);
 
         $payload = $this->payload(['group_role_map' => null, 'group_map' => ['Administrator' => '', 'Auditor' => "AAAAAAAA-0000-0000-0000-000000000001\n11111111-1111-1111-1111-111111111111"]]);
         $this->post(route('admin.sso.store'), $payload)->assertSessionHasNoErrors();
@@ -229,14 +230,6 @@ class SsoPolicyAndAdminTest extends SsoTestCase
         $this->assertSame(0, SamlConnection::count());
     }
 
-    public function test_login_page_offers_microsoft_sign_in_only_when_a_connection_is_enabled(): void
-    {
-        $this->get('/login')->assertOk()->assertDontSee('Sign in with Microsoft');
-
-        $this->staffConnection();
-
-        $this->get('/login')->assertOk()->assertSee('Sign in with Microsoft');
-    }
 
     // ---- metadata import --------------------------------------------------------------------------------
 

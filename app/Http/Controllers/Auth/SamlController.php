@@ -34,17 +34,21 @@ class SamlController extends Controller
         $return = (string) $request->query('return', '');
         $return = ($return !== '' && str_starts_with($return, '/') && ! str_starts_with($return, '//') && ! str_contains($return, '\\')) ? $return : null;
 
-        return redirect()->away($this->saml->beginLogin($connection, $return));
+        // "Keep me logged in" was chosen on the login page; it rides with the pending request (the ACS has no session).
+        $remember = (bool) $request->session()->pull('sso.remember', false);
+
+        return redirect()->away($this->saml->beginLogin($connection, $return, $remember));
     }
 
     public function acs(Request $request, SamlConnection $connection)
     {
         $email = null;
+        $remember = false;
 
         try {
             abort_unless($connection->enabled, 404);
 
-            [$identity, $returnTo] = $this->saml->consume($connection, (string) $request->input('SAMLResponse', ''));
+            [$identity, $returnTo, $remember] = $this->saml->consume($connection, (string) $request->input('SAMLResponse', ''));
             $email = $identity->email;
             $user = $this->provisioner->resolve($connection, $identity);
         } catch (SamlException $e) {
@@ -58,15 +62,15 @@ class SamlController extends Controller
             return $this->fail($connection, new SamlException('Sign-in failed. Please try again or contact your administrator.', 'exception', ['error' => class_basename($e)]), $email);
         }
 
-        return $this->completeLogin($request, $connection, $user, $identity, $returnTo);
+        return $this->completeLogin($request, $connection, $user, $identity, $returnTo, $remember);
     }
 
-    private function completeLogin(Request $request, SamlConnection $c, User $user, SamlIdentity $identity, ?string $returnTo)
+    private function completeLogin(Request $request, SamlConnection $c, User $user, SamlIdentity $identity, ?string $returnTo, bool $remember = false)
     {
         // Entra enforced MFA/conditional access, or DomainDash must still challenge locally.
         if (! $c->skip_local_mfa && $user->hasConfiguredMfa()) {
             $request->session()->regenerate();
-            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => false, 'auth.via_pending' => [
+            $request->session()->put(['login.id' => $user->getKey(), 'login.remember' => $remember, 'auth.via_pending' => [
                 'via' => 'saml', 'user_id' => $user->getKey(), 'keys' => ['auth.saml_connection_id' => $c->id],
             ]]);
             $this->audit('sso.login.mfa_pending', $c, $user->email, "SSO identity accepted for {$user->email}; local MFA challenge required", $user);
@@ -74,7 +78,7 @@ class SamlController extends Controller
             return redirect()->route('two-factor.login');
         }
 
-        Auth::guard(config('fortify.guard', 'web'))->login($user);
+        Auth::guard(config('fortify.guard', 'web'))->login($user, $remember);
         $request->session()->regenerate();
         $request->session()->put([
             'auth.via' => 'saml',
