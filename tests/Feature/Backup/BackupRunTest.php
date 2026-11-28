@@ -11,10 +11,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use Tests\Support\FakeCredential;
 use Tests\TestCase;
 
 class BackupRunTest extends TestCase
 {
+    private string $encryptionKey = '';
+
     use RefreshDatabase;
 
     private string $remoteDir;
@@ -42,8 +45,8 @@ class BackupRunTest extends TestCase
         });
 
         Setting::put('backup', [
-            'host' => 'backup.example.com', 'username' => 'u', 'password' => 'p', 'path' => '/', 'retention' => 2,
-            'host_fingerprint' => 'SHA256:abc', 'encryption_password' => 'a-long-backup-password',
+            'host' => 'backup.example.com', 'username' => 'u', 'password' => FakeCredential::secret('sftp'), 'path' => '/', 'retention' => 2,
+            'host_fingerprint' => 'SHA256:abc', 'encryption_password' => $this->encryptionKey = FakeCredential::password(),
         ]);
     }
 
@@ -71,7 +74,7 @@ class BackupRunTest extends TestCase
         $this->assertTrue($zip->open($remote));
         // Without the password the content cannot be read.
         $this->assertFalse(@$zip->getFromName('database.sqlite'));
-        $zip->setPassword('a-long-backup-password');
+        $zip->setPassword($this->encryptionKey);
         $this->assertStringStartsWith('SQLITE-FAKE-CONTENT-', (string) $zip->getFromName('database.sqlite'));
         $stat = $zip->statName('database.sqlite');
         $this->assertSame(\ZipArchive::EM_AES_256, $stat['encryption_method']);
@@ -159,9 +162,10 @@ for a in "\$@"; do case "\$a" in --result-file=*) echo "-- dump" > "\${a#--resul
 SH);
         chmod($fake, 0700);
 
+        $dbPw = FakeCredential::secret('db');
         config([
             'domaindash.backup.connection' => 'mysql',
-            'database.connections.mysql.password' => 'S3cretDbPw',
+            'database.connections.mysql.password' => $dbPw,
             'database.connections.mysql.username' => 'dbuser',
             'database.connections.mysql.database' => 'domaindash',
             'domaindash.backup.dump_binary' => $fake,
@@ -171,9 +175,9 @@ SH);
 
         $out = file_get_contents($log);
         $lines = explode("\n", $out);
-        $this->assertStringNotContainsString('S3cretDbPw', $lines[0], 'password must not be on the command line');
+        $this->assertStringNotContainsString($dbPw, $lines[0], 'password must not be on the command line');
         $this->assertSame('600', $lines[1]);
-        $this->assertStringContainsString('password="S3cretDbPw"', $out);
+        $this->assertStringContainsString('password="'.$dbPw.'"', $out);
         $this->assertSame([], $this->localTemps());
         $this->assertFileExists($this->remoteDir . '/' . $result['file']);
 

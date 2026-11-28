@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\Features;
 use Spatie\Permission\Models\Role;
+use Tests\Support\FakeCredential;
 use Tests\TestCase;
 
 /** Regression tests for the April 2026 review fixes (SSRF, impersonation, registration, audit/at-rest secrets). */
@@ -69,7 +70,8 @@ class AprilHardeningTest extends TestCase
     {
         $this->assertFalse(Features::enabled(Features::registration()));
         $this->get('/register')->assertNotFound();
-        $this->post('/register', ['name' => 'X', 'email' => 'x@example.com', 'password' => 'Str0ng-Passw0rd!x', 'password_confirmation' => 'Str0ng-Passw0rd!x'])
+        $pw = FakeCredential::password();
+        $this->post('/register', ['name' => 'X', 'email' => 'x@example.com', 'password' => $pw, 'password_confirmation' => $pw])
             ->assertStatus(404);
         $this->assertDatabaseMissing('users', ['email' => 'x@example.com']);
     }
@@ -77,20 +79,21 @@ class AprilHardeningTest extends TestCase
     public function test_sensitive_settings_encrypted_at_rest_and_not_in_audit_log(): void
     {
         $admin = $this->admin();
+        [$halo, $cert, $access, $backup] = [FakeCredential::secret('halo'), FakeCredential::secret('cert'), FakeCredential::secret('access'), FakeCredential::secret('backup')];
         $this->actingAs($admin)->post(route('admin.settings.update'), [
-            'halo' => ['api_key' => 'halo-secret-XYZ', 'client_id' => 'cid'],
-            'vocus' => ['cert_password' => 'cert-pass-ABC', 'access_key' => 'vocus-access-123'],
-            'backup' => ['password' => 'backup-pass-QQQ'],
+            'halo' => ['api_key' => $halo, 'client_id' => 'cid'],
+            'vocus' => ['cert_password' => $cert, 'access_key' => $access],
+            'backup' => ['password' => $backup],
         ])->assertSessionHasNoErrors();
 
         $raw = DB::table('settings')->pluck('value', 'key');
         foreach (['halo', 'vocus', 'backup'] as $k) {
             $this->assertStringStartsWith('enc:v1:', $raw[$k]);
         }
-        $this->assertSame('halo-secret-XYZ', Setting::get('halo')['api_key']);
+        $this->assertSame($halo, Setting::get('halo')['api_key']);
 
         $logs = json_encode(AuditLog::all()->toArray());
-        foreach (['halo-secret-XYZ', 'cert-pass-ABC', 'vocus-access-123', 'backup-pass-QQQ'] as $secret) {
+        foreach ([$halo, $cert, $access, $backup] as $secret) {
             $this->assertStringNotContainsString($secret, $logs);
         }
     }

@@ -108,7 +108,7 @@ class FortifyServiceProvider extends ServiceProvider
             $state = 'email';
             if ($step) {
                 $state = match (true) {
-                    $step['mode'] === 'password' => 'password',
+                    $step['mode'] === 'password' => $step['mode'], // plain password view
                     $step['password'] && $request->session()->get('login.pw') => 'password-sso',
                     $step['password'] => 'sso-both',
                     default => 'sso',

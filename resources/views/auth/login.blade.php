@@ -180,7 +180,9 @@
             email.addEventListener('input', function () { lastAsked = ''; schedule(); });
             email.addEventListener('blur', function () { clearTimeout(timer); lookup(); });
 
-            const primary = { 'email': 'btnContinue', 'password': 'btnLoginPw', 'password-sso': 'btnLoginPw', 'sso': 'btnLoginSso', 'sso-both': 'btnLoginSso' };
+            // Which button Enter presses in each view: both password views use the password login button.
+            const pwButton = 'btnLoginPw';
+            const primary = { email: 'btnContinue', password: pwButton, 'password-sso': pwButton, sso: 'btnLoginSso', 'sso-both': 'btnLoginSso' };
             form.addEventListener('keydown', function (e) {
                 if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || e.target.type === 'checkbox') return;
                 e.preventDefault();

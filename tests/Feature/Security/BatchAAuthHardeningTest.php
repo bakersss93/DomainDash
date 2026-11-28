@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Tests\Support\FakeCredential;
 use Tests\TestCase;
 
 /** Regression tests for security review Batch A (auth and access control). */
@@ -309,7 +310,8 @@ class BatchAAuthHardeningTest extends TestCase
             DB::table('sessions')->insert(['id' => $id, 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()]);
         }
 
-        app(ResetUserPassword::class)->reset($user, ['password' => 'Str0ng-Passw0rd!x', 'password_confirmation' => 'Str0ng-Passw0rd!x']);
+        $pw = FakeCredential::password();
+        app(ResetUserPassword::class)->reset($user, ['password' => $pw, 'password_confirmation' => $pw]);
 
         $this->assertSame(0, DB::table('sessions')->where('user_id', $user->id)->count());
     }
@@ -317,7 +319,8 @@ class BatchAAuthHardeningTest extends TestCase
     public function test_password_update_revokes_other_sessions_but_keeps_the_current_one(): void
     {
         config(['session.driver' => 'database']);
-        $user = $this->user('Customer', true, ['password' => bcrypt('Old-Passw0rd!xyz')]);
+        [$old, $new] = [FakeCredential::password(), FakeCredential::password()];
+        $user = $this->user('Customer', true, ['password' => bcrypt($old)]);
         foreach (['other1', 'other2'] as $id) {
             DB::table('sessions')->insert(['id' => $id, 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()]);
         }
@@ -328,7 +331,7 @@ class BatchAAuthHardeningTest extends TestCase
         DB::table('sessions')->insert(['id' => $current, 'user_id' => $user->id, 'payload' => '', 'last_activity' => time()]);
 
         app(\App\Actions\Fortify\UpdateUserPassword::class)->update($user, [
-            'current_password' => 'Old-Passw0rd!xyz', 'password' => 'Str0ng-Passw0rd!x', 'password_confirmation' => 'Str0ng-Passw0rd!x',
+            'current_password' => $old, 'password' => $new, 'password_confirmation' => $new,
         ]);
 
         $this->assertSame([$current], DB::table('sessions')->where('user_id', $user->id)->pluck('id')->all());
@@ -434,7 +437,9 @@ class BatchAAuthHardeningTest extends TestCase
 
     private function userPayload(array $extra = []): array
     {
-        return $extra + ['name' => 'N', 'email' => 'n@example.com', 'password' => 'Str0ngPassw0rd!x', 'password_confirmation' => 'Str0ngPassw0rd!x'];
+        $pw = FakeCredential::password();
+
+        return $extra + ['name' => 'N', 'email' => 'n@example.com', 'password' => $pw, 'password_confirmation' => $pw];
     }
 
     public function test_users_write_key_cannot_assign_staff_roles_or_change_emails(): void
