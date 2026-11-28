@@ -17,7 +17,7 @@ final class SettingsAreas
         return [
             'general' => ['title' => 'General', 'areas' => ['branding', 'email', 'backups']],
             'security' => ['title' => 'Security', 'areas' => ['https', 'mfa', 'sso']],
-            'integrations' => ['title' => 'Integrations', 'areas' => ['halopsa', 'itglue', 'synergy', 'vocus', 'ip2whois']],
+            'integrations' => ['title' => 'Integrations', 'areas' => ['halopsa', 'itglue', 'synergy', 'vocus', 'ip2whois', 'microsoft-partner']],
             'operations' => ['title' => 'Sync and queue', 'areas' => ['sync']],
         ];
     }
@@ -39,6 +39,7 @@ final class SettingsAreas
             'synergy' => ['title' => 'Synergy Wholesale', 'description' => 'Domain registrar API credentials.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection'], 'setting' => 'synergy'],
             'vocus' => ['title' => 'Vocus Wholesale', 'description' => 'NBN service API, realms, plans, service records and sandbox.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection', 'ordering' => 'Ordering', 'plans' => 'Plans', 'records' => 'Service records', 'sandbox' => 'Sandbox'], 'setting' => 'vocus'],
             'ip2whois' => ['title' => 'IP2WHOIS', 'description' => 'WHOIS lookups for domains DomainDash cannot read from the registrar.', 'icon' => 'search', 'tabs' => ['connection' => 'Connection'], 'setting' => 'ip2whois'],
+            'microsoft-partner' => ['title' => 'Microsoft Partner', 'description' => 'Partner (CSP / GDAP) connection, customer tenants and mapping to clients.', 'icon' => 'globe', 'tabs' => ['connection' => 'Connection', 'customers' => 'Customer tenants'], 'setting' => 'microsoft_partner'],
             'sync' => ['title' => 'Sync scheduler', 'description' => 'Scheduled syncs, worker health and recent runs.', 'icon' => 'refresh', 'tabs' => ['schedule' => 'Schedule'], 'setting' => 'sync_schedule'],
         ];
     }

@@ -69,6 +69,18 @@
                            value="{{ old('microsoft_tenant_id', $client->microsoft_tenant_id) }}" style="width:100%;">
                     <div style="font-size:12px;color:var(--dd-text-soft);margin-top:2px;">Locks this client's users to one Microsoft tenant. Filled in automatically the first time a user links their Microsoft account.</div>
                     @error('microsoft_tenant_id')<div style="color:var(--dd-danger-text);font-size:12px;margin-top:2px;">{{ $message }}</div>@enderror
+                    @if ($client->exists && $client->microsoft_tenant_id)
+                        @php $partnerTenant = $client->partnerTenant; @endphp
+                        <div style="font-size:12px;margin-top:4px;">
+                            Microsoft partner customer:
+                            @if ($partnerTenant)
+                                <strong>{{ $partnerTenant->display_name ?? 'Unnamed tenant' }}</strong>@if ($partnerTenant->default_domain) ({{ $partnerTenant->default_domain }})@endif
+                            @else
+                                not in the synced partner customer list
+                            @endif
+                            &middot; <a href="{{ route('admin.settings.area', ['area' => 'microsoft-partner', 'tab' => 'customers']) }}">Manage mapping</a>
+                        </div>
+                    @endif
                 </div>
                 <div style="margin-bottom:12px;">
                     <label for="login_method" style="display:block;font-size:14px;margin-bottom:4px;">Sign-in method</label>

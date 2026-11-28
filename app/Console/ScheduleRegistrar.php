@@ -23,6 +23,7 @@ class ScheduleRegistrar
         self::scheduleSyncTask($schedule, $syncSchedule['sync_hosting_services'] ?? [], 'sync-hosting-services', 'sync-hosting-services', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'sync-halo-assets', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'sync-itglue', $timezone);
+        self::scheduleSyncTask($schedule, $syncSchedule['sync_microsoft_partner'] ?? [], 'sync-microsoft-partner', 'sync-microsoft-partner', $timezone);
 
         // Halo / IT Glue local mirrors (queued; no-ops when the integration is not configured).
         // Pushes to Halo / IT Glue stay on the admin-configured sync_halo_assets / sync_itglue tasks above.
