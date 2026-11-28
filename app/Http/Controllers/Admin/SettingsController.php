@@ -8,6 +8,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Support\MailSettings;
 use App\Services\AuditLogger;
+use App\Services\Backup\BackupService;
 use App\Services\Halo\HaloPsaClient;
 use App\Support\Settings\SettingsAreas;
 
@@ -28,6 +29,7 @@ class SettingsController extends Controller
             'categories' => SettingsAreas::categories(),
             'areas' => SettingsAreas::all(),
             'status' => $this->areaStatus(),
+            'notes' => $this->areaNotes(),
         ]);
     }
 
@@ -64,9 +66,25 @@ class SettingsController extends Controller
             'synergy' => ! empty($syn['api_key']),
             'vocus' => ! empty($vocus['access_key']),
             'ip2whois' => ! empty($ip['api_key']),
+            'microsoft-partner' => \App\Services\Microsoft\Partner\PartnerSettings::configured(),
             'email' => ! empty($smtp['host']),
-            'backups' => ! empty($backup['host']),
+            // "Configured" is not enough for backups: it must have actually succeeded at least once.
+            'backups' => ! empty($backup['host']) && BackupService::status()['last_success_at'] !== null,
         ];
+    }
+
+    /** Extra one-line hint per tile (currently: last successful backup). */
+    private function areaNotes(): array
+    {
+        $b = BackupService::status();
+        $text = $b['last_success_at']
+            ? 'Last successful backup: ' . \Illuminate\Support\Carbon::parse($b['last_success_at'])->format('Y-m-d H:i') . ' UTC'
+            : (BackupService::isConfigured() ? 'No successful backup yet' : null);
+        if ($b['last_failure_at'] && $b['last_error']) {
+            $text = trim(($text ? $text . '. ' : '') . 'Last attempt failed: ' . $b['last_error']);
+        }
+
+        return ['backups' => $text];
     }
 
     /** Every setting group the forms read, with stored secrets swapped for the "********" placeholder. */
@@ -100,7 +118,7 @@ class SettingsController extends Controller
                 'sync_halo_assets' => ['enabled' => false, 'frequency' => 'daily', 'time' => '02:30'],
                 'sync_itglue' => ['enabled' => false, 'frequency' => 'daily', 'time' => '03:00'],
             ]),
-            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'02:00'], (array) Setting::get('backup', [])),
+            'backup'   => array_merge(['host'=>'','port'=>22,'username'=>'','password'=>'','path'=>'/','retention'=>7,'time'=>'03:00','host_fingerprint'=>'','encryption_password'=>''], (array) Setting::get('backup', [])),
             'notifications' => Setting::get('notifications', ['disk_threshold_percent'=>90]),
             'mfa' => Setting::get('mfa', [
                 'persistence_days' => 30,
@@ -121,12 +139,26 @@ class SettingsController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'branding'      => 'array',
-            'smtp'          => 'array',
-            'synergy'       => 'array',
+            'branding'      => 'array:company_name,primary,accent,text,bg,button_text,primary_dark,accent_dark,text_dark,bg_dark,button_text_dark',
+            'branding.company_name' => ['nullable', 'string', 'max:100'],
+            ...collect(['primary','accent','text','bg','button_text','primary_dark','accent_dark','text_dark','bg_dark','button_text_dark'])
+                ->mapWithKeys(fn ($k) => ["branding.$k" => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/']])->all(),
+            'smtp'          => 'array:host,port,username,password,encryption,from,from_name',
+            'smtp.host'     => ['nullable', 'string', 'max:255', new \App\Rules\SafeHostname()],
+            'smtp.port'     => 'nullable|integer|min:1|max:65535',
+            'smtp.username' => 'nullable|string|max:255',
+            'smtp.password' => 'nullable|string|max:255',
+            'smtp.encryption' => 'nullable|in:tls,ssl',
+            'smtp.from'     => 'nullable|email|max:255',
+            'smtp.from_name' => 'nullable|string|max:120',
+            'synergy'       => 'array:reseller_id,api_key,wsdl_path',
+            'synergy.reseller_id' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'synergy.api_key' => 'nullable|string|max:255',
+            // Must pass the same trusted-location check the SOAP clients apply (synergywholesale.com or a local app file).
+            'synergy.wsdl_path' => ['nullable', 'string', 'max:500', new \App\Rules\TrustedWsdlLocation()],
             'halo'          => 'array',
-            'halo.base_url' => 'nullable|string|max:255',
-            'halo.auth_server' => 'nullable|string|max:255',
+            'halo.base_url' => ['nullable', 'string', 'max:255', new \App\Rules\SafeExternalUrl()],
+            'halo.auth_server' => ['nullable', 'string', 'max:255', new \App\Rules\SafeExternalUrl()],
             'halo.tenant' => 'nullable|string|max:120',
             'halo.client_id' => 'nullable|string|max:120',
             'halo.api_key' => 'nullable|string|max:255',
@@ -170,21 +202,25 @@ class SettingsController extends Controller
             'halo.status_mappings.*.halo_status_id' => 'nullable|integer|min:1',
             'halo.status_mappings.*.halo_status_name' => 'nullable|string|max:180',
             'itglue'        => 'array',
-            'itglue.base_url' => 'nullable|string|max:255',
+            'itglue.base_url' => ['nullable', 'string', 'max:255', new \App\Rules\SafeExternalUrl()],
             'itglue.api_key' => 'nullable|string|max:255',
             'itglue.flexible_asset_type_id' => 'nullable|integer|min:1',
             'itglue.flexible_asset_type_name' => 'nullable|string|max:180',
             'itglue.flexible_asset_traits' => 'nullable|array',
             'itglue.flexible_asset_traits.*' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9_-]+$/'],
-            'ip2whois'      => 'array',
+            'ip2whois'      => 'array:api_key',
+            'ip2whois.api_key' => 'nullable|string|max:255',
             'vocus'                   => 'array',
             'vocus.access_key'        => 'nullable|string|max:64',
             'vocus.alias_key'         => 'nullable|string|max:64',
-            'vocus.wsdl_url'          => 'nullable|url:https|max:255',
-            'vocus.login_url'         => 'nullable|url:https|max:255',
+            'vocus.wsdl_url'          => ['nullable', 'url:https', 'max:255', new \App\Rules\SafeExternalUrl()],
+            'vocus.login_url'         => ['nullable', 'url:https', 'max:255', new \App\Rules\SafeExternalUrl()],
             'vocus.cert_password'     => 'nullable|string|max:255',
             'vocus.environment'       => 'nullable|in:production,sandbox',
-            'vocus.sandbox_ip'        => 'nullable|ip',
+            'vocus.customer_requests'           => 'nullable|array:allow_new,allow_cancel',
+            'vocus.customer_requests.allow_new'    => 'nullable|boolean',
+            'vocus.customer_requests.allow_cancel' => 'nullable|boolean',
+            'vocus.sandbox_ip'        => ['nullable', 'ip', new \App\Rules\PublicIp()],
             'vocus.sandbox_pin_ip'    => 'nullable|in:0,1',
             'vocus.order_defaults'               => 'nullable|array',
             'vocus.order_defaults.auth_type'     => ['nullable', \Illuminate\Validation\Rule::in(\App\Services\Vocus\VocusOptions::AUTH_TYPES)],
@@ -199,12 +235,19 @@ class SettingsController extends Controller
             'sync_schedule.*.enabled' => 'nullable|boolean',
             'sync_schedule.*.frequency' => 'nullable|in:hourly,daily,weekly',
             'sync_schedule.*.time' => 'nullable|date_format:H:i',
-            'backup'        => 'array',
-            'backup.host'   => 'nullable|string|max:255',
+            'backup'        => 'array:host,port,username,password,path,retention,time,host_fingerprint,encryption_password',
+            'backup.host'   => ['nullable', 'string', 'max:255', new \App\Rules\SafeHostname()],
+            'backup.host_fingerprint' => ['nullable', 'string', 'max:255', 'regex:/^[A-Za-z0-9:+\/=_-]+$/'],
+            'backup.encryption_password' => ['nullable', 'string', 'max:255', function ($attr, $value, $fail) {
+                // "********" is the form placeholder meaning "keep the stored password".
+                if ($value !== null && $value !== \App\Support\Redactor::FORM_MASK && mb_strlen($value) < 12) {
+                    $fail('The backup encryption password must be at least 12 characters.');
+                }
+            }],
             'backup.port'   => 'nullable|integer|min:1|max:65535',
             'backup.username' => 'nullable|string|max:255',
             'backup.password' => 'nullable|string|max:255',
-            'backup.path'   => 'nullable|string|max:255',
+            'backup.path'   => ['nullable', 'string', 'max:255', 'not_regex:/(^|\/)\.\.(\/|$)/'],
             'backup.retention' => 'nullable|integer|min:1|max:365',
             'backup.time'   => 'nullable|date_format:H:i',
             'notifications' => 'array',
@@ -217,6 +260,7 @@ class SettingsController extends Controller
             'mfa.issuer' => 'nullable|string|max:120',
             'audit' => 'array',
             'audit.retention_days' => 'nullable|integer|min:1|max:3650',
+            'audit.retention_days_security' => ['nullable', 'integer', 'min:' . (int) config('monitoring.security_retention_floor_days', 365), 'max:3650'],
             'branding_logo' => 'nullable|file|image|max:2048', // up to 2MB
         ]);
 

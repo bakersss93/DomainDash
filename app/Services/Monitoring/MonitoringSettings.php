@@ -72,6 +72,15 @@ class MonitoringSettings
         return max(1, min(3650, $days ?: (int) config('monitoring.retention.' . $category, 90)));
     }
 
+    /** Days security events are kept: never below config('monitoring.security_retention_floor_days') (365). */
+    public function securityRetentionDays(): int
+    {
+        $floor = max(1, (int) config('monitoring.security_retention_floor_days', 365));
+        $days = (int) ($this->stored()['retention_days_security'] ?? $floor);
+
+        return max($floor, min(3650, $days));
+    }
+
     /** @return array<string, mixed> everything the settings form shows */
     public function all(): array
     {
@@ -85,6 +94,7 @@ class MonitoringSettings
                 'outbound' => $this->retentionDays('outbound'),
                 'inbound' => $this->retentionDays('inbound'),
                 'jobs' => $this->retentionDays('jobs'),
+                'security' => $this->securityRetentionDays(),
             ],
         ];
     }

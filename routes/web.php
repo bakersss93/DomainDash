@@ -17,6 +17,30 @@ use App\Http\Controllers\Admin\InternetController;
 use App\Http\Controllers\UserNotificationController;
 
 
+// ---------------------------------------------------------------------------------------------------------
+// Microsoft Entra ID SAML single sign-on (public endpoints; connection is addressed by an unguessable UUID)
+// ---------------------------------------------------------------------------------------------------------
+Route::get('/saml/{connection}/metadata', [\App\Http\Controllers\Auth\SamlController::class, 'metadata'])->name('saml.metadata');
+Route::get('/saml/{connection}/login', [\App\Http\Controllers\Auth\SamlController::class, 'login'])->middleware('throttle:20,1')->name('saml.login');
+// The ACS is a cross-site POST from Microsoft, so it cannot carry a CSRF token. It is authenticated by the signed
+// assertion + a single-use server-side AuthnRequest ID instead. CSRF stays on for every other route.
+Route::post('/saml/{connection}/acs', [\App\Http\Controllers\Auth\SamlController::class, 'acs'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->middleware('throttle:30,1')
+    ->name('saml.acs');
+
+// Email-first login: step 1 (email), "use a different email", and the single-sign-on action of step 2.
+Route::middleware('guest')->group(function () {
+    Route::post('/login/email', [\App\Http\Controllers\Auth\LoginStepController::class, 'identify'])->middleware('throttle:login-identify')->name('login.identify');
+    Route::post('/login/method', [\App\Http\Controllers\Auth\LoginStepController::class, 'method'])->middleware('throttle:login-method')->name('login.method');
+    Route::get('/login/mode/{mode}', [\App\Http\Controllers\Auth\LoginStepController::class, 'mode'])->name('login.mode');
+    Route::get('/login/change-email', [\App\Http\Controllers\Auth\LoginStepController::class, 'reset'])->name('login.reset');
+    Route::post('/login/sso', [\App\Http\Controllers\Auth\LoginStepController::class, 'sso'])->middleware('throttle:login-identify')->name('login.sso');
+});
+// Client Microsoft sign-in (OIDC) callback, plus the hint-only entry point.
+Route::get('/auth/microsoft/redirect', [\App\Http\Controllers\Auth\MicrosoftController::class, 'redirect'])->middleware('throttle:20,1')->name('microsoft.redirect');
+Route::get('/auth/microsoft/callback', [\App\Http\Controllers\Auth\MicrosoftController::class, 'callback'])->middleware('throttle:30,1')->name('microsoft.callback');
+
 Route::get('/', fn() => redirect()->route('dashboard'))->middleware(['auth','verified']);
 
 Route::middleware(['auth','verified','mfa.policy'])->group(function () {
@@ -26,9 +50,10 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::post('/me/account', [\App\Http\Controllers\UserSettingsController::class, 'updateAccount'])->name('me.account.update');
         Route::post('/me/account/password', [\App\Http\Controllers\UserSettingsController::class, 'changePassword'])->name('me.account.password');
         Route::post('/me/account/mfa-reenroll', [\App\Http\Controllers\UserSettingsController::class, 'reEnrollMfa'])->name('me.account.mfa-reenroll');
+        Route::post('/me/account/mfa-recovery-codes', [\App\Http\Controllers\UserSettingsController::class, 'regenerateRecoveryCodes'])->middleware('throttle:5,1')->name('me.account.mfa-recovery-codes');
         Route::get('/me/mfa/setup-status', [\App\Http\Controllers\UserSettingsController::class, 'mfaSetupStatus'])->name('me.mfa.status');
         Route::post('/me/mfa/start', [\App\Http\Controllers\UserSettingsController::class, 'startMfaSetup'])->name('me.mfa.start');
-        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->name('me.mfa.confirm');
+        Route::post('/me/mfa/confirm', [\App\Http\Controllers\UserSettingsController::class, 'confirmMfaSetup'])->middleware('throttle:5,1')->name('me.mfa.confirm');
         Route::post('/me/mfa/dismiss', [\App\Http\Controllers\UserSettingsController::class, 'dismissMfaPrompt'])->name('me.mfa.dismiss');
 
         Route::post('/impersonation/stop', [UsersController::class, 'stopImpersonate'])->name('admin.users.stop-impersonate');
@@ -46,13 +71,25 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::delete('/domains/{domain}/dns/{recordId}', [DnsController::class, 'destroy'])->middleware('permission:dns.manage')->name('dns.destroy');
         Route::post('/domains/{domain}/dns/options', [DnsController::class, 'updateOptions'])->middleware('permission:dns.manage')->name('dns.options');
        
+        // Support > Help: knowledge-base articles (client how-tos for everyone, integration guides for staff).
+        Route::get('/support/help', [\App\Http\Controllers\HelpController::class, 'index'])->name('help.index');
+        Route::get('/support/help/{category}', [\App\Http\Controllers\HelpController::class, 'category'])->where('category', '[a-z0-9][a-z0-9-]*')->name('help.category');
+        Route::get('/support/help/{category}/{slug}', [\App\Http\Controllers\HelpController::class, 'show'])->where(['category' => '[a-z0-9][a-z0-9-]*', 'slug' => '[a-z0-9][a-z0-9-]*'])->name('help.show');
+
         // Tickets
-        Route::get('/tickets/create', [TicketController::class,'create'])->name('tickets.create');
+        Route::get('/tickets/create', [TicketController::class,'create'])->middleware('permission:tickets.create')->name('tickets.create');
         Route::get('/tickets', [TicketController::class,'index'])->name('tickets.index');
         Route::get('/tickets/{ticketId}', [TicketController::class,'show'])->whereNumber('ticketId')->name('tickets.show');
-        Route::post('/tickets/{ticketId}/reply', [TicketController::class,'reply'])->whereNumber('ticketId')->name('tickets.reply');
-        Route::post('/tickets/{ticketId}/close', [TicketController::class,'close'])->whereNumber('ticketId')->name('tickets.close');
-        Route::post('/tickets', [TicketController::class,'store'])->name('tickets.store');
+        Route::post('/tickets/{ticketId}/reply', [TicketController::class,'reply'])->whereNumber('ticketId')->middleware('permission:tickets.create')->name('tickets.reply');
+        Route::post('/tickets/{ticketId}/close', [TicketController::class,'close'])->whereNumber('ticketId')->middleware('permission:tickets.create')->name('tickets.close');
+        Route::post('/tickets', [TicketController::class,'store'])->middleware('permission:tickets.create')->name('tickets.store');
+
+        // Internet services: read-only customer view of the user's own clients' services (staff are sent to the admin page).
+        Route::get('/internet', [\App\Http\Controllers\CustomerInternetController::class, 'index'])->middleware('permission:internet.view')->name('internet.index');
+        Route::post('/internet/request-new', [\App\Http\Controllers\CustomerInternetController::class, 'requestNew'])->middleware(['permission:internet.order', 'throttle:6,10'])->name('internet.request-new');
+        Route::get('/internet/{service}', [\App\Http\Controllers\CustomerInternetController::class, 'show'])->whereNumber('service')->middleware('permission:internet.view')->name('internet.show');
+        Route::post('/internet/{service}/diagnostic', [\App\Http\Controllers\CustomerInternetController::class, 'diagnostic'])->whereNumber('service')->middleware(['permission:internet.diagnostics', 'throttle:6,10'])->name('internet.diagnostic');
+        Route::post('/internet/{service}/request-cancellation', [\App\Http\Controllers\CustomerInternetController::class, 'requestCancellation'])->whereNumber('service')->middleware(['permission:internet.cancel', 'throttle:6,10'])->name('internet.request-cancellation');
 
         // Domain admin area (permission-driven for Administrator/Technician roles)
         Route::prefix('admin')->group(function () {
@@ -64,20 +101,20 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
                 ->whereNumber('domain')
                 ->name('admin.domains.show');
             Route::post('/domains/bulk-sync', [AdminDomainController::class,'bulkSync'])
-                ->middleware('permission:sync.run')
+                ->middleware(['role:Administrator|Technician', 'permission:sync.run'])
                 ->name('admin.domains.bulkSync');
             Route::post('/domains/availability', [AdminDomainController::class,'searchAvailability'])
-                ->middleware('permission:domains.register')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.register'])
                 ->name('admin.domains.availability');
             Route::post('/domains/{domain}/renew', [AdminDomainController::class,'renew'])
-                ->middleware('permission:domains.renew')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.renew'])
                 ->whereNumber('domain')
                 ->name('admin.domains.renew');
             Route::post('/domains/transfer', [AdminDomainController::class,'transfer'])
-                ->middleware('permission:domains.transfer')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.transfer'])
                 ->name('admin.domains.transfer');
             Route::post('/domains/{domain}/assign', [AdminDomainController::class,'assignClient'])
-                ->middleware('permission:domains.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domains.manage'])
                 ->whereNumber('domain')
                 ->name('admin.domains.assignClient');
             Route::get('/domains/{domain}/auth-code', [AdminDomainController::class,'authCode'])
@@ -86,19 +123,19 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
                 ->name('admin.domains.auth-code');
 
             Route::get('/domains/pricing', [DomainPricingController::class, 'index'])
-                ->middleware('permission:domain-pricing.view')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.view'])
                 ->name('admin.domains.pricing');
             Route::post('/domains/pricing/import', [DomainPricingController::class, 'import'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.import');
             Route::post('/domains/pricing/bulk-markup', [DomainPricingController::class, 'bulkMarkup'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.bulk-markup');
             Route::put('/domains/pricing/{domainPricing}/sell-price', [DomainPricingController::class, 'updateSellPrice'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.sell-price');
             Route::put('/domains/pricing/{domainPricing}/common-domain', [DomainPricingController::class, 'updateCommonDomain'])
-                ->middleware('permission:domain-pricing.manage')
+                ->middleware(['role:Administrator|Technician', 'permission:domain-pricing.manage'])
                 ->name('admin.domains.pricing.common-domain');
         });
 
@@ -111,6 +148,17 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::put('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'updateRolePermissions'])->name('admin.permissions.roles.update');
         Route::delete('/permissions/roles/{role}', [\App\Http\Controllers\Admin\PermissionsController::class,'destroyRole'])->name('admin.permissions.roles.destroy');
         Route::get('/services/ssls', [\App\Http\Controllers\Admin\SslController::class,'index'])->name('admin.services.ssls');
+        Route::get('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'index'])->name('admin.sso.index');
+        Route::get('/sso/create', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'create'])->name('admin.sso.create');
+        Route::post('/sso/microsoft', [\App\Http\Controllers\Admin\LoginPolicyController::class, 'updateMicrosoft'])->name('admin.sso.microsoft');
+        Route::post('/sso', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'store'])->name('admin.sso.store');
+        Route::post('/sso/settings', [\App\Http\Controllers\Admin\LoginPolicyController::class, 'updatePolicy'])->name('admin.sso.settings');
+        Route::get('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'edit'])->name('admin.sso.edit');
+        Route::put('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'update'])->name('admin.sso.update');
+        Route::delete('/sso/{connection}', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'destroy'])->name('admin.sso.destroy');
+        Route::post('/sso/{connection}/refresh-metadata', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'refresh'])->name('admin.sso.refresh');
+        Route::post('/sso/{connection}/check', [\App\Http\Controllers\Admin\SamlConnectionsController::class, 'check'])->name('admin.sso.check');
+
         Route::get('/settings', [SettingsController::class,'index'])->name('admin.settings');
         Route::post('/settings', [SettingsController::class,'update'])->name('admin.settings.update');
         // Option lists + mapping-table CRUD for the settings pages (Administrator area, JSON).
@@ -147,6 +195,13 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/settings/halo-billing', fn () => redirect('/admin/settings/halopsa?tab=billing', 301))->name('admin.settings.halo-billing');
         Route::post('/settings/halo/billing/preview', [\App\Http\Controllers\Admin\HaloBillingController::class, 'preview'])->middleware('throttle:30,1')->name('admin.settings.halo.billing.preview');
         Route::post('/settings/test-smtp', [SettingsController::class,'testSmtp'])->name('admin.settings.smtp-test');
+        Route::middleware('throttle:30,1')->prefix('settings/microsoft-partner')->group(function () {
+            Route::post('/', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'update'])->name('admin.partner.update');
+            Route::post('/test', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'test'])->name('admin.partner.test');
+            Route::post('/sync', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'sync'])->name('admin.partner.sync');
+            Route::post('/tenants/{tenant}/map', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'map'])->whereNumber('tenant')->name('admin.partner.map');
+            Route::delete('/tenants/{tenant}/map', [\App\Http\Controllers\Admin\MicrosoftPartnerController::class, 'clear'])->whereNumber('tenant')->name('admin.partner.clear');
+        });
         Route::get('/settings/{area}', [SettingsController::class,'area'])->where('area', '[a-z0-9-]+')->name('admin.settings.area');
         // Settings -> Vocus modals (JSON): PPPoE realms, service scopes and plans.
         Route::middleware('throttle:60,1')->prefix('settings/vocus')->group(function () {
@@ -269,6 +324,7 @@ Route::middleware(['auth','verified','mfa.policy'])->group(function () {
         Route::get('/users/{user}/password', [UsersController::class, 'editPassword'])->name('admin.users.password.edit');
         Route::put('/users/{user}/password', [UsersController::class, 'updatePassword'])->name('admin.users.password.update');
         Route::post('/users/{user}/password-link', [UsersController::class, 'sendPasswordLink'])->name('admin.users.password.link');
+        Route::post('/users/{user}/microsoft-unlink', [UsersController::class, 'unlinkMicrosoft'])->name('admin.users.microsoft.unlink');
         Route::post('/users/{user}/mfa-reset', [UsersController::class, 'resetMfa'])->name('admin.users.mfa.reset');
         Route::post('/users/{user}/impersonate', [UsersController::class, 'impersonate'])->name('admin.users.impersonate');
 

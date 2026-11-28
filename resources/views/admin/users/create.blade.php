@@ -40,9 +40,9 @@
                         <label for="role">Permission Group</label>
                         <select class="dd-account-input" id="role" name="role" required>
                             <option value="">Select role</option>
-                            <option value="Administrator" {{ old('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
-                            <option value="Technician" {{ old('role') === 'Technician' ? 'selected' : '' }}>Technician</option>
-                            <option value="Customer" {{ old('role') === 'Customer' ? 'selected' : '' }}>Customer</option>
+                            @foreach ($roles as $r)
+                                <option value="{{ $r->name }}" {{ old('role') === $r->name ? 'selected' : '' }}>{{ $r->name }}</option>
+                            @endforeach
                         </select>
                         @error('role')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
@@ -67,6 +67,17 @@
                         </select>
                         @error('mfa_preference')<div class="ui-error" role="alert" style="margin-top:0.25rem;">{{ $message }}</div>@enderror
                     </div>
+
+                    @role('Administrator')
+                    <div class="dd-account-field dd-account-toggle-field">
+                        <input type="hidden" name="sso_enabled" value="0">
+                        <label class="dd-account-checkbox-row">
+                            <input class="dd-account-checkbox" type="checkbox" name="sso_enabled" value="1" {{ old('sso_enabled') ? 'checked' : '' }}>
+                            <span>Enable Microsoft sign-in</span>
+                        </label>
+                        <small class="dd-account-help-text">Required before this user can sign in with Microsoft. Off by default.</small>
+                    </div>
+                    @endrole
 
                     <div class="dd-account-field">
                         <label>Client Organisation(s)</label>

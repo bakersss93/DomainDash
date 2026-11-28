@@ -255,7 +255,7 @@ class SettingsOptionsController extends Controller
 
     private function serviceCategories(): array
     {
-        $set = ['Domain', 'Web Hosting', 'SSL'];
+        $set = ['Domain', 'Web Hosting', 'SSL', 'Internet'];
         $halo = Setting::get('halo', []);
         foreach ((array) (is_array($halo) ? ($halo['ticket_type_mappings'] ?? []) : []) as $m) {
             $c = trim((string) ($m['service_category'] ?? ''));

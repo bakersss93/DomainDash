@@ -8,6 +8,21 @@ use Illuminate\Support\Facades\Schema;
 
 class ScheduleRegistrar
 {
+    /** Backup run time from Settings > Backups (HH:MM, server timezone); falls back to 03:00 when missing or invalid. */
+    public static function backupTime(): string
+    {
+        $time = null;
+        try {
+            $time = Schema::hasTable('settings') ? data_get((array) Setting::get('backup', []), 'time') : null;
+        } catch (\Throwable) {
+            // settings unavailable: use the default
+        }
+
+        $time = trim((string) $time);
+
+        return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time) ? $time : '03:00';
+    }
+
     public static function register(Schedule $schedule): void
     {
         // Nightly domain/hosting/SSL sync
@@ -23,6 +38,7 @@ class ScheduleRegistrar
         self::scheduleSyncTask($schedule, $syncSchedule['sync_hosting_services'] ?? [], 'sync-hosting-services', 'sync-hosting-services', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_halo_assets'] ?? [], 'sync-halo-assets', 'sync-halo-assets', $timezone);
         self::scheduleSyncTask($schedule, $syncSchedule['sync_itglue'] ?? [], 'sync-itglue', 'sync-itglue', $timezone);
+        self::scheduleSyncTask($schedule, $syncSchedule['sync_microsoft_partner'] ?? [], 'sync-microsoft-partner', 'sync-microsoft-partner', $timezone);
 
         // Halo / IT Glue local mirrors (queued; no-ops when the integration is not configured).
         // Pushes to Halo / IT Glue stay on the admin-configured sync_halo_assets / sync_itglue tasks above.
@@ -58,9 +74,15 @@ class ScheduleRegistrar
 
         // Backup
         $schedule->command('domaindash:backup-run')
-            ->dailyAt('03:00')
+            ->dailyAt(self::backupTime())
             ->name('scheduled-backup-run')
             ->description('Command: run scheduled backup');
+
+        // Failed-job payloads can contain customer data: drop them after 30 days.
+        $schedule->command('queue:prune-failed', ['--hours' => 720])
+            ->dailyAt('03:45')
+            ->name('scheduled-queue-prune-failed')
+            ->description('Command: prune failed queue jobs older than 30 days');
 
         // Audit retention housekeeping
         $schedule->command('domaindash:audit-prune')

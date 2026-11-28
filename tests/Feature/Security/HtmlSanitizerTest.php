@@ -46,4 +46,13 @@ class HtmlSanitizerTest extends TestCase
     {
         $this->assertSame('', HtmlSanitizer::clean('   '));
     }
+
+    public function test_remote_images_are_dropped_but_text_and_links_survive(): void
+    {
+        $out = HtmlSanitizer::clean('<p>Hi <img src="https://tracker.example/p.gif" alt="x"> there <a href="https://example.com">link</a></p>');
+        $this->assertStringNotContainsString('<img', $out);
+        $this->assertStringNotContainsString('tracker.example', $out);
+        $this->assertStringContainsString('href="https://example.com"', $out);
+        $this->assertStringContainsString('Hi', $out);
+    }
 }

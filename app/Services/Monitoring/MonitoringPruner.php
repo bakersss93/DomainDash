@@ -27,7 +27,7 @@ class MonitoringPruner
         $this->settings->flush();
 
         $deleted = [
-            'activity' => AuditLogger::pruneOlderThanDays($this->settings->retentionDays('activity')),
+            'activity' => AuditLogger::pruneOlderThanDays($this->settings->retentionDays('activity'), $this->settings->securityRetentionDays()),
             'outbound' => $this->chunked(
                 fn () => IntegrationRequest::query()
                     ->where('direction', IntegrationRequest::OUTBOUND)

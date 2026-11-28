@@ -23,8 +23,11 @@ class IntegrationHttp
 
     public static function pending(string $baseUrl = '', array $headers = [], ?string $provider = null): PendingRequest
     {
+        // withoutRedirecting(): a vendor (or whoever controls a configured base URL) must not be able to bounce an
+        // authenticated request, with its Authorization / API key headers, to another host (SSRF / key leak).
         $request = Http::connectTimeout((int) config('integrations.http.connect_timeout', 5))
-            ->timeout((int) config('integrations.http.timeout', 30));
+            ->timeout((int) config('integrations.http.timeout', 30))
+            ->withoutRedirecting();
 
         if ($baseUrl !== '') {
             $request = $request->baseUrl($baseUrl);

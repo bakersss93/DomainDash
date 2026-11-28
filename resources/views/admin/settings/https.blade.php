@@ -90,7 +90,7 @@
             </x-ui.card>
 
             <x-ui.card title="Upload certificate" description="Use this when DNS is not on Synergy or you buy certificates elsewhere. Validated here and again by the helper.">
-                <form method="POST" action="{{ route('admin.https.upload') }}" enctype="multipart/form-data" class="space-y-3" x-data="{ mode: '{{ old('mode', 'pem') }}' }">
+                <form method="POST" action="{{ route('admin.https.upload') }}" enctype="multipart/form-data" class="space-y-3" x-data="{ mode: @js(old('mode', 'pem')) }">
                     @csrf
                     <x-ui.field label="Hostname the certificate must cover" name="hostname" :value="$defaultHost" required />
                     <x-ui.field label="Format" name="mode" as="select" x-model="mode">

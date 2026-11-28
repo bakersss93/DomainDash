@@ -29,6 +29,7 @@
                     <td style="padding:4px 4px;opacity:.8;">Expiry date</td>
                     <td style="padding:4px 4px;">{{ $domain->expiry_date ?? '—' }}</td>
                 </tr>
+                @if(auth()->user()->can('domains.transfer'))
                 <tr id="auth-code">
                     <td style="padding:4px 4px;opacity:.8;">Password / auth code</td>
                     <td style="padding:4px 4px;display:flex;align-items:center;gap:8px;">
@@ -38,6 +39,7 @@
                         </button>
                     </td>
                 </tr>
+                @endif
                 <tr>
                     <td style="padding:4px 4px;opacity:.8;">Auto renewal</td>
                     <td style="padding:4px 4px;">
@@ -183,7 +185,8 @@
         @endif
     </div>
 
-    {{-- Client assignment box --}}
+    {{-- Client assignment box (staff only) --}}
+    @can('assignClient', $domain)
     <div style="background:var(--dd-surface);border:1px solid var(--dd-border);border-radius:8px;padding:14px 16px;max-width:720px;">
         <div style="font-weight:600;margin-bottom:8px;">Client / categories</div>
 
@@ -227,6 +230,7 @@
             </div>
         </form>
     </div>
+    @endcan
 
     {{-- Auth code popup --}}
     <div id="dd-auth-overlay" style="display:none;position:fixed;inset:0;background:var(--dd-backdrop, rgba(15,23,42,.75));align-items:center;justify-content:center;z-index:70;">
@@ -261,10 +265,16 @@
             var authCopy   = document.getElementById('dd-auth-copy');
             var authClose  = document.getElementById('dd-auth-close');
 
+            if (authBtn && overlay) {
             authBtn.addEventListener('click', function () {
-                fetch('{{ route('admin.domains.auth-code', $domain) }}')
+                fetch('{{ route('admin.domains.auth-code', $domain) }}', { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
+                        if (data.confirm_url) {
+                            // Re-confirm the password, then come back to this page.
+                            window.location.href = data.confirm_url;
+                            return;
+                        }
                         if (!data.ok) {
                             alert(data.message || 'Unable to fetch auth code');
                             return;
@@ -294,6 +304,7 @@
                     overlay.style.display = 'none';
                 }
             });
+            }
         });
 
         /**

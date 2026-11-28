@@ -64,6 +64,12 @@
 </head>
 <body>
     <script>
+        // HTML-escape helper for every page that builds markup from server / API text (XSS defence).
+        window.ddEsc = window.ddEsc || function (v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        };
         try {
             if (localStorage.getItem('dd.sidebarCollapsed') === '1' && window.matchMedia('(min-width: 1024px)').matches) {
                 document.body.classList.add('sidebar-collapsed');
@@ -191,21 +197,43 @@
                     </ul>
                 </li>
 
-                <li class="nav-item nav-section {{ request()->routeIs('tickets.*') ? 'expanded' : '' }}">
+                {{-- Customers only: shown when at least one of their clients has an internet service --}}
+                @php
+                    $__navUser = auth()->user();
+                    $__showCustomerInternet = $__navUser && ! $__navUser->isStaff() && $__navUser->can('internet.view')
+                        && \App\Models\InternetService::query()->whereIn('client_id', $__navUser->clients()->pluck('clients.id'))->exists();
+                @endphp
+                @if($__showCustomerInternet)
+                    <li class="nav-item">
+                        <a href="{{ route('internet.index') }}" class="nav-link {{ request()->routeIs('internet.*') ? 'active' : '' }}" @if(request()->routeIs('internet.*')) aria-current="page" @endif>
+                            <span class="icon"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
+                            <span class="text">Internet</span>
+                        </a>
+                    </li>
+                @endif
+
+                <li class="nav-item nav-section {{ request()->routeIs('tickets.*') || request()->routeIs('help.*') ? 'expanded' : '' }}">
                     <button type="button" class="nav-link nav-toggle" onclick="toggleNav(this)" aria-expanded="false">
                         <span class="icon"><svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
                         <span class="text">Support</span>
                         <span class="arrow"><svg aria-hidden="true" focusable="false" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                     </button>
                     <ul class="nav-submenu">
+                        @can('tickets.create')
                         <li class="nav-item">
                             <a href="{{ route('tickets.create') }}" class="nav-link {{ request()->routeIs('tickets.create') ? 'active' : '' }}" @if(request()->routeIs('tickets.create')) aria-current="page" @endif>
                                 Log Support Ticket
                             </a>
                         </li>
+                        @endcan
                         <li class="nav-item">
                             <a href="{{ route('tickets.index') }}" class="nav-link {{ request()->routeIs('tickets.index') ? 'active' : '' }}" @if(request()->routeIs('tickets.index')) aria-current="page" @endif>
                                 View Support Requests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('help.index') }}" class="nav-link {{ request()->routeIs('help.*') ? 'active' : '' }}" @if(request()->routeIs('help.*')) aria-current="page" @endif>
+                                Help
                             </a>
                         </li>
                     </ul>
@@ -243,6 +271,11 @@
                             <li class="nav-item">
                                 <a href="{{ route('admin.settings') }}" class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" @if(request()->routeIs('admin.settings*')) aria-current="page" @endif>
                                     Settings
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.sso.index') }}" class="nav-link {{ request()->routeIs('admin.sso.*') ? 'active' : '' }}" @if(request()->routeIs('admin.sso.*')) aria-current="page" @endif>
+                                    Single Sign-On
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -394,9 +427,20 @@
 
         <div id="accountStatus" class="account-status" aria-live="polite"></div>
 
+        <p id="accountMicrosoft" style="display:none;font-size:0.85rem;margin:0.5rem 0;"></p>
+
         <div class="account-action-list">
             <button type="button" class="btn-accent" id="openPasswordModal">Change Password</button>
             <button type="button" class="btn-accent" id="accountReenrollMfa">Re-enroll MFA</button>
+            <button type="button" class="btn-accent" id="accountRecoveryCodes" style="display:none;">Regenerate recovery codes</button>
+        </div>
+
+        <div class="account-modal-grid" id="recoveryCodesCodeWrap" style="display:none;">
+            <div>
+                <label for="recoveryCodesMfaCode">Authenticator code required to generate new recovery codes</label>
+                <input type="text" id="recoveryCodesMfaCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Enter the 6-digit code from your authenticator app">
+                <p class="mfa-step-note">Generating new codes immediately invalidates all of your old recovery codes.</p>
+            </div>
         </div>
 
         <div class="account-modal-grid" id="reenrollMfaCodeWrap" style="display:none;">
@@ -505,6 +549,89 @@
     </div>
 </div>
 
+<div id="recoveryCodesModal" class="mfa-modal-backdrop" style="z-index:90;">
+    <div class="mfa-modal" role="dialog" aria-modal="true" aria-labelledby="recoveryCodesTitle">
+        <h2 id="recoveryCodesTitle">Save your recovery codes</h2>
+        <p><strong>Store these codes somewhere safe, such as a password manager.</strong> Each code can be used once to sign in if you lose access to your authenticator app. They are shown only now and cannot be viewed again; you can generate a new set from Account Settings.</p>
+        <pre id="recoveryCodesList" class="mfa-recovery-list" tabindex="0" aria-label="Recovery codes"></pre>
+        <div class="mfa-modal-actions" style="justify-content:flex-start;">
+            <button type="button" class="btn-secondary" id="recoveryCodesCopy">Copy</button>
+            <button type="button" class="btn-secondary" id="recoveryCodesDownload">Download</button>
+        </div>
+        <label style="display:flex;gap:0.5rem;align-items:center;margin-top:0.875rem;font-size:0.9rem;">
+            <input type="checkbox" id="recoveryCodesSaved"> I have saved these recovery codes
+        </label>
+        <div id="recoveryCodesStatus" class="mfa-status" aria-live="polite"></div>
+        <div class="mfa-modal-actions">
+            <button type="button" class="btn-accent" id="recoveryCodesDone" disabled>Done</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.ddRecoveryCodes = (function () {
+        const modal = document.getElementById('recoveryCodesModal');
+        const list = document.getElementById('recoveryCodesList');
+        const saved = document.getElementById('recoveryCodesSaved');
+        const done = document.getElementById('recoveryCodesDone');
+        const copyBtn = document.getElementById('recoveryCodesCopy');
+        const downloadBtn = document.getElementById('recoveryCodesDownload');
+        const note = document.getElementById('recoveryCodesStatus');
+        let codes = [];
+        let onDone = function () {};
+
+        function text() { return codes.join('\n') + '\n'; }
+
+        copyBtn.addEventListener('click', async function () {
+            try {
+                await navigator.clipboard.writeText(text());
+                note.textContent = 'Copied to clipboard.';
+                note.className = 'mfa-status is-ok';
+            } catch (e) {
+                const range = document.createRange();
+                range.selectNodeContents(list);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+                note.textContent = 'Press Ctrl+C (or Cmd+C) to copy the selected codes.';
+                note.className = 'mfa-status';
+            }
+        });
+
+        downloadBtn.addEventListener('click', function () {
+            const blob = new Blob(['Recovery codes for ' + window.location.host + '\nEach code can be used once.\n\n' + text()], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'recovery-codes.txt';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        });
+
+        saved.addEventListener('change', function () { done.disabled = !saved.checked; });
+
+        done.addEventListener('click', function () {
+            modal.classList.remove('is-visible');
+            list.textContent = '';
+            codes = [];
+            onDone();
+        });
+
+        return {
+            show: function (newCodes, callback) {
+                codes = newCodes.slice();
+                onDone = callback || function () {};
+                list.textContent = codes.join('\n');
+                saved.checked = false;
+                done.disabled = true;
+                note.textContent = '';
+                modal.classList.add('is-visible');
+            }
+        };
+    })();
+</script>
+
 <script>
     (function () {
         const openBtn = document.getElementById('open-account-settings');
@@ -529,6 +656,9 @@
         const passwordMfaCodeInput = document.getElementById('passwordMfaCode');
         const reenrollMfaCodeWrap = document.getElementById('reenrollMfaCodeWrap');
         const reenrollMfaCodeInput = document.getElementById('reenrollMfaCode');
+        const recoveryBtn = document.getElementById('accountRecoveryCodes');
+        const recoveryWrap = document.getElementById('recoveryCodesCodeWrap');
+        const recoveryInput = document.getElementById('recoveryCodesMfaCode');
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         if (!openBtn || !modal) {
@@ -588,6 +718,15 @@
             emailInput.value = data.email || '';
             emailInput.dataset.original = emailInput.value;
             mfaConfigured = !!data.mfa_configured;
+            const msEl = document.getElementById('accountMicrosoft');
+            if (msEl) {
+                if (data.microsoft && data.microsoft.linked) {
+                    msEl.textContent = 'Linked Microsoft account: ' + (data.microsoft.upn || data.email) + ' (tenant ' + data.microsoft.tenant_id + '). Ask your administrator to unlink it if it is wrong.';
+                    msEl.style.display = 'block';
+                } else {
+                    msEl.style.display = 'none';
+                }
+            }
             if (passwordMfaCodeWrap) {
                 passwordMfaCodeWrap.style.display = 'none';
             }
@@ -599,6 +738,15 @@
             }
             if (reenrollMfaCodeInput) {
                 reenrollMfaCodeInput.value = '';
+            }
+            if (recoveryBtn) {
+                recoveryBtn.style.display = mfaConfigured ? '' : 'none';
+            }
+            if (recoveryWrap) {
+                recoveryWrap.style.display = 'none';
+            }
+            if (recoveryInput) {
+                recoveryInput.value = '';
             }
             setStatus(status, '', '');
         }
@@ -691,6 +839,29 @@
                         mfa_code: mfaConfigured ? (reenrollMfaCodeInput?.value || '') : ''
                     });
                     window.location.reload();
+                } catch (error) {
+                    setStatus(status, error.message, 'is-error');
+                }
+            });
+        }
+
+        if (recoveryBtn) {
+            recoveryBtn.addEventListener('click', async function () {
+                if (recoveryWrap && recoveryInput && !recoveryInput.value.trim()) {
+                    recoveryWrap.style.display = 'block';
+                    setStatus(status, 'Enter your current authenticator code, then click Regenerate recovery codes again.', 'is-error');
+                    recoveryInput.focus();
+                    return;
+                }
+
+                try {
+                    const data = await request('{{ route('me.account.mfa-recovery-codes') }}', {
+                        mfa_code: recoveryInput?.value || ''
+                    });
+                    recoveryInput.value = '';
+                    recoveryWrap.style.display = 'none';
+                    setStatus(status, '', '');
+                    window.ddRecoveryCodes.show(data.recovery_codes || [], function () {});
                 } catch (error) {
                     setStatus(status, error.message, 'is-error');
                 }
@@ -839,9 +1010,14 @@
 
             confirmBtn.disabled = true;
             try {
-                await request('{{ route('me.mfa.confirm') }}', { code });
-                setStatus('MFA configured successfully. Reloading...', 'is-ok');
-                setTimeout(() => window.location.reload(), 600);
+                const result = await request('{{ route('me.mfa.confirm') }}', { code });
+                if (result.recovery_codes && result.recovery_codes.length) {
+                    setStatus('MFA configured successfully.', 'is-ok');
+                    window.ddRecoveryCodes.show(result.recovery_codes, function () { window.location.reload(); });
+                } else {
+                    setStatus('MFA configured successfully. Reloading...', 'is-ok');
+                    setTimeout(() => window.location.reload(), 600);
+                }
             } catch (error) {
                 setStatus(error.message, 'is-error');
             } finally {

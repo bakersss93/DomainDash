@@ -19,9 +19,9 @@
                             class="role-filter-select"
                             onchange="this.form.submit()">
                         <option value="">All roles</option>
-                        <option value="Administrator" {{ request('role') === 'Administrator' ? 'selected' : '' }}>Administrator</option>
-                        <option value="Technician" {{ request('role') === 'Technician' ? 'selected' : '' }}>Technician</option>
-                        <option value="Customer" {{ request('role') === 'Customer' ? 'selected' : '' }}>Customer</option>
+                        @foreach ($roles as $r)
+                            <option value="{{ $r->name }}" {{ request('role') === $r->name ? 'selected' : '' }}>{{ $r->name }}</option>
+                        @endforeach
                     </select>
                 </div>
             </form>

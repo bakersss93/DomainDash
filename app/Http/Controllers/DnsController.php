@@ -80,7 +80,7 @@ class DnsController extends Controller
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
             'content' => 'required|string|max:2000',
-            'ttl'     => 'required|integer|min:60|max:604800',
+            'ttl'     => 'required|integer|min:60|max:86400',
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
 
@@ -115,9 +115,11 @@ class DnsController extends Controller
             'host'    => 'nullable|string|max:255',
             'type'    => 'required|string|max:10',
             'content' => 'required|string|max:2000',
-            'ttl'     => 'required|integer|min:60|max:604800',
+            'ttl'     => 'required|integer|min:60|max:86400',
             'prio'    => 'nullable|integer|min:0|max:65535',
         ]);
+
+        abort_unless(\App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, (string) $recordId), 404);
 
         // Native single-call update (no delete-then-add window).
         $synergy->updateDNSRecord(
@@ -147,6 +149,8 @@ class DnsController extends Controller
     public function destroy(Domain $domain, $recordId, SynergyWholesaleClient $synergy)
     {
         $this->authorize('manageDns', $domain);
+
+        abort_unless(\App\Support\DnsZoneGuard::recordBelongsToDomain($synergy, $domain, (string) $recordId), 404);
 
         $synergy->deleteDNSRecord($domain->name, $recordId);
 

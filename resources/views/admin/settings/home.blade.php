@@ -30,6 +30,9 @@
                                     @endif
                                 </h3>
                                 <p class="dd-set-tile__desc">{{ $a['description'] }}</p>
+                                @if (! empty($notes[$slug] ?? null))
+                                    <p class="dd-set-tile__desc">{{ $notes[$slug] }}</p>
+                                @endif
                             </span>
                         </a>
                     @endforeach

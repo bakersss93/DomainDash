@@ -28,8 +28,8 @@ class ApiKey extends Model
         'tickets.write'  => 'Create tickets and post replies; close tickets',
         'pricing.read'   => 'View the domain pricing catalogue',
         'users.read'     => 'View portal user accounts',
-        'users.write'    => 'Create, update and delete non-admin portal users (Technician/Customer)',
-        'users.admin'    => 'ADMIN-EQUIVALENT: additionally allow assigning/modifying/deleting Administrator users via the API',
+        'users.write'    => 'Create, update and delete Customer portal users (email changes and Technician/staff roles need users.admin)',
+        'users.admin'    => 'ADMIN-EQUIVALENT: additionally allow assigning staff roles (Technician/Administrator), changing user emails and modifying/deleting Administrator users via the API',
         'audit.read'     => 'View the system audit log',
     ];
 

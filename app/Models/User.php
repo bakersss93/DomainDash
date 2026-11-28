@@ -50,6 +50,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
         'two_factor_recovery_codes',
         'two_factor_secret',
+        'microsoft_oid',
+        'microsoft_tid',
     ];
 
     /**
@@ -75,6 +77,11 @@ class User extends Authenticatable implements MustVerifyEmail
             'mfa_preference'    => 'string',
             'mfa_prompted_at'    => 'datetime',
             'is_active'          => 'boolean',
+            'password_login_allowed' => 'boolean',
+            'sso_enabled' => 'boolean',
+            'microsoft_linked_at' => 'datetime',
+            'microsoft_last_login_at' => 'datetime',
+            'saml_last_login_at' => 'datetime',
         ];
     }
 
@@ -132,7 +139,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /** Internal staff (sees all clients); everyone else is tenant-scoped. */
     public function isStaff(): bool
     {
-        return $this->hasAnyRole(['Administrator', 'Technician']);
+        return $this->hasAnyRole(\App\Support\Security\StaffPermissions::STAFF_ROLES);
     }
 
     public function requiresMfa(): bool
@@ -144,6 +151,11 @@ class User extends Authenticatable implements MustVerifyEmail
         $roles = (array) config('domaindash.mfa.required_roles', []);
 
         return $roles !== [] && $this->hasAnyRole($roles);
+    }
+
+    public function samlConnection()
+    {
+        return $this->belongsTo(SamlConnection::class);
     }
 
     public function clients()

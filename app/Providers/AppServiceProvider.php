@@ -51,6 +51,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Links in emails (password reset, invitations) must use APP_URL, never the request's Host header (B1).
+        if (! $this->app->environment('local') && ! $this->app->runningUnitTests()) {
+            \App\Support\Security\UrlHardening::apply();
+        }
+
         \Illuminate\Validation\Rules\Password::defaults(function () {
             // Strong policy in production; Laravel's default (min 8) elsewhere so local/test data stays easy.
             return $this->app->isProduction()
@@ -73,7 +78,11 @@ class AppServiceProvider extends ServiceProvider
             MailSettings::applyFromDatabase();
         }
 
+        // Never let reset / invitation links be written to the log mailer in production (B11).
+        Event::listen(\Illuminate\Mail\Events\MessageSending::class, \App\Listeners\RefuseSensitiveMailViaLogMailer::class);
+
         // Monitoring: meaningful events only. See App\Support\Monitoring\SystemEventAuditor and docs/review/19-monitoring-logs.md.
+        Event::listen(Login::class, \App\Listeners\PromotePendingSsoSession::class);
         Event::listen(Login::class, function (Login $event): void {
             SystemEventAuditor::auth('auth.login', 'Signed in: ' . $event->user->email, $event->user->email, [
                 'user_id' => $event->user->id,

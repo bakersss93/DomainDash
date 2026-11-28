@@ -33,6 +33,13 @@ return [
         'jobs' => (int) env('MONITORING_RETENTION_JOBS', 90),
     ],
 
+    // Security events (sign-ins, MFA, impersonation, secret reveals, API keys, settings, SSO, backups) are always
+    // kept at least this many days, whatever the activity retention is set to. Cannot be configured lower.
+    'security_retention_floor_days' => 365,
+
+    // Also send every audit event to the syslog (channel `audit_syslog`) so a copy exists outside the database.
+    'syslog' => (bool) env('AUDIT_SYSLOG', false),
+
     // A console command / scheduled task slower than this (seconds) is recorded as a summary even when it succeeded.
     'slow_seconds' => (int) env('MONITORING_SLOW_SECONDS', 120),
 

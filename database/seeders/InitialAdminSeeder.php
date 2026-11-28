@@ -10,9 +10,16 @@ class InitialAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::firstOrCreate(
+        $existing = User::where('email', 'admin@domaindash.com')->exists();
+        $plain = $existing ? null : (env('ADMIN_INITIAL_PASSWORD') ?: \Illuminate\Support\Str::password(24));
+
+        User::firstOrCreate(
             ['email' => 'admin@domaindash.com'],
-            ['name' => 'System Admin','password' => Hash::make('password')]
+            ['name' => 'System Admin', 'password' => Hash::make($plain ?? \Illuminate\Support\Str::random(40))]
         );
+
+        if ($plain !== null && ! env('ADMIN_INITIAL_PASSWORD') && $this->command) {
+            $this->command->warn("Initial admin created: admin@domaindash.com / {$plain}  (shown once; change it after first sign-in)");
+        }
     }
 }

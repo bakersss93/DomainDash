@@ -27,6 +27,9 @@ class UpdateUserPassword implements UpdatesUserPasswords
 
         $user->forceFill([
             'password' => Hash::make($input['password']),
+            'remember_token' => \Illuminate\Support\Str::random(60),
         ])->save();
+
+        \App\Support\SessionRevoker::revoke($user, request()->hasSession() ? request()->session()->getId() : null);
     }
 }

@@ -20,14 +20,26 @@ return [
         'enforce' => (bool) env('MFA_ENFORCE', true),
         'required_roles' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('MFA_REQUIRED_ROLES', 'Administrator'))
+            explode(',', (string) env('MFA_REQUIRED_ROLES', 'Administrator,Technician'))
         ))),
+    ],
+
+    'api_keys' => [
+        // Days until a newly created API key expires (0 = never). Can be overridden per key.
+        'default_expiry_days' => (int) env('API_KEY_DEFAULT_EXPIRY_DAYS', 365),
+    ],
+
+    'impersonation' => [
+        // An impersonation session ends automatically after this many minutes.
+        'max_minutes' => (int) env('IMPERSONATION_MAX_MINUTES', 60),
     ],
 
     'security_headers' => [
         'enabled' => (bool) env('SECURITY_HEADERS', true),
         // Content-Security-Policy is report-only by default so it cannot break
-        // inline scripts/styles; set CSP_ENFORCE=true once reports are clean.
+        // inline scripts/styles; set CSP_ENFORCE=true once reports are clean. Note: the policy allows
+        // 'unsafe-inline'/'unsafe-eval' (Alpine/Livewire), so enforcing gives limited XSS protection until a
+        // nonce rollout; output escaping is the primary XSS defence. See README "Security configuration".
         'csp_enforce' => (bool) env('CSP_ENFORCE', false),
         'csp_report_uri' => env('CSP_REPORT_URI'),
     ],
@@ -76,4 +88,20 @@ return [
     'notifications' => [
         'cache_seconds' => (int) env('NOTIFICATIONS_CACHE_SECONDS', 5),
     ],
+
+    /*
+    | Backups (domaindash:backup-run). Destination, host fingerprint and encryption password are stored
+    | (encrypted) in Settings > Backups. mysqldump binary can be overridden, e.g. mariadb-dump.
+    */
+    'backup' => [
+        'dump_binary' => env('BACKUP_DUMP_BINARY', 'mysqldump'),
+        // Connection to dump; null = the default database connection.
+        'connection' => null,
+    ],
+
+    /*
+    | Settings validation (SMTP host, SFTP backup host) rejects private / loopback addresses (SSRF guard).
+    | Set DOMAINDASH_ALLOW_PRIVATE_HOSTS=true only if you deliberately use an internal mail relay / backup server.
+    */
+    'allow_private_hosts' => (bool) env('DOMAINDASH_ALLOW_PRIVATE_HOSTS', false),
 ];

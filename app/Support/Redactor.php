@@ -16,7 +16,7 @@ class Redactor
         'password', 'passwd', 'secret', 'token', 'api_key', 'apikey', 'access_key', 'accesskey', 'alias_key', 'aliaskey',
         'private_key', 'client_secret', 'credential', 'authorization', 'auth_code',
         'authcode', 'authinfo', 'epp', 'two_factor', 'recovery_code', 'mfa_code',
-        'bearer', 'cookie', 'sso_url', 'passphrase', 'signature',
+        'bearer', 'cookie', 'sso_url', 'passphrase', 'signature', 'samlresponse',
     ];
 
     public static function isSecretKey(string|int $key): bool

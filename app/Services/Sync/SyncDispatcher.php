@@ -53,6 +53,19 @@ class SyncDispatcher
         return $runs;
     }
 
+    /** Microsoft partner (CSP/GDAP) customer tenant mirror. One run at a time: a live run is returned instead. */
+    public function refreshPartnerTenants(?int $userId = null, bool $automated = false): \App\Models\SyncRun
+    {
+        if ($run = SyncRun::active(\App\Jobs\SyncPartnerTenantsJob::PROVIDER, \App\Jobs\SyncPartnerTenantsJob::SCOPE)) {
+            return $run;
+        }
+
+        $run = SyncRun::queue(\App\Jobs\SyncPartnerTenantsJob::PROVIDER, \App\Jobs\SyncPartnerTenantsJob::SCOPE, null, $userId);
+        \App\Jobs\SyncPartnerTenantsJob::dispatch($run->id, $automated);
+
+        return $run;
+    }
+
     public function refreshHaloClient(Client $client, ?int $userId = null): SyncRun
     {
         if ($run = SyncRun::active('halo', 'assets', $client->id)) {

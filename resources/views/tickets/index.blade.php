@@ -4,9 +4,11 @@
 <div class="ui-page">
     <x-ui.page-header title="Support Requests" subtitle="Support & Service Request tickets linked to your account.">
         <x-slot name="actions">
+            @can('tickets.create')
             <x-ui.button :href="route('tickets.create')" variant="primary">
                 <x-ui.icon name="plus" :size="16" /> Log Support Ticket
             </x-ui.button>
+            @endcan
         </x-slot>
     </x-ui.page-header>
 

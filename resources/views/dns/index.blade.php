@@ -11,6 +11,8 @@
 
     $dnsModeInt = (int) ($dnsMode ?? 0);
     $currentNameservers = $nameservers ?? [];
+    // Customers without dns.manage get a read-only view (the routes enforce the same permission).
+    $canManageDns = (bool) auth()->user()?->can('dns.manage');
 @endphp
 
 <div class="dd-dns-card">
@@ -19,7 +21,7 @@
     </h1>
 
     <p class="dd-dns-subtitle">
-        Manage DNS records and nameserver options. Changes may take time to propagate.
+        @if($canManageDns)Manage DNS records and nameserver options. Changes may take time to propagate.@else View the DNS records for this domain.@endif
     </p>
 
     <p class="dd-dns-mode-line">
@@ -30,7 +32,7 @@
     {{-- Toolbar: Add record button (left) + right-aligned actions --}}
     <div class="dd-dns-toolbar">
         <div class="dd-dns-toolbar-left">
-            @if($dnsModeInt !== 1)
+            @if($dnsModeInt !== 1 && $canManageDns)
                 <button type="button"
                         class="btn-accent dd-pill-btn"
                         id="dd-dns-add-btn">
@@ -44,9 +46,11 @@
                 Refresh records
             </a>
 
-            <button type="button" class="btn-accent dd-pill-btn" id="dd-dns-options-btn">
-                DNS options
-            </button>
+            @if($canManageDns)
+                <button type="button" class="btn-accent dd-pill-btn" id="dd-dns-options-btn">
+                    DNS options
+                </button>
+            @endif
         </div>
     </div>
 
@@ -85,8 +89,10 @@
 
         <p class="dd-dns-mode-info">
             Zone records are not editable in <strong>Custom nameservers</strong> mode.
-            Use <strong>DNS options</strong> to change nameservers or switch back to
-            <strong>DNS Hosting</strong>.
+            @if($canManageDns)
+                Use <strong>DNS options</strong> to change nameservers or switch back to
+                <strong>DNS Hosting</strong>.
+            @endif
         </p>
     @else
         {{-- All other modes → show DNS zone table --}}
@@ -99,12 +105,22 @@
                     <th>Content</th>
                     <th>TTL</th>
                     <th>Priority</th>
-                    <th style="width:160px;">Actions</th>
+                    @if($canManageDns)<th style="width:160px;">Actions</th>@endif
                 </tr>
                 </thead>
                 <tbody>
                 @forelse($records as $record)
                     @php $rowId = 'dns-row-' . $record->id; @endphp
+                    @if(! $canManageDns)
+                    <tr id="{{ $rowId }}">
+                        <td>{{ $record->host }}</td>
+                        <td>{{ $record->type }}</td>
+                        <td style="word-break:break-all;">{{ $record->content }}</td>
+                        <td>{{ $record->ttl }}</td>
+                        <td>{{ $record->prio }}</td>
+                    </tr>
+                    @continue
+                    @endif
                     <tr id="{{ $rowId }}">
                         <td>
                             <form id="dns-update-{{ $record->id }}"
@@ -171,7 +187,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" style="text-align:center;padding:12px 0;opacity:.7;">
+                        <td colspan="{{ $canManageDns ? 6 : 5 }}" style="text-align:center;padding:12px 0;opacity:.7;">
                             No DNS records found for this domain.
                         </td>
                     </tr>
@@ -183,6 +199,7 @@
 </div>
 
 {{-- DNS options modal (popup) --}}
+@if($canManageDns)
 <div id="dd-dns-options-modal"
      class="dd-dns-modal dd-hidden"
      aria-hidden="true">
@@ -242,8 +259,10 @@
     </div>
 </div>
 
+@endif
+
 {{-- Add DNS record modal --}}
-@if($dnsModeInt !== 1)
+@if($dnsModeInt !== 1 && $canManageDns)
 <div id="dd-dns-add-modal"
      class="dd-dns-modal dd-hidden"
      aria-hidden="true">
